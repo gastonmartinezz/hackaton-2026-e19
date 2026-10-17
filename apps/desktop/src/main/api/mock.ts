@@ -57,7 +57,12 @@ export class MockApiClient implements ApiClient {
     const session = this.#sessions.get(request.sessionId);
     if (!session) throw new ApiFailure('SESSION_NOT_FOUND', false);
     if (!session.options.has(request.optionId)) throw new ApiFailure('BAD_REQUEST', false);
-    return { sessionId: request.sessionId, steps: [], done: true };
+    // TEMPORAL: `evidence` todavía no está en el contrato (ver api/pending-contract.ts).
+    // Cita el título de la página si confirma algo; si no, no hay evidencia.
+    const heading = parse(request.html).find((e) => /^h[1-6]$/.test(e.tag))?.label ?? '';
+    const evidence = /confirm|registr|reservad|gracias|éxito/i.test(heading) ? heading.slice(0, 200) : undefined;
+    const response: NextStepResponse & { evidence?: string } = { sessionId: request.sessionId, steps: [], done: true, ...(evidence ? { evidence } : {}) };
+    return response;
   }
 
   /** Devuelve la sesión indicada (o una nueva si no se indicó ninguna). */

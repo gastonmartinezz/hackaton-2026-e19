@@ -145,6 +145,33 @@ describe('Assistant', () => {
     expect((sent[1] as NextStepRequest).completedSteps).toEqual([]);
   });
 
+  it('lleva «Ya hiciste» en pasado y guarda la evidencia de /v1/next-step (TEMPORAL: campo pendiente del contrato)', async () => {
+    load('buscar.html');
+    const mock = mockApi();
+    const { api } = recording(mock, {
+      options: async (r, s) => {
+        const response = await mock.options(r, s);
+        return { ...response, options: [{ id: response.options[0]!.id, title: 'Buscar', steps: [{ ...step(null), instruction: 'Tocá «Buscar».' }] }] };
+      },
+      nextStep: async (r) => ({ sessionId: r.sessionId, steps: [], done: true, evidence: 'Tu turno quedó registrado' }),
+    });
+    const { assistant, until } = setup(api);
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    assistant.select(assistant.state.options[0]!.id);
+    expect(assistant.done).toEqual(['Elegiste «Buscar»']);
+    await until(() => assistant.state.phase === 'completed');
+    expect(assistant.evidence).toBe('Tu turno quedó registrado');
+
+    // «Todavía no»: se vuelve a mirar la página y la evidencia anterior no vale.
+    assistant.resume();
+    expect(assistant.evidence).toBeNull();
+    await until(() => assistant.state.phase === 'completed');
+    assistant.exit();
+    expect(assistant.done).toEqual([]);
+  });
+
   it('envía el metadato de la página depurado', async () => {
     load('horarios.html');
     document.title = 'Horarios - Hola, Marta';

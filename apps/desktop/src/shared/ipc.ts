@@ -37,6 +37,10 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('stepBack') }),
   z.strictObject({ type: z.literal('exitHelp') }),
   z.strictObject({ type: z.literal('confirmDone') }),
+  /** «Todavía no» → «Creo que me falta un paso» (17): se vuelve a mirar la página. */
+  z.strictObject({ type: z.literal('resumeGuide') }),
+  /** Termina la ayuda sin el aviso «Saliste de la ayuda» (tarea terminada). */
+  z.strictObject({ type: z.literal('finishHelp') }),
   z.strictObject({ type: z.literal('retry') }),
   z.strictObject({ type: z.literal('setTextScale'), scale: z.union(TEXT_SCALES.map((s) => z.literal(s))) }),
   z.strictObject({ type: z.literal('setAiForSite'), enabled: z.boolean() }),
@@ -138,6 +142,10 @@ export interface AppState {
     targetField: boolean;
     /** Cómo avanza el paso actual: `userConfirmation` pide «Listo, ya lo escribí». */
     waitFor: 'userInteraction' | 'navigation' | 'userConfirmation' | null;
+    /** «Ya hiciste»: solo pasos pasados, en pasado. Nunca valores. */
+    done: string[];
+    /** Texto visible de la página que prueba que terminó (09). Sin él no se dice «Listo». */
+    evidence: string | null;
     /** La persona salió de la ayuda en esta página (21). */
     exited: boolean;
     partialPage: boolean;

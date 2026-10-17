@@ -53,6 +53,15 @@ describe('transition', () => {
     expect(state.phase).toBe('completed');
   });
 
+  it('«Todavía no» después de terminar vuelve a mirar la página desde el último paso', () => {
+    let state = transition(choosing(), { type: 'SELECT', optionId: 'buscar' });
+    state = transition(transition(state, done), done);
+    expect(state).toMatchObject({ phase: 'completed', step: real('el-2') });
+    state = transition(state, { type: 'RESUME' });
+    expect(state).toMatchObject({ phase: 'verifying', step: real('el-2'), planStale: true });
+    expect(transition(initialState, { type: 'RESUME' })).toBe(initialState);
+  });
+
   it('done: true termina la tarea; sin pasos ni done, no puede seguir', () => {
     const guiding = run({ type: 'ANALYZE' }, { type: 'OPTIONS', options: [{ ...turno, steps: [theoretical] }] }, { type: 'SELECT', optionId: 'turno' });
     expect(guiding.phase).toBe('guiding');

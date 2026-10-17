@@ -184,6 +184,7 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
             <LoadingDots />
             <h2 className="title">Estoy fijándome si funcionó…</h2>
             <p className="lead-s">La página cambió después de tu clic. Ya te digo qué sigue.</p>
+            <DoneList done={guide.done} />
           </section>
         ),
       };
@@ -192,28 +193,7 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
       return { foot: 'full', content: <CurrentStep state={state} /> };
 
     case 'completed':
-      // Sin evidencia de la página no se dice «Listo» (CLAUDE.md §4): se pregunta.
-      return {
-        tone: 'ask',
-        foot: 'none',
-        content: (
-          <section className="status ask" role="status">
-            <div className="head">
-              <Icon name="circle-help" size="lg" />
-              <h2 className="title">¿Pudiste terminar?</h2>
-            </div>
-            <p>{guide.message}</p>
-            <div className="actions">
-              <Button variant="primary" block onClick={() => send({ type: 'exitHelp' })}>
-                Sí, terminé
-              </Button>
-              <Button variant="secondary" block onClick={() => send({ type: 'stepBack' })}>
-                Todavía no
-              </Button>
-            </div>
-          </section>
-        ),
-      };
+      return guide.evidence ? { tone: 'success', foot: 'none', content: <Completed evidence={guide.evidence} /> } : { tone: 'ask', foot: 'none', content: <DidYouFinish /> };
 
     case 'unsupported':
       return {
@@ -395,6 +375,97 @@ function CurrentStep({ state }: { state: AppState }) {
           )}
         </>
       )}
+      <DoneList done={guide.done} />
+    </section>
+  );
+}
+
+/** «Ya hiciste»: solo los pasos pasados (nunca «Paso X de Y» ni lo que falta). */
+function DoneList({ done }: { done: string[] }) {
+  if (done.length === 0) return null;
+  return (
+    <section className="done-list" aria-label="Ya hiciste">
+      <h3>Ya hiciste</h3>
+      <ul>
+        {done.map((item, i) => (
+          <li key={`${i}-${item}`}>
+            <Icon name="check" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** 09: «Listo» solo con evidencia de la página, citada tal cual. */
+function Completed({ evidence }: { evidence: string }) {
+  return (
+    <section className="status success" role="status">
+      <div className="head">
+        <Icon name="circle-check" size="lg" />
+        {/* TODO(textos): «completada.titulo» pide «Listo: {resultado}.»; el backend todavía no manda el resultado. */}
+        <h2 className="title">Listo.</h2>
+      </div>
+      <p className="evidence">
+        <Icon name="check" size="sm" />
+        <span>La página dice «{evidence}».</span>
+      </p>
+      <div className="actions">
+        <Button variant="primary" block onClick={() => send({ type: 'stepBack' })}>
+          Hacer otra cosa
+        </Button>
+        <Button variant="secondary" block onClick={() => send({ type: 'finishHelp' })}>
+          Quedarme en esta página
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/** 16 y 17: sin evidencia no hay festejo; se pregunta y, si falta algo, se sigue. */
+function DidYouFinish() {
+  const [notYet, setNotYet] = useState(false);
+  if (notYet) {
+    const reasons = [
+      { icon: 'arrow-right', text: 'Creo que me falta un paso', command: { type: 'resumeGuide' } },
+      // TODO(13): todavía no se cita el error de la página; Mostrame vuelve a mirarla.
+      { icon: 'triangle-alert', text: 'La página me mostró un error', command: { type: 'resumeGuide' } },
+      { icon: 'rotate-ccw', text: 'Quiero empezar de nuevo', command: { type: 'stepBack' } },
+    ] as const;
+    return (
+      <section className="mm-section" role="status">
+        <h2 className="title">Sigamos. ¿Qué pasó?</h2>
+        <p className="lead-s">Elegí lo que más se parece. Con eso te digo el próximo paso.</p>
+        <ul className="mm-sec-list" aria-label="Qué pasó">
+          {reasons.map((r) => (
+            <li key={r.text}>
+              <button type="button" className="option" onClick={() => send(r.command)}>
+                <Icon name={r.icon} />
+                <span className="t">{r.text}</span>
+                <Icon name="chevron-right" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
+  return (
+    <section className="status ask" role="status">
+      <div className="head">
+        <Icon name="circle-help" size="lg" />
+        <h2 className="title">¿Pudiste terminar?</h2>
+      </div>
+      <p>La página cambió, pero no sé si terminaste. Fijate si la página lo confirma.</p>
+      <div className="actions">
+        <Button variant="primary" block onClick={() => send({ type: 'finishHelp' })}>
+          Sí, terminé
+        </Button>
+        <Button variant="secondary" block onClick={() => setNotYet(true)}>
+          Todavía no
+        </Button>
+      </div>
     </section>
   );
 }

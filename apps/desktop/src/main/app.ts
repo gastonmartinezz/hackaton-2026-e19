@@ -209,6 +209,8 @@ export class AppController {
         targetField: this.#assistant.target?.field ?? false,
         waitFor: guide.phase === 'waitingForUser' ? (guide.step?.waitFor ?? null) : null,
         exited: this.#helpExited && guide.phase === 'idle',
+        done: this.#assistant.done,
+        evidence: guide.phase === 'completed' ? this.#assistant.evidence : null,
         partialPage: this.#assistant.partialPage,
       },
       notices: this.#notices.map(({ url: _url, ...notice }) => notice),
@@ -413,6 +415,12 @@ export class AppController {
         return;
       case 'confirmDone':
         this.#assistant.confirmDone();
+        return;
+      case 'resumeGuide':
+        this.#assistant.resume();
+        return;
+      case 'finishHelp':
+        this.#assistant.exit();
         return;
       case 'retry':
         this.#assistant.retry();

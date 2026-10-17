@@ -66,6 +66,8 @@ export type GuideEvent =
   | { type: 'FAILED'; message: string }
   | { type: 'RETRY' }
   | { type: 'BACK' }
+  /** «Todavía no» después de terminar: se vuelve a mirar la página para ver qué falta. */
+  | { type: 'RESUME' }
   | { type: 'EXIT' };
 
 export const initialState: GuideState = {
@@ -127,7 +129,8 @@ export function transition(state: GuideState, event: GuideEvent): GuideState {
       if (state.phase !== 'guiding') return state;
       const { steps, done } = event.response;
       const base = { ...state, completed: [], planStale: false, message: undefined };
-      if (done) return { ...base, phase: 'completed', step: undefined, plan: [], message: DONE_MESSAGE };
+      // Se conserva el último paso: si la persona dice «Todavía no», se vuelve a pedir desde ahí.
+      if (done) return { ...base, phase: 'completed', plan: [], message: DONE_MESSAGE };
       const [first, ...plan] = steps;
       if (!first) return { ...base, phase: 'unsupported', step: undefined, plan: [], message: NO_STEP_MESSAGE };
       // Aun si sigue siendo teórico, se muestra la instrucción y se espera la acción
@@ -159,6 +162,10 @@ export function transition(state: GuideState, event: GuideEvent): GuideState {
       if (state.options.length === 0) return transition(state, { type: 'ANALYZE' });
       return { ...initialState, phase: 'choosing', goal: state.goal, options: state.options };
 
+    case 'RESUME':
+      if (state.phase !== 'completed' || !state.option || !state.step) return state;
+      return { ...state, phase: 'verifying', planStale: true, message: undefined };
+
     case 'EXIT':
       return initialState;
   }
@@ -170,7 +177,7 @@ function advance(state: GuideState): GuideState {
   if (!next) {
     // Plan agotado. Si hubo navegación la tarea puede seguir: se le pregunta al backend.
     if (state.planStale && state.step) return { ...state, phase: 'verifying' };
-    return { ...state, phase: 'completed', step: undefined, message: DONE_MESSAGE };
+    return { ...state, phase: 'completed', message: DONE_MESSAGE };
   }
   if (next.element === null || state.planStale) return { ...state, phase: 'verifying', step: next, plan };
   return { ...state, phase: 'waitingForUser', step: next, plan, stepCount: state.stepCount + 1 };
