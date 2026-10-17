@@ -33,3 +33,14 @@ export const NextStepOutput = z.object({
   done: z.boolean(),
 });
 export type NextStepOutput = z.infer<typeof NextStepOutput>;
+
+/** Códigos que la IA puede sumar en /v1/site-check: solo de contenido y como riesgo medio. */
+export const SiteCheckConcernCode = z.enum(['BRAND_IMPERSONATION', 'SENSITIVE_DATA_REQUEST', 'LINK_TEXT_MISMATCH', 'URGENCY_OR_THREAT', 'FORM_SENDS_TO_OTHER_DOMAIN']);
+
+export const SiteCheckOutput = z.object({
+  /** Explicación complementaria para la persona. No controla etiquetas ni acciones. */
+  explanation: z.string(),
+  /** Pedido sospechoso concreto que las reglas no detectaron, o null. */
+  concern: z.object({ code: SiteCheckConcernCode, detail: z.string() }).nullable(),
+});
+export type SiteCheckOutput = z.infer<typeof SiteCheckOutput>;

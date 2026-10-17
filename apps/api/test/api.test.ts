@@ -15,7 +15,7 @@ const interpretReturning = (output: InterpretOutput) =>
 
 /** Mock que registra lo que recibe Claude en cada tarea. */
 function recordingModel() {
-  const inputs: Record<AiTask, any[]> = { interpret: [], options: [], nextStep: [] };
+  const inputs: Record<AiTask, any[]> = { interpret: [], options: [], nextStep: [], siteCheck: [] };
   const record =
     (task: AiTask) =>
     (input: any): unknown => {
@@ -26,6 +26,7 @@ function recordingModel() {
     interpret: record('interpret'),
     options: record('options'),
     nextStep: record('nextStep'),
+    siteCheck: record('siteCheck'),
   });
   return { model, inputs };
 }
