@@ -34,6 +34,10 @@ describe('redactText', () => {
     expect(redactText('Turno\r\nclave: x\u2028y', { maxLength: 500 })).toBe('Turno clave: [dato]');
     expect(redactText('mi contraseña es\n  gatito 123', { maxLength: 500 })).toBe('mi contraseña es [dato]');
     expect(redactText('Olvidé mi contraseña')).toBe('Olvidé mi contraseña');
+    // Caracteres invisibles dentro de la palabra no la ocultan.
+    expect(redactText('contra\u200bseña: gatito')).toBe('contraseña: [dato]');
+    expect(redactText('pass\u00adword=\u2060gatito')).toBe('password=[dato]');
+    expect(redactText('cla\ufeffve es gatito')).toBe('clave es [dato]');
     // Plurales y palabras con ñ o tilde.
     expect(redactText('contraseñas: gatito')).toBe('contraseñas: [dato]');
     expect(redactText('mis claves son gatito y perro')).toBe('mis claves son [dato]');

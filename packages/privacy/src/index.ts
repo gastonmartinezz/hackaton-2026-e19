@@ -63,7 +63,10 @@ export function redactText(input: string, { maxLength = 120 }: RedactOptions = {
   let text = input
     .normalize('NFC')
     .replace(/\r\n?|[\u2028\u2029]/g, '\n')
-    .replace(/[\u0000-\u0009\u000b-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060-\u206f]/g, ' ');
+    // Los caracteres de formato invisibles se quitan sin dejar espacio: si no,
+    // "contra\u200bseña" quedaría como "contra seña" y escaparía a los patrones.
+    .replace(/[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, '')
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ');
   for (const [pattern, replacement] of PATTERNS) {
     text = text.replace(pattern, replacement);
   }
