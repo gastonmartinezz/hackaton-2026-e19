@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { Limits, type ChatMessage as ApiMessage, type SiteOption } from '@hackaton/contracts';
 import { minimizeIntent } from '@asistente/privacy';
 import type { ChatMessage, ChatPhase } from '../shared/ipc';
-import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession } from './api/client';
+import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession, type SessionTicket } from './api/client';
 import { log } from './log';
 
 const MAX_MESSAGES = 30;
@@ -56,8 +56,9 @@ export class Chat {
     this.#controller = controller;
     try {
       this.#set('interpreting');
-      const response = await this.#interpret(controller.signal);
-      this.session.id = response.sessionId;
+      const ticket = this.session.begin();
+      const response = await this.#interpret(ticket, controller.signal);
+      ticket.commit(response.sessionId);
       log('chat.response', { type: `kind:${response.type}` });
       this.#push('assistant', response.message);
       this.#history.push({ role: 'assistant', content: response.message });
@@ -81,16 +82,18 @@ export class Chat {
     }
   }
 
-  async #interpret(signal: AbortSignal) {
+  async #interpret(ticket: SessionTicket, signal: AbortSignal) {
     const messages = this.#history.slice(-Limits.maxMessages);
-    if (!this.session.id) return this.api.interpret({ messages }, signal);
+    if (!ticket.id) return this.api.interpret({ messages }, signal);
     try {
-      return await this.api.interpret({ sessionId: this.session.id, messages }, signal);
+      return await this.api.interpret({ sessionId: ticket.id, messages }, signal);
     } catch (error) {
       // Sesión vencida o servidor reiniciado: el historial va completo, se empieza otra.
       if (!(error instanceof ApiFailure) || error.code !== 'SESSION_NOT_FOUND') throw error;
-      this.session.reset();
-      return this.api.interpret({ messages }, signal);
+      const retry = ticket.expire();
+      const response = await this.api.interpret(retry.id ? { sessionId: retry.id, messages } : { messages }, signal);
+      retry.commit(response.sessionId);
+      return response;
     }
   }
 

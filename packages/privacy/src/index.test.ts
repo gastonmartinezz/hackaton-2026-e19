@@ -22,7 +22,33 @@ describe('redactText', () => {
     expect(redactText('clave: hunter')).toBe('clave: [dato]');
     expect(redactText('mi contraseña es gatito')).toBe('mi contraseña es [dato]');
     expect(redactText('token=xyz')).toBe('token=[dato]');
+    // Un secreto puede tener espacios, puntos o guiones: se oculta el resto de la línea.
+    expect(redactText('clave: uno dos tres, gracias')).toBe('clave: [dato]');
+    expect(redactText('mi contraseña es mi perro firulais')).toBe('mi contraseña es [dato]');
+    expect(redactText('clave: abc12.def34.ghi56')).toBe('clave: [dato]');
+    expect(redactText('password: Abcdef.9x y nada más')).toBe('password: [dato]');
+    // Con otras líneas, saltos o líneas en blanco en el medio: se oculta todo lo que sigue.
+    expect(redactText('pin: 1234\nQuiero turno el martes', { maxLength: 500 })).toBe('pin: [dato]');
+    expect(redactText('clave:\n\nhunter2', { maxLength: 500 })).toBe('clave: [dato]');
+    expect(redactText('password\nhunter2', { maxLength: 500 })).toBe('password [dato]');
+    expect(redactText('Turno\r\nclave: x\u2028y', { maxLength: 500 })).toBe('Turno clave: [dato]');
+    expect(redactText('mi contraseña es\n  gatito 123', { maxLength: 500 })).toBe('mi contraseña es [dato]');
     expect(redactText('Olvidé mi contraseña')).toBe('Olvidé mi contraseña');
+    // Caracteres invisibles dentro de la palabra no la ocultan.
+    expect(redactText('contra\u200bseña: gatito')).toBe('contraseña: [dato]');
+    expect(redactText('pass\u00adword=\u2060gatito')).toBe('password=[dato]');
+    expect(redactText('cla\ufeffve es gatito')).toBe('clave es [dato]');
+    expect(redactText('my password is gatito')).toBe('my password is [dato]');
+    expect(redactText('the tokens are abc def')).toBe('the tokens are [dato]');
+    expect(sanitizeTitle('Contra\u200bseña - gatito | Banco')).toBe('Contraseña');
+    // Plurales y palabras con ñ o tilde.
+    expect(redactText('contraseñas: gatito')).toBe('contraseñas: [dato]');
+    expect(redactText('mis claves son gatito y perro')).toBe('mis claves son [dato]');
+    expect(redactText('tokens=abc')).toBe('tokens=[dato]');
+    expect(sanitizeTitle('Contraseñas - gatito | Banco')).toBe('Contraseñas');
+    // Un espacio solo no anuncia un valor: se conserva el pedido.
+    expect(redactText('olvidé mi contraseña del home banking')).toBe('olvidé mi contraseña del home banking');
+    expect(sanitizeTitle('Pinterest - Inicio')).toBe('Pinterest - Inicio');
   });
 
   it('conserva números cortos útiles y normaliza espacios', () => {
@@ -41,6 +67,14 @@ describe('sanitizeTitle', () => {
     expect(sanitizeTitle('Mi cuenta | Sesión iniciada como marta | Banco')).toBe('Mi cuenta - Banco');
     expect(sanitizeTitle('Bienvenida Marta')).toBe('');
     expect(sanitizeTitle('Turnos · Hospital 30123456')).toBe('Turnos - Hospital [número]');
+    // Desde la palabra de credencial en adelante no sale nada, con cualquier separador.
+    expect(sanitizeTitle('Contraseña : hunter2 | Banco')).toBe('Contraseña');
+    expect(sanitizeTitle('Mi clave es gatito - Banco')).toBe('Mi clave');
+    expect(sanitizeTitle('Contraseña - gatito | Banco')).toBe('Contraseña');
+    expect(sanitizeTitle('Clave fiscal : 1234abcd : Sección de ayuda')).toBe('Clave fiscal');
+    expect(sanitizeTitle('mi contraseña es hola - mundo')).toBe('mi contraseña');
+    expect(sanitizeTitle('Banco | Recuperar contraseña')).toBe('Banco - Recuperar contraseña');
+    expect(sanitizeTitle('Pinterest - Inicio')).toBe('Pinterest - Inicio');
   });
 });
 

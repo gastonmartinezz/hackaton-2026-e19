@@ -4,13 +4,34 @@
  * conservadora y omite contenido dudoso en lugar de intentar "arreglarlo".
  */
 
+/** Palabras que anuncian una credencial, en singular y plural. */
+const CREDENTIAL = String.raw`contraseñas?|claves?(?: fiscal(?:es)?)?|passwords?|passwd|tokens?|api[ _-]?keys?|pins?`;
+// Límites de palabra Unicode: `\b` de JavaScript no considera letra a la ñ ni a las vocales con tilde.
+const WORD_START = String.raw`(?<![\p{L}\p{N}_])`;
+const WORD_END = String.raw`(?![\p{L}\p{N}_])`;
+/** Separadores con los que los sitios arman títulos y menús ("Inicio - Banco | Cuenta"). */
+const TITLE_SEPARATOR = /\s+[-–—|·:]\s+/;
+/** Primera palabra de credencial y todo lo que sigue. */
+const CREDENTIAL_AND_REST = new RegExp(String.raw`(${WORD_START}(?:${CREDENTIAL})${WORD_END})[\s\S]*$`, 'iu');
+
 const PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   // URLs: pueden llevar tokens o datos personales en path y query.
   [/\b(?:https?:\/\/|www\.)[^\s<>"']+/gi, '[enlace]'],
   // Correos.
   [/[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu, '[correo]'],
-  // Valor que sigue a una palabra de credencial ("clave: x", "mi contraseña es x"), sin importar su forma.
-  [/\b(contraseña|clave(?: fiscal)?|password|passwd|token|api[ _-]?key|pin)(\s*(?::|=|\bes\b)\s*)\S+/giu, '$1$2[dato]'],
+  // Valor que sigue a una palabra de credencial ("clave: x", "mi contraseña es x", "password\nx").
+  // Un secreto puede tener espacios, puntos, guiones o venir en otra línea, y no hay forma de
+  // saber dónde termina: se oculta todo lo que sigue. Los textos que pasan por acá son de una
+  // línea (chat, etiquetas, títulos), así que en la práctica se pierde solo el resto de esa línea.
+  // Separadores: ":", "=", "es"/"son", "is"/"are" o un salto de línea. Un espacio solo no
+  // alcanza ("olvidé mi contraseña del banco" es un pedido, no un secreto).
+  [
+    new RegExp(
+      String.raw`${WORD_START}(${CREDENTIAL})${WORD_END}([^\S\n]*(?::|=|${WORD_START}(?:es|son|is|are)${WORD_END})\s*|[^\S\n]*\n\s*)[\s\S]*\S`,
+      'giu',
+    ),
+    '$1$2[dato]',
+  ],
   // Cadenas de 8 o más caracteres con letras y números mezclados: claves, tokens, códigos, IBAN.
   [/\b(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{8,}\b/g, '[dato]'],
 ];
@@ -37,8 +58,22 @@ export interface RedactOptions {
  * Devuelve el texto depurado. Reemplaza correos, números largos, tokens y URLs,
  * normaliza espacios y trunca.
  */
+/**
+ * Forma canónica antes de buscar patrones. Los saltos de línea se conservan: una
+ * palabra de credencial al final de una línea anuncia que el valor viene en la
+ * siguiente. Los caracteres de formato invisibles se quitan sin dejar espacio:
+ * si no, "contra\u200bseña" quedaría como "contra seña" y escaparía a los patrones.
+ */
+function normalizeText(input: string): string {
+  return input
+    .normalize('NFC')
+    .replace(/\r\n?|[\u2028\u2029]/g, '\n')
+    .replace(/[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, '')
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ');
+}
+
 export function redactText(input: string, { maxLength = 120 }: RedactOptions = {}): string {
-  let text = input.normalize('NFC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u206f]/g, ' ');
+  let text = normalizeText(input);
   for (const [pattern, replacement] of PATTERNS) {
     text = text.replace(pattern, replacement);
   }
@@ -74,8 +109,11 @@ export function sanitizeLabel(raw: string, maxLength = 120): string {
  * conserva el resto, o cadena vacía si no queda nada.
  */
 export function sanitizeTitle(raw: string, maxLength = 200): string {
-  const parts = raw
-    .split(/\s+[-–—|·:]\s+/)
+  // Después de una palabra de credencial puede venir el valor con cualquier separador
+  // ("Contraseña - x", "clave: a.b - c"), así que el título se corta ahí.
+  // Se normaliza antes de cortar, para que un carácter invisible no parta la palabra.
+  const parts = redactText(normalizeText(raw).replace(CREDENTIAL_AND_REST, '$1'), { maxLength: 1000 })
+    .split(TITLE_SEPARATOR)
     .map((part) => sanitizeLabel(part, maxLength))
     .filter(Boolean);
   return redactText(parts.join(' - '), { maxLength });

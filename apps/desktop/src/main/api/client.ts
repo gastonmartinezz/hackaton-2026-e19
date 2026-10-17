@@ -27,13 +27,55 @@ export interface ApiClient {
  * Sesión del backend: la crea /v1/interpret (o /v1/options si se abrió una
  * página sin pasar por el chat) y acompaña todo el recorrido. Se comparte
  * entre el chat y la guía.
+ *
+ * Cada solicitud toma la sesión con `begin()` y guarda la respuesta con
+ * `commit()`: si mientras tanto alguien la reinició o la cambió, la respuesta
+ * tardía no pisa el valor actual.
  */
 export class ApiSession {
-  id: string | undefined;
+  #id: string | undefined;
+  #generation = 0;
 
-  reset(): void {
-    this.id = undefined;
+  get id(): string | undefined {
+    return this.#id;
   }
+
+  begin(): SessionTicket {
+    const id = this.#id;
+    const generation = this.#generation;
+    const current = () => generation === this.#generation && id === this.#id;
+    return {
+      id,
+      commit: (next) => {
+        if (!current()) return false;
+        this.#id = next;
+        return true;
+      },
+      expire: () => {
+        if (current()) this.reset();
+        return this.begin();
+      },
+    };
+  }
+
+  /** Inicio o «Empezar de nuevo»: invalida toda solicitud en curso. */
+  reset(): void {
+    this.#id = undefined;
+    this.#generation++;
+  }
+}
+
+export interface SessionTicket {
+  /** Sesión al empezar la solicitud. */
+  readonly id: string | undefined;
+  /** Guarda la sesión devuelta; false si la sesión cambió en el medio. */
+  commit(id: string): boolean;
+  /**
+   * SESSION_NOT_FOUND: descarta la sesión solo si sigue siendo la misma, y
+   * devuelve un ticket para reintentar con la vigente (ninguna, o la que otra
+   * solicitud guardó mientras tanto).
+   */
+  expire(): SessionTicket;
 }
 
 export type ClientErrorCode = ErrorCode | 'NETWORK' | 'INVALID_RESPONSE' | 'ABORTED';

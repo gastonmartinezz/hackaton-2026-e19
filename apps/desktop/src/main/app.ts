@@ -281,6 +281,8 @@ export class AppController {
         await this.#chat.submit(command.text);
         return;
       case 'resetChat':
+        // Empezar de nuevo descarta la sesión: la guía no puede seguir con la anterior.
+        this.#assistant.exit();
         this.#chat.reset();
         return;
       case 'openCandidate': {

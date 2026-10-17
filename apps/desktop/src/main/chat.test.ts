@@ -101,6 +101,30 @@ describe('Chat (/v1/interpret)', () => {
     expect(sent[1]!.sessionId).toBeUndefined();
   });
 
+  it('si la sesión venció pero otra solicitud ya guardó una vigente, reintenta con esa', async () => {
+    const session = new ApiSession();
+    session.begin().commit('s-vieja');
+    const sent: InterpretRequest[] = [];
+    const api: ApiClient = {
+      isMock: true,
+      interpret: vi.fn(async (request: InterpretRequest) => {
+        sent.push(structuredClone(request));
+        if (request.sessionId === 's-vieja') {
+          // Mientras tanto, la guía renovó la sesión compartida.
+          session.reset();
+          session.begin().commit('s-guia');
+          throw new ApiFailure('SESSION_NOT_FOUND', false);
+        }
+        return { sessionId: request.sessionId ?? 's-nueva', type: 'question' as const, message: '¿Qué?' };
+      }),
+      options: vi.fn(),
+      nextStep: vi.fn(),
+    };
+    await new Chat(api, session, () => {}, vi.fn()).submit('turno');
+    expect(sent.map((r) => r.sessionId)).toEqual(['s-vieja', 's-guia']);
+    expect(session.id).toBe('s-guia');
+  });
+
   it('si la sesión venció, reenvía el historial sin sessionId y guarda la nueva', async () => {
     const { chat, sent, session } = setup(
       { type: 'question', message: '¿Qué?' },
