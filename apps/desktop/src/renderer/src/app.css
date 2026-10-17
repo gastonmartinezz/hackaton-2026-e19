@@ -174,3 +174,67 @@ body {
   width: 1.4em;
   height: 1.4em;
 }
+
+/* Pantalla inicial: datos de la persona y condiciones de uso. */
+.setup {
+  height: 100vh;
+  overflow-y: auto;
+  padding: calc(var(--space) * 2);
+  box-sizing: border-box;
+}
+.setup form {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: calc(var(--space) * 1.5);
+}
+.setup h1,
+.setup p {
+  margin: 0;
+}
+.setup fieldset {
+  border: 2px solid var(--color-border);
+  padding: var(--space);
+  margin: 0;
+  display: grid;
+  gap: var(--space);
+}
+.setup legend {
+  font-weight: 700;
+  padding: 0 calc(var(--space) / 2);
+}
+.setup-hint {
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+.terms {
+  max-height: 16em;
+  overflow-y: auto;
+  padding: var(--space);
+  background: var(--color-surface);
+}
+.terms h2 {
+  margin: 0 0 var(--space);
+  font-size: var(--font-size-large);
+}
+.terms ol {
+  margin: 0;
+  padding-left: 1.5em;
+  display: grid;
+  gap: calc(var(--space) / 2);
+}
+.home-profile {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+}
+/* Mismo aspecto que los inputs de @asistente/ui, que no estiliza select. */
+.setup select {
+  font: inherit;
+  padding: var(--space);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  width: 100%;
+}

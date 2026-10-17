@@ -58,6 +58,11 @@ if (!app.requestSingleInstanceLock()) {
     controller = new AppController({
       api,
       prefs,
+      system: {
+        language: app.getPreferredSystemLanguages()[0] ?? app.getLocale(),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? null,
+        country: /^[A-Z]{2}$/.test(app.getLocaleCountryCode()) ? app.getLocaleCountryCode() : null,
+      },
       uiPreloadPath: join(import.meta.dirname, '../preload/ui.cjs'),
       pagePreloadPath: join(import.meta.dirname, '../preload/page.cjs'),
       rendererUrl: config.isDev ? (process.env.ELECTRON_RENDERER_URL ?? null) : null,

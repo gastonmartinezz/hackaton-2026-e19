@@ -1,4 +1,4 @@
-import type { InterpretRequest, InterpretResponse } from '@hackaton/contracts';
+import type { InterpretRequest, InterpretResponse, UserContext } from '@hackaton/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiFailure, ApiSession, type ApiClient } from './api/client';
 import { interpretMock } from './api/mock';
@@ -8,6 +8,10 @@ type Reply = DistributiveOmit<InterpretResponse, 'sessionId'> | ApiFailure;
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
 function setup(...responses: Reply[]) {
+  return setupWith(() => undefined, ...responses);
+}
+
+function setupWith(userContext: () => UserContext | undefined, ...responses: Reply[]) {
   const sent: InterpretRequest[] = [];
   const api: ApiClient = {
     isMock: true,
@@ -22,7 +26,7 @@ function setup(...responses: Reply[]) {
   };
   const onRedirect = vi.fn();
   const session = new ApiSession();
-  const chat = new Chat(api, session, () => {}, onRedirect);
+  const chat = new Chat(api, session, () => {}, onRedirect, userContext);
   return { chat, sent, onRedirect, session };
 }
 
@@ -79,6 +83,26 @@ describe('Chat (/v1/interpret)', () => {
     expect(chat.messages[0]!.text).toContain('30123456');
     expect(JSON.stringify(sent)).not.toContain('30123456');
     expect(JSON.stringify(sent)).not.toContain('marta@correo.com');
+  });
+
+  it('envía los datos de la persona en cada llamada, también al reintentar por sesión vencida', async () => {
+    let user: UserContext = { location: { country: 'AR', city: 'Rosario' } };
+    const { chat, sent } = setupWith(
+      () => user,
+      { type: 'question', message: '¿Qué trámite?' },
+      new ApiFailure('SESSION_NOT_FOUND', false),
+      { type: 'redirect', message: 'Vamos.', url: 'https://www.rosario.gob.ar/' },
+    );
+    await chat.submit('pagar la tasa municipal');
+    user = { location: { country: 'AR', city: 'Funes' }, ageRange: '65-74' };
+    await chat.submit('la del auto');
+    expect(sent.map((r) => r.user)).toEqual([{ location: { country: 'AR', city: 'Rosario' } }, user, user]);
+  });
+
+  it('sin datos de la persona no envía el campo', async () => {
+    const { chat, sent } = setup({ type: 'question', message: '¿Qué?' });
+    await chat.submit('algo');
+    expect(sent[0]).not.toHaveProperty('user');
   });
 
   it('muestra un error simple y permite volver a intentar', async () => {

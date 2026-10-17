@@ -5,7 +5,7 @@
  * los mensajes de la persona se minimizan antes de salir del equipo.
  */
 import { randomUUID } from 'node:crypto';
-import { Limits, type ChatMessage as ApiMessage, type SiteOption } from '@hackaton/contracts';
+import { Limits, type ChatMessage as ApiMessage, type SiteOption, type UserContext } from '@hackaton/contracts';
 import { minimizeIntent } from '@asistente/privacy';
 import type { ChatMessage, ChatPhase } from '../shared/ipc';
 import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession, type SessionTicket } from './api/client';
@@ -35,6 +35,8 @@ export class Chat {
     private readonly onChange: () => void,
     /** `redirect`: la URL sale de la respuesta validada, nunca del renderer. */
     private readonly onRedirect: (url: string) => void,
+    /** Localidad y demás datos de la persona; se leen en cada envío por si cambiaron. */
+    private readonly userContext: () => UserContext | undefined = () => undefined,
   ) {}
 
   get busy(): boolean {
@@ -83,15 +85,16 @@ export class Chat {
   }
 
   async #interpret(ticket: SessionTicket, signal: AbortSignal) {
-    const messages = this.#history.slice(-Limits.maxMessages);
-    if (!ticket.id) return this.api.interpret({ messages }, signal);
+    const user = this.userContext();
+    const body = { messages: this.#history.slice(-Limits.maxMessages), ...(user ? { user } : {}) };
+    if (!ticket.id) return this.api.interpret(body, signal);
     try {
-      return await this.api.interpret({ sessionId: ticket.id, messages }, signal);
+      return await this.api.interpret({ sessionId: ticket.id, ...body }, signal);
     } catch (error) {
       // Sesión vencida o servidor reiniciado: el historial va completo, se empieza otra.
       if (!(error instanceof ApiFailure) || error.code !== 'SESSION_NOT_FOUND') throw error;
       const retry = ticket.expire();
-      const response = await this.api.interpret(retry.id ? { sessionId: retry.id, messages } : { messages }, signal);
+      const response = await this.api.interpret(retry.id ? { sessionId: retry.id, ...body } : body, signal);
       retry.commit(response.sessionId);
       return response;
     }
