@@ -10,6 +10,12 @@ const csv = z
       .filter(Boolean),
   );
 
+const flag = (fallback: 'true' | 'false') =>
+  z
+    .enum(['true', 'false'])
+    .default(fallback)
+    .transform((value) => value === 'true');
+
 const EnvSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -32,6 +38,27 @@ const EnvSchema = z
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     SESSION_TTL_MINUTES: z.coerce.number().int().positive().default(30),
+
+    // Protección de sitios (POST /v1/site-check). Las claves de proveedores quedan solo en el servidor.
+    SITE_CHECK_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
+    // none: sin proveedor (cobertura de reputación "unavailable", nunca aprobación). mock: solo desarrollo.
+    REPUTATION_PROVIDER: z.enum(['none', 'mock', 'safe_browsing', 'web_risk']).default('none'),
+    GOOGLE_SAFE_BROWSING_API_KEY: z.string().optional(),
+    GOOGLE_WEB_RISK_API_KEY: z.string().optional(),
+    SITE_CHECK_RDAP: flag('true'),
+    SITE_CHECK_CONNECTION: flag('true'),
+    SITE_CHECK_AI: flag('true'),
+    // Tiempo máximo por consulta a reputación y RDAP, y por inspección de conexión (todas las redirecciones).
+    SITE_CHECK_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(4_000),
+    SITE_CHECK_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
+    SITE_CHECK_AI_TIMEOUT_MS: z.coerce.number().int().positive().default(8_000),
+    // Tope de consultas por minuto a cada proveedor externo (protege cuotas y costos).
+    SITE_CHECK_PROVIDER_MAX_PER_MINUTE: z.coerce.number().int().positive().default(120),
+
+    // Servidor MCP privado. Sin tokens no se levanta. Por defecto escucha solo en loopback.
+    MCP_ACCESS_TOKENS: csv.pipe(z.array(z.string().min(24, 'Cada token MCP debe tener al menos 24 caracteres'))),
+    MCP_HOST: z.string().default('127.0.0.1'),
+    MCP_PORT: z.coerce.number().int().positive().default(3100),
   })
   .superRefine((env, ctx) => {
     if (env.AI_PROVIDER === 'anthropic' && !env.ANTHROPIC_API_KEY) {
@@ -42,6 +69,18 @@ const EnvSchema = z
     }
     if (env.NODE_ENV === 'production' && env.AI_PROVIDER === 'mock') {
       ctx.addIssue({ code: 'custom', path: ['AI_PROVIDER'], message: 'El modo mock no se permite en producción' });
+    }
+    if (env.REPUTATION_PROVIDER === 'safe_browsing' && !env.GOOGLE_SAFE_BROWSING_API_KEY) {
+      ctx.addIssue({ code: 'custom', path: ['GOOGLE_SAFE_BROWSING_API_KEY'], message: 'Requerida con REPUTATION_PROVIDER=safe_browsing' });
+    }
+    if (env.REPUTATION_PROVIDER === 'web_risk' && !env.GOOGLE_WEB_RISK_API_KEY) {
+      ctx.addIssue({ code: 'custom', path: ['GOOGLE_WEB_RISK_API_KEY'], message: 'Requerida con REPUTATION_PROVIDER=web_risk' });
+    }
+    if (env.NODE_ENV === 'production' && env.REPUTATION_PROVIDER === 'mock') {
+      ctx.addIssue({ code: 'custom', path: ['REPUTATION_PROVIDER'], message: 'El modo mock no se permite en producción' });
+    }
+    if (env.MCP_ACCESS_TOKENS.some((token) => env.API_ACCESS_TOKENS.includes(token))) {
+      ctx.addIssue({ code: 'custom', path: ['MCP_ACCESS_TOKENS'], message: 'Usar tokens distintos a los de la API' });
     }
   });
 
