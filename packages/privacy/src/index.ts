@@ -97,6 +97,11 @@ export function isDoubtfulLabel(redacted: string): boolean {
   return placeholders.length >= 2 || rest.length < 4;
 }
 
+/** Saludo o texto de cuenta personalizado ("Hola, Ana", "Sesión iniciada como…"). */
+export function isPersonalizedText(text: string): boolean {
+  return PERSONALIZED.test(text) || ACCOUNT_HINT.test(text);
+}
+
 /** Etiqueta lista para enviar, o cadena vacía si es dudosa. */
 export function sanitizeLabel(raw: string, maxLength = 120): string {
   const redacted = redactText(raw, { maxLength });
