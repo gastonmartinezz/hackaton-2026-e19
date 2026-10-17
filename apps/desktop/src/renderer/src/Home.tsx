@@ -12,7 +12,7 @@ import { send } from './useAppState';
 
 const UNSURE = 'No estoy seguro';
 
-export function Home({ state }: { state: AppState }) {
+export function Home({ state, onEditProfile }: { state: AppState; onEditProfile: () => void }) {
   const { chat } = state;
   const busy = chat.phase === 'interpreting';
   // Mientras responde, la pantalla no salta al buscador vacío: queda como estaba.
@@ -84,7 +84,9 @@ export function Home({ state }: { state: AppState }) {
         ) : null}
       </main>
       <footer className="sfoot">
-        <span>Uruguay</span>
+        <button type="button" className="linkish where-am-i" onClick={onEditProfile}>
+          {placeName(state)}
+        </button>
         <span className="priv">
           <Icon name="lock" />
           Nunca te voy a pedir contraseñas, números de documento ni datos de tu tarjeta.
@@ -222,4 +224,11 @@ function SiteCard({ candidate: c, recommended = false }: { candidate: CandidateV
       </div>
     </article>
   );
+}
+
+/** País (y ciudad) de «Mis datos»; abre la pantalla para cambiarlos. */
+function placeName({ profile }: AppState): string {
+  const country = profile.country ? new Intl.DisplayNames(['es'], { type: 'region' }).of(profile.country) : null;
+  const place = [profile.city, country].filter(Boolean).join(', ');
+  return place ? `${place} · Mis datos` : 'Mis datos';
 }

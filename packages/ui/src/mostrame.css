@@ -1162,3 +1162,8 @@ body {
   font-size: var(--fs-xs);
   padding: 0 var(--space-4);
 }
+.sfoot .linkish {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  color: var(--color-muted);
+}

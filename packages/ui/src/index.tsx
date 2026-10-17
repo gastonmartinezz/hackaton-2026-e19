@@ -4,7 +4,7 @@
  * y callbacks, nada más: no conocen el estado de la app ni llaman al backend.
  * Estilos en mostrame.css; valores en design/tokens.css.
  */
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { useId, type ButtonHTMLAttributes, type ComponentPropsWithRef, type ReactNode } from 'react';
 import logoUrl from '../../../design/brand/mostrame-logo.svg?url';
 import symbolUrl from '../../../design/brand/mostrame-simbolo.svg?url';
 import { ICONS, type IconName } from './icons';
@@ -42,6 +42,23 @@ export function Button({
       {icon ? <Icon name={icon} size="sm" /> : null}
       {children}
     </button>
+  );
+}
+
+/** Campo con etiqueta visible y ayuda opcional. */
+export function TextField({ label, hint, className, ...props }: ComponentPropsWithRef<'input'> & { label: string; hint?: string }) {
+  const id = useId();
+  const hintId = `${id}-hint`;
+  return (
+    <div className="ui-field">
+      <label htmlFor={id}>{label}</label>
+      <input {...props} id={id} className={['field', className ?? ''].join(' ').trim()} aria-describedby={hint ? hintId : undefined} />
+      {hint ? (
+        <span id={hintId} className="ui-field-hint">
+          {hint}
+        </span>
+      ) : null}
+    </div>
   );
 }
 

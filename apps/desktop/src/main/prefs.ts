@@ -1,11 +1,23 @@
 /**
  * Preferencias locales en un JSON versionado dentro de userData. Sin secretos.
+ * También guarda los datos de la pantalla inicial: solo salen del equipo
+ * dentro de /v1/interpret (ver user-context.ts).
  * Un archivo corrupto o de otra versión vuelve a los valores por defecto.
  */
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { AgeRange, CountryCode } from '@hackaton/contracts';
 import { z } from 'zod';
 import { DEFAULT_TEXT_SCALE, TEXT_SCALES } from '../shared/ipc';
+
+/** Lo que la persona cuenta de sí misma en la pantalla inicial. Todo opcional. */
+const ProfileSchema = z.object({
+  country: CountryCode.nullable().default(null),
+  region: z.string().max(80).default(''),
+  city: z.string().max(80).default(''),
+  ageRange: AgeRange.nullable().default(null),
+});
+export type Profile = z.infer<typeof ProfileSchema>;
 
 const PrefsSchema = z.object({
   version: z.literal(1),
@@ -13,10 +25,19 @@ const PrefsSchema = z.object({
   textScale: z.preprocess(nearestScale, z.union(TEXT_SCALES.map((s) => z.literal(s)))).default(DEFAULT_TEXT_SCALE),
   /** Orígenes en los que la persona desactivó la ayuda con IA. */
   aiDisabledOrigins: z.array(z.string().max(200)).max(500).default([]),
+  /** Versión de las condiciones de uso aceptadas; null si nunca las aceptó. */
+  termsAccepted: z.string().max(40).nullable().default(null),
+  profile: ProfileSchema.default({ country: null, region: '', city: '', ageRange: null }),
 });
 export type Prefs = z.infer<typeof PrefsSchema>;
 
-export const DEFAULT_PREFS: Prefs = { version: 1, textScale: DEFAULT_TEXT_SCALE, aiDisabledOrigins: [] };
+export const DEFAULT_PREFS: Prefs = {
+  version: 1,
+  textScale: DEFAULT_TEXT_SCALE,
+  aiDisabledOrigins: [],
+  termsAccepted: null,
+  profile: { country: null, region: '', city: '', ageRange: null },
+};
 
 function nearestScale(value: unknown): unknown {
   if (typeof value !== 'number' || !Number.isFinite(value)) return value;

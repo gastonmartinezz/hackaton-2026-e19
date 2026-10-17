@@ -22,3 +22,91 @@
   width: min(var(--card-w), calc(100vw - 2 * var(--card-gap)));
   z-index: 1;
 }
+
+/* Pantalla inicial: datos de la persona y condiciones de uso. */
+.setup {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-7) var(--space-5);
+}
+.setup form {
+  width: min(860px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-5);
+}
+.setup h1 {
+  font-family: var(--font-display);
+  font-variation-settings: var(--font-display-settings);
+  font-weight: var(--fw-display);
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
+  margin: 0;
+}
+.setup p {
+  margin: 0;
+}
+.setup fieldset {
+  border: var(--border-w) solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  padding: var(--space-5);
+  margin: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+.setup legend {
+  font-weight: var(--fw-semibold);
+  padding: 0 var(--space-2);
+}
+.setup-hint,
+.ui-field-hint {
+  color: var(--color-muted);
+  font-size: var(--fs-sm);
+}
+.ui-field {
+  display: grid;
+  gap: var(--space-2);
+}
+.ui-field label {
+  font-weight: var(--fw-semibold);
+}
+.setup select {
+  appearance: auto;
+}
+.terms {
+  max-height: 16em;
+  overflow-y: auto;
+  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--color-sunken);
+  font-size: var(--fs-sm);
+}
+.terms h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-md);
+}
+.terms ol {
+  margin: 0;
+  padding-left: 1.5em;
+  display: grid;
+  gap: var(--space-2);
+}
+.setup .toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-min);
+  font-weight: var(--fw-semibold);
+}
+.setup .toggle input {
+  width: 28px;
+  height: 28px;
+  accent-color: var(--color-primary);
+}
+.setup .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

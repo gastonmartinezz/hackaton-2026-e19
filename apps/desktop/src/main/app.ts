@@ -8,6 +8,7 @@ import { Limits } from '@hackaton/contracts';
 import { minimizeIntent, sanitizeOrigin } from '@asistente/privacy';
 import { BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
 import {
+  TERMS_VERSION,
   UI_COMMAND_CHANNEL,
   UI_STATE_CHANNEL,
   UiCommandSchema,
@@ -26,6 +27,7 @@ import { PageBridge } from './page-bridge';
 import type { PrefsStore } from './prefs';
 import { SiteView } from './site-view';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
+import { buildUserContext, type SystemInfo } from './user-context';
 
 /** Igual que --chrome-h y --card-w de design/tokens.css, y el ancho de la tarjeta achicada. */
 const chromeHeight = (scale: number) => Math.round(72 + (scale - 1) * 16);
@@ -48,6 +50,7 @@ const PERMISSION_NAMES: Record<string, string> = {
 export interface AppControllerOptions {
   api: ApiClient;
   prefs: PrefsStore;
+  system: SystemInfo;
   uiPreloadPath: string;
   pagePreloadPath: string;
   rendererUrl: string | null;
@@ -105,6 +108,7 @@ export class AppController {
       session,
       () => this.#publish(),
       (url) => this.#openDestination(url),
+      () => buildUserContext(options.prefs.value.profile, options.system),
     );
     this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
     this.#wireSite();
@@ -154,7 +158,12 @@ export class AppController {
   }
 
   #guideAllowed(): boolean {
-    return GUIDE_ENABLED && this.options.prefs.isAiEnabled(this.#origin());
+    return GUIDE_ENABLED && this.#termsAccepted() && this.options.prefs.isAiEnabled(this.#origin());
+  }
+
+  /** Sin condiciones aceptadas no se consulta a la IA. */
+  #termsAccepted(): boolean {
+    return this.options.prefs.value.termsAccepted === TERMS_VERSION;
   }
 
   #origin(): string | null {
@@ -173,6 +182,11 @@ export class AppController {
       guideEnabled: GUIDE_ENABLED,
       layout: { topBarHeight: chromeHeight(this.options.prefs.value.textScale), card: this.#cardLayout },
       prefs: { textScale: this.options.prefs.value.textScale, aiEnabledForSite: this.options.prefs.isAiEnabled(this.#origin()) },
+      profile: {
+        ...this.options.prefs.value.profile,
+        termsAccepted: this.#termsAccepted(),
+        suggestedCountry: this.options.system.country,
+      },
       nav: {
         visible: this.#siteVisible,
         url: url === 'about:blank' ? '' : url,
@@ -328,11 +342,18 @@ export class AppController {
         this.#publish();
         return;
       case 'submitIntent': {
+        if (!this.#termsAccepted()) return;
         if (command.guide !== undefined) this.#wantGuide = command.guide;
         // «Solo ir al sitio» con una dirección escrita: se abre directo.
         const url = command.guide === false ? parseAddressInput(command.text) : null;
         if (url) this.#showSite(url);
         else await this.#chat.submit(command.text);
+        return;
+      }
+      case 'saveProfile': {
+        const { country, region, city, ageRange } = command;
+        await this.options.prefs.update({ termsAccepted: TERMS_VERSION, profile: { country, region, city, ageRange } });
+        this.#publish();
         return;
       }
       case 'resetChat':
@@ -363,6 +384,7 @@ export class AppController {
           return;
         }
         // No es una dirección: es un pedido. Se empieza de nuevo desde el inicio.
+        if (!this.#termsAccepted()) return;
         await this.#run({ type: 'home' });
         await this.#chat.submit(command.text);
         return;
@@ -435,7 +457,7 @@ export class AppController {
         const origin = this.#origin();
         if (!origin) return;
         await this.options.prefs.setAiEnabled(origin, command.enabled);
-        if (command.enabled && GUIDE_ENABLED) this.#assistant.analyze(this.#chat.goal ?? undefined);
+        if (this.#guideAllowed()) this.#assistant.analyze(this.#chat.goal ?? undefined);
         else this.#assistant.exit();
         this.#publish();
         return;

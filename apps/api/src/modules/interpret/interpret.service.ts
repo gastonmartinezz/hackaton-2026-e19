@@ -19,7 +19,7 @@ export class InterpretService {
     const output = await this.model.generate({
       task: 'interpret',
       system: SYSTEM_PROMPTS.interpret,
-      input: { messages: request.messages, history: context.history },
+      input: { messages: request.messages, user: request.user ?? null, history: context.history },
       schema: InterpretOutput,
     });
 

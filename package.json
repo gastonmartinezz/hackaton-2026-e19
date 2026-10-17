@@ -6,12 +6,15 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "bootstrap": "pnpm install && pnpm build",
     "dev": "pnpm --filter @hackaton/api dev",
+    "dev:api": "pnpm --filter @hackaton/api dev",
+    "dev:desktop": "pnpm --filter @asistente/desktop dev",
+    "dev:desktop:api": "node scripts/dev-desktop-api.mjs",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "contracts:schemas": "pnpm --filter @hackaton/contracts schemas",
-    "dev:desktop": "pnpm --filter @asistente/desktop dev"
+    "contracts:schemas": "pnpm --filter @hackaton/contracts schemas"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

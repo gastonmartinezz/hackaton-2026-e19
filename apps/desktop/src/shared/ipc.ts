@@ -4,6 +4,7 @@
  * proceso principal. Todo mensaje entrante se valida acá con Zod.
  */
 import { PageSnapshotSchema } from '@asistente/page-analyzer';
+import { AgeRange, CountryCode } from '@hackaton/contracts';
 import { z } from 'zod';
 
 const Id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
@@ -12,6 +13,9 @@ const Id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 export const TEXT_SCALES = [1.2, 1.45, 1.75] as const;
 export type TextScale = (typeof TEXT_SCALES)[number];
 export const DEFAULT_TEXT_SCALE: TextScale = 1.2;
+
+/** Cambiarla cuando cambie el texto de las condiciones: se vuelven a pedir. */
+export const TERMS_VERSION = '2026-10-17';
 
 /* ---------------------------- Interfaz propia ---------------------------- */
 
@@ -50,6 +54,15 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('askOnPage'), text: z.string().trim().min(1).max(500) }),
   /** Solo desde la tarjeta flotante: qué muestra y cuánto mide. */
   z.strictObject({ type: z.literal('cardLayout'), mode: z.enum(['none', 'card', 'pill', 'toast']), height: z.number().int().min(0).max(5000) }),
+  /** Pantalla inicial: guardar los datos exige aceptar las condiciones. */
+  z.strictObject({
+    type: z.literal('saveProfile'),
+    acceptTerms: z.literal(true),
+    country: CountryCode.nullable(),
+    region: z.string().trim().max(80),
+    city: z.string().trim().max(80),
+    ageRange: AgeRange.nullable(),
+  }),
 ]);
 export type UiCommand = z.infer<typeof UiCommandSchema>;
 
@@ -101,6 +114,16 @@ export interface AppState {
   guideEnabled: boolean;
   layout: { topBarHeight: number; card: CardLayout };
   prefs: { textScale: number; aiEnabledForSite: boolean };
+  /** Datos de la pantalla inicial. Sin condiciones aceptadas, la app muestra esa pantalla. */
+  profile: {
+    termsAccepted: boolean;
+    country: string | null;
+    /** País de la configuración del sistema, para proponerlo la primera vez. */
+    suggestedCountry: string | null;
+    region: string;
+    city: string;
+    ageRange: AgeRange | null;
+  };
   nav: {
     visible: boolean;
     url: string;

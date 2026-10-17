@@ -19,6 +19,14 @@ describe('PrefsStore', () => {
     expect(saved).toMatchObject({ textScale: 1.45, aiDisabledOrigins: ['https://a.gob.ar'] });
     await rm(root, { recursive: true });
   });
+
+  it('un archivo anterior a la pantalla inicial conserva sus datos y pide las condiciones', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'prefs-'));
+    await writeFile(join(dir, 'preferences.json'), JSON.stringify({ version: 1, textScale: 1.25, aiDisabledOrigins: [] }));
+    const prefs = await new PrefsStore(dir).load();
+    expect(prefs).toMatchObject({ textScale: 1.2, termsAccepted: null, profile: { country: null, city: '', ageRange: null } });
+    await rm(dir, { recursive: true });
+  });
 });
 
 describe('PrefsStore · escala de letra', () => {
