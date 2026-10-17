@@ -79,7 +79,7 @@ describe('Assistant', () => {
     // La sesión la crea el chat (/v1/interpret) en el mismo simulador.
     const session = new ApiSession();
     const mock = mockApi();
-    session.id = (await mock.interpret({ messages: [{ role: 'user', content: 'turno' }] }, new AbortController().signal)).sessionId;
+    session.begin().commit((await mock.interpret({ messages: [{ role: 'user', content: 'turno' }] }, new AbortController().signal)).sessionId);
     const rec = recording(mock);
     const { assistant, until, target, page, shownStep } = setup(rec.api, session);
 
@@ -197,7 +197,7 @@ describe('Assistant', () => {
   it('si la sesión venció al pedir opciones, empieza otra', async () => {
     load('buscar.html');
     const session = new ApiSession();
-    session.id = 's-vieja';
+    session.begin().commit('s-vieja');
     const { api, sent } = recording(mockApi());
     const { assistant, until } = setup(api, session);
     assistant.navigated({ sameDocument: false, aiEnabled: true });
@@ -206,6 +206,30 @@ describe('Assistant', () => {
     expect(sent.map((r) => r.sessionId)).toEqual(['s-vieja', undefined]);
     expect(session.id).toMatch(/^s-/);
     expect(session.id).not.toBe('s-vieja');
+  });
+
+  it('next-step usa la sesión de sus opciones aunque la compartida cambie en el medio', async () => {
+    load('horarios.html');
+    const mock = mockApi();
+    const session = new ApiSession();
+    const { api, sent } = recording(mock, {
+      options: async (r, s) => ({ ...(await mock.options(r, s)), options: [{ id: 'x', title: 'X', steps: [step('#el-1'), step(null)] }] }),
+      nextStep: async (r) => ({ sessionId: r.sessionId, steps: [], done: true }),
+    });
+    const { assistant, until, shownStep } = setup(api, session);
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    const guideSession = session.id;
+    // Otra solicitud (por ejemplo, el chat) reinicia la sesión compartida.
+    session.reset();
+    session.begin().commit('s-otra');
+    assistant.select('x');
+    await until(shownStep);
+    assistant.confirmDone();
+    await until(() => assistant.state.phase === 'completed');
+    expect((sent[1] as NextStepRequest).sessionId).toBe(guideSession);
+    expect(session.id).toBe('s-otra');
   });
 
   it('si la sesión venció a mitad de la guía, vuelve a analizar la página', async () => {

@@ -49,6 +49,8 @@ export class Assistant {
   #epoch = 0;
   #controller: AbortController | undefined;
   #pendingGoal: string | undefined;
+  /** Sesión en la que se pidieron las opciones de la guía actual. */
+  #guideSessionId: string | undefined;
   #unshown = 0;
   #pageReady = false;
 
@@ -213,17 +215,22 @@ export class Assistant {
       const request = { html: snapshotToHtml(snapshot), ...metadataOf(snapshot) };
       const signal = this.#signal();
       const { session, api } = this.deps;
+      let ticket = session.begin();
       let response: OptionsResponse;
       try {
-        response = await api.options(session.id ? { ...request, sessionId: session.id } : request, signal);
+        response = await api.options(ticket.id ? { ...request, sessionId: ticket.id } : request, signal);
       } catch (error) {
         // Sesión vencida o servidor reiniciado: se empieza otra.
         if (!(error instanceof ApiFailure) || error.code !== 'SESSION_NOT_FOUND') throw error;
-        session.reset();
+        ticket.expire();
+        ticket = session.begin();
         response = await api.options(request, signal);
       }
       if (epoch !== this.#epoch) return;
-      session.id = response.sessionId;
+      ticket.commit(response.sessionId);
+      // Las opciones existen en esta sesión: /v1/next-step usa la misma, aunque
+      // la compartida haya cambiado mientras tanto.
+      this.#guideSessionId = response.sessionId;
       this.#dispatch({ type: 'OPTIONS', options: response.options });
     } catch (error) {
       this.#fail(epoch, error);
@@ -232,9 +239,10 @@ export class Assistant {
 
   /** Paso teórico (o que no se pudo mostrar): pasos reales con el HTML actual. */
   async #runNext(epoch: number): Promise<void> {
+    const sessionId = this.#guideSessionId;
+    const ticket = this.deps.session.begin();
     try {
       const { option, step, completed, stepCount } = this.state;
-      const sessionId = this.deps.session.id;
       if (!option || !step) return;
       if (stepCount >= MAX_STEPS) {
         this.#dispatch({ type: 'FAILED', message: 'La guía se extendió demasiado. Podés volver a las opciones o al inicio.' });
@@ -252,13 +260,13 @@ export class Assistant {
         this.#signal(),
       );
       if (epoch !== this.#epoch) return;
-      this.deps.session.id = response.sessionId;
       this.#dispatch({ type: 'NEXT', response });
     } catch (error) {
       if (epoch === this.#epoch && error instanceof ApiFailure && error.code === 'SESSION_NOT_FOUND') {
         // La sesión venció: la opción elegida ya no existe en el backend.
         log('guide.session_lost');
-        this.deps.session.reset();
+        this.#guideSessionId = undefined;
+        if (ticket.id === sessionId) ticket.expire();
         this.#dispatch({ type: 'ANALYZE' });
         return;
       }

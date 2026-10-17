@@ -41,6 +41,8 @@ describe('sanitizeTitle', () => {
     expect(sanitizeTitle('Mi cuenta | Sesión iniciada como marta | Banco')).toBe('Mi cuenta - Banco');
     expect(sanitizeTitle('Bienvenida Marta')).toBe('');
     expect(sanitizeTitle('Turnos · Hospital 30123456')).toBe('Turnos - Hospital [número]');
+    expect(sanitizeTitle('Contraseña : hunter2 | Banco')).toBe('Contraseña - Banco');
+    expect(sanitizeTitle('Mi clave es gatito - Banco')).not.toContain('gatito');
   });
 });
 

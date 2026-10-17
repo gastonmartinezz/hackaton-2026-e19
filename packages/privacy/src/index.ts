@@ -74,7 +74,9 @@ export function sanitizeLabel(raw: string, maxLength = 120): string {
  * conserva el resto, o cadena vacía si no queda nada.
  */
 export function sanitizeTitle(raw: string, maxLength = 200): string {
-  const parts = raw
+  // Primero se redacta el título entero: separar antes rompería patrones como
+  // "Contraseña : x", donde el valor sigue al separador.
+  const parts = redactText(raw, { maxLength: 1000 })
     .split(/\s+[-–—|·:]\s+/)
     .map((part) => sanitizeLabel(part, maxLength))
     .filter(Boolean);
