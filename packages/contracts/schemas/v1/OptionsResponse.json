@@ -1,0 +1,105 @@
+{
+  "title": "OptionsResponse",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "options": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "initialElement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "initialElement"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "guide": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "goal": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            },
+            "step": {
+              "type": "object",
+              "properties": {
+                "element": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "presentation": {
+                  "type": "string",
+                  "enum": [
+                    "highlight",
+                    "scrollAndHighlight"
+                  ]
+                },
+                "instruction": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "waitFor": {
+                  "type": "string",
+                  "enum": [
+                    "userInteraction",
+                    "navigation",
+                    "userConfirmation"
+                  ]
+                }
+              },
+              "required": [
+                "element",
+                "presentation",
+                "instruction",
+                "waitFor"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "goal",
+            "step"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "sessionId",
+    "options",
+    "guide"
+  ],
+  "additionalProperties": false
+}

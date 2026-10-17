@@ -1,0 +1,26 @@
+{
+  "title": "OptionsRequest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    },
+    "html": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200000
+    }
+  },
+  "required": [
+    "html"
+  ],
+  "additionalProperties": false
+}

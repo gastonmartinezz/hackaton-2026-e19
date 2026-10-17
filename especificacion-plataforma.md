@@ -1,7 +1,7 @@
 # Navegador asistido para personas mayores
 
 Documento de producto y arquitectura para orientar el desarrollo con IA.
-Versión 1.1 · 17 de octubre de 2026
+Versión 1.2 · 17 de octubre de 2026
 
 ## 0. Responsabilidades y límites de trabajo
 
@@ -75,6 +75,19 @@ Antes de un cambio incompatible, documentar la propuesta, ejemplo de entrada/sal
 5. Mantener separados lógica funcional, componentes básicos de prueba y diseño final. No anticipar decisiones de marca o negocio de Emi.
 6. Las tareas compartidas deben asignar una parte concreta a cada responsable antes de comenzar. “Compartido” no significa permiso para editar todo.
 7. Las instrucciones explícitas posteriores del equipo pueden cambiar estas asignaciones; registrar el cambio en este documento.
+
+### Registro de cambios
+
+**v1.2 · 17/10/2026 · acordado por Agustin.** Se simplifica la API a tres endpoints (secciones 6 y 7):
+
+- `POST /v1/interpret`: chat de la home. El front envía el historial completo y Claude responde `redirect` (URL directa), `question` (pregunta) u `options` (varios sitios). No hay buscador ni adaptador SearchProvider en esta etapa: Claude propone las URLs.
+- `POST /v1/options`: el front envía fragmentos de HTML elegidos con sus propias reglas. Claude devuelve opciones y el próximo paso, con elementos identificados por selector CSS. Reemplaza a `pages/options` y `guidance/next`: el próximo paso se pide al mismo endpoint, con sesión.
+- Sesiones en el backend: las crea `/v1/options`, guardan opciones y pasos anteriores (no el HTML), viven en memoria y vencen a los 30 minutos sin uso.
+- Se eliminan `POST /v1/destinations/search`, `POST /v1/guidance/next`, `DELETE /v1/sessions/:id` y los tipos `PageSnapshot`, `PageOption` y `GuideDecision` de la versión anterior.
+- El formato de lo que el front extrae de la página lo define el front. El backend recibe HTML.
+- Despliegue del backend en Tenki en lugar de un contenedor Docker.
+
+Las secciones 3, 5 y 9 a 12 (en particular S03, S04, S06, S07, S10 y el stack) todavía describen el diseño anterior. Donde contradigan las secciones 6 y 7, valen estas últimas hasta que se revisen.
 
 ## 1. Propósito
 
@@ -237,86 +250,90 @@ Firmar instaladores y actualizaciones. Mantener Electron actualizado, revisar de
 
 ## 6. Contratos de referencia
 
-Estos tipos son orientativos. La implementación debe crear esquemas runtime equivalentes, versionados y con límites de tamaño.
+Los contratos se implementan con Zod en `packages/contracts` y se exportan como JSON Schema. Las claves van en inglés. Cualquier cambio se acuerda entre front y backend.
 
 ```ts
-type PageSnapshot = {
-  schemaVersion: '1';
-  pageId: string;
-  navigationId: string;
-  revision: number;
-  origin: string;
-  extraction: 'complete' | 'partial';
-  elements: Array<{
-    id: string;
-    role: string;
-    label: string; // depurada; nunca value
-    inputType?: string;
-    enabled: boolean;
-    sectionId?: string;
-  }>;
+// POST /v1/interpret
+type InterpretRequest = {
+  // Historial completo del chat; el último mensaje es de la persona.
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>; // máx. 20, 1000 caracteres c/u
 };
 
-type PageOption = {
-  id: string;
-  title: string;
-  description: string;
-  evidenceElementIds: string[];
+type InterpretResponse =
+  | { type: 'redirect'; message: string; url: string } // url http(s)
+  | { type: 'question'; message: string }
+  | { type: 'options'; message: string; options: Array<{ title: string; url: string; reason: string }> }; // 2 a 5
+
+// POST /v1/options
+type OptionsRequest = {
+  sessionId?: string; // ausente en la primera llamada
+  goal?: string; // id de la opción elegida por la persona
+  html: string; // fragmentos elegidos por el front; máx. 200.000 caracteres
 };
 
-type GuideDecision = {
-  schemaVersion: '1';
-  requestId: string;
-  navigationId: string;
-  revision: number;
-} & (
-  | {
-      status: 'guide';
-      instruction: string;
-      targetElementId: string;
+type OptionsResponse = {
+  sessionId: string;
+  options: Array<{ id: string; title: string; initialElement: string }>; // initialElement: selector CSS
+  guide: null | {
+    goal: string;
+    step: {
+      element: string; // selector CSS
       presentation: 'highlight' | 'scrollAndHighlight';
-      expectedSignal:
-        | 'interaction'
-        | 'navigation'
-        | 'pageChange'
-        | 'userConfirmation';
-    }
-  | {
-      status: 'needsClarification' | 'unsupported' | 'completed';
-      message: string;
-    }
-);
+      instruction: string;
+      waitFor: 'userInteraction' | 'navigation' | 'userConfirmation';
+    };
+  };
+};
+
+type ApiError = {
+  error: { code: string; message: string; requestId: string; retryable: boolean; details?: Array<{ path: string; message: string }> };
+};
 ```
 
-El servidor adjunta y verifica los IDs de correlación; no confía en que el modelo los reproduzca. expectedSignal es una pista que el verificador local interpreta, no autorización para leer valores ni evidencia suficiente de éxito.
-
-Ejemplo de respuesta de guía:
+Ejemplo de respuesta de `/v1/options`:
 
 ```json
 {
-  "schemaVersion": "1",
-  "requestId": "req-8",
-  "navigationId": "nav-3",
-  "revision": 7,
-  "status": "guide",
-  "instruction": "Hacé clic acá para consultar los horarios.",
-  "targetElementId": "el-12",
-  "presentation": "scrollAndHighlight",
-  "expectedSignal": "pageChange"
+  "sessionId": "s-abc",
+  "options": [
+    { "id": "search", "title": "Buscar un producto", "initialElement": "#search" }
+  ],
+  "guide": {
+    "goal": "search",
+    "step": {
+      "element": "#search",
+      "presentation": "highlight",
+      "instruction": "Escribí acá el producto que estás buscando.",
+      "waitFor": "userInteraction"
+    }
+  }
 }
 ```
 
-## 7. API propuesta
+## 7. API
 
 | Endpoint | Entrada | Salida |
 |---|---|---|
-| POST /v1/intents/interpret | Intención depurada y contexto permitido | Objetivo o pregunta de aclaración |
-| POST /v1/destinations/search | Objetivo y ubicación indicada voluntariamente | Candidatos y recomendación explicada |
-| POST /v1/pages/options | Snapshot depurado y objetivo opcional | Opciones con referencias existentes |
-| POST /v1/guidance/next | Objetivo, snapshot y resumen mínimo del paso anterior | GuideDecision |
-| DELETE /v1/sessions/:id | Sesión autorizada | Invalidación y borrado de datos efímeros |
+| GET /health | — | `{ status: "ok" }`, sin autenticación |
+| POST /v1/interpret | Historial del chat | `redirect`, `question` u `options` |
+| POST /v1/options | HTML, `sessionId` y `goal` opcionales | Opciones y próximo paso, con `sessionId` |
 
-Usar HTTPS, requestId, schemaVersion, límites de payload y errores estables. HTTP es suficiente para el MVP; no incorporar WebSockets sin necesidad. No exponer una API genérica que ejecute acciones arbitrarias o acepte prompts del sistema enviados por el cliente.
+Todas las rutas salvo `/health` requieren `Authorization: Bearer <token>`. Hay un límite de solicitudes por token, el error tiene un formato único y existe un modo mock para desarrollar sin Claude. El detalle para el front está en `docs/api.md` del repositorio del backend.
+
+Flujo:
+
+1. **Home:** el objetivo de `/v1/interpret` es siempre llegar a una URL. El front envía el chat. Con `redirect` (una URL), la abre. Con `options` (más de una URL posible), muestra los sitios para elegir. Con `question` (todavía no se llega a una URL), muestra la pregunta y vuelve a llamar con el historial, hasta obtener `redirect` u `options`.
+2. **Página abierta:** el front envía los fragmentos de HTML a `/v1/options` sin `sessionId`. El backend crea la sesión y devuelve opciones y primer paso.
+3. **Paso a paso:** cuando la página cambia, el front vuelve a llamar a `/v1/options` con el `sessionId`, el `goal` elegido y los fragmentos nuevos. El backend suma el historial de la sesión y Claude devuelve el siguiente paso con la misma estructura.
+
+Qué queda del lado del front:
+
+- Guardar el historial del chat y enviarlo completo en cada llamada a `/v1/interpret`.
+- Elegir qué fragmentos de HTML enviar y cuándo volver a enviarlos.
+- Guardar el `sessionId` y empezar una sesión nueva si recibe `SESSION_NOT_FOUND`.
+- Ubicar los elementos por selector CSS y manejar selectores que no encuentran nada o encuentran varios elementos: el backend no los verifica.
+- La representación visual (`presentation`, `instruction`) y la espera (`waitFor`) antes de pedir el próximo paso.
+- Mostrar los errores y reintentar solo cuando `retryable` es `true`.
 
 ## 8. Seguridad del navegador
 

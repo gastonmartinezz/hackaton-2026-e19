@@ -1,0 +1,30 @@
+{
+  "name": "@hackaton/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Contratos compartidos API v1 (Zod + JSON Schema). Cambios solo con acuerdo de Agustin y Gaston.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "schemas"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "schemas": "tsx --conditions=source scripts/export-json-schemas.ts"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}
