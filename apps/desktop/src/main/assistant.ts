@@ -10,7 +10,17 @@
 import { randomUUID } from 'node:crypto';
 import type { Metadata, OptionsResponse } from '@hackaton/contracts';
 import { snapshotToHtml, type PageSnapshot } from '@asistente/page-analyzer';
-import { evaluateObservation, expectedStep, initialState, transition, type GuideEvent, type GuideState, type Observation } from '@asistente/guidance';
+import {
+  evaluateObservation,
+  expectedStep,
+  initialState,
+  isSensitiveStep,
+  transition,
+  type GuideEvent,
+  type GuideState,
+  type Observation,
+  type StepTarget,
+} from '@asistente/guidance';
 import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession } from './api/client';
 import { log } from './log';
 import type { ExtractedPage, ShownTarget } from './page-bridge';
@@ -40,6 +50,12 @@ export class Assistant {
   targetVisible: boolean | null = null;
   partialPage = false;
   announceKey = 0;
+  /**
+   * La indicación actual está pausada: pide ingresar datos o confirmar algo y
+   * la protección de sitios detectó riesgo alto en esta navegación.
+   */
+  paused = false;
+  #riskHold = false;
 
   #pageId = shortId();
   #navigationSeq = 0;
@@ -72,6 +88,7 @@ export class Assistant {
   }
 
   confirmDone(): void {
+    if (this.paused) return;
     this.#dispatch({ type: 'OUTCOME', outcome: 'userConfirmed' });
   }
 
@@ -86,6 +103,18 @@ export class Assistant {
   exit(): void {
     this.#pendingGoal = undefined;
     this.#dispatch({ type: 'EXIT' });
+  }
+
+  /**
+   * Riesgo alto en la página (protección de sitios): se pausan las indicaciones
+   * que invitan a ingresar datos o confirmar operaciones. Al levantarse, la
+   * indicación actual se vuelve a mostrar.
+   */
+  setRiskHold(hold: boolean): void {
+    if (this.#riskHold === hold) return;
+    this.#riskHold = hold;
+    if (this.state.phase !== 'waitingForUser' || !this.state.step) return;
+    if (hold || this.paused) void this.#showStep(this.#epoch);
   }
 
   /** Vuelve a mostrar y anunciar la indicación actual. */
@@ -147,7 +176,7 @@ export class Assistant {
 
   #observe(observation: Observation): void {
     const { phase, step } = this.state;
-    if (phase !== 'waitingForUser' || !step) return;
+    if (phase !== 'waitingForUser' || !step || this.paused) return;
     const outcome = evaluateObservation(step, observation);
     if (outcome) this.#dispatch({ type: 'OUTCOME', outcome });
   }
@@ -161,6 +190,7 @@ export class Assistant {
     log('guide.transition', { from: `phase:${previous.phase}`, to: `phase:${next.phase}`, steps: next.stepCount });
 
     const epoch = this.#invalidate();
+    this.paused = false;
     if (next.phase !== 'waitingForUser') {
       this.targetVisible = null;
       this.deps.page.clear();
@@ -295,6 +325,15 @@ export class Assistant {
   async #showStep(epoch: number): Promise<void> {
     const step = this.state.step;
     if (!step) return;
+    this.paused = this.#riskHold && isSensitiveStep(step, this.#targetOf(step.element));
+    if (this.paused) {
+      // No se señala ni se espera la acción: la persona decide desde el panel.
+      this.targetVisible = null;
+      this.deps.page.clear();
+      log('guide.paused_for_risk');
+      this.deps.onChange();
+      return;
+    }
     if (step.element === null) {
       // Paso teórico: solo la instrucción; se espera la acción de la persona.
       this.targetVisible = null;
@@ -319,6 +358,16 @@ export class Assistant {
       return;
     }
     this.#dispatch({ type: 'OUTCOME', outcome: result === 'stale' ? 'targetStale' : 'targetNotVisible' });
+  }
+
+  /** Rol del destino según el snapshot local (solo selectores `#el-N`). */
+  #targetOf(selector: string | null): StepTarget | undefined {
+    const id = selector?.match(/^#(el-\d+)$/)?.[1];
+    const elements = this.#snapshot?.elements;
+    const element = id ? elements?.find((e) => e.id === id) : undefined;
+    if (!element) return undefined;
+    const section = element.sectionId ? elements?.find((e) => e.id === element.sectionId) : undefined;
+    return { role: element.role, inputType: element.inputType, inForm: section?.role === 'form' };
   }
 
   #fail(epoch: number, error: unknown): void {
