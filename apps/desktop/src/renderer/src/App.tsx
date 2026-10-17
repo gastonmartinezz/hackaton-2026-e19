@@ -3,9 +3,10 @@
  * de Emi la reemplaza. Solo presenta el estado y envía comandos: toda la lógica
  * vive en el proceso principal.
  */
-import { Button, LoadingMessage, Notice, TextField } from '@asistente/ui';
+import { Button, Icon, LoadingMessage, Notice, TextField } from '@asistente/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { AppState, OptionView } from '../../shared/ipc';
+import { SiteCheckAnnouncer, SiteCheckIndicator, SiteCheckPanel, SiteCheckWarning } from './SiteCheck';
 import { send, useAppState } from './useAppState';
 
 export function App() {
@@ -26,10 +27,11 @@ export function App() {
     );
   }
 
+  // Filas: barra · panel de protección anclado a la barra (alto propio) · sitio.
   return (
     <div
       className="browser"
-      style={{ gridTemplateRows: `${state.layout.topBarHeight}px 1fr`, gridTemplateColumns: `${state.layout.panelWidth}px 1fr` }}
+      style={{ gridTemplateRows: `${state.layout.topBarHeight}px auto 1fr`, gridTemplateColumns: `${state.layout.panelWidth}px 1fr` }}
     >
       <TopBar state={state} />
       <aside className="panel" aria-label="Ayuda">
@@ -37,8 +39,16 @@ export function App() {
         <PageStatus state={state} />
         {state.guideEnabled ? <GuidePanel state={state} /> : null}
       </aside>
-      {/* La vista nativa del sitio ocupa esta área. */}
-      <div aria-hidden="true" />
+      <div className="site-check-slot">
+        <SiteCheckPanel view={state.siteCheck} />
+      </div>
+      {state.siteCheck.warning ? (
+        <SiteCheckWarning view={state.siteCheck} />
+      ) : (
+        /* La vista nativa del sitio ocupa esta área. */
+        <div className="site-area" aria-hidden="true" />
+      )}
+      <SiteCheckAnnouncer view={state.siteCheck} />
     </div>
   );
 }
@@ -146,9 +156,24 @@ function TopBar({ state }: { state: AppState }) {
         Adelante
       </Button>
       <Button onClick={() => send({ type: 'reload' })}>{nav.loading ? 'Cargando…' : 'Recargar'}</Button>
-      <div className="site-identity">
-        <strong>{nav.domain || '—'}</strong>
-        <span className={nav.secure ? 'secure' : 'insecure'}>{nav.secure ? 'Conexión segura' : 'Conexión NO segura'}</span>
+      {/* «Estás en…»: dominio, conexión (el candado solo indica cifrado) y revisión del sitio. */}
+      <div className="site-identity" role="group" aria-label="Sitio abierto">
+        <div className="site-where">
+          <span>
+            <span className="k-estas">Estás en </span>
+            <strong>{nav.domain || '—'}</strong>
+          </span>
+          {nav.encrypted ? (
+            <span className="secure">
+              <Icon name="lock" size="1em" /> Conexión cifrada
+            </span>
+          ) : !nav.secure ? (
+            <span className="insecure">
+              <Icon name="lockOpen" size="1em" /> Conexión no cifrada
+            </span>
+          ) : null}
+        </div>
+        <SiteCheckIndicator view={state.siteCheck} />
       </div>
       <AddressForm label="Dirección" initial={nav.url} />
     </nav>
@@ -166,7 +191,7 @@ function PageStatus({ state }: { state: AppState }) {
         </Notice>
       ) : null}
       {!nav.secure ? (
-        <Notice tone="error" title="Conexión no segura">
+        <Notice tone="error" title="Conexión no cifrada">
           No escribas datos personales en esta página.
         </Notice>
       ) : null}
@@ -251,6 +276,19 @@ function GuideBody({ state }: { state: AppState }) {
     case 'choosing':
       return <OptionList primary={guide.primary} secondary={guide.secondary} />;
     case 'waitingForUser':
+      if (state.siteCheck.guidePaused) {
+        return (
+          <Notice tone="error" title="Pausé esta indicación">
+            <p>Te pedía escribir datos o confirmar algo, y este sitio podría ser una estafa. No ingreses contraseñas ni códigos.</p>
+            <div className="row">
+              <Button variant="primary" onClick={() => send({ type: 'siteCheckLeave' })}>
+                Salir de este sitio
+              </Button>
+              <Button onClick={() => send({ type: 'exitHelp' })}>Salir de la ayuda</Button>
+            </div>
+          </Notice>
+        );
+      }
       return (
         <div className="step">
           <p className="step-count">Paso {guide.stepCount}</p>
