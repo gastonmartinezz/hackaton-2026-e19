@@ -24,6 +24,7 @@ function setupWith(userContext: () => UserContext | undefined, ...responses: Rep
     }),
     options: vi.fn(),
     nextStep: vi.fn(),
+    transcribe: vi.fn(),
   };
   const onRedirect = vi.fn();
   const session = new ApiSession();
@@ -144,6 +145,7 @@ describe('Chat (/v1/interpret)', () => {
       }),
       options: vi.fn(),
       nextStep: vi.fn(),
+      transcribe: vi.fn(),
     };
     await new Chat(api, session, () => {}, vi.fn()).submit('turno');
     expect(sent.map((r) => r.sessionId)).toEqual(['s-vieja', 's-guia']);

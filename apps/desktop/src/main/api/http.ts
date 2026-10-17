@@ -6,8 +6,10 @@
 import { randomUUID } from 'node:crypto';
 import { ApiError, InterpretResponse, NextStepResponse, OptionsResponse } from '@hackaton/contracts';
 import type { z } from 'zod';
+import { isTranscribableWav } from '../../shared/wav';
 import { log } from '../log';
 import { ApiFailure, type ApiClient } from './client';
+import { TranscribeResponse } from './pending-contract';
 
 /** Cuerpo máximo que acepta el servidor (docs/api.md). */
 const MAX_BODY_BYTES = 512 * 1024;
@@ -41,6 +43,12 @@ export class HttpApiClient implements ApiClient {
     return this.#parse(NextStepResponse, await this.#post('/v1/next-step', request, signal));
   }
 
+  /** El audio no se guarda ni se loguea: solo viaja en el cuerpo de esta solicitud. */
+  async transcribe(wav: Uint8Array, signal: AbortSignal) {
+    if (!isTranscribableWav(wav)) throw new ApiFailure('BAD_REQUEST', false);
+    return this.#parse(TranscribeResponse, await this.#send('/v1/transcribe', new Uint8Array(wav), 'audio/wav', signal));
+  }
+
   #parse<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {
     const parsed = schema.safeParse(body);
     if (!parsed.success) throw new ApiFailure('INVALID_RESPONSE', false);
@@ -50,13 +58,16 @@ export class HttpApiClient implements ApiClient {
   async #post(path: string, payload: unknown, signal: AbortSignal): Promise<unknown> {
     const body = JSON.stringify(payload);
     if (Buffer.byteLength(body) > MAX_BODY_BYTES) throw new ApiFailure('PAYLOAD_TOO_LARGE', false);
+    return this.#send(path, body, 'application/json', signal);
+  }
 
+  async #send(path: string, body: string | Uint8Array<ArrayBuffer>, contentType: string, signal: AbortSignal): Promise<unknown> {
     const retries = this.config.retries ?? 1;
     for (let attempt = 0; ; attempt++) {
       const started = Date.now();
       try {
         const headers: Record<string, string> = {
-          'content-type': 'application/json',
+          'content-type': contentType,
           accept: 'application/json',
           'x-request-id': randomUUID().replace(/-/g, ''),
         };

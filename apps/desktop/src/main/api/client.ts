@@ -12,6 +12,7 @@ import type {
   OptionsRequest,
   OptionsResponse,
 } from '@hackaton/contracts';
+import type { TranscribeResponse } from './pending-contract';
 
 export interface ApiClient {
   readonly isMock: boolean;
@@ -21,6 +22,11 @@ export interface ApiClient {
   options(request: OptionsRequest, signal: AbortSignal): Promise<OptionsResponse>;
   /** POST /v1/next-step: pasos reales cuando la guía llega a un paso teórico. */
   nextStep(request: NextStepRequest, signal: AbortSignal): Promise<NextStepResponse>;
+  /**
+   * POST /v1/transcribe: dictado del buscador, con `wav` ya revisado
+   * (shared/wav.ts). TEMPORAL: el tipo sale de api/pending-contract.ts.
+   */
+  transcribe(wav: Uint8Array, signal: AbortSignal): Promise<TranscribeResponse>;
 }
 
 /**

@@ -24,3 +24,16 @@ export function questionExtras(response: object): { answers: string[]; reason: s
   const parsed = QuestionExtras.safeParse(response);
   return { answers: parsed.success ? (parsed.data.answers ?? []) : [], reason: parsed.success ? (parsed.data.reason ?? null) : null };
 }
+
+/**
+ * TEMPORAL — respuesta de POST /v1/transcribe (dictado del buscador). Todavía
+ * no está en @hackaton/contracts: llega con la rama feature/voice-api. Cuando
+ * se mergee, borrar este esquema y usar `TranscribeResponse` de
+ * @hackaton/contracts en api/http.ts, api/client.ts y api/mock.ts.
+ *
+ * Contrato acordado: cuerpo binario `audio/wav` (PCM16 LE, mono, 16 kHz, de
+ * 0,3 s a 30 s; ver shared/wav.ts) → 200 `{ text }` con hasta 1000
+ * caracteres. `text: ""` significa que no se entendió nada.
+ */
+export const TranscribeResponse = z.object({ text: z.string().max(1000) });
+export type TranscribeResponse = z.infer<typeof TranscribeResponse>;
