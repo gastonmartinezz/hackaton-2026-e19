@@ -4,7 +4,7 @@
 import type { InterpretRequest } from '@hackaton/contracts';
 import type { z } from 'zod';
 import type { AiTask, StructuredModel, StructuredRequest } from './model.js';
-import type { InterpretOutput, NextStepOutput, OptionsOutput } from './schemas.js';
+import type { InterpretOutput, NextStepOutput, OptionsOutput, SiteCheckOutput } from './schemas.js';
 
 type Handler = (input: any) => unknown;
 
@@ -70,6 +70,17 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
       done: false,
     };
   },
+
+  // Explicación fija según el riesgo calculado por reglas; nunca suma motivos.
+  siteCheck: (input: { risk: string }): SiteCheckOutput => ({
+    explanation:
+      input.risk === 'high'
+        ? 'Encontramos señales de que este sitio podría ser una estafa. No ingreses contraseñas, códigos ni datos de tarjeta.'
+        : input.risk === 'medium'
+          ? 'Encontramos algunas señales para tener en cuenta. Revisá con cuidado antes de ingresar datos.'
+          : 'No encontramos señales de estafa en las comprobaciones realizadas.',
+    concern: null,
+  }),
 };
 
 export class MockModel implements StructuredModel {

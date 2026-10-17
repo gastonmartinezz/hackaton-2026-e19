@@ -33,7 +33,7 @@ export class AnthropicModel implements StructuredModel {
         system: request.system,
         messages: [{ role: 'user', content: buildDataBlock(request.input) }],
         output_config: { effort: this.config.CLAUDE_EFFORT, format: zodOutputFormat(request.schema) },
-      })
+      }, request.signal ? { signal: request.signal } : undefined)
       .catch((error: unknown) => {
         throw mapSdkError(error);
       });

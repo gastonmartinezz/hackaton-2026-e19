@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { Writable } from 'node:stream';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
@@ -18,17 +19,35 @@ import { nextStepRoutes } from './modules/next-step/next-step.routes.js';
 import { OptionsService } from './modules/options/options.service.js';
 import { optionsRoutes } from './modules/options/options.routes.js';
 import { SessionStore } from './modules/sessions/session-store.js';
+import { createSiteCheckService, type SiteCheckOverrides } from './modules/site-check/factory.js';
+import { siteCheckRoutes } from './modules/site-check/site-check.routes.js';
+import type { SiteCheckService } from './modules/site-check/site-check.service.js';
 import { registerAuth } from './plugins/auth.js';
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** Servicio de Protección de sitios; el servidor MCP lo comparte (mismas cachés y límites). */
+    siteCheck: SiteCheckService;
+  }
+}
 
 export interface AppDeps {
   model?: StructuredModel;
+  /** Reemplazos de proveedores de /v1/site-check (pruebas sin red). */
+  siteCheck?: SiteCheckOverrides;
+  /** Destino de logs en pruebas (para verificar que no se registran datos sensibles). */
+  logStream?: Writable;
 }
 
 const CLIENT_REQUEST_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: config.NODE_ENV === 'test' ? false : buildLoggerOptions(config),
+    logger: deps.logStream
+      ? { ...(buildLoggerOptions(config) as object), stream: deps.logStream }
+      : config.NODE_ENV === 'test'
+        ? false
+        : buildLoggerOptions(config),
     bodyLimit: config.BODY_LIMIT_BYTES,
     requestIdHeader: false,
     // Acepta el X-Request-Id del cliente si es seguro; si no, genera uno propio.
@@ -80,6 +99,14 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
   await app.register(interpretRoutes, { service: new InterpretService(model, sessions) });
   await app.register(optionsRoutes, { service: new OptionsService(model, sessions) });
   await app.register(nextStepRoutes, { service: new NextStepService(model, sessions) });
+
+  const siteCheck = createSiteCheckService(config, model, deps.siteCheck);
+  app.decorate('siteCheck', siteCheck);
+  await app.register(siteCheckRoutes, {
+    service: siteCheck,
+    rateLimitMax: config.SITE_CHECK_RATE_LIMIT_MAX,
+    rateLimitWindowMs: config.RATE_LIMIT_WINDOW_MS,
+  });
 
   return app;
 }
