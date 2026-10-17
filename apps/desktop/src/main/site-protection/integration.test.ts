@@ -77,7 +77,10 @@ describe('protección de sitios con el backend simulado', () => {
     ] as const) {
       const { protection } = setup();
       await visit(protection, url.endsWith('banco.html') ? 'banco.html' : 'horarios.html', url);
-      expect(protection.snapshot.response?.identity).toEqual({ status: 'verified_official', basis, organization });
+      const identity = protection.snapshot.response?.identity;
+      expect(identity).toMatchObject({ status: 'verified_official', basis, organization });
+      expect(identity?.source?.name).toBeTruthy();
+      expect(Date.parse(identity!.source!.reviewedAt)).not.toBeNaN();
     }
   });
 

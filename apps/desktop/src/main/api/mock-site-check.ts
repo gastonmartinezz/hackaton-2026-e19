@@ -38,6 +38,14 @@ import { ApiFailure } from './client';
 
 export const MOCK_ORGANIZATION = 'Banco de Demostración';
 
+/** Fuentes simuladas de «Sitio oficial» (`identity.source`). Las fechas son de revisión de la fuente. */
+export const MOCK_SOURCES = {
+  bcra: { name: 'Padrón de entidades financieras del BCRA, simulado', url: 'https://www.bcra.gob.ar/', reviewedAt: '2026-10-01T12:00:00Z' },
+  gobAr: { name: 'Reglas del dominio .gob.ar de NIC Argentina, simulado', url: 'https://nic.ar/', reviewedAt: '2026-09-15T12:00:00Z' },
+  gubUy: { name: 'Reglas del dominio .gub.uy, simulado', url: 'https://www.gub.uy/', reviewedAt: '2026-09-20T12:00:00Z' },
+  catalog: { name: 'Lista de sitios oficiales de Mostrame, simulada', reviewedAt: '2026-10-10T12:00:00Z' },
+} as const;
+
 const FRAUD: ReadonlySet<ReasonCode> = new Set([
   'KNOWN_PHISHING',
   'KNOWN_MALWARE',
@@ -98,13 +106,13 @@ export function mockSiteCheck(raw: SiteCheckRequest): SiteCheckResponse {
 
   switch (host) {
     case 'banco-demo.example':
-      return respond({ identity: { status: 'verified_official', basis: 'financial_regulator', organization: MOCK_ORGANIZATION } });
+      return respond({ identity: { status: 'verified_official', basis: 'financial_regulator', organization: MOCK_ORGANIZATION, source: MOCK_SOURCES.bcra } });
     case 'tramites.mostrame-demo.gob.ar':
-      return respond({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'Estado argentino' } });
+      return respond({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'Estado argentino', source: MOCK_SOURCES.gobAr } });
     case 'tramites.mostrame-demo.gub.uy':
-      return respond({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'Estado uruguayo' } });
+      return respond({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'Estado uruguayo', source: MOCK_SOURCES.gubUy } });
     case 'usina-uy.example':
-      return respond({ identity: { status: 'verified_official', basis: 'official_catalog', organization: 'Usina de Demostración (Uruguay)' } });
+      return respond({ identity: { status: 'verified_official', basis: 'official_catalog', organization: 'Usina de Demostración (Uruguay)', source: MOCK_SOURCES.catalog } });
     case 'sin-alertas.example':
     case 'lenta.example':
       if (hasPassword) {

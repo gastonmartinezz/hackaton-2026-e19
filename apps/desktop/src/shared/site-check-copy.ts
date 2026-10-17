@@ -138,17 +138,33 @@ export function officialSummary(response: SiteCheckResponse | null, hostname?: s
   }
 }
 
-/** «Ver por qué» de «Sitio oficial»: la fuente y la fecha de la revisión, en lenguaje simple. */
+/**
+ * «Ver por qué» de «Sitio oficial»: cómo lo sabemos (según `basis`), la fuente
+ * real (`identity.source`, con el dominio de su dirección como texto, sin enlace
+ * que saque de la tarea) y cuándo se revisó esa fuente (`source.reviewedAt`).
+ */
 function officialSources(response: SiteCheckResponse | null, hostname?: string | null): string[] {
   if (!response) return [];
-  const { basis, organization } = response.identity;
-  const source =
+  const { basis, organization, source } = response.identity;
+  const how =
     basis === 'government_domain'
-      ? `Fuente: las direcciones terminadas en ${governmentSuffix(hostname) ?? 'esa terminación'} solo se entregan a organismos ${ofOrganization(organization ?? 'Estado')}.`
+      ? `Las direcciones terminadas en ${governmentSuffix(hostname) ?? 'esa terminación'} solo se entregan a organismos ${ofOrganization(organization ?? 'Estado')}.`
       : basis === 'financial_regulator'
-        ? 'Fuente: registro de entidades financieras del Banco Central de la República Argentina (BCRA).'
-        : 'Fuente: nuestra lista de sitios oficiales revisada, que indica de dónde sale cada dirección.';
-  return [source, `Revisado el ${plainDate(response.checkedAt)}.`];
+        ? 'Figura en el registro de entidades financieras del Banco Central.'
+        : 'Figura en nuestra lista de sitios oficiales revisada.';
+  if (!source) return [how];
+  const domain = sourceDomain(source.url);
+  return [how, `Fuente: ${source.name}${domain ? ` (${domain})` : ''}.`, `Revisado el ${plainDate(source.reviewedAt)}.`];
+}
+
+/** Dominio de la dirección de la fuente, solo como texto («bcra.gob.ar»). */
+function sourceDomain(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
 }
 
 export function reasonPhrases(response: SiteCheckResponse | null): string[] {
