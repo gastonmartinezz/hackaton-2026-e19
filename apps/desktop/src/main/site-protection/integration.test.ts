@@ -50,6 +50,7 @@ describe('protección de sitios con el backend simulado', () => {
   it('cada página de demostración produce su estado', async () => {
     const cases: Array<[string, string, ReturnType<typeof siteIndicatorState> | 'unverified']> = [
       ['banco.html', 'http://banco-demo.example:47321/banco.html', 'official'],
+      ['horarios.html', 'http://tramites.mostrame-demo.gob.ar:47321/horarios.html', 'official'],
       ['horarios.html', 'http://sin-alertas.example:47321/horarios.html', 'no_alerts'],
       ['urgente.html', 'http://atencion.example:47321/urgente.html', 'attention'],
       ['banco-falso.html', 'http://bancodemo-acceso.example:47321/banco-falso.html', 'possible_scam'],
@@ -62,6 +63,17 @@ describe('protección de sitios con el backend simulado', () => {
       const { protection } = setup();
       await visit(protection, page, url);
       expect(protection.snapshot.kind, url).toBe(expected);
+    }
+  });
+
+  it('«Sitio oficial» trae su fuente de autoridad', async () => {
+    for (const [url, basis, organization] of [
+      ['http://banco-demo.example:47321/banco.html', 'financial_regulator', 'Banco de Demostración'],
+      ['http://tramites.mostrame-demo.gob.ar:47321/horarios.html', 'government_domain', 'Estado argentino'],
+    ] as const) {
+      const { protection } = setup();
+      await visit(protection, url.endsWith('banco.html') ? 'banco.html' : 'horarios.html', url);
+      expect(protection.snapshot.response?.identity).toEqual({ status: 'verified_official', basis, organization });
     }
   });
 
@@ -108,7 +120,7 @@ describe('protección de sitios con el backend simulado', () => {
 
   it('las respuestas simuladas cumplen el contrato', () => {
     const base = { navigationId: 'nav-1', url: 'https://x.example/', registrableDomain: 'x.example' };
-    for (const hostname of ['banco-demo.example', 'atencion.example', 'bancodemo-acceso.example', 'premio-gratis.example', 'parcial.example', 'otro.example']) {
+    for (const hostname of ['banco-demo.example', 'tramites.mostrame-demo.gob.ar', 'atencion.example', 'bancodemo-acceso.example', 'premio-gratis.example', 'parcial.example', 'otro.example']) {
       for (const contentVersion of [0, 1]) {
         const page = { text: '', forms: [], links: [], scriptHosts: [], iframeHosts: [] };
         const response = mockSiteCheck({ ...base, hostname, contentVersion, ...(contentVersion ? { page } : {}) });

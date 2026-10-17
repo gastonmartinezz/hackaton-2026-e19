@@ -78,7 +78,7 @@ describe('SiteProtection', () => {
     await vi.advanceTimersByTimeAsync(100);
     expect(summarize).toHaveBeenCalledWith(protection.snapshot.navigationId, 1);
     expect(calls[1]!.request).toMatchObject({ contentVersion: 1, page: PAGE });
-    calls[1]!.resolve({ identity: { status: 'verified_official', organization: 'Banco' } });
+    calls[1]!.resolve({ identity: { status: 'verified_official', basis: 'financial_regulator', organization: 'Banco' } });
     await flush();
     expect(protection.snapshot.kind).toBe('official');
     expect(protection.snapshot.announcement?.kind).toBe('official');
