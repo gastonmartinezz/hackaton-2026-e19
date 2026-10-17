@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="es-UY">
+<head>
+<meta charset="utf-8">
+<title>Mostrame · pantallas</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="app.css">
+<script src="icons.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const q = new URLSearchParams(location.search);
+const S = q.get('s') || 'inicio';
+document.documentElement.dataset.textScale = q.get('scale') || '1.2';
+document.documentElement.dataset.theme = q.get('theme') || 'light';
+const dark = q.get('theme') === 'dark';
+const SYM = dark ? '../brand/mostrame-simbolo-oscuro.svg' : '../brand/mostrame-simbolo.svg';
+const LOGO = dark ? '../brand/mostrame-logo-oscuro.svg' : '../brand/mostrame-logo.svg';
+const I = (n, c = '') => `<span class="ic ${c}" aria-hidden="true">${ICONS[n]}</svg></span>`;
+let DOM = { sub: 'agenda.', main: 'ejemplo.gub.uy' };
+let GOAL = 'Renovar la cédula en Uruguay';
+
+/* ---------- Barra del navegador ---------- */
+const chrome = (site, helpOn = true) => `
+<header class="chrome">
+  <a class="brand" href="#" aria-label="Mostrame, ir al inicio"><img src="${LOGO}" alt="Mostrame"></a>
+  <div class="nav">
+    <button class="btn btn-chrome icon-only" aria-label="Inicio">${I('house')}</button>
+    <button class="btn btn-chrome icon-only" aria-label="Página anterior" ${site ? '' : 'disabled style="opacity:.4"'}>${I('arrow-left')}</button>
+    <button class="btn btn-chrome icon-only" aria-label="Volver a cargar la página" ${site ? '' : 'disabled style="opacity:.4"'}>${I('rotate-cw')}</button>
+  </div>
+  ${site
+    ? `<div class="omni" role="group" aria-label="Sitio abierto">${I('lock','sm')}<span class="muted k-estas" style="white-space:nowrap">Estás en</span><span class="dom"><span class="sub">${DOM.sub}</span><b>${DOM.main}</b></span></div>`
+    : `<label class="omni" for="omni">${I('search','sm')}<span class="ph">Buscá un sitio o contá qué querés hacer</span></label><div class="spacer"></div>`}
+  ${site ? `<button class="btn btn-help" aria-pressed="${helpOn}">${I('sparkles')}Ayuda</button>` : ''}
+  <button class="btn btn-chrome">${I('a-large-small')}<span class="lbl-long">Tamaño de letra</span><span class="lbl-short">Letra</span></button>
+</header>`;
+
+/* ---------- Tarjeta flotante de ayuda ---------- */
+const card = (body, o = {}) => `
+<aside class="mm-card ${o.tone ? 'tone-' + o.tone : ''} ${o.bottom ? 'bottom' : ''}" aria-label="Ayuda de Mostrame">
+  <div class="mm-card-head">
+    <span class="who"><img src="${SYM}" alt="">Mostrame</span>
+    <span class="spacer"></span>
+    <button class="btn btn-quiet" style="border-color:transparent">${I('minus','sm')}Achicar</button>
+  </div>
+  ${o.noGoal ? '' : `<div class="mm-goal">Tu objetivo: <b>${GOAL}</b></div>`}
+  <div class="mm-card-body">${body}</div>
+  ${o.noFoot ? '' : `<nav class="mm-card-foot" aria-label="Controles de la ayuda">
+    ${o.exitOnly ? '' : `<button class="btn btn-quiet" ${o.noRepeat ? 'disabled' : ''}>${I('rotate-ccw','sm')}Repetir</button>
+    <button class="btn btn-quiet" ${o.noBack ? 'disabled' : ''}>${I('arrow-left','sm')}Volver un paso</button>`}
+    <button class="btn btn-quiet">${I('log-out','sm')}Salir de la ayuda</button>
+  </nav>`}
+</aside>`;
+const pill = (txt) => `<div class="mm-pill" role="region" aria-label="Ayuda de Mostrame, achicada"><img src="${SYM}" alt=""><span class="txt">${txt}</span><button class="btn btn-primary" style="min-height:var(--target-min)">${I('chevron-up','sm')}Abrir</button></div>`;
+
+const doneList = (items) => `<section class="done-list"><h3>Ya hiciste</h3><ul>${items.map(t => `<li>${I('check')}<span>${t}</span></li>`).join('')}</ul></section>`;
+
+/* ---------- Sitios de ejemplo (mock externo, una columna) ---------- */
+const govHead = `<div class="gov-top"><div class="seal">ROU</div><div><div class="t1">Identificación Civil</div><div>Sitio de ejemplo · no es un organismo real</div></div></div>
+<div class="gov-nav"><span>Inicio</span><span>Trámites</span><span>Agenda</span><span>Oficinas</span><span>Preguntas frecuentes</span><span>Contacto</span></div>`;
+const tag = `<span class="mock-tag" style="left:10px;right:auto">Sitio externo de ejemplo</span>`;
+const govAgenda = (hl) => `<div class="gov">${govHead}
+<div class="gov-main one">
+  <div class="crumbs">Inicio › Agenda › Cédula de identidad</div>
+  <h1>Agenda de turnos para cédula de identidad</h1>
+  <p>Desde este sitio podrá reservar día y hora para tramitar o renovar su cédula de identidad en cualquiera de nuestras oficinas habilitadas. Recuerde concurrir con la documentación requerida y con al menos 10 minutos de anticipación al horario reservado.</p>
+  <p>Las reservas pueden realizarse con hasta 60 días de anticipación. En caso de no poder concurrir, le solicitamos cancelar su turno para liberar el cupo.</p>
+  <div class="gov-btns">
+    <span class="${hl ? 'hl-target' : ''}" style="display:inline-block"><button class="gov-btn">Sacar turno</button>${hl ? '<span class="hl-ring"></span><span class="hl-label">Acá</span>' : ''}</span>
+    <button class="gov-btn alt">Consultar mi turno</button>
+    <button class="gov-btn alt">Cancelar turno</button>
+  </div>
+  <aside class="gov-side"><b>Requisitos</b><ul><li>Cédula anterior</li><li>Comprobante de pago</li><li>Partida de nacimiento (si corresponde)</li></ul></aside>
+  <h2>Avisos</h2>
+  <div class="gov-news"><div><b>Horario de verano</b><br>Las oficinas del interior atienden de 8 a 14 h.</div><div><b>Costo del trámite</b><br>Consulte los valores vigentes en la sección Trámites.</div><div><b>Menores de edad</b><br>Deben concurrir con madre, padre o tutor.</div></div>
+</div>${tag}</div>`;
+const govOk = `<div class="gov">${govHead}<div class="gov-main one">
+  <div class="crumbs">Inicio › Agenda › Confirmación</div><h1>Turno confirmado</h1>
+  <div class="gov-ok"><b>✓ Su turno fue reservado con éxito</b>Martes 4 de noviembre · 10:30 h · Oficina Centro (Av. Ejemplo 1234).<br>Recibirá un correo electrónico con el detalle de su reserva.</div>
+  <div class="gov-btns"><button class="gov-btn">Imprimir comprobante</button><button class="gov-btn alt">Volver al inicio</button></div>
+  <aside class="gov-side"><b>Recuerde</b><ul><li>Concurrir 10 minutos antes</li><li>Llevar su cédula anterior</li></ul></aside>
+</div>${tag}</div>`;
+const govAmbig = `<div class="gov">${govHead}<div class="gov-main one">
+  <div class="crumbs">Inicio › Agenda</div><h1>Gracias</h1>
+  <p>Su solicitud fue recibida y está siendo procesada. En caso de corresponder, se le notificará por los medios registrados.</p>
+  <div class="gov-btns"><button class="gov-btn alt">Volver al inicio</button></div>
+  <aside class="gov-side"><b>Ayuda</b><p>Ante dudas comuníquese al 0800 0000.</p></aside>
+</div>${tag}</div>`;
+const govMap = `<div class="gov">${govHead}<div class="gov-main one">
+  <div class="crumbs">Inicio › Oficinas</div><h1>Mapa de oficinas</h1>
+  <div class="gov-map">[ Mapa interactivo ]</div>
+  <div class="gov-frame">Ingreso con usuario de otro servicio<div class="in"></div><div class="in"></div></div>
+</div>${tag}</div>`;
+
+const HL = '<span class="hl-ring"></span><span class="hl-label">Acá</span>';
+const HLS = '<span class="hl-ring"></span><span class="hl-label side">Acá</span>';
+const HLB = '<span class="hl-ring"></span><span class="hl-label below">Acá</span>';
+const govForm = (hl, err) => `<div class="gov">${govHead}<div class="gov-main one">
+  <div class="crumbs">Inicio › Agenda › Reservar turno</div><h1>Reservar turno</h1>
+  <div class="gov-steps">Complete los datos solicitados.</div>
+  <div class="gov-form">
+    <div><label>Oficina</label><span class="${hl === 'oficina' ? 'hl-target' : ''}" style="display:block"><div class="in2 ${err ? 'err' : ''}">Seleccione…</div>${hl === 'oficina' ? HLS : ''}</span>${err ? '<div class="msg">Debe seleccionar una oficina.</div>' : ''}</div>
+    <div><label>Fecha</label><div class="in2">Seleccione…</div></div>
+    <div><label>Número de documento</label><span class="${hl === 'doc' ? 'hl-target' : ''}" style="display:block"><div class="in2"></div>${hl === 'doc' ? HLS : ''}</span></div>
+    <div class="gov-btns" style="margin-top:6px"><button class="gov-btn">Continuar</button><button class="gov-btn alt">Volver</button></div>
+  </div>
+</div>${tag}</div>`;
+const govReview = (hl) => `<div class="gov">${govHead}<div class="gov-main one">
+  <div class="crumbs">Inicio › Agenda › Reservar turno</div><h1>Revise su reserva</h1>
+  <div class="gov-summary"><div><b>Oficina:</b> Oficina Centro</div><div><b>Fecha:</b> Martes 4 de noviembre · 10:30 h</div><div><b>Trámite:</b> Renovación de cédula</div></div>
+  <p style="margin-top:12px">La reserva no quedará registrada hasta que la confirme.</p>
+  <div class="gov-btns"><span class="${hl ? 'hl-target' : ''}" style="display:inline-block"><button class="gov-btn">Confirmar reserva</button>${hl ? HLB : ''}</span><button class="gov-btn alt">Modificar</button></div>
+</div>${tag}</div>`;
+const govFaq = `<div class="gov">${govHead}<div class="gov-main one">
+  <div class="crumbs">Inicio › Preguntas frecuentes</div><h1>Preguntas frecuentes</h1>
+  <h2>¿Cuánto cuesta renovar la cédula?</h2><p>El costo depende del tipo de trámite. Consulte la tabla de valores vigentes.</p>
+  <h2>¿Puedo ir sin turno?</h2><p>Algunas oficinas atienden sin reserva previa según disponibilidad.</p>
+  <h2>¿Qué pasa si pierdo mi turno?</h2><p>Puede reservar uno nuevo desde la Agenda.</p>
+</div>${tag}</div>`;
+
+
+/* ---------- Tienda de ejemplo (recorrido de compra) ---------- */
+const SHOP = { sub: 'www.', main: 'tiendamac.ejemplo.com.uy' };
+const shopHead = `<div class="shop-top"><div class="shop-logo">TiendaMac<span>Uruguay</span></div><div class="shop-search">Buscar productos…</div><div class="shop-links"><span>Mi cuenta</span><span>Carrito (CART)</span></div></div>
+<div class="shop-nav"><span>Notebooks</span><span>Tablets</span><span>Celulares</span><span>Accesorios</span><span>Ofertas</span></div>`;
+const laptop = `<svg viewBox="0 0 320 200" class="shop-img" aria-hidden="true"><rect x="40" y="18" width="240" height="150" rx="10" fill="#c9ccd1"/><rect x="50" y="28" width="220" height="130" rx="4" fill="#2d3340"/><path d="M14 170h292l-14 16H28z" fill="#b5b9bf"/><rect x="140" y="170" width="40" height="5" rx="2" fill="#9aa0a7"/></svg>`;
+const shopTag = `<span class="mock-tag" style="left:10px;right:auto">Tienda de ejemplo · no es un comercio real</span>`;
+const shopProduct = (hl) => `<div class="shop">${shopHead.replace('CART','0')}<div class="shop-main">
+  <div class="crumbs">Inicio › Notebooks › MacBook</div>
+  <div class="shop-prod">${laptop}
+    <div class="shop-info"><div class="shop-badge">Revendedor autorizado</div>
+      <h1>MacBook Air 13" chip M1 · 8 GB · 256 GB</h1>
+      <div class="shop-price">US$ 899</div><div class="shop-small">Hasta 12 cuotas · Envío gratis a todo el país</div>
+      <div class="shop-lbl">Color</div><div class="shop-colors"><button class="sel">Gris espacial</button><button>Plata</button><button>Oro</button></div>
+      <div class="shop-btns"><span class="${hl ? 'hl-target' : ''}" style="display:inline-block"><button class="shop-btn">Agregar al carrito</button>${hl ? HLB : ''}</span><button class="shop-btn alt">Comprar ahora</button></div>
+      <div class="shop-small">Garantía oficial de 1 año · Retiro en local o envío en 48 h</div>
+    </div></div>
+</div>${shopTag}</div>`;
+const shopCart = (hl) => `<div class="shop">${shopHead.replace('CART','1')}<div class="shop-main">
+  <div class="crumbs">Inicio › Carrito</div><h1 class="shop-h">Tu carrito</h1>
+  <div class="shop-cart"><div class="shop-row">${laptop.replace('class="shop-img"','class="shop-thumb"')}<div><b>MacBook Air 13" chip M1 · 8 GB · 256 GB</b><div class="shop-small">Color: Gris espacial · Cantidad: 1</div></div><div class="shop-p">US$ 899</div></div>
+  <div class="shop-tot"><div>Envío <span>Gratis</span></div><div class="big">Total <span>US$ 899</span></div></div>
+  <div class="shop-btns" style="justify-content:flex-end"><button class="shop-btn alt">Seguir comprando</button><span class="${hl ? 'hl-target' : ''}" style="display:inline-block"><button class="shop-btn">Finalizar compra</button>${hl ? HLB : ''}</span></div></div>
+</div>${shopTag}</div>`;
+const shopShip = (hl) => `<div class="shop">${shopHead.replace('CART','1')}<div class="shop-main">
+  <div class="crumbs">Carrito › <b>Envío</b> › Pago › Confirmación</div><h1 class="shop-h">¿Dónde lo recibís?</h1>
+  <div class="gov-form" style="max-width:560px">
+    <div><label>Nombre y apellido</label><div class="in2" style="color:#222">María López</div></div>
+    <div><label>Dirección de envío</label><span class="${hl ? 'hl-target' : ''}" style="display:block"><div class="in2"></div>${hl ? HLS : ''}</span></div>
+    <div><label>Departamento</label><div class="in2">Seleccione…</div></div>
+    <div class="shop-btns"><button class="shop-btn">Continuar al pago</button></div>
+  </div>
+</div>${shopTag}</div>`;
+const shopPay = (hl) => `<div class="shop">${shopHead.replace('CART','1')}<div class="shop-main">
+  <div class="crumbs">Carrito › Envío › <b>Pago</b> › Confirmación</div><h1 class="shop-h">Pago con tarjeta</h1>
+  <div class="gov-form" style="max-width:560px">
+    <div><label>Número de tarjeta</label><span class="${hl ? 'hl-target' : ''}" style="display:block"><div class="in2"></div>${hl ? HLS : ''}</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label>Vencimiento</label><div class="in2">MM/AA</div></div><div><label>Código de seguridad</label><div class="in2"></div></div></div>
+    <div><label>Cuotas</label><div class="in2">1 pago de US$ 899</div></div>
+    <div class="shop-btns"><button class="shop-btn">Revisar pedido</button></div>
+  </div>
+</div>${shopTag}</div>`;
+const shopReview = (hl) => `<div class="shop">${shopHead.replace('CART','1')}<div class="shop-main">
+  <div class="crumbs">Carrito › Envío › Pago › <b>Confirmación</b></div><h1 class="shop-h">Revisá tu pedido</h1>
+  <div class="gov-summary" style="max-width:560px"><div><b>Producto:</b> MacBook Air 13" M1 · Gris espacial</div><div><b>Envío:</b> a domicilio · Gratis</div><div><b>Pago:</b> tarjeta terminada en ••42 · 1 pago</div><div style="font-size:17px;margin-top:6px"><b>Total: US$ 899</b></div></div>
+  <div class="shop-btns"><span class="${hl ? 'hl-target' : ''}" style="display:inline-block"><button class="shop-btn">Confirmar compra</button>${hl ? HLB : ''}</span><button class="shop-btn alt">Modificar</button></div>
+</div>${shopTag}</div>`;
+const shopDone = `<div class="shop">${shopHead.replace('CART','0')}<div class="shop-main">
+  <div class="crumbs">Inicio › Pedido</div><h1 class="shop-h">¡Gracias por tu compra!</h1>
+  <div class="gov-ok" style="max-width:560px"><b>✓ Pedido N.º 48213 confirmado</b>MacBook Air 13" M1 · US$ 899<br>Te enviamos el detalle por correo. Entrega estimada: jueves 23 de octubre.</div>
+  <div class="shop-btns"><button class="shop-btn alt">Ver mi pedido</button><button class="shop-btn alt">Seguir comprando</button></div>
+</div>${shopTag}</div>`;
+const buy = (site, overlay) => { DOM = SHOP; GOAL = 'Comprar una MacBook Air M1 nueva'; return browse(site, overlay()); };
+
+
+/* ---------- v1.4 · Inicio como buscador ---------- */
+const searchHome = (q, opts = {}) => `<div class="app">${chrome(false)}<main class="search-home">
+  <img class="wordmark" src="${LOGO}" alt="Mostrame">
+  <div class="tag">Te muestro. Lo hacés vos.</div>
+  <label class="sbox ${q ? 'is-focus' : ''}" for="q">${I('search')}<span class="q ${q ? '' : 'ph'}" id="q">${q ? q + '<span class="caret"></span>' : 'Buscá un sitio o contá qué querés hacer'}</span>${I('mic')}</label>
+  <div class="sbtns"><button class="btn btn-quiet">Solo ir al sitio</button><button class="btn btn-primary">${I('sparkles','sm')}Mostrame cómo</button></div>
+  ${q ? '' : `<div class="ssug"><span>Por ejemplo:</span><button class="chip">Sacar un turno</button><button class="chip">Pagar una factura</button><button class="chip">Comprar algo online</button></div>`}
+  <footer class="sfoot"><span>Uruguay</span><span class="priv">${I('lock')}Nunca te voy a pedir contraseñas, números de documento ni datos de tu tarjeta.</span><span>Cómo funciona</span></footer>
+</main></div>`;
+const recoPage = (q, why, rec, others, note) => `<div class="app">${chrome(false)}<main class="reco">
+  <div class="reco-top"><div class="sbox">${I('search')}<span class="q">${q}</span><button class="btn btn-primary go">${I('sparkles','sm')}Mostrame cómo</button></div></div>
+  <div class="reco-main">
+    <div class="reco-why"><img src="${SYM}" alt=""><p>${why}</p></div>
+    ${rec}
+    <h3 class="section-title" style="margin:var(--space-2) 0 0">Otras opciones</h3>
+    <div class="others">${others}</div>
+    ${note ? `<p class="why" style="margin:0">${I('circle-help','sm')}<span>${note}</span></p>` : ''}
+    <div class="reco-more">${I('search','sm')}<span>¿No es esto? Contame un poco más en el buscador y te llevo directo.</span></div>
+  </div></main></div>`;
+
+
+/* ---------- v1.5 · Preguntas para entender qué busca ---------- */
+const askPage = (q, done, question, opts, why) => `<div class="app">${chrome(false)}<main class="ask-page">
+  <img class="wordmark" src="${LOGO}" alt="Mostrame">
+  <div class="sbox" style="width:min(860px,100%)">${I('search')}<span class="q">${q}</span>${I('mic')}</div>
+  <section class="ask-card" aria-labelledby="askq">
+    <div class="lead2"><img src="${SYM}" alt="">Para llevarte directo al sitio justo, necesito un dato.</div>
+    ${done.length ? `<div class="ask-done" aria-label="Lo que ya me contaste">${done.map(d => `<span>${I('check','sm')}${d}</span>`).join('')}</div>` : ''}
+    <h2 id="askq">${question}</h2>
+    <div class="ask-opts" role="group" aria-label="Elegí una respuesta">${opts.map((o, i) => `<button class="${i === 0 ? 'is-focus' : ''}">${I(o[1])}${o[0]}</button>`).join('')}<button class="unsure">${I('circle-help')}No estoy seguro</button></div>
+    <div class="ask-foot"><p class="why">${I('circle-help','sm')}<span>${why}</span></p><span class="muted" style="font-size:var(--fs-sm)">¿Otra respuesta? Escribila en el buscador.</span></div>
+  </section>
+</main></div>`;
+
+const browse = (site, overlay, helpOn = true) => `<div class="app">${chrome(true, helpOn)}<main class="view" aria-label="Página del sitio">${site}${overlay}</main></div>`;
+
+/* ---------- Home / chat ---------- */
+const avatar = `<div class="avatar"><img src="${SYM}" alt=""></div>`;
+const userMsg = (t) => `<div class="msg-user"><span class="sr-only">Vos: </span>${t}</div>`;
+const botMsg = (inner) => `<div class="msg-bot">${avatar}<div class="body">${inner}</div></div>`;
+const composer = (ph = 'Escribí tu respuesta acá') => `<div class="composer"><div class="composer-inner"><label class="sr-only" for="c">Tu respuesta</label><input id="c" class="field" placeholder="${ph}"><button class="btn btn-primary">${I('send','sm')}Enviar</button></div></div>`;
+const homeChat = (inner, comp = true) => `<div class="app">${chrome(false)}<div class="home"><div class="home-inner"><div class="chat">${inner}</div></div></div>${comp ? composer() : ''}</div>`;
+
+const qClar = botMsg(`<p class="big">Te ayudo con eso. ¿En qué país es la cédula?</p>
+  <div class="choices" role="group" aria-label="Elegí una respuesta"><button class="chip">Uruguay</button><button class="chip">Argentina</button></div>
+  <p class="why">${I('circle-help','sm')}<span>Te pregunto porque el trámite es distinto en cada país.</span></p>`);
+
+const screens = {
+  inicio: () => `<div class="app">${chrome(false)}<div class="home"><div class="home-inner">
+    <h1 class="display greeting">Buenas tardes.</h1>
+    <p class="lead">Contame qué querés hacer en internet. Te muestro dónde se hace y te acompaño paso a paso. Vos hacés los clics.</p>
+    <div class="intent-card">
+      <label class="field-label" for="intent">¿Qué querés hacer hoy?</label>
+      <div class="intent-row"><input id="intent" class="field is-focus" placeholder="Por ejemplo: renovar la cédula"><button class="btn btn-primary">Mostrame cómo${I('arrow-right','sm')}</button></div>
+    </div>
+    <h2 class="section-title">O empezá por una de estas:</h2>
+    <div class="suggestions">
+      <button class="card-btn">${I('calendar-check')}Sacar un turno</button>
+      <button class="card-btn">${I('clock')}Ver un horario o una dirección</button>
+      <button class="card-btn">${I('file-text')}Hacer un trámite del Estado</button>
+    </div>
+    <div class="privacy">${I('lock')}<div><b>Tu información es tuya.</b> Nunca te voy a pedir contraseñas, números de documento ni datos de tu tarjeta.</div></div>
+  </div></div></div>`,
+
+  aclaracion: () => homeChat(userMsg('Quiero renovar la cédula') + qClar),
+
+  cargando: () => homeChat(userMsg('Quiero renovar la cédula') + qClar + userMsg('Uruguay') +
+    botMsg(`<div class="loading" role="status"><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="big" style="font-size:var(--fs-lg);font-weight:650">Estoy buscando dónde se hace este trámite.</div>
+      <div class="muted" style="font-size:var(--fs-sm)">Suele tardar unos segundos.</div>
+      <div style="margin-top:var(--space-3)"><button class="btn btn-quiet">Cancelar</button></div></div>`), false),
+
+  sitios: () => `<div class="app">${chrome(false)}<div class="home"><div class="home-inner"><div class="chat">
+    ${userMsg('Uruguay')}
+    ${botMsg(`<p class="big">Encontré dónde hacerlo. Te recomiendo este sitio:</p>
+    <article class="site-card recommended" aria-label="Sitio recomendado">
+      <span class="badge ok">${I('shield-check','sm')}Sitio oficial del Estado</span>
+      <h3 class="name">Agenda de Identificación Civil</h3>
+      <div class="domain"><span class="k">Dirección:</span>${I('lock','sm')}<b>agenda.ejemplo.gub.uy</b></div>
+      <p class="reason"><span class="k">Por qué te lo recomiendo:</span> es la página oficial para pedir turno y renovar la cédula en Uruguay.</p>
+      <div class="site-actions"><button class="btn btn-primary">Abrir este sitio${I('arrow-right','sm')}</button></div>
+    </article>
+    <h3 class="section-title">Otras opciones</h3>
+    <div class="others">
+      <article class="site-card compact"><span class="badge ok">${I('shield-check','sm')}Sitio oficial del Estado</span>
+        <h4 class="name">Portal de trámites del Estado</h4>
+        <div class="domain"><span class="k">Dirección:</span><b>tramites.ejemplo.gub.uy</b></div>
+        <p class="reason">Explica los requisitos y el costo. El turno se pide en la Agenda.</p>
+        <div class="site-actions"><button class="btn btn-secondary">Abrir</button></div></article>
+      <article class="site-card compact"><span class="badge warn">${I('shield-alert','sm')}No pudimos confirmar que sea oficial</span>
+        <h4 class="name">Guía de trámites Uruguay</h4>
+        <div class="domain"><span class="k">Dirección:</span><b>guiatramites.ejemplo.com</b></div>
+        <p class="reason">Tiene información útil, pero no es del Estado. No pongas datos personales ahí.</p>
+        <div class="site-actions"><button class="btn btn-secondary">Abrir</button></div></article>
+    </div>`)}
+  </div></div></div></div>`,
+
+  analizando: () => browse(govAgenda(false), card(`
+    <div class="status analyzing" role="status"><div class="dots" aria-hidden="true" style="margin:0"><i></i><i></i><i></i></div>
+      <h2 class="title">Estoy mirando la página…</h2>
+      <p class="lead-s">Busco qué se puede hacer acá. Mientras tanto, podés leerla con calma.</p>
+    </div>`, { exitOnly: true })),
+
+  opciones: () => browse(govAgenda(false), card(`
+    <div><h2 class="title">¿Qué querés hacer acá?</h2>
+    <p class="lead-s" style="margin-top:var(--space-2)">Encontré estas opciones en esta página.</p></div>
+    <ul class="option-list" aria-label="Opciones de esta página">
+      <li><button class="option is-focus"><span class="num">1</span><span><span class="t">Sacar un turno nuevo</span><span class="d">Para renovar o tramitar la cédula</span></span>${I('chevron-right')}</button></li>
+      <li><button class="option"><span class="num">2</span><span><span class="t">Ver o cambiar mi turno</span><span class="d">Si ya reservaste uno</span></span>${I('chevron-right')}</button></li>
+      <li><button class="option"><span class="num">3</span><span><span class="t">Ver requisitos y costo</span><span class="d">Qué tenés que llevar</span></span>${I('chevron-right')}</button></li>
+    </ul>
+    <button class="linkish" style="min-height:var(--target-min)">Ver otras opciones</button>
+    <div class="panel-note" style="margin:0">${I('lock')}<span>Mostrame no recibe lo que escribís en la página.</span></div>`, { exitOnly: true })),
+
+  guia: () => browse(govAgenda(true), card(`
+    <section aria-label="Paso actual" role="status" style="display:grid;gap:var(--space-3)">
+      <div class="now">${I('arrow-right')}Ahora</div>
+      <p class="instr">Hacé clic en el botón <span style="white-space:nowrap"><span class="ctl-name">«Sacar turno»</span>.</span></p>
+      <p class="help">Te lo marqué en la página con un borde amarillo y negro.</p>
+      <div class="waiting"><span class="pulse" aria-hidden="true"></span><span>Te espero. Cuando hagas clic, sigo con vos.</span></div>
+    </section>
+    ${doneList(['Abriste la Agenda de Identificación Civil', 'Elegiste «Sacar un turno nuevo»'])}`)),
+
+  guiamin: () => browse(govAgenda(true), pill(`<b>Ahora:</b> hacé clic en «Sacar turno».`)),
+
+  completada: () => browse(govOk, card(`
+    <section class="status success" role="status">
+      <div class="head">${I('circle-check','lg')}<h2 class="display title">Listo: tu turno quedó reservado.</h2></div>
+      <div class="evidence">${I('check','sm')}<span>La página dice «Su turno fue reservado con éxito».</span></div>
+      <p class="tip">Anotá la fecha o imprimí el comprobante.</p>
+      <div class="actions"><button class="btn btn-primary block">Hacer otra cosa</button><button class="btn btn-secondary block">Quedarme en esta página</button></div>
+    </section>`, { tone: 'success', noFoot: true })),
+
+  confirmar: () => browse(govAmbig, card(`
+    <section class="status ask" role="status">
+      <div class="head">${I('circle-help','lg')}<h2 class="display title">¿Pudiste terminar?</h2></div>
+      <p>La página cambió, pero no sé si el turno quedó reservado. Fijate si ves una fecha y una hora.</p>
+      <div class="actions"><button class="btn btn-primary block">Sí, terminé</button><button class="btn btn-secondary block">Todavía no</button></div>
+    </section>`, { tone: 'ask', noFoot: true })),
+
+  error: () => browse(govAgenda(false), card(`
+    <section class="status error" role="alert">
+      <div class="head">${I('triangle-alert','lg')}<h2 class="display title">No pude leer esta página.</h2></div>
+      <p>Fue un problema de mi lado, no tuyo. La página funciona igual y podés seguir usándola.</p>
+      <div class="actions"><button class="btn btn-primary block">${I('refresh-cw','sm')}Intentar de nuevo</button><button class="btn btn-secondary block">Seguir sin ayuda</button></div>
+    </section>`, { tone: 'error', noFoot: true })),
+
+  nosoportada: () => browse(govMap, card(`
+    <section class="status unsupported" role="status">
+      <div class="head">${I('circle-slash','lg')}<h2 class="display title">En esta página no puedo ayudarte.</h2></div>
+      <p>Está hecha de una forma que no puedo leer, como el mapa o el ingreso con otro usuario. No es un error tuyo.</p>
+      <div class="actions">
+        <button class="btn btn-primary block">${I('arrow-left','sm')}Volver a la página anterior</button>
+        <button class="btn btn-secondary block">${I('external-link','sm')}Abrir fuera de Mostrame</button>
+      </div>
+      <p class="muted tip" style="font-size:var(--fs-sm)">Fuera de Mostrame ya no te voy a poder guiar.</p>
+    </section>`, { noFoot: true })),
+
+  opcionesmas: () => browse(govAgenda(false), card(`
+    <div><h2 class="title">Otras cosas que podés hacer acá</h2></div>
+    <ul class="mm-sec-list" aria-label="Otras opciones de esta página">
+      <li><button class="option">${I('map-pin')}<span class="t">Ver oficinas y horarios</span>${I('chevron-right')}</button></li>
+      <li><button class="option">${I('x')}<span class="t">Cancelar un turno</span>${I('chevron-right')}</button></li>
+      <li><button class="option">${I('circle-help')}<span class="t">Leer preguntas frecuentes</span>${I('chevron-right')}</button></li>
+      <li><button class="option">${I('file-text')}<span class="t">Ver el costo del trámite</span>${I('chevron-right')}</button></li>
+    </ul>
+    <div class="mm-divider"></div>
+    <label for="ask" style="font-weight:650;font-size:var(--fs-sm)">¿No está lo que buscás? Contame qué querés hacer.</label>
+    <div class="mm-ask-row"><input id="ask" class="field" placeholder="Por ejemplo: cambiar la oficina"><button class="btn btn-primary">${I('send','sm')}Enviar</button></div>
+    <button class="linkish" style="min-height:var(--target-min)">${I('arrow-left','sm')} Volver a las 3 principales</button>`, { exitOnly: true })),
+
+  verificando: () => browse(govForm(null, false), card(`
+    <section role="status" style="display:grid;gap:var(--space-3)">
+      <div class="dots" aria-hidden="true" style="margin:0"><i></i><i></i><i></i></div>
+      <h2 class="title">Estoy fijándome si funcionó…</h2>
+      <p class="lead-s">La página cambió después de tu clic. Ya te digo qué sigue.</p>
+    </section>
+    ${doneList(['Abriste la Agenda', 'Elegiste «Sacar un turno nuevo»', 'Hiciste clic en «Sacar turno»'])}`, { noRepeat: true })),
+
+  campo: () => browse(govForm('doc', false), card(`
+    <section aria-label="Paso actual" role="status" style="display:grid;gap:var(--space-3)">
+      <div class="now">${I('arrow-right')}Ahora</div>
+      <p class="instr">Escribí tu número de cédula en el campo <span style="white-space:nowrap"><span class="ctl-name">«Número de documento»</span>.</span></p>
+      <div class="mm-callout">${I('lock')}<span><b>Esto lo escribís vos.</b> Mostrame no lo ve ni lo guarda.</span></div>
+      <button class="btn btn-primary block">${I('check','sm')}Listo, ya lo escribí</button>
+    </section>
+    ${doneList(['Elegiste la oficina', 'Elegiste la fecha'])}`)),
+
+  errorpagina: () => browse(govForm('oficina', true), card(`
+    <section aria-label="Paso actual" role="status" style="display:grid;gap:var(--space-3)">
+      <div class="mm-callout warn">${I('triangle-alert')}<span><b>La página marcó un problema.</b> No pasa nada, se arregla acá mismo.</span></div>
+      <div class="mm-quote">La página dice: «Debe seleccionar una oficina.»</div>
+      <div class="now">${I('arrow-right')}Ahora</div>
+      <p class="instr">Elegí una oficina en la lista <span style="white-space:nowrap"><span class="ctl-name">«Oficina»</span>.</span></p>
+    </section>`, { tone: 'warn' })),
+
+  aclaracionguia: () => browse(govAgenda(false), card(`
+    <section role="status" style="display:grid;gap:var(--space-3)">
+      <h2 class="title">Una pregunta antes de seguir</h2>
+      <p class="instr" style="font-size:var(--fs-md)">¿El turno es para vos o para otra persona?</p>
+      <div class="chips" role="group" aria-label="Elegí una respuesta"><button class="chip">Para mí</button><button class="chip">Para otra persona</button></div>
+      <p class="why" style="margin:0">${I('circle-help','sm')}<span>Te pregunto porque la página tiene caminos distintos para cada caso.</span></p>
+    </section>`, { noRepeat: true })),
+
+  pausada: () => browse(govFaq, card(`
+    <section role="status" style="display:grid;gap:var(--space-3)">
+      <h2 class="title">Pausé la ayuda</h2>
+      <p>Entraste a otra página por tu cuenta. Está todo bien: cuando quieras, seguimos donde estábamos.</p>
+      <div class="actions" style="display:grid;gap:var(--space-3)"><button class="btn btn-primary block">${I('arrow-left','sm')}Seguir con la ayuda</button><button class="btn btn-secondary block">${I('log-out','sm')}Salir de la ayuda</button></div>
+    </section>`, { noFoot: true })),
+
+  todaviano: () => browse(govAmbig, card(`
+    <section role="status" style="display:grid;gap:var(--space-3)">
+      <h2 class="title">Sigamos. ¿Qué pasó?</h2>
+      <p class="lead-s">Elegí lo que más se parece. Con eso te digo el próximo paso.</p>
+      <ul class="mm-sec-list" aria-label="Qué pasó">
+        <li><button class="option">${I('arrow-right')}<span class="t">Creo que me falta un paso</span>${I('chevron-right')}</button></li>
+        <li><button class="option">${I('triangle-alert')}<span class="t">La página me mostró un error</span>${I('chevron-right')}</button></li>
+        <li><button class="option">${I('rotate-ccw')}<span class="t">Quiero empezar de nuevo</span>${I('chevron-right')}</button></li>
+      </ul>
+    </section>`, { exitOnly: true })),
+
+  todavianosigue: () => browse(govReview(true), card(`
+    <section aria-label="Paso actual" role="status" style="display:grid;gap:var(--space-3)">
+      <div class="mm-callout">${I('search')}<span>Miré la página de nuevo: <b>te falta confirmar la reserva.</b></span></div>
+      <div class="now">${I('arrow-right')}Ahora</div>
+      <p class="instr">Hacé clic en el botón <span style="white-space:nowrap"><span class="ctl-name">«Confirmar reserva»</span>.</span></p>
+      <p class="help">Revisá antes que la oficina y la fecha sean las que querés.</p>
+    </section>
+    ${doneList(['Elegiste oficina y fecha', 'Escribiste tu documento'])}`)),
+
+  salir: () => browse(govAgenda(false), `<div class="mm-toast" role="status">${I('log-out')}<span>Saliste de la ayuda. La página sigue igual.</span><button class="btn btn-secondary">${I('sparkles','sm')}Volver a la ayuda</button></div>`, false),
+
+  inicioconfirmar: () => browse(govForm(null, false), card(`<div class="now">${I('arrow-right')}Ahora</div><p class="instr">Hacé clic en <span style="white-space:nowrap"><span class="ctl-name">«Continuar»</span>.</span></p>`) +
+    `<div class="mm-scrim"><div class="mm-dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
+      <h2 class="title" id="dlg-t">¿Volver al inicio?</h2>
+      <p>Vas a dejar esta página. Lo que escribiste en ella se puede perder.</p>
+      <div class="row"><button class="btn btn-secondary">Quedarme acá</button><button class="btn btn-primary">${I('house','sm')}Sí, ir al inicio</button></div>
+    </div></div>`),
+
+
+  /* ========== Recorrido B · Compra online ========== */
+  c_inicio: () => `<div class="app">${chrome(false)}<div class="home"><div class="home-inner">
+    <h1 class="display greeting">Buenas tardes.</h1>
+    <p class="lead">Contame qué querés hacer en internet. Te muestro dónde se hace y te acompaño paso a paso. Vos hacés los clics.</p>
+    <div class="intent-card">
+      <label class="field-label" for="intent">¿Qué querés hacer hoy?</label>
+      <div class="intent-row"><input id="intent" class="field is-focus" value="MacBook Air M1"><button class="btn btn-primary">Mostrame cómo${I('arrow-right','sm')}</button></div>
+    </div>
+    <div class="privacy">${I('lock')}<div><b>Tu información es tuya.</b> Nunca te voy a pedir contraseñas, números de documento ni datos de tu tarjeta.</div></div>
+  </div></div></div>`,
+
+  c_aclara1: () => homeChat(userMsg('MacBook Air M1') + botMsg(`<p class="big">¿Qué querés hacer con la MacBook Air M1?</p>
+    <div class="choices" role="group" aria-label="Elegí una respuesta"><button class="chip">Comprarla</button><button class="chip">Saber cuánto sale</button><button class="chip">Aprender a usarla</button></div>
+    <p class="why">${I('circle-help','sm')}<span>Te pregunto para llevarte al lugar justo: no es lo mismo comprar que informarse.</span></p>`)),
+
+  c_aclara2: () => homeChat(userMsg('MacBook Air M1') + botMsg(`<p class="big">¿Qué querés hacer con la MacBook Air M1?</p>`) + userMsg('Comprarla') +
+    botMsg(`<p class="big">Bien. ¿La querés nueva o usada?</p>
+    <div class="choices" role="group" aria-label="Elegí una respuesta"><button class="chip">Nueva, con garantía</button><button class="chip">Usada</button><button class="chip">Me da igual</button></div>
+    <p class="why">${I('circle-help','sm')}<span>Cambia mucho dónde conviene comprarla y cuánto cuesta.</span></p>`)),
+
+  c_buscando: () => homeChat(userMsg('Comprarla') + userMsg('Nueva, con garantía') +
+    botMsg(`<div class="loading" role="status"><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div style="font-size:var(--fs-lg);font-weight:650">Estoy buscando las tiendas más recomendadas para comprarla en Uruguay.</div>
+      <div class="muted" style="font-size:var(--fs-sm)">Miro reputación, garantía y precio. Suele tardar unos segundos.</div>
+      <div style="margin-top:var(--space-3)"><button class="btn btn-quiet">Cancelar</button></div></div>`), false),
+
+  c_tiendas: () => `<div class="app">${chrome(false)}<div class="home"><div class="home-inner"><div class="chat">
+    ${userMsg('Nueva, con garantía')}
+    ${botMsg(`<p class="big">Encontré dónde comprarla. Te recomiendo esta tienda:</p>
+    <article class="site-card recommended" aria-label="Tienda recomendada">
+      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap"><span class="badge ok">${I('shield-check','sm')}Revendedor autorizado de la marca</span><span class="badge rec">Mejor valorada</span></div>
+      <h3 class="name">TiendaMac Uruguay</h3>
+      <div class="domain"><span class="k">Dirección:</span>${I('lock','sm')}<b>tiendamac.ejemplo.com.uy</b></div>
+      <div class="shop-facts"><div><span class="k">Precio hoy</span><b>US$ 899</b></div><div><span class="k">Garantía</span><b>Oficial, 1 año</b></div><div><span class="k">Envío</span><b>Gratis, 48 h</b></div></div>
+      <p class="reason"><span class="k">Por qué te la recomiendo:</span> vende la máquina nueva con garantía oficial y tiene muy buenas opiniones de compradores.</p>
+      <div class="site-actions"><button class="btn btn-primary">Abrir esta tienda${I('arrow-right','sm')}</button></div>
+    </article>
+    <h3 class="section-title">Otras opciones</h3>
+    <div class="others">
+      <article class="site-card compact"><span class="badge ok">${I('shield-check','sm')}Tienda conocida</span>
+        <h4 class="name">ElectroCentro</h4><div class="domain"><span class="k">Dirección:</span><b>electrocentro.ejemplo.com.uy</b></div>
+        <p class="reason">US$ 929 · Garantía de la tienda, 1 año · Retiro en local.</p>
+        <div class="site-actions"><button class="btn btn-secondary">Abrir</button></div></article>
+      <article class="site-card compact"><span class="badge warn">${I('shield-alert','sm')}Vendedor particular: no pudimos verificarlo</span>
+        <h4 class="name">Publicación en MercadoAbierto</h4><div class="domain"><span class="k">Dirección:</span><b>mercadoabierto.ejemplo.com</b></div>
+        <p class="reason">US$ 780 · Sin garantía oficial. Más barato, pero con más riesgo.</p>
+        <div class="site-actions"><button class="btn btn-secondary">Abrir</button></div></article>
+    </div>
+    <p class="why" style="margin-top:var(--space-4)">${I('circle-help','sm')}<span>Los precios los muestra cada tienda y pueden cambiar. Ninguna tienda me paga por aparecer acá.</span></p>`)}
+  </div></div></div></div>`,
+
+  c_opciones: () => buy(shopProduct(false), () => card(`
+    <div><h2 class="title">¿Qué querés hacer acá?</h2>
+    <p class="lead-s" style="margin-top:var(--space-2)">Estás en la página de la MacBook Air M1.</p></div>
+    <ul class="option-list" aria-label="Opciones de esta página">
+      <li><button class="option is-focus"><span class="num">1</span><span><span class="t">Comprarla</span><span class="d">Te guío hasta el pago, paso a paso</span></span>${I('chevron-right')}</button></li>
+      <li><button class="option"><span class="num">2</span><span><span class="t">Ver garantía y envío</span><span class="d">Qué cubre y cuándo llega</span></span>${I('chevron-right')}</button></li>
+      <li><button class="option"><span class="num">3</span><span><span class="t">Comparar con otros modelos</span><span class="d">Por si te conviene otra</span></span>${I('chevron-right')}</button></li>
+    </ul>
+    <div class="panel-note" style="margin:0">${I('lock')}<span>Mostrame no recibe lo que escribís en la página.</span></div>`, { exitOnly: true })),
+
+  c_carrito1: () => buy(shopProduct(true), () => card(`
+    <section aria-label="Paso actual" role="status" style="display:grid;gap:var(--space-3)">
+      <div class="mm-callout">${I('check')}<span>El color <b>Gris espacial</b> ya está elegido. Si querés otro, cambialo antes.</span></div>
+      <div class="now">${I('arrow-right')}Ahora</div>
+      <p class="instr">Hacé clic en el botón <span style="white-space:nowrap"><span class="ctl-name">«Agregar al carrito»</span>.</span></p>
+      <div class="waiting"><span class="pulse" aria-hidden="true"></span><span>Te espero. Cuando hagas clic, sigo con vos.</span></div>
+    </section>
+    ${doneList(['Abriste TiendaMac Uruguay', 'Elegiste «Comprarla»'])}`)),
+
+  c_carrito2: () => buy(shopCart(true), () => card(`
+    <section aria-label="Paso actual" role="status" style="display:grid;gap:var(--space-3)">
+      <div class="mm-callout">${I('search')}<span>Revisé el carrito: <b>1 MacBook Air M1, US$ 899, envío gratis.</b> Está todo bien.</span></div>
+      <div class="now">${I('arrow-right')}Ahora</div>
+      <p class="instr">Hacé clic en <span style="white-space:nowrap"><span class="ctl-name">«Finalizar compra»</span>.</span></p>
+    </section>
+    ${doneList(['Elegiste «Comprarla»', 'Agregaste la MacBook al carrito'])}`)),
+
+  c_envio: () => buy(shopShip(true), () => card(`
+    <section aria-label="Paso actual" role="status" style="display:grid;gap:var(--space-3)">
+      <div class="now">${I('arrow-right')}Ahora</div>
+      <p class="instr">Escribí la dirección donde querés recibirla en <span style="white-space:nowrap"><span class="ctl-name">«Dirección de envío»</span>.</span></p>
+      <div class="mm-callout">${I('lock')}<span><b>Esto lo escribís vos.</b> Mostrame no lo ve ni lo guarda.</span></div>
+      <button class="btn btn-primary block">${I('check','sm')}Listo, ya la escribí</button>
+    </section>
+    ${doneList(['Agregaste la MacBook al carrito', 'Fuiste a «Finalizar compra»'])}`)),
+
+  c_pago: () => buy(shopPay(true), () => card(`
+    <section aria-label="Paso actual" role="status" style="display:grid;gap:var(--space-3)">
+      <div class="mm-callout">${I('shield-check')}<span><b>Comprobé:</b> seguís en la tienda que elegiste, con conexión cifrada.</span></div>
+      <div class="now">${I('arrow-right')}Ahora</div>
+      <p class="instr">Escribí los datos de tu tarjeta, empezando por <span style="white-space:nowrap"><span class="ctl-name">«Número de tarjeta»</span>.</span></p>
+      <div class="mm-callout">${I('lock')}<span><b>Tu tarjeta va directo a la tienda.</b> Mostrame no la ve.</span></div>
+      <button class="btn btn-primary block">${I('check','sm')}Listo, ya los escribí</button>
+    </section>`)),
+
+  c_confirmar: () => buy(shopReview(true), () => card(`
+    <section aria-label="Paso actual" role="status" style="display:grid;gap:var(--space-3)">
+      <div class="mm-callout warn">${I('triangle-alert')}<span><b>Este botón hace la compra.</b> Antes, revisá en la página que el producto, el envío y el total sean los que querés.</span></div>
+      <div class="mm-quote" style="border-left-color:var(--color-primary)">La página dice: «Total: US$ 899»</div>
+      <div class="now">${I('arrow-right')}Ahora</div>
+      <p class="instr">Si está todo bien, hacé clic en <span style="white-space:nowrap"><span class="ctl-name">«Confirmar compra»</span>.</span></p>
+      <p class="help">Si algo no te convence, no hay apuro: podés hacer clic en «Modificar» o salir de la ayuda.</p>
+    </section>`, { tone: 'warn' })),
+
+  c_listo: () => buy(shopDone, () => card(`
+    <section class="status success" role="status">
+      <div class="head">${I('circle-check','lg')}<h2 class="display title">Listo: tu compra quedó confirmada.</h2></div>
+      <div class="evidence">${I('check','sm')}<span>La página dice «Pedido N.º 48213 confirmado».</span></div>
+      <p class="tip">Anotá el número de pedido. La tienda te manda el detalle por correo.</p>
+      <div class="actions"><button class="btn btn-primary block">Hacer otra cosa</button><button class="btn btn-secondary block">Quedarme en esta página</button></div>
+    </section>`, { tone: 'success', noFoot: true })),
+
+  /* ========== v1.4 · Inicio buscador ========== */
+  s_home: () => searchHome('renovar documento'),
+  s_reco: () => recoPage('renovar documento',
+    `No pasa nada si no estás seguro. Por lo que buscaste, este es el sitio que mejor se ajusta. Si no es, contame un poco más en el buscador.`,
+    `<article class="site-card recommended" aria-label="Sitio recomendado">
+      <span class="badge ok">${I('shield-check','sm')}Sitio oficial del Estado</span>
+      <h3 class="name">Agenda de Identificación Civil</h3>
+      <div class="domain"><span class="k">Dirección:</span><span style="color:var(--color-muted)">${I('lock','sm')}</span><b>agenda.ejemplo.gub.uy</b></div>
+      <p class="reason"><span class="k">Por qué te lo recomiendo:</span> es la página oficial para renovar la cédula en Uruguay, el documento que más se renueva.</p>
+      <div class="site-actions"><button class="btn btn-primary">${I('sparkles','sm')}Ir con ayuda${I('arrow-right','sm')}</button><button class="btn btn-quiet">Solo abrir el sitio</button></div>
+    </article>`,
+    `<article class="site-card compact"><span class="badge ok">${I('shield-check','sm')}Sitio oficial del Estado</span><h4 class="name">Pasaporte · Dirección Nacional de Migración</h4><div class="domain"><span class="k">Dirección:</span><b>pasaporte.ejemplo.gub.uy</b></div><p class="reason">Si lo que querés renovar es el pasaporte.</p></article>
+     <article class="site-card compact"><span class="badge ok">${I('shield-check','sm')}Sitio oficial del Estado</span><h4 class="name">Libreta de conducir · Intendencia</h4><div class="domain"><span class="k">Dirección:</span><b>licencias.ejemplo.gub.uy</b></div><p class="reason">Si lo que querés renovar es la libreta.</p></article>`, ''),
+  s_home_b: () => searchHome('MacBook Air M1'),
+  s_reco_b: () => recoPage('MacBook Air M1',
+    `Estas son las tiendas más recomendadas para comprarla <b>nueva y con garantía</b> en Uruguay. Elegí dónde querés comprar.`,
+    `<article class="site-card recommended" aria-label="Tienda recomendada">
+      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap"><span class="badge ok">${I('shield-check','sm')}Revendedor autorizado de la marca</span><span class="badge rec">Mejor valorada</span></div>
+      <h3 class="name">TiendaMac Uruguay</h3>
+      <div class="domain"><span class="k">Dirección:</span><span style="color:var(--color-muted)">${I('lock','sm')}</span><b>tiendamac.ejemplo.com.uy</b></div>
+      <div class="shop-facts"><div><span class="k">Precio hoy</span><b>US$ 899</b></div><div><span class="k">Garantía</span><b>Oficial, 1 año</b></div><div><span class="k">Envío</span><b>Gratis, 48 h</b></div></div>
+      <p class="reason"><span class="k">Por qué te la recomiendo:</span> vende la máquina nueva con garantía oficial y tiene muy buenas opiniones de compradores.</p>
+      <div class="site-actions"><button class="btn btn-primary">${I('sparkles','sm')}Ir con ayuda${I('arrow-right','sm')}</button><button class="btn btn-quiet">Solo abrir la tienda</button></div>
+    </article>`,
+    `<article class="site-card compact"><span class="badge ok">${I('shield-check','sm')}Tienda conocida</span><h4 class="name">ElectroCentro</h4><div class="domain"><span class="k">Dirección:</span><b>electrocentro.ejemplo.com.uy</b></div><p class="reason">US$ 929 · Garantía de la tienda, 1 año · Retiro en local.</p></article>
+     <article class="site-card compact"><span class="badge warn">${I('shield-alert','sm')}Vendedor particular: no pudimos verificarlo</span><h4 class="name">Publicación en MercadoAbierto</h4><div class="domain"><span class="k">Dirección:</span><b>mercadoabierto.ejemplo.com</b></div><p class="reason">US$ 780 · Usada, sin garantía oficial. Más barata, pero con más riesgo.</p></article>`,
+    'Los precios los muestra cada tienda y pueden cambiar. Ninguna tienda me paga por aparecer acá.'),
+
+  /* ========== v1.5 · preguntas ========== */
+  s_q1: () => askPage('renovar documento', [], '¿Qué documento querés renovar?',
+    [['Cédula de identidad','file-text'],['Pasaporte','file-text'],['Libreta de conducir','file-text']],
+    'Cada documento se renueva en un sitio distinto.'),
+  s_q2: () => askPage('renovar documento', ['Documento: cédula de identidad'], '¿En qué país?',
+    [['Uruguay','map-pin'],['Argentina','map-pin']],
+    'El trámite y el sitio oficial cambian según el país.'),
+  s_q1_b: () => askPage('MacBook Air M1', [], '¿Qué querés hacer con la MacBook Air M1?',
+    [['Comprarla','calendar-check'],['Saber cuánto sale','search'],['Aprender a usarla','circle-help']],
+    'No es lo mismo comprar que informarse: te llevo a lugares distintos.'),
+  s_q2_b: () => askPage('MacBook Air M1', ['Querés comprarla'], '¿La querés nueva o usada?',
+    [['Nueva, con garantía','shield-check'],['Usada, más barata','search'],['Me da igual','check']],
+    'Cambia mucho dónde conviene comprarla y cuánto cuesta.'),
+
+};
+document.getElementById('root').innerHTML = screens[S]();
+</script>
+<style>.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style>
+</body>
+</html>
