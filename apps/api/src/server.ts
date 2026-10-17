@@ -19,4 +19,4 @@ process.once('SIGTERM', () => void shutdown('SIGTERM'));
 process.once('SIGINT', () => void shutdown('SIGINT'));
 
 await app.listen({ host: config.HOST, port: config.PORT });
-app.log.info({ aiProvider: config.AI_PROVIDER }, 'api ready');
+app.log.info({ aiProvider: config.AI_PROVIDER, sttProvider: config.STT_PROVIDER }, 'api ready');
