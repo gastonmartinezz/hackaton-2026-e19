@@ -25,6 +25,12 @@ import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
 
 const BASE_TOP_BAR = 76;
 const BASE_PANEL = 420;
+/**
+ * Opciones y guía dentro de la página (POST /v1/options). Apagado en esta
+ * etapa: la base es el input de la home y la navegación. Se activa en la rama
+ * options-action junto con el contrato nuevo del backend.
+ */
+const GUIDE_ENABLED = false;
 const MAX_NOTICES = 3;
 
 const PERMISSION_NAMES: Record<string, string> = {
@@ -80,7 +86,11 @@ export class AppController {
     this.window.contentView.addChildView(this.#site.view);
     this.#site.view.setVisible(false);
     this.#bridge = new PageBridge(this.#site);
-    this.#chat = new Chat(options.api, () => this.#publish());
+    this.#chat = new Chat(
+      options.api,
+      () => this.#publish(),
+      (url) => this.#openDestination(url),
+    );
     this.#assistant = new Assistant({ api: options.api, page: this.#bridge, onChange: () => this.#publish() });
     this.#wireSite();
 
@@ -118,6 +128,10 @@ export class AppController {
     this.#site.view.setVisible(this.#siteVisible);
   }
 
+  #guideAllowed(): boolean {
+    return GUIDE_ENABLED && this.options.prefs.isAiEnabled(this.#origin());
+  }
+
   #origin(): string | null {
     return this.#siteVisible ? sanitizeOrigin(this.#site.url) : null;
   }
@@ -128,9 +142,10 @@ export class AppController {
     const parsed = verdict?.kind === 'allow' ? verdict.url : null;
     const guide = this.#assistant.state;
     const history = this.#site.contents.navigationHistory;
-    const toView = (o: { id: string; title: string; description: string }) => ({ id: o.id, title: o.title, description: o.description });
+    const toView = (o: { id: string; title: string }) => ({ id: o.id, title: o.title, description: '' });
     return {
       mockBackend: this.options.api.isMock,
+      guideEnabled: GUIDE_ENABLED,
       layout: this.#layoutSizes(),
       prefs: { textScale: this.options.prefs.value.textScale, aiEnabledForSite: this.options.prefs.isAiEnabled(this.#origin()) },
       nav: {
@@ -150,16 +165,7 @@ export class AppController {
         error: this.#chat.error,
         candidates: this.#chat.candidates.map((c) => {
           const u = new URL(c.url);
-          return {
-            id: c.id,
-            title: c.title,
-            domain: u.hostname,
-            description: c.description,
-            reason: c.reason,
-            recommended: c.id === this.#chat.recommendedId,
-            verifiedOfficial: c.verifiedOfficial,
-            secure: u.protocol === 'https:' || isLoopback(u),
-          };
+          return { id: c.id, title: c.title, domain: u.hostname, reason: c.reason, secure: u.protocol === 'https:' || isLoopback(u) };
         }),
       },
       guide: {
@@ -204,7 +210,7 @@ export class AppController {
     const site = this.#site;
     site.on('navigationStarted', () => this.#assistant.navigationStarted());
     site.on('navigated', ({ sameDocument }) => {
-      this.#assistant.navigated({ sameDocument, aiEnabled: this.options.prefs.isAiEnabled(this.#origin()) });
+      this.#assistant.navigated({ sameDocument, aiEnabled: this.#guideAllowed() });
     });
     site.on('stateChanged', () => this.#publish());
     site.on('popup', ({ url }) => {
@@ -231,6 +237,12 @@ export class AppController {
     this.#bridge.on('changed', (message) => this.#assistant.pageChanged(message));
     this.#bridge.on('interaction', ({ elementId }) => this.#assistant.interaction(elementId));
     this.#bridge.on('validationError', () => this.#assistant.validationError());
+  }
+
+  /** Destino elegido en el chat: al cargar, la guía analiza la página con ese objetivo. */
+  #openDestination(url: string): void {
+    this.#assistant.expectDestination(this.#chat.goal ?? '');
+    this.#showSite(url);
   }
 
   #showSite(url: string): void {
@@ -276,8 +288,7 @@ export class AppController {
         // La URL sale del resultado recibido, nunca del renderer.
         const candidate = this.#chat.candidate(command.candidateId);
         if (!candidate) return;
-        this.#assistant.expectDestination(this.#chat.goal ?? candidate.title);
-        this.#showSite(candidate.url);
+        this.#openDestination(candidate.url);
         return;
       }
       case 'navigate': {
@@ -301,7 +312,6 @@ export class AppController {
       case 'home':
         this.#assistant.exit();
         this.#chat.reset();
-        await this.options.api.endSession();
         this.#siteVisible = false;
         this.#site.clear();
         this.#notices = [];
@@ -309,7 +319,7 @@ export class AppController {
         this.#publish();
         return;
       case 'analyzePage':
-        if (this.#siteVisible && this.options.prefs.isAiEnabled(this.#origin())) this.#assistant.analyze(this.#chat.goal ?? undefined);
+        if (this.#siteVisible && this.#guideAllowed()) this.#assistant.analyze(this.#chat.goal ?? undefined);
         return;
       case 'selectOption':
         this.#assistant.select(command.optionId);
@@ -338,7 +348,7 @@ export class AppController {
         const origin = this.#origin();
         if (!origin) return;
         await this.options.prefs.setAiEnabled(origin, command.enabled);
-        if (command.enabled) this.#assistant.analyze(this.#chat.goal ?? undefined);
+        if (command.enabled && GUIDE_ENABLED) this.#assistant.analyze(this.#chat.goal ?? undefined);
         else this.#assistant.exit();
         this.#publish();
         return;

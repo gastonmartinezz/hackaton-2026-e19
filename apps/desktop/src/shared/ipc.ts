@@ -3,7 +3,7 @@
  * Interfaz propia ↔ proceso principal, y página externa (preload aislado) ↔
  * proceso principal. Todo mensaje entrante se valida acá con Zod.
  */
-import { PageSnapshotSchema } from '@hackaton/contracts';
+import { PageSnapshotSchema } from '@asistente/page-analyzer';
 import { z } from 'zod';
 
 const Id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
@@ -52,10 +52,7 @@ export interface CandidateView {
   id: string;
   title: string;
   domain: string;
-  description: string;
-  reason?: string | undefined;
-  recommended: boolean;
-  verifiedOfficial: boolean;
+  reason: string;
   secure: boolean;
 }
 
@@ -65,7 +62,8 @@ export interface ChatMessage {
   text: string;
 }
 
-export type ChatPhase = 'idle' | 'interpreting' | 'clarifying' | 'searching' | 'results' | 'error';
+/** clarifying: `question`; results: `options`; redirected: `redirect` (se abrió el sitio). */
+export type ChatPhase = 'idle' | 'interpreting' | 'clarifying' | 'results' | 'redirected' | 'error';
 
 export interface OptionView {
   id: string;
@@ -75,6 +73,8 @@ export interface OptionView {
 
 export interface AppState {
   mockBackend: boolean;
+  /** Opciones y guía dentro de la página. */
+  guideEnabled: boolean;
   layout: { topBarHeight: number; panelWidth: number };
   prefs: { textScale: number; aiEnabledForSite: boolean };
   nav: {
@@ -141,7 +141,8 @@ export type ExtractRequest = z.infer<typeof ExtractRequestSchema>;
 export const ShowRequestSchema = z.strictObject({
   requestId: Id,
   navigationId: Id,
-  elementId: Id,
+  /** Selector CSS devuelto por el backend; se resuelve en el preload. */
+  selector: z.string().min(1).max(300),
   scroll: z.boolean(),
 });
 export type ShowRequest = z.infer<typeof ShowRequestSchema>;
@@ -157,7 +158,7 @@ export const SnapshotMessageSchema = z.strictObject({
 export const SHOW_RESULTS = ['shown', 'stale', 'notVisible'] as const;
 export type ShowResult = (typeof SHOW_RESULTS)[number];
 
-export const ShownMessageSchema = z.strictObject({ requestId: Id, result: z.enum(SHOW_RESULTS) });
+export const ShownMessageSchema = z.strictObject({ requestId: Id, result: z.enum(SHOW_RESULTS), elementId: Id.optional() });
 
 export const ChangedMessageSchema = z.strictObject({ structural: z.boolean(), targetPresent: z.boolean().nullable() });
 

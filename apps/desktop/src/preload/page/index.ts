@@ -4,13 +4,15 @@
  * escucha comandos autorizados del proceso principal (extraer, mostrar, limpiar)
  * y le informa cambios e interacciones sin valores.
  */
-import { extractSnapshot, type ElementRegistry } from '@asistente/page-analyzer';
+import { extractSnapshot, resolveSelector, snapshotToHtml, type ElementRegistry } from '@asistente/page-analyzer';
 import { ipcRenderer } from 'electron';
 import { ExtractRequestSchema, PAGE_CHANNELS, ShowRequestSchema, type ShowResult } from '../../shared/ipc';
 import { Highlighter } from './highlighter';
 import { observePage } from './observer';
 
 let registry: ElementRegistry | undefined;
+/** HTML sintético de la última extracción: los selectores del backend se resuelven contra él. */
+let lastHtml = '';
 let highlighter: Highlighter | undefined;
 let invalidCount = 0;
 let lastInteraction = { id: '', at: 0 };
@@ -21,15 +23,18 @@ ipcRenderer.on(PAGE_CHANNELS.extract, (_event, raw: unknown) => {
   const { requestId, pageId, navigationId, revision } = request.data;
   const result = extractSnapshot(document, { pageId, navigationId, revision, previous: registry });
   registry = result.registry;
+  lastHtml = snapshotToHtml(result.snapshot);
   ipcRenderer.send(PAGE_CHANNELS.snapshot, { requestId, snapshot: result.snapshot, notes: result.notes });
 });
 
 ipcRenderer.on(PAGE_CHANNELS.show, (_event, raw: unknown) => {
   const request = ShowRequestSchema.safeParse(raw);
   if (!request.success) return;
-  const { requestId, navigationId, elementId, scroll } = request.data;
+  const { requestId, navigationId, selector, scroll } = request.data;
   let result: ShowResult = 'stale';
-  const element = registry?.navigationId === navigationId ? registry.resolve(elementId) : undefined;
+  const current = registry?.navigationId === navigationId ? registry : undefined;
+  const elementId = current ? resolveSelector(selector, lastHtml, document, (node) => current.idOf(node)) : undefined;
+  const element = elementId ? current?.resolve(elementId) : undefined;
   if (element) {
     highlighter ??= new Highlighter(document);
     result = highlighter.show(element, { scroll });
@@ -37,7 +42,7 @@ ipcRenderer.on(PAGE_CHANNELS.show, (_event, raw: unknown) => {
   } else {
     highlighter?.clear();
   }
-  ipcRenderer.send(PAGE_CHANNELS.shown, { requestId, result });
+  ipcRenderer.send(PAGE_CHANNELS.shown, element ? { requestId, result, elementId } : { requestId, result });
 });
 
 ipcRenderer.on(PAGE_CHANNELS.clear, () => {

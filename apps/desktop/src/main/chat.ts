@@ -1,10 +1,11 @@
 /**
- * Chat funcional de la home (S02, S03 lado cliente): intención, aclaraciones,
- * búsqueda de destinos y continuidad del objetivo. Consume el backend; no llama
- * a Claude ni guarda claves. La intención se minimiza antes de enviarse.
+ * Chat funcional de la home (POST /v1/interpret). El objetivo es llegar a una
+ * URL: `redirect` abre el sitio, `options` muestra varios sitios para elegir y
+ * `question` pide más datos. Se envía el historial completo en cada llamada;
+ * los mensajes de la persona se minimizan antes de salir del equipo.
  */
 import { randomUUID } from 'node:crypto';
-import { LIMITS, SCHEMA_VERSION, type DestinationCandidate } from '@hackaton/contracts';
+import { Limits, type ChatMessage as ApiMessage, type SiteOption } from '@hackaton/contracts';
 import { minimizeIntent } from '@asistente/privacy';
 import type { ChatMessage, ChatPhase } from '../shared/ipc';
 import { isAbort, userMessage, type ApiClient } from './api/client';
@@ -12,44 +13,40 @@ import { log } from './log';
 
 const MAX_MESSAGES = 30;
 
+export interface Candidate extends SiteOption {
+  id: string;
+}
+
 export class Chat {
   phase: ChatPhase = 'idle';
   messages: ChatMessage[] = [];
+  /** Primer pedido de la persona; acompaña la guía en el sitio. */
   goal: string | null = null;
-  candidates: DestinationCandidate[] = [];
-  recommendedId: string | null = null;
+  candidates: Candidate[] = [];
   error: string | null = null;
 
-  #intent: string | null = null;
-  #question: string | null = null;
-  #clarifications: Array<{ question: string; answer: string }> = [];
+  #history: ApiMessage[] = [];
   #controller: AbortController | undefined;
 
   constructor(
     private readonly api: ApiClient,
     private readonly onChange: () => void,
+    /** `redirect`: la URL sale de la respuesta validada, nunca del renderer. */
+    private readonly onRedirect: (url: string) => void,
   ) {}
 
   get busy(): boolean {
-    return this.phase === 'interpreting' || this.phase === 'searching';
+    return this.phase === 'interpreting';
   }
 
   async submit(text: string): Promise<void> {
     if (this.busy) return;
-    const minimized = minimizeIntent(text, LIMITS.intentLength);
+    const minimized = minimizeIntent(text, Limits.maxMessageLength);
     if (!minimized) return;
-    this.#push('user', text.trim().slice(0, LIMITS.intentLength));
-
-    if (this.phase === 'clarifying' && this.#question && this.#intent) {
-      this.#clarifications.push({ question: this.#question, answer: minimized });
-    } else {
-      this.#intent = minimized;
-      this.#clarifications = [];
-      this.goal = null;
-      this.candidates = [];
-      this.recommendedId = null;
-    }
-    this.#question = null;
+    this.#push('user', text.trim().slice(0, Limits.maxMessageLength));
+    this.#history.push({ role: 'user', content: minimized });
+    this.goal ??= minimized;
+    this.candidates = [];
     this.error = null;
 
     const controller = new AbortController();
@@ -57,39 +54,23 @@ export class Chat {
     this.#controller = controller;
     try {
       this.#set('interpreting');
-      const interpreted = await this.api.interpretIntent(
-        {
-          schemaVersion: SCHEMA_VERSION,
-          requestId: shortId(),
-          intent: this.#intent!,
-          clarifications: this.#clarifications,
-        },
-        controller.signal,
-      );
-      if (interpreted.status === 'needsClarification' && this.#clarifications.length < LIMITS.clarifications) {
-        this.#question = interpreted.question;
-        this.#push('assistant', interpreted.question);
-        this.#set('clarifying');
-        return;
+      const response = await this.api.interpret({ messages: this.#history.slice(-Limits.maxMessages) }, controller.signal);
+      log('chat.response', { type: `kind:${response.type}` });
+      this.#push('assistant', response.message);
+      this.#history.push({ role: 'assistant', content: response.message });
+      switch (response.type) {
+        case 'question':
+          this.#set('clarifying');
+          return;
+        case 'options':
+          this.candidates = response.options.map((option, i) => ({ ...option, id: `c-${i}` }));
+          this.#set('results');
+          return;
+        case 'redirect':
+          this.#set('redirected');
+          this.onRedirect(response.url);
+          return;
       }
-      this.goal = interpreted.status === 'goal' ? interpreted.goal : [this.#intent, ...this.#clarifications.map((c) => c.answer)].join(' — ');
-      this.#push('assistant', `Busco sitios para: ${this.goal}`);
-      this.#set('searching');
-
-      const found = await this.api.searchDestinations(
-        { schemaVersion: SCHEMA_VERSION, requestId: shortId(), goal: this.goal },
-        controller.signal,
-      );
-      this.candidates = found.candidates;
-      this.recommendedId = found.candidates.some((c) => c.id === found.recommendedId) ? found.recommendedId : null;
-      log('chat.results', { candidates: found.candidates.length, recommended: this.recommendedId !== null });
-      this.#push(
-        'assistant',
-        found.candidates.length > 0
-          ? 'Encontré estas opciones. Antes de abrir, mirá el nombre y la dirección del sitio.'
-          : 'No encontré sitios para eso. Probá contarlo con otras palabras.',
-      );
-      this.#set('results');
     } catch (error) {
       if (isAbort(error)) return;
       this.error = userMessage(error);
@@ -97,7 +78,7 @@ export class Chat {
     }
   }
 
-  candidate(id: string): DestinationCandidate | undefined {
+  candidate(id: string): Candidate | undefined {
     return this.candidates.find((c) => c.id === id);
   }
 
@@ -107,11 +88,8 @@ export class Chat {
     this.messages = [];
     this.goal = null;
     this.candidates = [];
-    this.recommendedId = null;
     this.error = null;
-    this.#intent = null;
-    this.#question = null;
-    this.#clarifications = [];
+    this.#history = [];
     this.onChange();
   }
 

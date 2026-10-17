@@ -6,7 +6,13 @@ Navegador con el sitio real en una `WebContentsView` y un panel de ayuda al cost
 
 ```sh
 pnpm install
-pnpm dev          # desde la raíz: abre la app en modo desarrollo
+pnpm dev:desktop  # desde la raíz: abre la app en modo desarrollo (backend simulado local)
+
+# Contra el backend (apps/api, con AI_PROVIDER=mock no llama a Claude):
+pnpm dev          # en otra terminal: API en http://localhost:3000
+ASISTENTE_API_URL=http://localhost:3000 \
+ASISTENTE_API_TOKEN=dev-token-solo-para-desarrollo-local \
+pnpm dev:desktop
 pnpm test         # pruebas de todos los paquetes
 pnpm typecheck
 pnpm --filter @asistente/desktop package   # instalador sin firmar (release/)
@@ -15,7 +21,20 @@ pnpm --filter @asistente/desktop package   # instalador sin firmar (release/)
 | Variable | Efecto |
 |---|---|
 | `ASISTENTE_API_URL` | URL base del backend de Agustin. Exige HTTPS, salvo en localhost. Si no se define, la app usa el **backend simulado temporal** (`src/main/api/mock.ts`) y sirve las páginas de `tests/fixtures/pages` en 127.0.0.1 |
-| `ASISTENTE_API_TOKEN` | Se envía como `Authorization: Bearer` solo si está definida. El esquema de autenticación lo define Agustin |
+| `ASISTENTE_API_TOKEN` | Se envía como `Authorization: Bearer`. Obligatorio contra el backend real (uno de `API_ACCESS_TOKENS` de `apps/api/.env`) |
+
+## Conexión con el backend (API v1.2, ver `docs/api.md`)
+
+- **`POST /v1/interpret`** (`src/main/chat.ts`): el chat de la home envía el historial completo. Los mensajes de la persona se minimizan antes de salir del equipo. Según `type`:
+  - `redirect`: abre la URL.
+  - `options`: muestra los sitios para elegir.
+  - `question`: muestra la pregunta y espera la respuesta.
+- **`POST /v1/options`** (`src/main/assistant.ts`):
+  - **Qué se envía:** HTML sintético armado con el snapshot depurado (`snapshotToHtml`, en `@asistente/page-analyzer`), con un `id="el-N"` por elemento. Nunca se envía el HTML real.
+  - **Selectores:** los del backend se resuelven en el preload contra ese HTML y, si no encuentran nada, contra la página real.
+  - **Sesión:** se guarda el `sessionId`. Ante `SESSION_NOT_FOUND`, se empieza otra sesión con el mismo `goal`.
+  - **Respuesta:** las opciones y el paso sugerido llegan juntos. Si la persona elige la opción del paso sugerido, se muestra sin otra llamada.
+  - **`guide: null`:** si ya hubo al menos un paso, cuenta como tarea terminada. Si no hubo ninguno, la página se marca como sin ayuda posible.
 
 ## Estructura
 
@@ -25,7 +44,7 @@ src/main/        proceso principal: ventana, vista del sitio, políticas, IPC, c
   site-view.ts   navegación, ventanas nuevas, permisos, descargas y protocolos externos
   page-bridge.ts IPC con el preload de la página (valida emisor, frame y esquema)
   assistant.ts   efectos de la máquina de estados (@asistente/guidance)
-  chat.ts        chat de la home: intención, aclaración, búsqueda, apertura
+  chat.ts        chat de la home: /v1/interpret (redirect, options, question)
   api/           cliente HTTP, backend simulado TEMPORAL y servidor de fixtures
 src/preload/ui.ts         puente mínimo para la interfaz propia (contextBridge)
 src/preload/page/         extractor, resaltado y observador. No expone nada a la página
@@ -52,7 +71,7 @@ La lógica no depende de la UI. El renderer solo recibe `AppState` y envía `UiC
 
 - El snapshot se arma por lista de campos permitidos. Nunca se lee `.value`, la opción seleccionada ni el texto editable.
 - Las etiquetas se depuran en el preload y otra vez en el proceso principal.
-- Del sitio solo se envía el origen.
+- Del sitio no se envía la URL ni el origen; solo el HTML sintético con rol, etiqueta depurada y estado de cada elemento.
 - La intención escrita se minimiza antes de enviarla.
 - Los logs registran eventos, códigos y cantidades. No registran URLs, etiquetas ni textos.
 

@@ -70,6 +70,5 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('will-quit', () => {
     closeFixtures?.();
-    void api?.endSession();
   });
 }

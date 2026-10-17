@@ -12,90 +12,49 @@ body {
   align-items: center;
 }
 
+/* Inicio: un input centrado; con pregunta u opciones pasa a chat con el input abajo. */
 .home {
   height: 100vh;
-  overflow-y: auto;
-  padding: calc(var(--space) * 3);
   display: grid;
-  gap: calc(var(--space) * 2);
+  gap: var(--space);
+  padding: calc(var(--space) * 2);
+  box-sizing: border-box;
   justify-items: center;
-  align-content: start;
+}
+.home[data-mode='search'] {
+  align-content: center;
+}
+.home[data-mode='chat'] {
+  grid-template-rows: 1fr auto auto;
 }
 .home > * {
   width: min(760px, 100%);
 }
-.chat {
-  display: grid;
-  gap: calc(var(--space) * 2);
+.search {
+  display: flex;
+  gap: var(--space);
 }
-.chat h1 {
-  font-size: calc(var(--font-size-large) * 1.4);
-  margin: 0;
+.search input {
+  flex: 1;
 }
 .messages {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   gap: var(--space);
 }
 .message {
-  padding: var(--space) calc(var(--space) * 1.5);
-  border-radius: var(--radius);
-  background: var(--color-surface);
+  padding: var(--space);
   max-width: 85%;
 }
 .message[data-from='user'] {
-  justify-self: end;
-  background: var(--color-info-bg);
+  align-self: flex-end;
 }
-.chat-form,
-.address {
-  display: grid;
-  gap: var(--space);
-}
-.address {
-  grid-template-columns: 1fr auto;
-  align-items: end;
-}
-
-.candidates {
-  list-style: none;
+.message p {
   margin: 0;
-  padding: 0;
-  display: grid;
-  gap: calc(var(--space) * 1.5);
-}
-.candidate {
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: calc(var(--space) * 1.5);
-  display: grid;
-  gap: calc(var(--space) / 2);
-}
-.candidate[data-recommended='true'] {
-  border-width: 4px;
-  border-color: var(--color-action);
-}
-.candidate p {
-  margin: 0;
-}
-.candidate-title {
-  font-size: var(--font-size-large);
-  font-weight: 700;
-}
-.candidate-domain strong {
-  font-size: var(--font-size-large);
-}
-.candidate-trust {
-  color: var(--color-muted);
-}
-.tag {
-  margin-left: var(--space);
-  padding: 0 var(--space);
-  border: 2px solid currentColor;
-  border-radius: var(--radius);
-  font-size: var(--font-size-small);
 }
 
 .browser {

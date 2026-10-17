@@ -1,32 +1,22 @@
 /**
  * Orquestador local de la guía. Despacha eventos a la máquina de estados de
  * @asistente/guidance y ejecuta los efectos de cada fase: extraer, pedir
- * opciones o siguiente paso, validar, mostrar y verificar.
+ * opciones o siguiente paso a POST /v1/options, mostrar y verificar.
  *
- * Toda respuesta se correlaciona por requestId, navigationId y revision; una
- * navigación o un cambio de fase invalida el trabajo anterior.
+ * El backend guarda el historial en una sesión (`sessionId`). Una navegación o
+ * un cambio de fase invalida el trabajo anterior por época.
  */
 import { randomUUID } from 'node:crypto';
-import { SCHEMA_VERSION, type PageSnapshot } from '@hackaton/contracts';
-import {
-  evaluateObservation,
-  hasEvidence,
-  initialState,
-  transition,
-  validateDecision,
-  validateOptions,
-  type GuideEvent,
-  type GuideState,
-  type Observation,
-} from '@asistente/guidance';
+import type { OptionsResponse } from '@hackaton/contracts';
+import { snapshotToHtml, type PageSnapshot } from '@asistente/page-analyzer';
+import { evaluateObservation, initialState, transition, type GuideEvent, type GuideState, type Observation } from '@asistente/guidance';
 import { ApiFailure, isAbort, userMessage, type ApiClient } from './api/client';
 import { log } from './log';
-import type { ExtractedPage } from './page-bridge';
-import type { ShowResult } from '../shared/ipc';
+import type { ExtractedPage, ShownTarget } from './page-bridge';
 
 export interface PagePort {
   extract(pageId: string, navigationId: string, revision: number): Promise<ExtractedPage>;
-  show(navigationId: string, elementId: string, scroll: boolean): Promise<ShowResult>;
+  show(navigationId: string, selector: string, scroll: boolean): Promise<ShownTarget>;
   clear(): void;
   cancelPending(): void;
 }
@@ -55,6 +45,7 @@ export class Assistant {
   #epoch = 0;
   #controller: AbortController | undefined;
   #pendingGoal: string | undefined;
+  #sessionId: string | undefined;
   #unshown = 0;
   #pageReady = false;
 
@@ -132,14 +123,11 @@ export class Assistant {
 
   pageChanged({ structural, targetPresent }: { structural: boolean; targetPresent: boolean | null }): void {
     const { phase, step } = this.state;
-    if (phase === 'waitingForUser' && step) {
-      // Cambios solo de atributos (animaciones, estilos) no cuentan como avance
-      // salvo que el destino haya desaparecido.
-      if (!structural && targetPresent !== false) return;
-      this.#observe({ kind: 'pageChange', targetPresent: targetPresent ?? false });
-    } else if (phase === 'choosing' && structural) {
-      void this.#refreshOptions(this.#epoch);
-    }
+    if (phase !== 'waitingForUser' || !step) return;
+    // Cambios solo de atributos (animaciones, estilos) no cuentan como avance
+    // salvo que el destino haya desaparecido.
+    if (!structural && targetPresent !== false) return;
+    this.#observe({ kind: 'pageChange', targetPresent: targetPresent ?? false });
   }
 
   interaction(elementId: string): void {
@@ -164,6 +152,7 @@ export class Assistant {
     const next = transition(previous, event);
     if (next === previous) return;
     this.state = next;
+    if (event.type === 'SHOWN') return;
     log('guide.transition', { from: `phase:${previous.phase}`, to: `phase:${next.phase}`, steps: next.stepCount });
 
     const epoch = this.#invalidate();
@@ -171,15 +160,17 @@ export class Assistant {
       this.targetVisible = null;
       this.deps.page.clear();
     }
-    if (next.phase === 'analyzing' || next.phase === 'idle') this.#unshown = 0;
+    if (next.phase === 'analyzing' || next.phase === 'idle') {
+      this.#unshown = 0;
+      // Página nueva sin tarea elegida: el backend crea otra sesión.
+      this.#sessionId = undefined;
+    }
     this.deps.onChange();
 
     switch (next.phase) {
       case 'analyzing':
-        void this.#runAnalysis(epoch);
-        break;
       case 'guiding':
-        void this.#runNext(epoch);
+        void this.#request(epoch);
         break;
       case 'verifying':
         void this.#runVerify(epoch);
@@ -214,40 +205,35 @@ export class Assistant {
     return snapshot;
   }
 
-  async #runAnalysis(epoch: number): Promise<void> {
+  /** Opciones (fase analyzing) o próximo paso (fase guiding): mismo endpoint. */
+  async #request(epoch: number): Promise<void> {
     try {
-      const snapshot = await this.#extract(epoch);
-      if (!snapshot) return;
-      const requestId = shortId();
-      const raw = await this.deps.api.pageOptions(
-        { schemaVersion: SCHEMA_VERSION, requestId, goal: this.state.goal, snapshot },
-        this.#signal(),
-      );
+      const snapshot = this.state.phase === 'guiding' && this.#snapshot ? this.#snapshot : await this.#extract(epoch);
+      if (!snapshot || epoch !== this.#epoch) return;
+      if (this.state.stepCount >= MAX_STEPS) {
+        this.#dispatch({ type: 'FAILED', message: 'La guía se extendió demasiado. Podés volver a las opciones o al inicio.' });
+        return;
+      }
+      const response = await this.#callOptions(snapshotToHtml(snapshot), this.state.option?.id);
       if (epoch !== this.#epoch) return;
-      const result = validateOptions(raw, this.#context(requestId, snapshot));
-      if (!result.ok) throw new ApiFailure('invalid_response', false, result.reason);
-      const value = result.value;
-      if (value.status === 'options') this.#dispatch({ type: 'OPTIONS', primary: value.primary, secondary: value.secondary });
-      else this.#dispatch({ type: 'OPTIONS_MESSAGE', status: value.status, message: value.message });
+      this.#sessionId = response.sessionId;
+      this.#dispatch({ type: 'RESPONSE', response });
     } catch (error) {
       this.#fail(epoch, error);
     }
   }
 
-  /** Página dinámica en fase de elección: conservar opciones mientras sigan válidas. */
-  async #refreshOptions(epoch: number): Promise<void> {
+  async #callOptions(html: string, goal: string | undefined): Promise<OptionsResponse> {
+    const signal = this.#signal();
+    const request = { html, ...(goal ? { goal } : {}) };
+    if (!this.#sessionId) return this.deps.api.options(request, signal);
     try {
-      const snapshot = await this.#extract(epoch);
-      if (!snapshot || epoch !== this.#epoch) return;
-      const ids = new Set(snapshot.elements.map((e) => e.id));
-      const all = [...this.state.primary, ...this.state.secondary];
-      if (all.length > 0 && all.every((option) => !hasEvidence(option, ids))) {
-        this.#dispatch({ type: 'ANALYZE' });
-      } else {
-        this.deps.onChange();
-      }
-    } catch {
-      // Sin cambios: se conservan las opciones.
+      return await this.deps.api.options({ ...request, sessionId: this.#sessionId }, signal);
+    } catch (error) {
+      // Sesión vencida o reiniciada en el servidor: se empieza otra con el mismo objetivo.
+      if (!(error instanceof ApiFailure) || error.code !== 'SESSION_NOT_FOUND') throw error;
+      this.#sessionId = undefined;
+      return this.deps.api.options(request, signal);
     }
   }
 
@@ -261,64 +247,24 @@ export class Assistant {
     }
   }
 
-  async #runNext(epoch: number): Promise<void> {
-    try {
-      const snapshot = this.#snapshot ?? (await this.#extract(epoch));
-      if (!snapshot || epoch !== this.#epoch) return;
-      const { goal, option, previousStep, step, lastOutcome, stepCount } = this.state;
-      if (stepCount >= MAX_STEPS) {
-        this.#dispatch({ type: 'FAILED', message: 'La guía se extendió demasiado. Podés volver a las opciones o al inicio.' });
-        return;
-      }
-      const last = step ?? previousStep;
-      const requestId = shortId();
-      const raw = await this.deps.api.guidanceNext(
-        {
-          schemaVersion: SCHEMA_VERSION,
-          requestId,
-          goal: goal ?? option?.title ?? 'Usar esta página',
-          option: option ? { id: option.id, title: option.title } : undefined,
-          snapshot,
-          previousStep: last ? { instruction: last.instruction, expectedSignal: last.expectedSignal, outcome: lastOutcome } : undefined,
-          stepCount,
-        },
-        this.#signal(),
-      );
-      if (epoch !== this.#epoch) return;
-      const result = validateDecision(raw, this.#context(requestId, snapshot));
-      if (!result.ok) throw new ApiFailure('invalid_response', false, result.reason);
-      this.#dispatch({ type: 'DECISION', decision: result.value });
-    } catch (error) {
-      this.#fail(epoch, error);
-    }
-  }
-
   async #showStep(epoch: number): Promise<void> {
     const step = this.state.step;
     if (!step) return;
-    const result = await this.deps.page.show(step.navigationId, step.targetElementId, step.presentation === 'scrollAndHighlight');
+    const { result, elementId } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
     if (epoch !== this.#epoch) return;
     this.targetVisible = result === 'shown';
     if (result === 'shown') {
       this.#unshown = 0;
+      if (elementId) this.#dispatch({ type: 'SHOWN', elementId });
       this.deps.onChange();
       return;
     }
-    // Referencia obsoleta o invisible: se retira la indicación y se pide un nuevo análisis.
+    // Selector que no encuentra nada o destino invisible: se pide un nuevo paso.
     if (++this.#unshown > MAX_UNSHOWN_STEPS) {
       this.#dispatch({ type: 'FAILED', message: 'No logro señalarte el lugar en esta página. Probá desplazarte o tocá «Reintentar».' });
       return;
     }
     this.#dispatch({ type: 'OUTCOME', outcome: result === 'stale' ? 'targetStale' : 'targetNotVisible' });
-  }
-
-  #context(requestId: string, snapshot: PageSnapshot) {
-    return {
-      requestId,
-      navigationId: snapshot.navigationId,
-      revision: snapshot.revision,
-      elementIds: new Set(snapshot.elements.map((e) => e.id)),
-    };
   }
 
   #fail(epoch: number, error: unknown): void {

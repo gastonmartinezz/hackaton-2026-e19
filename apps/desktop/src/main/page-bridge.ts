@@ -4,7 +4,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import type { PageSnapshot } from '@hackaton/contracts';
+import type { PageSnapshot } from '@asistente/page-analyzer';
 import { sanitizeLabel } from '@asistente/privacy';
 import { ipcMain, type IpcMainEvent } from 'electron';
 import type { z } from 'zod';
@@ -26,6 +26,12 @@ export interface PageBridgeEvents {
   validationError: [];
 }
 
+export interface ShownTarget {
+  result: ShowResult;
+  /** ID local al que se resolvió el selector. */
+  elementId?: string | undefined;
+}
+
 export interface ExtractedPage {
   snapshot: PageSnapshot;
   notes: Array<(typeof EXTRACT_NOTES)[number]>;
@@ -35,7 +41,7 @@ type Pending<T> = { resolve(value: T): void; reject(error: Error): void; timer: 
 
 export class PageBridge extends EventEmitter<PageBridgeEvents> {
   readonly #snapshots = new Map<string, Pending<ExtractedPage> & { navigationId: string; revision: number }>();
-  readonly #shows = new Map<string, Pending<ShowResult>>();
+  readonly #shows = new Map<string, Pending<ShownTarget>>();
   readonly #disposers: Array<() => void> = [];
 
   constructor(private readonly site: SiteView) {
@@ -51,12 +57,12 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
       }
       pending.resolve({ snapshot: resanitize(snapshot), notes });
     });
-    this.#on(PAGE_CHANNELS.shown, ShownMessageSchema, ({ requestId, result }) => {
+    this.#on(PAGE_CHANNELS.shown, ShownMessageSchema, ({ requestId, result, elementId }) => {
       const pending = this.#shows.get(requestId);
       if (!pending) return;
       this.#shows.delete(requestId);
       clearTimeout(pending.timer);
-      pending.resolve(result);
+      pending.resolve({ result, elementId });
     });
     this.#on(PAGE_CHANNELS.changed, ChangedMessageSchema, (message) => this.emit('changed', message));
     this.#on(PAGE_CHANNELS.interaction, InteractionMessageSchema, (message) => this.emit('interaction', message));
@@ -75,15 +81,15 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
     });
   }
 
-  show(navigationId: string, elementId: string, scroll: boolean): Promise<ShowResult> {
+  show(navigationId: string, selector: string, scroll: boolean): Promise<ShownTarget> {
     const requestId = shortId();
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.#shows.delete(requestId);
-        resolve('stale');
+        resolve({ result: 'stale' });
       }, 3000);
-      this.#shows.set(requestId, { resolve, reject: () => resolve('stale'), timer });
-      this.site.contents.send(PAGE_CHANNELS.show, { requestId, navigationId, elementId, scroll });
+      this.#shows.set(requestId, { resolve, reject: () => resolve({ result: 'stale' }), timer });
+      this.site.contents.send(PAGE_CHANNELS.show, { requestId, navigationId, selector, scroll });
     });
   }
 
@@ -100,7 +106,7 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
     }
     for (const [id, pending] of this.#shows) {
       clearTimeout(pending.timer);
-      pending.resolve('stale');
+      pending.resolve({ result: 'stale' });
       this.#shows.delete(id);
     }
   }

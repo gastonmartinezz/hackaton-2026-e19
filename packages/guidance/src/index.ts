@@ -2,15 +2,12 @@
  * Estado y validación local de la guía (S07, S08 validación, S09 verificación).
  * Puro: sin DOM, sin red, sin Electron. El orquestador del proceso principal
  * despacha eventos y ejecuta los efectos según la fase resultante.
+ *
+ * Contrato v1.2: POST /v1/options devuelve opciones y el próximo paso en la
+ * misma respuesta, con elementos identificados por selector CSS. El backend
+ * guarda el historial en la sesión; el cliente solo envía el HTML nuevo.
  */
-import {
-  GuideDecisionSchema,
-  PageOptionsResponseSchema,
-  STEP_OUTCOMES,
-  type GuideDecision,
-  type GuideStep,
-  type PageOption,
-} from '@hackaton/contracts';
+import type { Guide, GuideStep, OptionsResponse, PageOption } from '@hackaton/contracts';
 
 export type Phase =
   | 'idle'
@@ -20,21 +17,27 @@ export type Phase =
   | 'waitingForUser'
   | 'verifying'
   | 'completed'
-  | 'needsClarification'
   | 'unsupported'
   | 'error';
 
-export type StepOutcome = (typeof STEP_OUTCOMES)[number];
+/** Resultado local del paso anterior. Nunca incluye valores. */
+export type StepOutcome = 'none' | 'signalObserved' | 'userConfirmed' | 'validationError' | 'targetStale' | 'targetNotVisible';
+
+export interface ActiveStep extends GuideStep {
+  /** ID local del elemento al que se resolvió el selector, cuando se pudo mostrar. */
+  targetElementId?: string | undefined;
+}
 
 export interface GuideState {
   phase: Phase;
+  /** Objetivo escrito en el chat, solo para mostrar. */
   goal?: string | undefined;
   primary: PageOption[];
   secondary: PageOption[];
   option?: PageOption | undefined;
-  step?: GuideStep | undefined;
-  /** Paso mostrado antes del actual; se informa al servidor como contexto mínimo. */
-  previousStep?: GuideStep | undefined;
+  /** Paso sugerido junto con las opciones; se usa si la persona elige esa opción. */
+  suggested?: Guide | undefined;
+  step?: ActiveStep | undefined;
   stepCount: number;
   lastOutcome: StepOutcome;
   message?: string | undefined;
@@ -43,10 +46,9 @@ export interface GuideState {
 
 export type GuideEvent =
   | { type: 'ANALYZE'; goal?: string | undefined }
-  | { type: 'OPTIONS'; primary: PageOption[]; secondary: PageOption[] }
-  | { type: 'OPTIONS_MESSAGE'; status: 'needsClarification' | 'unsupported'; message: string }
+  | { type: 'RESPONSE'; response: Pick<OptionsResponse, 'options' | 'guide'> }
   | { type: 'SELECT'; optionId: string }
-  | { type: 'DECISION'; decision: GuideDecision }
+  | { type: 'SHOWN'; elementId: string }
   | { type: 'OUTCOME'; outcome: Exclude<StepOutcome, 'none'> }
   | { type: 'REQUEST_NEXT' }
   | { type: 'NAVIGATED' }
@@ -66,7 +68,13 @@ export const initialState: GuideState = {
 /** Fases en las que hay una solicitud al servidor en curso. */
 export const PENDING_PHASES: ReadonlySet<Phase> = new Set(['analyzing', 'guiding']);
 
+export const PRIMARY_OPTIONS = 3;
+
 const NO_OPTIONS_MESSAGE = 'No encontré tareas claras en esta página. Podés seguir navegando o volver al inicio.';
+const NO_STEP_MESSAGE = 'No encuentro cómo seguir desde esta página. Podés elegir otra tarea o abrirla en tu navegador.';
+// guide: null después de al menos un paso. El contrato no distingue "terminado"
+// de "sin paso posible"; se asume terminado y se le pide confirmación a la persona.
+const DONE_MESSAGE = 'Parece que terminaste. Si no es lo que buscabas, tocá «Elegir otra tarea».';
 
 export function transition(state: GuideState, event: GuideEvent): GuideState {
   switch (event.type) {
@@ -77,48 +85,49 @@ export function transition(state: GuideState, event: GuideEvent): GuideState {
         goal: event.goal ?? state.goal,
       };
 
-    case 'OPTIONS': {
-      if (state.phase !== 'analyzing') return state;
-      if (event.primary.length + event.secondary.length === 0) {
-        return { ...state, phase: 'unsupported', message: NO_OPTIONS_MESSAGE };
-      }
-      return { ...state, phase: 'choosing', primary: event.primary, secondary: event.secondary, message: undefined };
-    }
-
-    case 'OPTIONS_MESSAGE':
-      if (state.phase !== 'analyzing') return state;
-      return { ...state, phase: event.status, message: event.message };
-
-    case 'SELECT': {
-      if (state.phase !== 'choosing' && !(state.phase === 'needsClarification' && !state.option)) return state;
-      const option = [...state.primary, ...state.secondary].find((o) => o.id === event.optionId);
-      if (!option) return state;
-      return { ...state, phase: 'guiding', option, step: undefined, previousStep: undefined, stepCount: 0, lastOutcome: 'none', message: undefined };
-    }
-
-    case 'DECISION': {
-      if (state.phase !== 'guiding') return state;
-      const { decision } = event;
-      if (decision.status === 'guide') {
+    case 'RESPONSE': {
+      const options = uniqueOptions(event.response.options);
+      if (state.phase === 'analyzing') {
+        if (options.length === 0) return { ...state, phase: 'unsupported', message: NO_OPTIONS_MESSAGE };
         return {
           ...state,
-          phase: 'waitingForUser',
-          previousStep: state.step ?? state.previousStep,
-          step: decision,
-          stepCount: state.stepCount + 1,
+          phase: 'choosing',
+          ...split(options),
+          suggested: event.response.guide ?? undefined,
           message: undefined,
         };
       }
-      return { ...state, phase: decision.status, message: decision.message, previousStep: state.step ?? state.previousStep, step: undefined };
+      if (state.phase === 'guiding') {
+        const refreshed = options.length > 0 ? split(options) : {};
+        const { guide } = event.response;
+        if (!guide) {
+          return state.stepCount > 0
+            ? { ...state, ...refreshed, phase: 'completed', step: undefined, message: DONE_MESSAGE }
+            : { ...state, ...refreshed, phase: 'unsupported', step: undefined, message: NO_STEP_MESSAGE };
+        }
+        return { ...state, ...refreshed, phase: 'waitingForUser', step: { ...guide.step }, stepCount: state.stepCount + 1, message: undefined };
+      }
+      return state;
     }
 
-    case 'OUTCOME': {
-      const canVerify =
-        state.phase === 'waitingForUser' ||
-        (state.phase === 'needsClarification' && state.option !== undefined && event.outcome === 'userConfirmed');
-      if (!canVerify) return state;
-      return { ...state, phase: 'verifying', lastOutcome: event.outcome };
+    case 'SELECT': {
+      if (state.phase !== 'choosing') return state;
+      const option = [...state.primary, ...state.secondary].find((o) => o.id === event.optionId);
+      if (!option) return state;
+      const base = { ...state, option, step: undefined, stepCount: 0, lastOutcome: 'none' as const, message: undefined, suggested: undefined };
+      if (state.suggested?.goal === option.id) {
+        return { ...base, phase: 'waitingForUser', step: { ...state.suggested.step }, stepCount: 1 };
+      }
+      return { ...base, phase: 'guiding' };
     }
+
+    case 'SHOWN':
+      if (state.phase !== 'waitingForUser' || !state.step) return state;
+      return { ...state, step: { ...state.step, targetElementId: event.elementId } };
+
+    case 'OUTCOME':
+      if (state.phase !== 'waitingForUser') return state;
+      return { ...state, phase: 'verifying', lastOutcome: event.outcome };
 
     case 'REQUEST_NEXT':
       if (state.phase !== 'verifying') return state;
@@ -127,9 +136,8 @@ export function transition(state: GuideState, event: GuideEvent): GuideState {
     case 'NAVIGATED': {
       if (state.phase === 'idle' || state.phase === 'completed') return state;
       if (state.option) {
-        // Continuidad del objetivo: las referencias viejas ya no valen.
-        const outcome: StepOutcome =
-          state.step && state.step.expectedSignal !== 'userConfirmation' ? 'signalObserved' : 'targetStale';
+        // Continuidad del objetivo: se pide el próximo paso con el HTML nuevo.
+        const outcome: StepOutcome = state.step && state.step.waitFor !== 'userConfirmation' ? 'signalObserved' : 'targetStale';
         return { ...state, phase: 'verifying', lastOutcome: state.step ? outcome : state.lastOutcome };
       }
       return transition(state, { type: 'ANALYZE' });
@@ -153,8 +161,8 @@ export function transition(state: GuideState, event: GuideEvent): GuideState {
         ...state,
         phase: 'choosing',
         option: undefined,
+        suggested: undefined,
         step: undefined,
-        previousStep: undefined,
         stepCount: 0,
         lastOutcome: 'none',
         message: undefined,
@@ -166,77 +174,17 @@ export function transition(state: GuideState, event: GuideEvent): GuideState {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Validación de respuestas del servidor                               */
-/* ------------------------------------------------------------------ */
-
-export interface ResponseContext {
-  requestId: string;
-  navigationId: string;
-  revision: number;
-  /** IDs presentes en el snapshot enviado con la solicitud. */
-  elementIds: ReadonlySet<string>;
-}
-
-export type Rejection = 'schema' | 'requestId' | 'navigation' | 'revision' | 'unknownTarget' | 'noEvidence';
-
-export type Validated<T> = { ok: true; value: T } | { ok: false; reason: Rejection };
-
-function checkCorrelation(
-  value: { requestId: string; navigationId: string; revision: number },
-  ctx: ResponseContext,
-): Rejection | null {
-  if (value.requestId !== ctx.requestId) return 'requestId';
-  if (value.navigationId !== ctx.navigationId) return 'navigation';
-  if (value.revision !== ctx.revision) return 'revision';
-  return null;
-}
-
-/**
- * JSON válido no implica decisión correcta: además del esquema se comprueba la
- * correlación y que el destino exista en el snapshot de la solicitud.
- */
-export function validateDecision(raw: unknown, ctx: ResponseContext): Validated<GuideDecision> {
-  const parsed = GuideDecisionSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, reason: 'schema' };
-  const rejection = checkCorrelation(parsed.data, ctx);
-  if (rejection) return { ok: false, reason: rejection };
-  if (parsed.data.status === 'guide' && !ctx.elementIds.has(parsed.data.targetElementId)) {
-    return { ok: false, reason: 'unknownTarget' };
-  }
-  return { ok: true, value: parsed.data };
-}
-
-export type ValidatedOptions =
-  | { status: 'options'; primary: PageOption[]; secondary: PageOption[] }
-  | { status: 'needsClarification' | 'unsupported'; message: string };
-
-/** Descarta opciones cuya evidencia no esté completa en el snapshot actual. */
-export function validateOptions(raw: unknown, ctx: ResponseContext): Validated<ValidatedOptions> {
-  const parsed = PageOptionsResponseSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, reason: 'schema' };
-  const rejection = checkCorrelation(parsed.data, ctx);
-  if (rejection) return { ok: false, reason: rejection };
-  if (parsed.data.status !== 'options') {
-    return { ok: true, value: { status: parsed.data.status, message: parsed.data.message } };
-  }
+function uniqueOptions(options: readonly PageOption[]): PageOption[] {
   const seen = new Set<string>();
-  const keep = (options: PageOption[]) =>
-    options.filter((option) => {
-      if (seen.has(option.id)) return false;
-      seen.add(option.id);
-      return hasEvidence(option, ctx.elementIds);
-    });
-  const primary = keep(parsed.data.primary);
-  const secondary = keep(parsed.data.secondary);
-  if (primary.length + secondary.length === 0 && parsed.data.primary.length + parsed.data.secondary.length > 0) {
-    return { ok: false, reason: 'noEvidence' };
-  }
-  return { ok: true, value: { status: 'options', primary, secondary } };
+  return options.filter((option) => {
+    if (seen.has(option.id)) return false;
+    seen.add(option.id);
+    return true;
+  });
 }
 
-export function hasEvidence(option: PageOption, elementIds: ReadonlySet<string>): boolean {
-  return option.evidenceElementIds.every((id) => elementIds.has(id));
+function split(options: PageOption[]): Pick<GuideState, 'primary' | 'secondary'> {
+  return { primary: options.slice(0, PRIMARY_OPTIONS), secondary: options.slice(PRIMARY_OPTIONS) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -253,21 +201,20 @@ export type Observation =
 /**
  * Traduce una observación local en resultado del paso, o null si todavía no hay
  * evidencia suficiente. Un clic por sí solo no demuestra éxito salvo que el paso
- * esperara exactamente esa interacción.
+ * esperara exactamente esa interacción sobre el elemento señalado.
  */
-export function evaluateObservation(step: GuideStep, observation: Observation): Exclude<StepOutcome, 'none'> | null {
+export function evaluateObservation(step: ActiveStep, observation: Observation): Exclude<StepOutcome, 'none'> | null {
   switch (observation.kind) {
     case 'validationError':
       return 'validationError';
     case 'userConfirmation':
       return 'userConfirmed';
     case 'navigation':
-      return step.expectedSignal === 'userConfirmation' ? 'targetStale' : 'signalObserved';
+      return step.waitFor === 'userConfirmation' ? 'targetStale' : 'signalObserved';
     case 'pageChange':
-      if (step.expectedSignal === 'pageChange') return 'signalObserved';
       return observation.targetPresent ? null : 'targetStale';
     case 'interaction':
-      return step.expectedSignal === 'interaction' && observation.elementId === step.targetElementId
+      return step.waitFor === 'userInteraction' && step.targetElementId !== undefined && observation.elementId === step.targetElementId
         ? 'signalObserved'
         : null;
   }

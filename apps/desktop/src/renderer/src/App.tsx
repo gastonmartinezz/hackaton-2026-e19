@@ -5,7 +5,7 @@
  */
 import { Button, LoadingMessage, Notice, TextField } from '@asistente/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { TEXT_SCALES, type AppState, type OptionView } from '../../shared/ipc';
+import type { AppState, OptionView } from '../../shared/ipc';
 import { send, useAppState } from './useAppState';
 
 export function App() {
@@ -19,11 +19,10 @@ export function App() {
 
   if (!state.nav.visible) {
     return (
-      <div className="home">
+      <>
         <Notices state={state} />
-        <HomeChat state={state} />
-        <Settings state={state} />
-      </div>
+        <Home state={state} />
+      </>
     );
   }
 
@@ -36,8 +35,7 @@ export function App() {
       <aside className="panel" aria-label="Ayuda">
         <Notices state={state} />
         <PageStatus state={state} />
-        <GuidePanel state={state} />
-        <Settings state={state} />
+        {state.guideEnabled ? <GuidePanel state={state} /> : null}
       </aside>
       {/* La vista nativa del sitio ocupa esta área. */}
       <div aria-hidden="true" />
@@ -47,15 +45,20 @@ export function App() {
 
 /* ---------------------------------- Inicio ---------------------------------- */
 
-function HomeChat({ state }: { state: AppState }) {
+/**
+ * Un solo input. Al enviar se espera un `redirect` (abre la página). Si llega
+ * una pregunta u opciones, el input baja y la pantalla pasa a ser un chat.
+ */
+function Home({ state }: { state: AppState }) {
   const { chat } = state;
   const [text, setText] = useState('');
-  const busy = chat.phase === 'interpreting' || chat.phase === 'searching';
+  const busy = chat.phase === 'interpreting';
+  const isChat = chat.messages.some((m) => m.from === 'assistant');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!busy) inputRef.current?.focus();
-  }, [busy, chat.phase]);
+  }, [busy, isChat]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -65,71 +68,47 @@ function HomeChat({ state }: { state: AppState }) {
   };
 
   return (
-    <main className="chat">
-      <h1>¿Qué querés hacer hoy?</h1>
-      {state.mockBackend ? <Notice tone="info">Modo de prueba: el asistente está simulado.</Notice> : null}
-
-      <ol className="messages" role="log" aria-live="polite" aria-label="Conversación">
-        {chat.messages.map((m) => (
-          <li key={m.id} className="message" data-from={m.from}>
-            <span className="ui-visually-hidden">{m.from === 'user' ? 'Vos: ' : 'Asistente: '}</span>
-            {m.text}
-          </li>
-        ))}
-      </ol>
-
-      {chat.phase === 'interpreting' ? <LoadingMessage>Pensando…</LoadingMessage> : null}
-      {chat.phase === 'searching' ? <LoadingMessage>Buscando sitios…</LoadingMessage> : null}
-      {chat.phase === 'error' && chat.error ? (
-        <Notice tone="error" urgent>
-          {chat.error}
-        </Notice>
-      ) : null}
-
-      {chat.phase === 'results' && chat.candidates.length > 0 ? (
-        <ul className="candidates" aria-label="Sitios encontrados">
-          {chat.candidates.map((c) => (
-            <li key={c.id} className="candidate" data-recommended={c.recommended}>
-              <p className="candidate-title">
-                {c.title}
-                {c.recommended ? <strong className="tag">Recomendado</strong> : null}
-              </p>
-              <p className="candidate-domain">
-                Dirección: <strong>{c.domain}</strong>
-              </p>
-              <p className="candidate-trust">
-                {c.verifiedOfficial ? 'Sitio oficial verificado.' : 'No pudimos verificar que sea un sitio oficial.'}
-                {c.secure ? '' : ' La conexión no es segura.'}
-              </p>
-              {c.reason ? <p>{c.reason}</p> : <p>{c.description}</p>}
-              <Button variant={c.recommended ? 'primary' : 'secondary'} onClick={() => send({ type: 'openCandidate', candidateId: c.id })}>
-                Abrir {c.title}
-              </Button>
+    <main className="home" data-mode={isChat ? 'chat' : 'search'}>
+      {isChat ? (
+        <ol className="messages" role="log" aria-live="polite" aria-label="Conversación">
+          {chat.messages.map((m) => (
+            <li key={m.id} className="message" data-from={m.from}>
+              {m.text}
             </li>
           ))}
-        </ul>
+          {chat.phase === 'results'
+            ? chat.candidates.map((c) => (
+                <li key={c.id} className="message" data-from="assistant">
+                  <button type="button" className="candidate" onClick={() => send({ type: 'openCandidate', candidateId: c.id })}>
+                    {c.title} — {c.domain}
+                  </button>
+                  <p>{c.reason}</p>
+                </li>
+              ))
+            : null}
+          {busy ? (
+            <li className="message" data-from="assistant" aria-busy="true">
+              …
+            </li>
+          ) : null}
+        </ol>
       ) : null}
 
-      <form className="chat-form" onSubmit={submit}>
-        <TextField
+      <form className="search" onSubmit={submit}>
+        <input
           ref={inputRef}
-          label={chat.phase === 'clarifying' ? 'Tu respuesta' : 'Contame con tus palabras'}
-          hint="No escribas contraseñas ni números de documento."
+          aria-label="¿Qué querés hacer?"
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxLength={500}
           disabled={busy}
           autoComplete="off"
         />
-        <div className="row">
-          <Button type="submit" variant="primary" disabled={busy || !text.trim()}>
-            Enviar
-          </Button>
-          {chat.messages.length > 0 ? <Button onClick={() => send({ type: 'resetChat' })}>Empezar de nuevo</Button> : null}
-        </div>
+        <button type="submit" disabled={busy || !text.trim()}>
+          {busy && !isChat ? '…' : 'Enviar'}
+        </button>
       </form>
-
-      <AddressForm label="¿Ya sabés la dirección del sitio?" />
+      {chat.phase === 'error' && chat.error ? <p role="alert">{chat.error}</p> : null}
     </main>
   );
 }
@@ -365,40 +344,5 @@ function OptionItem({ option, primary = false }: { option: OptionView; primary?:
       </Button>
       {option.description ? <p className="option-description">{option.description}</p> : null}
     </li>
-  );
-}
-
-/* ------------------------------- Preferencias ------------------------------- */
-
-function Settings({ state }: { state: AppState }) {
-  return (
-    <details className="settings">
-      <summary>Preferencias</summary>
-      <fieldset>
-        <legend>Tamaño del texto</legend>
-        <div className="row">
-          {TEXT_SCALES.map((scale) => (
-            <Button
-              key={scale}
-              aria-pressed={state.prefs.textScale === scale}
-              variant={state.prefs.textScale === scale ? 'primary' : 'secondary'}
-              onClick={() => send({ type: 'setTextScale', scale })}
-            >
-              {Math.round(scale * 100)}%
-            </Button>
-          ))}
-        </div>
-      </fieldset>
-      {state.nav.visible ? (
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={state.prefs.aiEnabledForSite}
-            onChange={(e) => send({ type: 'setAiForSite', enabled: e.target.checked })}
-          />
-          Usar el asistente en {state.nav.domain || 'este sitio'}
-        </label>
-      ) : null}
-    </details>
   );
 }

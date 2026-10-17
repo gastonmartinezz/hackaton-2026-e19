@@ -151,19 +151,15 @@ importers:
       '@asistente/privacy':
         specifier: workspace:*
         version: link:../privacy
-      '@hackaton/contracts':
-        specifier: workspace:*
-        version: link:../contracts
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       happy-dom:
         specifier: ^21.0.3
         version: 21.0.3
 
-  packages/privacy:
-    dependencies:
-      '@hackaton/contracts':
-        specifier: workspace:*
-        version: link:../contracts
+  packages/privacy: {}
 
   packages/ui:
     devDependencies:

@@ -1,7 +1,7 @@
-import { PageSnapshotSchema } from '@hackaton/contracts';
+
 import { findLeaks } from '@asistente/privacy';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { extractSnapshot } from './index';
+import { extractSnapshot, PageSnapshotSchema, resolveSelector, snapshotToHtml } from './index';
 
 const SECRETS = ['marta.gomez@correo.com', '30123456', 'Secreto123!', 'Calle Falsa 742', 'tok_9f8e7d6c5b4a3210zz', 'Marta Gómez'];
 
@@ -107,5 +107,54 @@ describe('IDs estables', () => {
     expect(ids).toEqual({ Nuevo: 'el-3', Primero: 'el-1', Segundo: 'el-2' });
     const other = extractSnapshot(document, { pageId: 'p', navigationId: 'n2', revision: 0, previous: second.registry });
     expect(other.snapshot.elements[0]!.id).toBe('el-1');
+  });
+});
+
+describe('HTML sintético para /v1/options', () => {
+  it('anida por sección, usa los IDs locales y no incluye valores, URL ni datos personales', () => {
+    document.body.innerHTML = `
+      <p>Hola, Marta Gómez</p>
+      <main>
+        <h1>Turnos</h1>
+        <form aria-label="Pedir turno">
+          <label>Correo <input type="email" value="marta.gomez@correo.com"></label>
+          <label>Dirección <textarea>Calle Falsa 742</textarea></label>
+          <button type="submit" disabled>Continuar</button>
+        </form>
+        <a href="/mi-cuenta/30123456?token=tok_9f8e7d6c5b4a3210zz">Mi cuenta</a>
+      </main>`;
+    const { snapshot } = extract();
+    const html = snapshotToHtml(snapshot);
+    for (const secret of [...SECRETS, '/mi-cuenta', 'turnos.ejemplo']) expect(html).not.toContain(secret);
+
+    const parsed = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+    const form = parsed.querySelector('main > form[aria-label="Pedir turno"]')!;
+    expect(form).not.toBeNull();
+    expect(form.querySelector('input[type="email"][aria-label="Correo"]')).not.toBeNull();
+    expect(form.querySelector('textarea[aria-label="Dirección"]')).not.toBeNull();
+    expect(form.querySelector('button[disabled]')?.textContent).toBe('Continuar');
+    for (const element of snapshot.elements) expect(parsed.getElementById(element.id)).not.toBeNull();
+  });
+
+  it('escapa etiquetas con caracteres de HTML', () => {
+    document.body.innerHTML = '<button aria-label="&lt;b&gt;Ir&lt;/b&gt; &quot;ya&quot;">x</button>';
+    const html = snapshotToHtml(extract().snapshot);
+    expect(html).toContain('&lt;b&gt;Ir&lt;/b&gt; &quot;ya&quot;');
+    expect(html).not.toContain('<b>');
+  });
+
+  it('resuelve selectores contra el HTML sintético y, si no, contra la página real', () => {
+    document.body.innerHTML = '<form aria-label="Buscar"><input id="q" type="search" aria-label="Buscar"><button>Ir</button></form>';
+    const { snapshot, registry } = extract();
+    const html = snapshotToHtml(snapshot);
+    const idOf = (element: Element) => registry.idOf(element);
+    const search = snapshot.elements.find((e) => e.role === 'searchbox')!;
+    const button = snapshot.elements.find((e) => e.role === 'button')!;
+
+    expect(resolveSelector(`#${search.id}`, html, document, idOf)).toBe(search.id);
+    expect(resolveSelector('form button', html, document, idOf)).toBe(button.id);
+    expect(resolveSelector('#q', html, document, idOf)).toBe(search.id);
+    expect(resolveSelector('#no-existe', html, document, idOf)).toBeUndefined();
+    expect(resolveSelector('[[inválido', html, document, idOf)).toBeUndefined();
   });
 });

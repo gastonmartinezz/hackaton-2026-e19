@@ -4,11 +4,18 @@ import { defineConfig } from 'electron-vite';
 
 // Todo se empaqueta en los bundles: los paquetes del workspace exportan TypeScript
 // y los preloads con sandbox no pueden cargar módulos de node_modules.
+// La condición `source` toma el TypeScript de @hackaton/contracts sin compilarlo.
+const source = { conditions: ['source'] };
+
 export default defineConfig({
   main: {
+    resolve: source,
+    ssr: { resolve: { conditions: ['source'], externalConditions: ['source'] } },
     build: { externalizeDeps: false },
   },
   preload: {
+    resolve: source,
+    ssr: { resolve: { conditions: ['source'] } },
     build: {
       externalizeDeps: false,
       isolatedEntries: true,
@@ -22,6 +29,7 @@ export default defineConfig({
     },
   },
   renderer: {
+    resolve: source,
     root: 'src/renderer',
     plugins: [react()],
     build: {

@@ -1,128 +1,117 @@
 import type { GuideStep, PageOption } from '@hackaton/contracts';
 import { describe, expect, it } from 'vitest';
-import { evaluateObservation, initialState, transition, validateDecision, validateOptions, type GuideState } from './index';
+import { evaluateObservation, initialState, transition, type GuideState } from './index';
 
-const ctx = { requestId: 'req-1', navigationId: 'nav-1', revision: 2, elementIds: new Set(['el-1', 'el-2']) };
-const corr = { schemaVersion: '1', requestId: 'req-1', navigationId: 'nav-1', revision: 2 } as const;
-const option: PageOption = { id: 'o1', title: 'Ver horarios', description: '', evidenceElementIds: ['el-1'] };
+const option: PageOption = { id: 'horarios', title: 'Ver horarios', initialElement: '#el-1' };
+const other: PageOption = { id: 'turno', title: 'Pedir turno', initialElement: '#el-2' };
 const step: GuideStep = {
-  ...corr,
-  status: 'guide',
+  element: '#el-1',
   instruction: 'Hacé clic en Horarios.',
-  targetElementId: 'el-1',
   presentation: 'highlight',
-  expectedSignal: 'pageChange',
+  waitFor: 'userInteraction',
 };
 
 function run(...events: Parameters<typeof transition>[1][]): GuideState {
   return events.reduce(transition, initialState);
 }
 
-describe('validateDecision', () => {
-  it('acepta una decisión correlacionada con destino existente', () => {
-    expect(validateDecision(step, ctx)).toEqual({ ok: true, value: step });
-  });
-  it.each([
-    [{ ...step, requestId: 'otro' }, 'requestId'],
-    [{ ...step, navigationId: 'nav-0' }, 'navigation'],
-    [{ ...step, revision: 1 }, 'revision'],
-    [{ ...step, targetElementId: 'el-99' }, 'unknownTarget'],
-    [{ ...step, presentation: 'click' }, 'schema'],
-    [{ ...step, evaluate: 'document.forms[0].submit()' }, 'schema'],
-  ])('rechaza respuestas inválidas u obsoletas (%#)', (raw, reason) => {
-    expect(validateDecision(raw, ctx)).toEqual({ ok: false, reason });
-  });
-});
-
-describe('validateOptions', () => {
-  it('descarta opciones sin evidencia en el snapshot y duplicadas', () => {
-    const result = validateOptions(
-      {
-        ...corr,
-        status: 'options',
-        primary: [option, { ...option }, { ...option, id: 'o2', evidenceElementIds: ['el-1', 'el-404'] }],
-        secondary: [],
-      },
-      ctx,
-    );
-    expect(result).toEqual({ ok: true, value: { status: 'options', primary: [option], secondary: [] } });
-  });
-  it('rechaza si ninguna opción tiene evidencia', () => {
-    const raw = { ...corr, status: 'options', primary: [{ ...option, evidenceElementIds: ['el-9'] }], secondary: [] };
-    expect(validateOptions(raw, ctx)).toEqual({ ok: false, reason: 'noEvidence' });
-  });
-});
+const analyzed = (guide: { goal: string; step: GuideStep } | null = null) =>
+  run({ type: 'ANALYZE', goal: 'ver horarios' }, { type: 'RESPONSE', response: { options: [option, other, option], guide } });
 
 describe('transition', () => {
-  it('recorre analizar → elegir → guiar → esperar → verificar → guiar', () => {
-    let s = run({ type: 'ANALYZE', goal: 'ver horarios' }, { type: 'OPTIONS', primary: [option], secondary: [] });
-    expect(s.phase).toBe('choosing');
-    s = transition(s, { type: 'SELECT', optionId: 'o1' });
-    expect(s.phase).toBe('guiding');
-    s = transition(s, { type: 'DECISION', decision: step });
-    expect(s).toMatchObject({ phase: 'waitingForUser', stepCount: 1, step });
-    s = transition(s, { type: 'OUTCOME', outcome: 'signalObserved' });
-    expect(s.phase).toBe('verifying');
-    s = transition(s, { type: 'REQUEST_NEXT' });
-    expect(s.phase).toBe('guiding');
-    s = transition(s, { type: 'DECISION', decision: { ...corr, status: 'completed', message: 'Listo.' } });
-    expect(s).toMatchObject({ phase: 'completed', message: 'Listo.', goal: 'ver horarios' });
+  it('muestra las opciones sin duplicados y conserva el objetivo del chat', () => {
+    const state = analyzed();
+    expect(state).toMatchObject({ phase: 'choosing', goal: 'ver horarios', primary: [option, other], secondary: [] });
   });
 
-  it('ignora decisiones que llegan fuera de fase (respuestas tardías)', () => {
-    const s = run({ type: 'ANALYZE' }, { type: 'OPTIONS', primary: [option], secondary: [] });
-    expect(transition(s, { type: 'DECISION', decision: step })).toBe(s);
+  it('separa las opciones principales de las secundarias', () => {
+    const options = Array.from({ length: 5 }, (_, i) => ({ ...option, id: `o${i}` }));
+    const state = run({ type: 'ANALYZE' }, { type: 'RESPONSE', response: { options, guide: null } });
+    expect(state.primary).toHaveLength(3);
+    expect(state.secondary).toHaveLength(2);
   });
 
-  it('una navegación durante la guía conserva el objetivo y pide verificar', () => {
-    const s = run(
-      { type: 'ANALYZE', goal: 'g' },
-      { type: 'OPTIONS', primary: [option], secondary: [] },
-      { type: 'SELECT', optionId: 'o1' },
-      { type: 'DECISION', decision: step },
-      { type: 'NAVIGATED' },
-    );
-    expect(s).toMatchObject({ phase: 'verifying', lastOutcome: 'signalObserved', option, goal: 'g' });
+  it('sin opciones, la página no tiene ayuda', () => {
+    const state = run({ type: 'ANALYZE' }, { type: 'RESPONSE', response: { options: [], guide: null } });
+    expect(state.phase).toBe('unsupported');
   });
 
-  it('una navegación sin tarea elegida reanaliza la página', () => {
-    const s = run({ type: 'ANALYZE', goal: 'g' }, { type: 'OPTIONS', primary: [option], secondary: [] }, { type: 'NAVIGATED' });
-    expect(s).toMatchObject({ phase: 'analyzing', goal: 'g', primary: [] });
+  it('usa el paso sugerido si la persona elige esa opción, sin pedir otro', () => {
+    const state = transition(analyzed({ goal: 'horarios', step }), { type: 'SELECT', optionId: 'horarios' });
+    expect(state).toMatchObject({ phase: 'waitingForUser', option, step, stepCount: 1 });
   });
 
-  it('error y reintento vuelven al punto correcto', () => {
-    let s = run({ type: 'ANALYZE' }, { type: 'FAILED', message: 'Sin conexión' });
-    expect(s).toMatchObject({ phase: 'error', retry: 'options' });
-    expect(transition(s, { type: 'RETRY' }).phase).toBe('analyzing');
-    s = run({ type: 'ANALYZE' }, { type: 'OPTIONS', primary: [option], secondary: [] }, { type: 'SELECT', optionId: 'o1' }, { type: 'FAILED', message: 'x' });
-    expect(transition(s, { type: 'RETRY' }).phase).toBe('verifying');
+  it('pide el paso al servidor si eligió otra opción', () => {
+    const state = transition(analyzed({ goal: 'horarios', step }), { type: 'SELECT', optionId: 'turno' });
+    expect(state).toMatchObject({ phase: 'guiding', option: other, stepCount: 0 });
+    expect(state.suggested).toBeUndefined();
   });
 
-  it('volver regresa a las opciones y salir limpia todo', () => {
-    const s = run({ type: 'ANALYZE', goal: 'g' }, { type: 'OPTIONS', primary: [option], secondary: [] }, { type: 'SELECT', optionId: 'o1' }, { type: 'DECISION', decision: step });
-    expect(transition(s, { type: 'BACK' })).toMatchObject({ phase: 'choosing', option: undefined, step: undefined });
-    expect(transition(s, { type: 'EXIT' })).toEqual(initialState);
+  it('ignora opciones inexistentes', () => {
+    const state = analyzed();
+    expect(transition(state, { type: 'SELECT', optionId: 'nada' })).toBe(state);
   });
 
-  it('un error de validación no se presenta como completado', () => {
-    const s = run({ type: 'ANALYZE' }, { type: 'OPTIONS', primary: [option], secondary: [] }, { type: 'SELECT', optionId: 'o1' }, { type: 'DECISION', decision: step }, { type: 'OUTCOME', outcome: 'validationError' });
-    expect(s).toMatchObject({ phase: 'verifying', lastOutcome: 'validationError' });
+  it('recorre guía, verificación y siguiente paso', () => {
+    let state = transition(analyzed(), { type: 'SELECT', optionId: 'horarios' });
+    state = transition(state, { type: 'RESPONSE', response: { options: [], guide: { goal: 'horarios', step } } });
+    expect(state).toMatchObject({ phase: 'waitingForUser', stepCount: 1, primary: [option, other] });
+    state = transition(state, { type: 'SHOWN', elementId: 'el-1' });
+    expect(state.step?.targetElementId).toBe('el-1');
+    state = transition(state, { type: 'OUTCOME', outcome: 'signalObserved' });
+    expect(state).toMatchObject({ phase: 'verifying', lastOutcome: 'signalObserved' });
+    state = transition(state, { type: 'REQUEST_NEXT' });
+    expect(state.phase).toBe('guiding');
+    state = transition(state, { type: 'RESPONSE', response: { options: [], guide: null } });
+    expect(state.phase).toBe('completed');
+  });
+
+  it('sin paso posible antes de empezar, no puede ayudar', () => {
+    let state = transition(analyzed(), { type: 'SELECT', optionId: 'turno' });
+    state = transition(state, { type: 'RESPONSE', response: { options: [], guide: null } });
+    expect(state.phase).toBe('unsupported');
+  });
+
+  it('una navegación durante la guía pide el siguiente paso; sin opción, reanaliza', () => {
+    let state = transition(analyzed({ goal: 'horarios', step: { ...step, waitFor: 'navigation' } }), { type: 'SELECT', optionId: 'horarios' });
+    state = transition(state, { type: 'NAVIGATED' });
+    expect(state).toMatchObject({ phase: 'verifying', lastOutcome: 'signalObserved' });
+    expect(transition(analyzed(), { type: 'NAVIGATED' }).phase).toBe('analyzing');
+  });
+
+  it('reintenta según dónde falló y vuelve a las opciones', () => {
+    const failedOptions = transition(run({ type: 'ANALYZE' }), { type: 'FAILED', message: 'x' });
+    expect(transition(failedOptions, { type: 'RETRY' }).phase).toBe('analyzing');
+
+    const guiding = transition(analyzed(), { type: 'SELECT', optionId: 'turno' });
+    const failedNext = transition(guiding, { type: 'FAILED', message: 'x' });
+    expect(transition(failedNext, { type: 'RETRY' }).phase).toBe('verifying');
+    expect(transition(failedNext, { type: 'BACK' })).toMatchObject({ phase: 'choosing', option: undefined });
+  });
+
+  it('ignora respuestas que llegan fuera de fase', () => {
+    const state = analyzed();
+    expect(transition(state, { type: 'RESPONSE', response: { options: [], guide: { goal: 'x', step } } })).toBe(state);
+    expect(transition(initialState, { type: 'EXIT' })).toEqual(initialState);
   });
 });
 
 describe('evaluateObservation', () => {
-  it('un clic no alcanza cuando se espera un cambio de página', () => {
+  const shown = { ...step, targetElementId: 'el-1' };
+
+  it('solo la interacción con el elemento señalado completa un paso de interacción', () => {
+    expect(evaluateObservation(shown, { kind: 'interaction', elementId: 'el-1' })).toBe('signalObserved');
+    expect(evaluateObservation(shown, { kind: 'interaction', elementId: 'el-2' })).toBeNull();
     expect(evaluateObservation(step, { kind: 'interaction', elementId: 'el-1' })).toBeNull();
-    expect(evaluateObservation(step, { kind: 'pageChange', targetPresent: true })).toBe('signalObserved');
+    expect(evaluateObservation({ ...shown, waitFor: 'navigation' }, { kind: 'interaction', elementId: 'el-1' })).toBeNull();
   });
-  it('interacción esperada solo cuenta sobre el destino', () => {
-    const s = { ...step, expectedSignal: 'interaction' } as const;
-    expect(evaluateObservation(s, { kind: 'interaction', elementId: 'el-2' })).toBeNull();
-    expect(evaluateObservation(s, { kind: 'interaction', elementId: 'el-1' })).toBe('signalObserved');
-    expect(evaluateObservation(s, { kind: 'pageChange', targetPresent: false })).toBe('targetStale');
-  });
-  it('errores de validación y confirmaciones se informan siempre', () => {
-    expect(evaluateObservation(step, { kind: 'validationError' })).toBe('validationError');
-    expect(evaluateObservation(step, { kind: 'userConfirmation' })).toBe('userConfirmed');
+
+  it('navegación, cambios de página, errores y confirmación', () => {
+    expect(evaluateObservation({ ...shown, waitFor: 'navigation' }, { kind: 'navigation' })).toBe('signalObserved');
+    expect(evaluateObservation({ ...shown, waitFor: 'userConfirmation' }, { kind: 'navigation' })).toBe('targetStale');
+    expect(evaluateObservation(shown, { kind: 'pageChange', targetPresent: true })).toBeNull();
+    expect(evaluateObservation(shown, { kind: 'pageChange', targetPresent: false })).toBe('targetStale');
+    expect(evaluateObservation(shown, { kind: 'validationError' })).toBe('validationError');
+    expect(evaluateObservation(shown, { kind: 'userConfirmation' })).toBe('userConfirmed');
   });
 });

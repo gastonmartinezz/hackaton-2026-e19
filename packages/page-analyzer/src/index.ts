@@ -3,8 +3,10 @@
  * vista del sitio. Construye el snapshot por lista de campos permitidos: nunca
  * lee `.value`, opciones seleccionadas, cookies ni almacenamiento.
  */
-import { LIMITS, SCHEMA_VERSION, type PageElement, type PageSnapshot } from '@hackaton/contracts';
 import { sanitizeLabel, sanitizeOrigin } from '@asistente/privacy';
+import { SNAPSHOT_LIMITS as LIMITS, type PageElement, type PageSnapshot } from './snapshot';
+
+export * from './snapshot';
 
 export interface ExtractOptions {
   pageId: string;
@@ -213,7 +215,6 @@ export function extractSnapshot(doc: Document, options: ExtractOptions): Extract
 
   const origin = sanitizeOrigin(doc.location?.href ?? '') ?? 'https://invalid.local';
   const snapshot: PageSnapshot = {
-    schemaVersion: SCHEMA_VERSION,
     pageId: options.pageId,
     navigationId: options.navigationId,
     revision: options.revision,
