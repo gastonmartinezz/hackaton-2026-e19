@@ -35,6 +35,36 @@ En desarrollo y tests, el paquete de contratos se resuelve desde `src` mediante 
 
 ## Despliegue
 
+### Railway (servidor fijo)
+
+La API se despliega en Railway desde GitHub. La configuración está en `railway.json`:
+
+- **Build:** `pnpm --filter '@hackaton/api...' build`.
+- **Arranque:** `node apps/api/dist/server.js`.
+- **Chequeo de salud:** `/health`.
+
+Solo se redespliega cuando cambian `apps/api`, `packages/contracts` o las dependencias. Los cambios de la app de escritorio no disparan un despliegue.
+
+Preparación en el panel de Railway, una sola vez:
+
+1. Crear el proyecto desde este repositorio y dejar un solo servicio para la API. Railway puede proponer uno por paquete del monorepo.
+2. En **Variables** del servicio, cargar:
+   - `NODE_ENV=production`
+   - `AI_PROVIDER=anthropic`
+   - `ANTHROPIC_API_KEY`
+   - `API_ACCESS_TOKENS`
+   - `ELECTRON_SKIP_BINARY_DOWNLOAD=1`, que evita bajar Electron en el build.
+
+   `PORT` lo define Railway.
+3. En **Settings → Networking**, generar el dominio público.
+
+Para usar la app de escritorio contra Railway, definir:
+
+- `ASISTENTE_API_URL`: el dominio de Railway.
+- `ASISTENTE_API_TOKEN`: uno de los `API_ACCESS_TOKENS`.
+
+### Tenki Sandbox (alternativa)
+
 Se despliega en Tenki Sandbox (https://tenki.cloud/docs/sandbox) con `deploy/tenki/deploy.sh`.
 
 Preparación, una sola vez:
