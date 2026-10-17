@@ -6,16 +6,18 @@ import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { Limits } from '@hackaton/contracts';
 import { minimizeIntent, sanitizeOrigin } from '@asistente/privacy';
-import { BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
+import { BrowserWindow, ipcMain, shell, systemPreferences, type IpcMainInvokeEvent } from 'electron';
 import {
   TERMS_VERSION,
   UI_COMMAND_CHANNEL,
   UI_STATE_CHANNEL,
+  UI_TRANSCRIBE_CHANNEL,
   UiCommandSchema,
   type AppState,
   type CardLayout,
   type Notice,
   type NoticeAction,
+  type TranscribeResult,
   type UiCommand,
 } from '../shared/ipc';
 import { ApiSession, type ApiClient } from './api/client';
@@ -24,10 +26,12 @@ import { Chat, UNSURE_ANSWER } from './chat';
 import { HelpCardView } from './help-card';
 import { log } from './log';
 import { PageBridge } from './page-bridge';
+import { allowMicrophoneCheck, allowMicrophoneRequest } from './permissions';
 import type { PrefsStore } from './prefs';
 import { SiteView } from './site-view';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
 import { buildUserContext, type SystemInfo } from './user-context';
+import { Transcriber } from './voice';
 
 /** Igual que --chrome-h y --card-w de design/tokens.css, y el ancho de la tarjeta achicada. */
 const chromeHeight = (scale: number) => Math.round(72 + (scale - 1) * 16);
@@ -64,6 +68,7 @@ export class AppController {
   readonly #assistant: Assistant;
   readonly #chat: Chat;
   readonly #card: HelpCardView;
+  readonly #transcriber: Transcriber;
   #cardLayout: CardLayout = { placement: 'top', maxHeight: 0 };
   #siteVisible = false;
   /** La persona tocó «Salir de la ayuda» en esta página (pantalla 21). */
@@ -111,13 +116,17 @@ export class AppController {
       () => buildUserContext(options.prefs.value.profile, options.system),
     );
     this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
+    this.#transcriber = new Transcriber(options.api);
     this.#wireSite();
 
     ipcMain.handle(UI_COMMAND_CHANNEL, (event, raw: unknown) => this.#onCommand(event, raw));
+    ipcMain.handle(UI_TRANSCRIBE_CHANNEL, (event, raw: unknown) => this.#onTranscribe(event, raw));
     this.window.on('resize', () => this.#layout());
     this.window.once('ready-to-show', () => this.window.show());
     this.window.on('closed', () => {
       ipcMain.removeHandler(UI_COMMAND_CHANNEL);
+      ipcMain.removeHandler(UI_TRANSCRIBE_CHANNEL);
+      this.#transcriber.cancel();
       this.#bridge.dispose();
     });
   }
@@ -317,8 +326,37 @@ export class AppController {
     wc.setWindowOpenHandler(() => ({ action: 'deny' }));
     wc.on('will-navigate', (event) => event.preventDefault());
     wc.on('will-attach-webview', (event) => event.preventDefault());
-    wc.session.setPermissionRequestHandler((_c, _p, callback) => callback(false));
-    wc.session.setPermissionCheckHandler(() => false);
+    // Todo se rechaza salvo el micrófono para el dictado del buscador, y solo
+    // para esta ventana (la tarjeta comparte la sesión; el sitio tiene la suya).
+    const rendererUrl = this.options.rendererUrl;
+    wc.session.setPermissionRequestHandler((contents, permission, callback, details) => {
+      const allowed = allowMicrophoneRequest(
+        {
+          permission,
+          mediaTypes: 'mediaTypes' in details ? details.mediaTypes : undefined,
+          fromWindow: contents === wc,
+          isMainFrame: details.isMainFrame,
+          requestingUrl: details.requestingUrl,
+        },
+        rendererUrl,
+      );
+      if (!allowed) return callback(false);
+      void systemMicrophoneAccess().then(callback, () => callback(false));
+    });
+    wc.session.setPermissionCheckHandler((contents, permission, _origin, details) =>
+      allowMicrophoneCheck(
+        { permission, mediaType: details.mediaType, fromWindow: contents === wc, isMainFrame: details.isMainFrame, requestingUrl: details.requestingUrl },
+        rendererUrl,
+      ),
+    );
+  }
+
+  /** Dictado del buscador: solo desde la ventana (no la tarjeta) y con condiciones aceptadas. */
+  async #onTranscribe(event: IpcMainInvokeEvent, raw: unknown): Promise<TranscribeResult> {
+    if (event.sender !== this.window.webContents || event.senderFrame !== event.sender.mainFrame || !this.#termsAccepted()) {
+      return { status: 'error', reason: 'failed' };
+    }
+    return this.#transcriber.transcribe(raw);
   }
 
   async #onCommand(event: IpcMainInvokeEvent, raw: unknown): Promise<void> {
@@ -476,6 +514,15 @@ export class AppController {
         return;
     }
   }
+}
+
+/** macOS pide permiso del sistema para el micrófono; en Windows y Linux decide Chromium. */
+async function systemMicrophoneAccess(): Promise<boolean> {
+  if (process.platform !== 'darwin') return true;
+  const status = systemPreferences.getMediaAccessStatus('microphone');
+  if (status === 'granted') return true;
+  if (status === 'not-determined') return systemPreferences.askForMediaAccess('microphone');
+  return false;
 }
 
 async function openExternally(url: string): Promise<void> {
