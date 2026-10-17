@@ -1,0 +1,193 @@
+{
+  "title": "SiteCheckRequest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "navigationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "contentVersion": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "hostname": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 253,
+      "pattern": "^[a-z0-9.-]+$"
+    },
+    "registrableDomain": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 253,
+      "pattern": "^[a-z0-9.-]+$"
+    },
+    "page": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "language": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 10
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "declaredBrand": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "forms": {
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": [
+                  "get",
+                  "post",
+                  "dialog",
+                  "other"
+                ]
+              },
+              "action": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fields": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "text",
+                        "email",
+                        "password",
+                        "tel",
+                        "number",
+                        "date",
+                        "search",
+                        "url",
+                        "hidden",
+                        "file",
+                        "select",
+                        "textarea",
+                        "checkbox",
+                        "radio",
+                        "other"
+                      ]
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "autocomplete": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "method",
+              "action",
+              "fields"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "links": {
+          "maxItems": 50,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "href": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "required": [
+              "text",
+              "href"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "scriptHosts": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[a-z0-9.-]+$"
+          }
+        },
+        "iframeHosts": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[a-z0-9.-]+$"
+          }
+        }
+      },
+      "required": [
+        "text",
+        "forms",
+        "links",
+        "scriptHosts",
+        "iframeHosts"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "navigationId",
+    "contentVersion",
+    "url",
+    "hostname",
+    "registrableDomain"
+  ],
+  "additionalProperties": false
+}
