@@ -1,0 +1,9 @@
+[
+  {
+    "origin": "https://api.anthropic.com",
+    "methods": ["POST"],
+    "pathPrefix": "/v1/",
+    "header": "x-api-key",
+    "secrets": ["ANTHROPIC_API_KEY"]
+  }
+]
