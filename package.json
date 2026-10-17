@@ -10,6 +10,11 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "contracts:schemas": "pnpm --filter @hackaton/contracts schemas"
+    "contracts:schemas": "pnpm --filter @hackaton/contracts schemas",
+    "dev:desktop": "pnpm --filter @asistente/desktop dev"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   }
 }

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Catálogo de prueba</title></head>
+<body>
+  <main>
+    <h1>Catálogo (página de prueba)</h1>
+    <search>
+      <form id="buscar" aria-label="Buscar en el catálogo" onsubmit="event.preventDefault(); mostrar();">
+        <label for="q">Buscar libros</label>
+        <input id="q" type="search" name="q">
+        <button type="submit">Buscar</button>
+      </form>
+    </search>
+    <section id="resultados" aria-live="polite"></section>
+  </main>
+  <script>
+    function mostrar() {
+      // Simula resultados dinámicos (SPA) sin navegar.
+      const r = document.getElementById('resultados');
+      r.innerHTML = '<h2>Resultados</h2><ul><li><a href="#l1">Don Quijote</a></li><li><a href="#l2">Rayuela</a></li></ul>';
+    }
+  </script>
+</body>
+</html>
