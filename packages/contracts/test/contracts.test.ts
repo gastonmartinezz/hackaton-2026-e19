@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { InterpretRequest, InterpretResponse, NextStepResponse, OptionsResponse } from '../src/index.js';
+import {
+  InterpretRequest,
+  InterpretResponse,
+  NextStepResponse,
+  OptionsResponse,
+  TRANSCRIBE_MAX_BYTES,
+  TranscribeResponse,
+} from '../src/index.js';
 
 describe('InterpretRequest', () => {
   it('exige que el último mensaje sea del usuario', () => {
@@ -74,5 +81,18 @@ describe('OptionsResponse', () => {
 describe('NextStepResponse', () => {
   it('acepta done sin pasos', () => {
     expect(NextStepResponse.safeParse({ sessionId: 's-abc', steps: [], done: true }).success).toBe(true);
+  });
+});
+
+describe('TranscribeResponse', () => {
+  it('acepta texto vacío y rechaza campos de más o texto demasiado largo', () => {
+    expect(TranscribeResponse.safeParse({ text: '' }).success).toBe(true);
+    expect(TranscribeResponse.safeParse({ text: 'quiero renovar mi documento' }).success).toBe(true);
+    expect(TranscribeResponse.safeParse({ text: 'hola', extra: 1 }).success).toBe(false);
+    expect(TranscribeResponse.safeParse({ text: 'a'.repeat(1001) }).success).toBe(false);
+  });
+
+  it('fija el tope de bytes en 30 s de PCM de 16 bits mono a 16 kHz', () => {
+    expect(TRANSCRIBE_MAX_BYTES).toBe(960_044);
   });
 });
