@@ -11,7 +11,8 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "stt:prefetch": "node dist/modules/transcribe/prefetch-model.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.135.0",
