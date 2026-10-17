@@ -22,6 +22,8 @@ describe('redactText', () => {
     expect(redactText('clave: hunter')).toBe('clave: [dato]');
     expect(redactText('mi contraseña es gatito')).toBe('mi contraseña es [dato]');
     expect(redactText('token=xyz')).toBe('token=[dato]');
+    expect(redactText('clave: uno dos tres, gracias')).toBe('clave: [dato], gracias');
+    expect(redactText('mi contraseña es mi perro firulais')).toBe('mi contraseña es [dato]');
     expect(redactText('Olvidé mi contraseña')).toBe('Olvidé mi contraseña');
   });
 
@@ -43,6 +45,9 @@ describe('sanitizeTitle', () => {
     expect(sanitizeTitle('Turnos · Hospital 30123456')).toBe('Turnos - Hospital [número]');
     expect(sanitizeTitle('Contraseña : hunter2 | Banco')).toBe('Contraseña - Banco');
     expect(sanitizeTitle('Mi clave es gatito - Banco')).not.toContain('gatito');
+    expect(sanitizeTitle('Contraseña - gatito | Banco')).toBe('Contraseña - Banco');
+    expect(sanitizeTitle('Clave: uno dos tres - Banco')).toBe('Clave: [dato] - Banco');
+    expect(sanitizeTitle('Recuperar contraseña')).toBe('Recuperar contraseña');
   });
 });
 
