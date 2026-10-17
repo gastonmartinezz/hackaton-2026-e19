@@ -8,7 +8,7 @@ import { extractSnapshot, resolveSelector, snapshotToHtml, type ElementRegistry 
 import { ipcRenderer } from 'electron';
 import { ExtractRequestSchema, PAGE_CHANNELS, ShowRequestSchema, type ShowResult } from '../../shared/ipc';
 import { Highlighter } from './highlighter';
-import { observePage } from './observer';
+import { isRelevantChange, observePage } from './observer';
 
 let registry: ElementRegistry | undefined;
 /** HTML sintético de la última extracción: los selectores del backend se resuelven contra él. */
@@ -56,7 +56,8 @@ function start(): void {
       const invalid = countInvalid();
       if (invalid > invalidCount) ipcRenderer.send(PAGE_CHANNELS.validation, {});
       invalidCount = invalid;
-      ipcRenderer.send(PAGE_CHANNELS.changed, { structural, targetPresent: highlighter?.targetPresent() ?? null });
+      const targetPresent = highlighter?.targetPresent() ?? null;
+      if (isRelevantChange(structural, targetPresent)) ipcRenderer.send(PAGE_CHANNELS.changed, { structural, targetPresent });
     },
     onInteraction(target) {
       const elementId = registry?.idOf(target);

@@ -14,6 +14,15 @@ export interface ObserverCallbacks {
   onValidationError(): void;
 }
 
+/**
+ * `class` y `style` se observan para saber si el destino resaltado dejó de
+ * verse. Sin destino resaltado, un cambio solo de atributos (animaciones,
+ * spinners) no le interesa al proceso principal y no se informa.
+ */
+export function isRelevantChange(structural: boolean, targetPresent: boolean | null): boolean {
+  return structural || targetPresent !== null;
+}
+
 export function observePage(doc: Document, callbacks: ObserverCallbacks, { debounceMs = 700, maxWaitMs = 2500 } = {}): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let firstPending = 0;
