@@ -11,5 +11,9 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "contracts:schemas": "pnpm --filter @hackaton/contracts schemas"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   }
 }
