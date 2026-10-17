@@ -339,6 +339,9 @@ export class AppController {
       case 'retry':
         this.#assistant.retry();
         return;
+      // TODO(options-action / UI final): la UI de esta etapa no expone setTextScale ni
+      // setAiForSite (la home es solo el input). Se mantienen para la UI final: el
+      // tamaño de texto es clave para el público y la IA por sitio va con la guía.
       case 'setTextScale':
         await this.options.prefs.update({ textScale: command.scale });
         this.#layout();
