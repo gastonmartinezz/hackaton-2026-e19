@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Highlighter } from './highlighter';
+import { Highlighter, labelPlacement } from './highlighter';
 
 function box(el: Element, rect: Partial<DOMRect>) {
   el.getBoundingClientRect = () => ({ x: 0, y: 0, top: 10, left: 10, width: 100, height: 30, right: 110, bottom: 40, toJSON() {}, ...rect }) as DOMRect;
@@ -48,5 +48,17 @@ describe('Highlighter', () => {
     document.querySelector('[data-asistente-overlay]')!.remove();
     h.show(button, { scroll: false });
     expect(document.querySelectorAll('[data-asistente-overlay]')).toHaveLength(1);
+  });
+});
+
+describe('labelPlacement', () => {
+  const rect = (top: number, right = 200) => ({ top, right, left: 100, bottom: top + 30, width: 100, height: 30 }) as DOMRect;
+  it('arriba por defecto, abajo si arriba no entra y al costado en campos', () => {
+    const button = document.getElementById('b')!;
+    const input = document.getElementById('a')!;
+    expect(labelPlacement(button, rect(200), 1200)).toBe('above');
+    expect(labelPlacement(button, rect(20), 1200)).toBe('below');
+    expect(labelPlacement(input, rect(200), 1200)).toBe('side');
+    expect(labelPlacement(input, rect(200, 1180), 1200)).toBe('above');
   });
 });

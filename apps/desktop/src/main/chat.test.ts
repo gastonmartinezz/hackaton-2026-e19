@@ -2,7 +2,8 @@ import type { InterpretRequest, InterpretResponse, UserContext } from '@hackaton
 import { describe, expect, it, vi } from 'vitest';
 import { ApiFailure, ApiSession, type ApiClient } from './api/client';
 import { interpretMock } from './api/mock';
-import { Chat } from './chat';
+import { questionExtras } from './api/pending-contract';
+import { Chat, UNSURE_ANSWER } from './chat';
 
 type Reply = DistributiveOmit<InterpretResponse, 'sessionId'> | ApiFailure;
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -176,5 +177,25 @@ describe('interpretMock (backend simulado del cliente)', () => {
     expect(ask('hola').type).toBe('question');
     expect(ask('quiero ver los horarios')).toMatchObject({ type: 'redirect', url: 'http://127.0.0.1:1/horarios.html' });
     expect(ask('mostrame opciones')).toMatchObject({ type: 'options' });
+  });
+});
+
+describe('Chat · respuestas sugeridas (TEMPORAL, campos pendientes del contrato)', () => {
+  it('guarda la pregunta con sus respuestas y su motivo, e ignora formas inválidas', () => {
+    expect(questionExtras({ answers: ['Cédula', 'Pasaporte'], reason: 'Cada documento va a un sitio distinto.' })).toEqual({
+      answers: ['Cédula', 'Pasaporte'],
+      reason: 'Cada documento va a un sitio distinto.',
+    });
+    expect(questionExtras({ answers: ['Una sola'] })).toEqual({ answers: [], reason: null });
+    expect(questionExtras({})).toEqual({ answers: [], reason: null });
+  });
+
+  it('el mock no insiste después de «No estoy seguro»', () => {
+    const sites = [
+      { title: 'A', url: 'https://a.example', reason: 'a' },
+      { title: 'B', url: 'https://b.example', reason: 'b' },
+    ];
+    const messages = ['hola', UNSURE_ANSWER].map((content) => ({ role: 'user' as const, content }));
+    expect(interpretMock({ messages }, sites).type).toBe('options');
   });
 });

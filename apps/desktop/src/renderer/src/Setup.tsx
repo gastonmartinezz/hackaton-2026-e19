@@ -53,7 +53,7 @@ export function Setup({ state, onDone }: { state: AppState; onDone?: () => void 
           <legend>¿Dónde vivís?</legend>
           <div className="ui-field">
             <label htmlFor="setup-country">País</label>
-            <select id="setup-country" value={country} onChange={(e) => setCountry(e.target.value)}>
+            <select id="setup-country" className="field" value={country} onChange={(e) => setCountry(e.target.value)}>
               <option value="">Prefiero no decirlo</option>
               {countries.map((c) => (
                 <option key={c.code} value={c.code}>
@@ -78,7 +78,7 @@ export function Setup({ state, onDone }: { state: AppState; onDone?: () => void 
           <p className="setup-hint">Nos ayuda a elegir mejor, por ejemplo, páginas para jubilados. Nunca se envía la edad exacta.</p>
           <div className="ui-field">
             <label htmlFor="setup-age">Edad</label>
-            <select id="setup-age" value={ageRange} onChange={(e) => setAgeRange(e.target.value as AgeRange | '')}>
+            <select id="setup-age" className="field" value={ageRange} onChange={(e) => setAgeRange(e.target.value as AgeRange | '')}>
               <option value="">Prefiero no decirlo</option>
               {AGE_RANGES.map(([value, label]) => (
                 <option key={value} value={value}>
@@ -100,7 +100,11 @@ export function Setup({ state, onDone }: { state: AppState; onDone?: () => void 
           <Button type="submit" variant="primary" disabled={!accepted}>
             {profile.termsAccepted ? 'Guardar' : 'Guardar y empezar'}
           </Button>
-          {onDone ? <Button onClick={onDone}>Cancelar</Button> : null}
+          {onDone ? (
+            <Button variant="quiet" onClick={onDone}>
+              Cancelar
+            </Button>
+          ) : null}
         </div>
       </form>
     </main>

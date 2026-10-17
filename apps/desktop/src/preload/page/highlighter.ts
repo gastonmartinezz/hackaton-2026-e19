@@ -7,36 +7,51 @@
  * seguridad ni de confirmación.
  */
 
+// Valores de --hl-* en design/tokens.css. La página no ve las variables de
+// Mostrame (shadow root cerrado), así que se repiten acá.
 const STYLE = `
   :host { all: initial; }
   .frame {
     position: fixed;
     pointer-events: none;
     box-sizing: border-box;
-    border: 5px solid #ffbf00;
-    outline: 3px solid #000;
-    box-shadow: 0 0 0 6px #fff;
-    border-radius: 6px;
-    z-index: 2147483647;
-    animation: pulse 1.6s ease-in-out infinite;
+    border-radius: 12px;
+    box-shadow: 0 0 0 3px #111111 inset, 0 0 0 4px #FFD23F;
+    z-index: 2147483646;
+    animation: appear 280ms cubic-bezier(0.2, 0, 0, 1), breathe 900ms ease-in-out 280ms 2;
   }
   .badge {
     position: fixed;
     pointer-events: none;
-    z-index: 2147483647;
-    font: 700 16px/1.2 system-ui, sans-serif;
-    color: #000;
-    background: #ffbf00;
-    border: 2px solid #000;
-    border-radius: 4px;
-    padding: 2px 8px;
+    z-index: 2147483646;
+    font: 800 18px/1.3 system-ui, "Segoe UI", sans-serif;
+    color: #FFD23F;
+    background: #111111;
+    border: 2px solid #FFD23F;
+    border-radius: 6px;
+    padding: 3px 12px;
     white-space: nowrap;
   }
-  @keyframes pulse { 50% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.6); } }
-  @media (prefers-reduced-motion: reduce) { .frame { animation: none; } }
+  .badge::after {
+    content: "";
+    position: absolute;
+    border: 9px solid transparent;
+  }
+  .badge[data-place="above"]::after { left: 16px; top: 100%; border-top-color: #FFD23F; }
+  .badge[data-place="below"]::after { left: 16px; bottom: 100%; border-bottom-color: #FFD23F; }
+  .badge[data-place="side"]::after { right: 100%; top: 50%; transform: translateY(-50%); border-right-color: #FFD23F; }
+  @keyframes appear { from { opacity: 0; } }
+  @keyframes breathe { 50% { box-shadow: 0 0 0 3px #111111 inset, 0 0 0 10px rgb(255 210 63 / 0.55); } }
+  @media (prefers-reduced-motion: reduce) {
+    .frame { animation: none; box-shadow: 0 0 0 3px #111111 inset, 0 0 0 6px #FFD23F; }
+  }
 `;
 
-const MARGIN = 6;
+/** --hl-gap + --hl-inner-w: el anillo queda separado del control. */
+const MARGIN = 7;
+const BADGE_GAP = 16;
+const BADGE_HEIGHT = 34;
+const BADGE_WIDTH = 72;
 
 export type HighlightResult = 'shown' | 'notVisible';
 
@@ -118,12 +133,18 @@ export class Highlighter {
       width: `${rect.width + MARGIN * 2}px`,
       height: `${rect.height + MARGIN * 2}px`,
     });
-    const above = rect.top - MARGIN - 30 > 0;
-    Object.assign(this.#badge.style, {
-      display: 'block',
-      left: `${Math.max(4, rect.left - MARGIN)}px`,
-      top: above ? `${rect.top - MARGIN - 30}px` : `${rect.bottom + MARGIN + 4}px`,
-    });
+    // Rótulo (handoff §4.7): arriba a la izquierda; al costado si es un campo
+    // (no tapa su etiqueta); abajo si arriba no entra.
+    const view = this.doc.defaultView;
+    const place = labelPlacement(target, rect, view?.innerWidth ?? Infinity);
+    this.#badge.dataset.place = place;
+    const position =
+      place === 'side'
+        ? { left: rect.right + MARGIN + BADGE_GAP, top: rect.top + rect.height / 2 - BADGE_HEIGHT / 2 }
+        : place === 'above'
+          ? { left: rect.left - MARGIN, top: rect.top - MARGIN - BADGE_GAP - BADGE_HEIGHT }
+          : { left: rect.left - MARGIN, top: rect.bottom + MARGIN + BADGE_GAP };
+    Object.assign(this.#badge.style, { display: 'block', left: `${Math.max(4, position.left)}px`, top: `${position.top}px` });
   };
 
   #schedule = (): void => {
@@ -152,6 +173,19 @@ export class Highlighter {
     if (this.#raf) view?.cancelAnimationFrame(this.#raf);
     this.#raf = 0;
   }
+}
+
+/** Campos de texto y listas: la persona escribe o elige ahí. */
+export function isField(element: Element): boolean {
+  const tag = element.tagName.toLowerCase();
+  if (tag === 'select' || tag === 'textarea') return true;
+  if (tag === 'input') return !['submit', 'button', 'reset', 'image', 'checkbox', 'radio'].includes((element as HTMLInputElement).type);
+  return element.getAttribute('contenteditable') === 'true' || element.getAttribute('role') === 'textbox' || element.getAttribute('role') === 'combobox';
+}
+
+export function labelPlacement(target: Element, rect: DOMRect, viewportWidth: number): 'above' | 'side' | 'below' {
+  if (isField(target) && rect.right + MARGIN + BADGE_GAP + BADGE_WIDTH < viewportWidth) return 'side';
+  return rect.top - MARGIN - BADGE_GAP - BADGE_HEIGHT > 0 ? 'above' : 'below';
 }
 
 function isDisplayed(element: Element): boolean {
