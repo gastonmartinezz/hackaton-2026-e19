@@ -260,6 +260,9 @@ export class Assistant {
         this.#signal(),
       );
       if (epoch !== this.#epoch) return;
+      // El backend devuelve la sesión en cada respuesta: la siguiente llamada usa esa.
+      this.#guideSessionId = response.sessionId;
+      if (ticket.id === sessionId) ticket.commit(response.sessionId);
       this.#dispatch({ type: 'NEXT', response });
     } catch (error) {
       if (epoch === this.#epoch && error instanceof ApiFailure && error.code === 'SESSION_NOT_FOUND') {

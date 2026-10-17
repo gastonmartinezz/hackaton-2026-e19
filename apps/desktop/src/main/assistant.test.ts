@@ -232,6 +232,28 @@ describe('Assistant', () => {
     expect(session.id).toBe('s-otra');
   });
 
+  it('next-step guarda la sesión que devuelve el backend para la llamada siguiente', async () => {
+    load('horarios.html');
+    const mock = mockApi();
+    const session = new ApiSession();
+    let calls = 0;
+    const { api, sent } = recording(mock, {
+      options: async (r, s) => ({ ...(await mock.options(r, s)), options: [{ id: 'x', title: 'X', steps: [step(null)] }] }),
+      nextStep: async (r) =>
+        ++calls === 1 ? { sessionId: 's-renovada', steps: [step(null)], done: false } : { sessionId: r.sessionId, steps: [], done: true },
+    });
+    const { assistant, until } = setup(api, session);
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    assistant.select('x');
+    await until(() => assistant.state.phase === 'waitingForUser');
+    assistant.confirmDone();
+    await until(() => assistant.state.phase === 'completed');
+    expect((sent[2] as NextStepRequest).sessionId).toBe('s-renovada');
+    expect(session.id).toBe('s-renovada');
+  });
+
   it('si la sesión venció a mitad de la guía, vuelve a analizar la página', async () => {
     load('horarios.html');
     const mock = mockApi();

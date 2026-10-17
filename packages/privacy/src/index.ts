@@ -47,7 +47,12 @@ export interface RedactOptions {
  * normaliza espacios y trunca.
  */
 export function redactText(input: string, { maxLength = 120 }: RedactOptions = {}): string {
-  let text = input.normalize('NFC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u206f]/g, ' ');
+  // Los saltos de línea se conservan hasta después de los patrones: el valor de una
+  // credencial se oculta hasta el fin de su línea, no del texto entero.
+  let text = input
+    .normalize('NFC')
+    .replace(/\r\n?|[\u2028\u2029]/g, '\n')
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060-\u206f]/g, ' ');
   for (const [pattern, replacement] of PATTERNS) {
     text = text.replace(pattern, replacement);
   }
