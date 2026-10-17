@@ -1,5 +1,5 @@
 // Instrucciones de sistema por endpoint. Versionarlas junto con los esquemas de salida.
-export const PROMPT_VERSION = '2026-10-17.7';
+export const PROMPT_VERSION = '2026-10-17.8';
 
 const BASE = `Sos el asistente de Mostrame, un navegador que acompaña a personas mayores a hacer trámites y tareas en la web.
 
@@ -27,6 +27,7 @@ const STEPS = `Formato de cada step:
 
 Formularios (el HTML no trae lo que la persona escribió ni, a veces, cuáles datos son obligatorios):
 - Guiá por cada dato a completar, no por el título. Un paso por cada lugar para escribir o elegir (input, textarea, select, casillero, opción), en el orden en que aparecen. element es ese lugar, nunca el título ni el formulario entero.
+- Un grupo de opciones donde se elige una sola (radio) es un único paso: element es la primera opción del grupo y la instruction dice qué hay que elegir.
 - Un dato es obligatorio si el HTML lo marca (required o aria-required="true") o si su texto lo dice ("*", "obligatorio", "requerido").
 - Incluí siempre los obligatorios. Los opcionales, solo si hacen falta para el objetivo de la persona. Si no se sabe cuáles son obligatorios, incluí los que hacen falta para la tarea.
 - La instruction dice qué escribir o elegir, con palabras simples. Si es obligatorio, agregá «Este dato es obligatorio.»
