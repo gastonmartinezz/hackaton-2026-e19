@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InterpretRequest, InterpretResponse, OptionsResponse } from '../src/index.js';
+import { InterpretRequest, InterpretResponse, NextStepResponse, OptionsResponse } from '../src/index.js';
 
 describe('InterpretRequest', () => {
   it('exige que el último mensaje sea del usuario', () => {
@@ -14,31 +14,40 @@ describe('InterpretRequest', () => {
 
 describe('InterpretResponse', () => {
   it('acepta redirect con URL https', () => {
-    const response = { type: 'redirect', message: 'Te llevo.', url: 'https://www.argentina.gob.ar' };
+    const response = { sessionId: 's-abc', type: 'redirect', message: 'Te llevo.', url: 'https://www.argentina.gob.ar' };
     expect(InterpretResponse.safeParse(response).success).toBe(true);
   });
 
   it('rechaza URLs que no son http(s)', () => {
-    const response = { type: 'redirect', message: 'Te llevo.', url: 'javascript:alert(1)' };
+    const response = { sessionId: 's-abc', type: 'redirect', message: 'Te llevo.', url: 'javascript:alert(1)' };
     expect(InterpretResponse.safeParse(response).success).toBe(false);
   });
 });
 
+const step = (element: string | null) => ({
+  element,
+  instruction: 'Hacé clic en Turnos.',
+  presentation: 'highlight',
+  waitFor: 'userInteraction',
+});
+
 describe('OptionsResponse', () => {
-  it('acepta el ejemplo acordado', () => {
+  it('acepta opciones con pasos reales y teóricos', () => {
     const response = {
       sessionId: 's-abc',
-      options: [{ id: 'search', title: 'Buscar un producto', initialElement: '#search' }],
-      guide: {
-        goal: 'search',
-        step: {
-          element: '#search',
-          presentation: 'highlight',
-          instruction: 'Escribí acá el producto que estás buscando.',
-          waitFor: 'userInteraction',
-        },
-      },
+      options: [{ id: 'turno', title: 'Sacar un turno', steps: [step('#el-3'), step(null)] }],
     };
     expect(OptionsResponse.safeParse(response).success).toBe(true);
+  });
+
+  it('exige al menos un paso por opción', () => {
+    const response = { sessionId: 's-abc', options: [{ id: 'turno', title: 'Sacar un turno', steps: [] }] };
+    expect(OptionsResponse.safeParse(response).success).toBe(false);
+  });
+});
+
+describe('NextStepResponse', () => {
+  it('acepta done sin pasos', () => {
+    expect(NextStepResponse.safeParse({ sessionId: 's-abc', steps: [], done: true }).success).toBe(true);
   });
 });

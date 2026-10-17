@@ -9,9 +9,9 @@ const ask = { messages: [{ role: 'user' as const, content: 'renovar dni' }] };
 
 describe('HttpApiClient', () => {
   it('envía Authorization y X-Request-Id, y devuelve la respuesta validada', async () => {
-    const fetch = vi.fn(async () => json(200, { type: 'question', message: '¿En qué país?' }));
+    const fetch = vi.fn(async () => json(200, { sessionId: 's-1', type: 'question', message: '¿En qué país?' }));
     const client = new HttpApiClient({ baseUrl: base, token: 'tok', fetch });
-    await expect(client.interpret(ask, signal())).resolves.toEqual({ type: 'question', message: '¿En qué país?' });
+    await expect(client.interpret(ask, signal())).resolves.toEqual({ sessionId: 's-1', type: 'question', message: '¿En qué país?' });
     const [url, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
     expect(url.toString()).toBe('https://api.ejemplo.test/v1/interpret');
     expect(JSON.parse(init.body as string)).toEqual(ask);
@@ -21,7 +21,7 @@ describe('HttpApiClient', () => {
   });
 
   it('no envía Authorization si no hay token', async () => {
-    const fetch = vi.fn(async () => json(200, { type: 'redirect', message: 'Vamos', url: 'https://a.gob.ar/' }));
+    const fetch = vi.fn(async () => json(200, { sessionId: 's-1', type: 'redirect', message: 'Vamos', url: 'https://a.gob.ar/' }));
     await new HttpApiClient({ baseUrl: base, token: null, fetch }).interpret(ask, signal());
     const [, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
     expect((init.headers as Record<string, string>).authorization).toBeUndefined();
@@ -31,9 +31,9 @@ describe('HttpApiClient', () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(json(503, { error: { code: 'AI_UNAVAILABLE', message: 'x', requestId: 'r', retryable: true } }))
-      .mockResolvedValueOnce(json(200, { sessionId: 's-1', options: [], guide: null }));
+      .mockResolvedValueOnce(json(200, { sessionId: 's-1', options: [] }));
     const client = new HttpApiClient({ baseUrl: base, token: 't', fetch });
-    await expect(client.options({ html: '<main></main>' }, signal())).resolves.toEqual({ sessionId: 's-1', options: [], guide: null });
+    await expect(client.options({ html: '<main></main>' }, signal())).resolves.toEqual({ sessionId: 's-1', options: [] });
     expect(fetch).toHaveBeenCalledTimes(2);
 
     const missing = vi.fn(async () => json(404, { error: { code: 'SESSION_NOT_FOUND', message: 'x', requestId: 'r', retryable: false } }));
@@ -43,10 +43,23 @@ describe('HttpApiClient', () => {
   });
 
   it('rechaza respuestas que no cumplen el contrato', async () => {
-    const fetch = vi.fn(async () => json(200, { type: 'redirect', message: 'x', url: 'javascript:alert(1)' }));
+    const fetch = vi.fn(async () => json(200, { sessionId: 's-1', type: 'redirect', message: 'x', url: 'javascript:alert(1)' }));
     const client = new HttpApiClient({ baseUrl: base, token: null, fetch });
     await expect(client.interpret(ask, signal())).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
     await expect(client.interpret(ask, signal())).rejects.toBeInstanceOf(ApiFailure);
+  });
+
+  it('next-step: valida la respuesta', async () => {
+    const step = { element: '#el-9', instruction: 'Elegí la especialidad.', presentation: 'highlight', waitFor: 'userInteraction' } as const;
+    const fetch = vi.fn(async () => json(200, { sessionId: 's-1', steps: [step], done: false }));
+    const client = new HttpApiClient({ baseUrl: base, token: 't', fetch });
+    const request = { sessionId: 's-1', optionId: 'turno', expectedStep: { ...step, element: null }, completedSteps: [], html: '<main></main>' };
+    await expect(client.nextStep(request, signal())).resolves.toEqual({ sessionId: 's-1', steps: [step], done: false });
+    const [url] = fetch.mock.calls[0] as unknown as [URL];
+    expect(url.toString()).toBe('https://api.ejemplo.test/v1/next-step');
+
+    const bad = vi.fn(async () => json(200, { sessionId: 's-1', steps: [{ ...step, element: 42 }], done: false }));
+    await expect(new HttpApiClient({ baseUrl: base, token: 't', fetch: bad }).nextStep(request, signal())).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
   });
 
   it('no envía cuerpos que superan el límite', async () => {

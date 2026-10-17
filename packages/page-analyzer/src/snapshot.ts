@@ -12,6 +12,7 @@ export const SNAPSHOT_LIMITS = {
   inputTypeLength: 20,
   originLength: 200,
   elements: 300,
+  titleLength: 200,
 } as const;
 
 const Id = z
@@ -39,6 +40,10 @@ export const PageSnapshotSchema = z.strictObject({
   origin: z.string().max(SNAPSHOT_LIMITS.originLength).regex(/^https?:\/\/[^/?#]+$/),
   extraction: z.enum(['complete', 'partial']),
   elements: z.array(PageElementSchema).max(SNAPSHOT_LIMITS.elements),
+  /** Título del documento depurado; ausente si es dudoso (saludos, datos personales). */
+  title: z.string().min(1).max(SNAPSHOT_LIMITS.titleLength).optional(),
+  /** Atributo lang del documento (BCP 47). */
+  language: z.string().regex(/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8})*$/).max(10).optional(),
 });
 export type PageSnapshot = z.infer<typeof PageSnapshotSchema>;
 

@@ -13,6 +13,8 @@ import type { StructuredModel } from './modules/ai/model.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 import { InterpretService } from './modules/interpret/interpret.service.js';
 import { interpretRoutes } from './modules/interpret/interpret.routes.js';
+import { NextStepService } from './modules/next-step/next-step.service.js';
+import { nextStepRoutes } from './modules/next-step/next-step.routes.js';
 import { OptionsService } from './modules/options/options.service.js';
 import { optionsRoutes } from './modules/options/options.routes.js';
 import { SessionStore } from './modules/sessions/session-store.js';
@@ -75,8 +77,9 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
   app.addHook('onClose', async () => sessions.close());
 
   await app.register(healthRoutes);
-  await app.register(interpretRoutes, { service: new InterpretService(model) });
+  await app.register(interpretRoutes, { service: new InterpretService(model, sessions) });
   await app.register(optionsRoutes, { service: new OptionsService(model, sessions) });
+  await app.register(nextStepRoutes, { service: new NextStepService(model, sessions) });
 
   return app;
 }

@@ -1,20 +1,32 @@
 import { randomBytes } from 'node:crypto';
-import type { Guide, PageOption } from '@hackaton/contracts';
+import type { ChatMessage, GuideStep, Metadata, PageOption } from '@hackaton/contracts';
 
-/** Lo que se guarda de cada llamada a /options. No se guarda el HTML. */
-export interface SessionEntry {
-  goal?: string;
-  options: PageOption[];
-  guide: Guide | null;
-}
+/** Cada llamada que se recuerda. No se guarda el HTML. */
+export type SessionEntry =
+  | { type: 'interpret'; response: 'redirect' | 'question' | 'options'; goal: string; reason: string; urls: string[] }
+  | { type: 'options'; options: PageOption[] }
+  | {
+      type: 'nextStep';
+      optionId: string;
+      expectedStep: GuideStep;
+      completedSteps: GuideStep[];
+      steps: GuideStep[];
+      done: boolean;
+    };
 
-interface Session {
-  owner: string;
-  expiresAt: number;
+/** Todo lo que Claude recibe como contexto del recorrido, desde interpret hasta la última llamada. */
+export interface SessionContext {
+  chat: ChatMessage[];
+  metadata: Metadata;
   history: SessionEntry[];
 }
 
-const MAX_HISTORY = 10;
+interface Session extends SessionContext {
+  owner: string;
+  expiresAt: number;
+}
+
+const MAX_HISTORY = 50;
 
 /**
  * Sesiones en memoria. Vencen tras SESSION_TTL_MINUTES sin uso y se pierden
@@ -34,23 +46,34 @@ export class SessionStore {
 
   create(owner: string): string {
     const id = `s-${randomBytes(18).toString('base64url')}`;
-    this.sessions.set(id, { owner, expiresAt: this.now() + this.ttlMs, history: [] });
+    this.sessions.set(id, { owner, expiresAt: this.now() + this.ttlMs, chat: [], metadata: {}, history: [] });
     return id;
   }
 
-  /** Historial de la sesión, o undefined si no existe, venció o es de otro token. */
-  history(id: string, owner: string): SessionEntry[] | undefined {
-    const session = this.sessions.get(id);
-    if (!session || session.owner !== owner || session.expiresAt <= this.now()) return undefined;
-    return session.history;
+  /** Copia del contexto, o undefined si no existe, venció o es de otro token. */
+  context(id: string, owner: string): SessionContext | undefined {
+    const session = this.find(id, owner);
+    if (!session) return undefined;
+    return { chat: [...session.chat], metadata: structuredClone(session.metadata), history: [...session.history] };
   }
 
-  append(id: string, entry: SessionEntry): void {
-    const session = this.sessions.get(id);
+  /** El front envía el chat completo en cada llamada: se reemplaza. */
+  setChat(id: string, owner: string, chat: ChatMessage[]): void {
+    const session = this.touch(id, owner);
+    if (session) session.chat = chat;
+  }
+
+  mergeMetadata(id: string, owner: string, metadata: Metadata | undefined): void {
+    const session = this.touch(id, owner);
+    if (!session || !metadata?.page) return;
+    session.metadata.page = { ...session.metadata.page, ...metadata.page };
+  }
+
+  append(id: string, owner: string, entry: SessionEntry): void {
+    const session = this.touch(id, owner);
     if (!session) return;
     session.history.push(entry);
     if (session.history.length > MAX_HISTORY) session.history.shift();
-    session.expiresAt = this.now() + this.ttlMs;
   }
 
   sweep(): void {
@@ -63,5 +86,18 @@ export class SessionStore {
   close(): void {
     clearInterval(this.sweeper);
     this.sessions.clear();
+  }
+
+  private find(id: string, owner: string): Session | undefined {
+    const session = this.sessions.get(id);
+    if (!session || session.owner !== owner || session.expiresAt <= this.now()) return undefined;
+    return session;
+  }
+
+  /** Renueva el vencimiento solo de una sesión vigente y del mismo dueño; nunca revive una vencida. */
+  private touch(id: string, owner: string): Session | undefined {
+    const session = this.find(id, owner);
+    if (session) session.expiresAt = this.now() + this.ttlMs;
+    return session;
   }
 }

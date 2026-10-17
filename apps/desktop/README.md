@@ -23,18 +23,16 @@ pnpm --filter @asistente/desktop package   # instalador sin firmar (release/)
 | `ASISTENTE_API_URL` | URL base del backend de Agustin. Exige HTTPS, salvo en localhost. Si no se define, la app usa el **backend simulado temporal** (`src/main/api/mock.ts`) y sirve las páginas de `tests/fixtures/pages` en 127.0.0.1 |
 | `ASISTENTE_API_TOKEN` | Se envía como `Authorization: Bearer`. Obligatorio contra el backend real (uno de `API_ACCESS_TOKENS` de `apps/api/.env`) |
 
-## Conexión con el backend (API v1.2, ver `docs/api.md`)
+## Conexión con el backend (ver `docs/api.md`)
 
-- **`POST /v1/interpret`** (`src/main/chat.ts`): el chat de la home envía el historial completo. Los mensajes de la persona se minimizan antes de salir del equipo. Según `type`:
-  - `redirect`: abre la URL.
-  - `options`: muestra los sitios para elegir.
-  - `question`: muestra la pregunta y espera la respuesta.
-- **`POST /v1/options`** (`src/main/assistant.ts`):
-  - **Qué se envía:** HTML sintético armado con el snapshot depurado (`snapshotToHtml`, en `@asistente/page-analyzer`), con un `id="el-N"` por elemento. Nunca se envía el HTML real.
-  - **Selectores:** los del backend se resuelven en el preload contra ese HTML y, si no encuentran nada, contra la página real.
-  - **Sesión:** se guarda el `sessionId`. Ante `SESSION_NOT_FOUND`, se empieza otra sesión con el mismo `goal`.
-  - **Respuesta:** las opciones y el paso sugerido llegan juntos. Si la persona elige la opción del paso sugerido, se muestra sin otra llamada.
-  - **`guide: null`:** si ya hubo al menos un paso, cuenta como tarea terminada. Si no hubo ninguno, la página se marca como sin ayuda posible.
+- **Sesión única** (`ApiSession`): la crea `POST /v1/interpret` y se reutiliza en `/v1/options` y `/v1/next-step`. Ante `SESSION_NOT_FOUND`, el chat reenvía el historial sin sesión. Si pasa durante la guía, se vuelve a analizar la página. «Inicio» la descarta.
+- **`POST /v1/interpret`** (`src/main/chat.ts`): un solo input. `redirect` abre la página; `question` y `options` convierten la home en chat. Los mensajes de la persona se minimizan antes de salir del equipo.
+- **`POST /v1/options`** (`src/main/assistant.ts`): se envía un HTML sintético armado con el snapshot depurado (`snapshotToHtml`), con un `id="el-N"` por elemento y nunca el HTML real. Se envía también `metadata.page` (título depurado con `sanitizeTitle` e idioma). Cada opción trae su guía completa (`steps`).
+- **Guía** (`@asistente/guidance`):
+  - **Pasos reales:** se muestran uno tras otro sin llamar al backend.
+  - **Paso teórico** (`element: null`): después de la acción se extrae la página y se llama a `POST /v1/next-step` con `expectedStep` y los `completedSteps`. `done: true` termina la tarea.
+  - **Navegación:** los `#el-N` que quedaban en el plan pertenecen al documento anterior, así que se vuelven a pedir.
+  - **Teórico otra vez:** si `next-step` devuelve otro paso teórico, se muestra solo la instrucción y se espera que la persona navegue o toque «Ya lo hice».
 
 ## Estructura
 

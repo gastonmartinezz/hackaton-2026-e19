@@ -13,6 +13,6 @@ export const interpretRoutes: FastifyPluginAsyncZod<{ service: InterpretService 
         response: { 200: InterpretResponse, '4xx': ApiError, '5xx': ApiError },
       },
     },
-    (request) => service.interpret(request.body),
+    (request) => service.interpret(request.body, request.principal!),
   );
 };

@@ -1,0 +1,69 @@
+{
+  "title": "NextStepResponse",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "steps": {
+      "maxItems": 15,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "element": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "instruction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "presentation": {
+            "type": "string",
+            "enum": [
+              "highlight",
+              "scrollAndHighlight"
+            ]
+          },
+          "waitFor": {
+            "type": "string",
+            "enum": [
+              "userInteraction",
+              "navigation",
+              "userConfirmation"
+            ]
+          }
+        },
+        "required": [
+          "element",
+          "instruction",
+          "presentation",
+          "waitFor"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "done": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "sessionId",
+    "steps",
+    "done"
+  ],
+  "additionalProperties": false
+}

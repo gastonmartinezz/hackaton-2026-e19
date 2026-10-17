@@ -5,6 +5,11 @@
     {
       "type": "object",
       "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
         "type": {
           "type": "string",
           "const": "redirect"
@@ -20,6 +25,7 @@
         }
       },
       "required": [
+        "sessionId",
         "type",
         "message",
         "url"
@@ -29,6 +35,11 @@
     {
       "type": "object",
       "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
         "type": {
           "type": "string",
           "const": "question"
@@ -40,6 +51,7 @@
         }
       },
       "required": [
+        "sessionId",
         "type",
         "message"
       ],
@@ -48,6 +60,11 @@
     {
       "type": "object",
       "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
         "type": {
           "type": "string",
           "const": "options"
@@ -89,6 +106,7 @@
         }
       },
       "required": [
+        "sessionId",
         "type",
         "message",
         "options"

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Limits, ShortText, WebUrl } from './common.js';
+import { Limits, SessionId, ShortText, WebUrl } from './common.js';
 
 export const ChatMessage = z.strictObject({
   role: z.enum(['user', 'assistant']),
@@ -9,6 +9,8 @@ export type ChatMessage = z.infer<typeof ChatMessage>;
 
 /** El front envía el historial completo; el último mensaje es el de la persona. */
 export const InterpretRequest = z.strictObject({
+  /** Ausente en el primer mensaje; el backend crea la sesión y la devuelve. */
+  sessionId: SessionId.optional(),
   messages: z
     .array(ChatMessage)
     .min(1)
@@ -25,8 +27,13 @@ export const SiteOption = z.strictObject({
 export type SiteOption = z.infer<typeof SiteOption>;
 
 export const InterpretResponse = z.discriminatedUnion('type', [
-  z.strictObject({ type: z.literal('redirect'), message: ShortText(500), url: WebUrl }),
-  z.strictObject({ type: z.literal('question'), message: ShortText(500) }),
-  z.strictObject({ type: z.literal('options'), message: ShortText(500), options: z.array(SiteOption).min(2).max(5) }),
+  z.strictObject({ sessionId: SessionId, type: z.literal('redirect'), message: ShortText(500), url: WebUrl }),
+  z.strictObject({ sessionId: SessionId, type: z.literal('question'), message: ShortText(500) }),
+  z.strictObject({
+    sessionId: SessionId,
+    type: z.literal('options'),
+    message: ShortText(500),
+    options: z.array(SiteOption).min(2).max(5),
+  }),
 ]);
 export type InterpretResponse = z.infer<typeof InterpretResponse>;

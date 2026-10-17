@@ -3,7 +3,7 @@
  * vista del sitio. Construye el snapshot por lista de campos permitidos: nunca
  * lee `.value`, opciones seleccionadas, cookies ni almacenamiento.
  */
-import { sanitizeLabel, sanitizeOrigin } from '@asistente/privacy';
+import { sanitizeLabel, sanitizeOrigin, sanitizeTitle } from '@asistente/privacy';
 import { SNAPSHOT_LIMITS as LIMITS, type PageElement, type PageSnapshot } from './snapshot';
 
 export * from './snapshot';
@@ -240,6 +240,10 @@ export function extractSnapshot(doc: Document, options: ExtractOptions): Extract
     extraction: notes.size > 0 ? 'partial' : 'complete',
     elements,
   };
+  const title = sanitizeTitle(doc.title ?? '', LIMITS.titleLength);
+  if (title) snapshot.title = title;
+  const language = doc.documentElement?.getAttribute('lang')?.trim();
+  if (language && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8})*$/.test(language) && language.length <= 10) snapshot.language = language;
   return { snapshot, registry, notes: [...notes] };
 }
 

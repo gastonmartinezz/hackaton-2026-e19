@@ -19,8 +19,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) {
       throw new Error('ASISTENTE_API_URL debe usar HTTPS (HTTP solo para localhost).');
     }
-    // El fetch de Electron resuelve `localhost` a ::1 primero y el backend local
-    // escucha en 0.0.0.0 (solo IPv4).
+    // El fetch de Electron resuelve `localhost` a ::1 primero; con 127.0.0.1
+    // funciona aunque el backend local escuche solo en IPv4.
     if (url.hostname === 'localhost') url.hostname = '127.0.0.1';
     apiBaseUrl = url;
   }

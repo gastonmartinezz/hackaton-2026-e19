@@ -1,7 +1,7 @@
 # Navegador asistido para personas mayores
 
 Documento de producto y arquitectura para orientar el desarrollo con IA.
-Versión 1.2 · 17 de octubre de 2026
+Versión 1.4 · 17 de octubre de 2026
 
 ## 0. Responsabilidades y límites de trabajo
 
@@ -77,6 +77,21 @@ Antes de un cambio incompatible, documentar la propuesta, ejemplo de entrada/sal
 7. Las instrucciones explícitas posteriores del equipo pueden cambiar estas asignaciones; registrar el cambio en este documento.
 
 ### Registro de cambios
+
+**v1.4 · 17/10/2026 · acordado por Agustin.** La sesión cubre todo el recorrido:
+
+- La sesión empieza en `POST /v1/interpret`, que recibe `sessionId` opcional y lo devuelve en todas sus respuestas. El front lo manda en todas las llamadas siguientes.
+- En `interpret`, Claude también indica el objetivo entendido y el motivo de su decisión. Se guardan en la sesión y no vuelven al front.
+- `POST /v1/options` y `POST /v1/next-step` aceptan `metadata` opcional con datos de la página (`page.title`, `page.language`), que se acumula en la sesión.
+- `POST /v1/next-step` recibe `completedSteps`: los pasos que la persona completó desde la última llamada.
+- Claude recibe en cada llamada el recorrido completo: chat, decisiones de `interpret`, metadato, opciones y pasos.
+
+**v1.3 · 17/10/2026 · acordado por Agustin.** Se divide la guía en dos endpoints:
+
+- `POST /v1/options` devuelve las opciones de la página, cada una con su guía completa (`steps`). Ya no recibe `goal` ni devuelve `guide`.
+- Un paso con `element: null` es teórico: el elemento todavía no existe porque aparece después de una acción de la persona.
+- Nuevo `POST /v1/next-step`: el front envía la opción elegida, el paso teórico esperado y el HTML posterior a la acción. Recibe los pasos reales y `done` (true cuando la tarea terminó).
+- `element` es el id de un elemento del HTML enviado por el front (por ejemplo `#el-3`).
 
 **v1.2 · 17/10/2026 · acordado por Agustin.** Se simplifica la API a tres endpoints (secciones 6 y 7):
 
@@ -255,34 +270,53 @@ Los contratos se implementan con Zod en `packages/contracts` y se exportan como 
 ```ts
 // POST /v1/interpret
 type InterpretRequest = {
+  sessionId?: string; // ausente en el primer mensaje; el backend crea la sesión
   // Historial completo del chat; el último mensaje es de la persona.
   messages: Array<{ role: 'user' | 'assistant'; content: string }>; // máx. 20, 1000 caracteres c/u
 };
 
-type InterpretResponse =
+type InterpretResponse = { sessionId: string } & (
   | { type: 'redirect'; message: string; url: string } // url http(s)
   | { type: 'question'; message: string }
-  | { type: 'options'; message: string; options: Array<{ title: string; url: string; reason: string }> }; // 2 a 5
+  | { type: 'options'; message: string; options: Array<{ title: string; url: string; reason: string }> } // 2 a 5
+);
+
+// Datos de la página que conoce el front; se acumulan en la sesión.
+type Metadata = { page?: { title?: string; language?: string } };
 
 // POST /v1/options
 type OptionsRequest = {
-  sessionId?: string; // ausente en la primera llamada
-  goal?: string; // id de la opción elegida por la persona
-  html: string; // fragmentos elegidos por el front; máx. 200.000 caracteres
+  sessionId?: string; // la de interpret; si falta (página sin chat), se crea una
+  html: string; // fragmentos armados por el front; máx. 200.000 caracteres
+  metadata?: Metadata;
+};
+
+type GuideStep = {
+  element: string | null; // "#el-3" (id del HTML enviado) o null si el paso es teórico
+  instruction: string;
+  presentation: 'highlight' | 'scrollAndHighlight';
+  waitFor: 'userInteraction' | 'navigation' | 'userConfirmation';
 };
 
 type OptionsResponse = {
   sessionId: string;
-  options: Array<{ id: string; title: string; initialElement: string }>; // initialElement: selector CSS
-  guide: null | {
-    goal: string;
-    step: {
-      element: string; // selector CSS
-      presentation: 'highlight' | 'scrollAndHighlight';
-      instruction: string;
-      waitFor: 'userInteraction' | 'navigation' | 'userConfirmation';
-    };
-  };
+  options: Array<{ id: string; title: string; steps: GuideStep[] }>; // 1 a 15 pasos
+};
+
+// POST /v1/next-step
+type NextStepRequest = {
+  sessionId: string;
+  optionId: string; // opción devuelta antes por /v1/options en esta sesión
+  expectedStep: GuideStep; // el paso teórico que se esperaba
+  completedSteps: GuideStep[]; // pasos completados desde la última llamada (puede ser [])
+  html: string; // fragmentos después de la acción de la persona
+  metadata?: Metadata;
+};
+
+type NextStepResponse = {
+  sessionId: string;
+  steps: GuideStep[];
+  done: boolean; // true cuando la tarea terminó
 };
 
 type ApiError = {
@@ -296,17 +330,15 @@ Ejemplo de respuesta de `/v1/options`:
 {
   "sessionId": "s-abc",
   "options": [
-    { "id": "search", "title": "Buscar un producto", "initialElement": "#search" }
-  ],
-  "guide": {
-    "goal": "search",
-    "step": {
-      "element": "#search",
-      "presentation": "highlight",
-      "instruction": "Escribí acá el producto que estás buscando.",
-      "waitFor": "userInteraction"
+    {
+      "id": "turno",
+      "title": "Sacar un turno",
+      "steps": [
+        { "element": "#el-3", "instruction": "Hacé clic en Turnos.", "presentation": "highlight", "waitFor": "userInteraction" },
+        { "element": null, "instruction": "Elegí la especialidad.", "presentation": "highlight", "waitFor": "userInteraction" }
+      ]
     }
-  }
+  ]
 }
 ```
 
@@ -315,24 +347,29 @@ Ejemplo de respuesta de `/v1/options`:
 | Endpoint | Entrada | Salida |
 |---|---|---|
 | GET /health | — | `{ status: "ok" }`, sin autenticación |
-| POST /v1/interpret | Historial del chat | `redirect`, `question` u `options` |
-| POST /v1/options | HTML, `sessionId` y `goal` opcionales | Opciones y próximo paso, con `sessionId` |
+| POST /v1/interpret | Historial del chat y `sessionId` opcional | `redirect`, `question` u `options`, con `sessionId` |
+| POST /v1/options | `sessionId`, HTML y `metadata` opcional | Opciones con su guía (`steps`), con `sessionId` |
+| POST /v1/next-step | `sessionId`, `optionId`, paso teórico esperado, `completedSteps`, HTML nuevo y `metadata` opcional | Pasos reales y `done` |
+
+La sesión empieza en `/v1/interpret` y acumula todo el recorrido: chat, objetivo y motivo de la decisión de Claude (no vuelven al front), metadato de la página, opciones y pasos completados. Claude recibe ese recorrido completo en cada llamada. Vive en memoria y vence a los 30 minutos sin uso.
 
 Todas las rutas salvo `/health` requieren `Authorization: Bearer <token>`. Hay un límite de solicitudes por token, el error tiene un formato único y existe un modo mock para desarrollar sin Claude. El detalle para el front está en `docs/api.md` del repositorio del backend.
 
 Flujo:
 
-1. **Home:** el objetivo de `/v1/interpret` es siempre llegar a una URL. El front envía el chat. Con `redirect` (una URL), la abre. Con `options` (más de una URL posible), muestra los sitios para elegir. Con `question` (todavía no se llega a una URL), muestra la pregunta y vuelve a llamar con el historial, hasta obtener `redirect` u `options`.
-2. **Página abierta:** el front envía los fragmentos de HTML a `/v1/options` sin `sessionId`. El backend crea la sesión y devuelve opciones y primer paso.
-3. **Paso a paso:** cuando la página cambia, el front vuelve a llamar a `/v1/options` con el `sessionId`, el `goal` elegido y los fragmentos nuevos. El backend suma el historial de la sesión y Claude devuelve el siguiente paso con la misma estructura.
+1. **Home:** el objetivo de `/v1/interpret` es siempre llegar a una URL. El front envía el chat; la primera respuesta trae el `sessionId` que se usa en todo el recorrido. Con `redirect` (una URL), la abre. Con `options` (más de una URL posible), muestra los sitios para elegir. Con `question` (todavía no se llega a una URL), muestra la pregunta y vuelve a llamar con el historial, hasta obtener `redirect` u `options`.
+2. **Página abierta:** el front envía el `sessionId`, los fragmentos de HTML y el metadato de la página a `/v1/options`. El backend devuelve las opciones, cada una con su guía. Si todos los pasos de la opción elegida son reales, el front guía de punta a punta sin volver a llamar.
+3. **Paso teórico:** cuando la guía llega a un paso con `element: null`, el front espera la acción de la persona y llama a `/v1/next-step` con el `sessionId`, la opción, el paso esperado, los pasos completados y el HTML nuevo. Recibe los pasos reales; si aparece otro paso teórico, repite. `done: true` indica que la tarea terminó.
 
 Qué queda del lado del front:
 
+- Guardar el `sessionId` de la primera respuesta de `/v1/interpret` y mandarlo en todas las llamadas siguientes; empezar una sesión nueva si recibe `SESSION_NOT_FOUND`.
 - Guardar el historial del chat y enviarlo completo en cada llamada a `/v1/interpret`.
-- Elegir qué fragmentos de HTML enviar y cuándo volver a enviarlos.
-- Guardar el `sessionId` y empezar una sesión nueva si recibe `SESSION_NOT_FOUND`.
-- Ubicar los elementos por selector CSS y manejar selectores que no encuentran nada o encuentran varios elementos: el backend no los verifica.
-- La representación visual (`presentation`, `instruction`) y la espera (`waitFor`) antes de pedir el próximo paso.
+- Armar los fragmentos de HTML, con un id por elemento y sin datos sensibles.
+- Enviar el metadato de la página (título, idioma) al cargarla.
+- Recorrer los pasos y llamar a `/v1/next-step` ante un paso teórico, informando los pasos completados.
+- Ubicar `element` en la página (si hace falta, subiendo al elemento padre) y manejar el caso en que no se encuentra: el backend no lo verifica.
+- La representación visual (`presentation`, `instruction`) y la espera (`waitFor`).
 - Mostrar los errores y reintentar solo cuando `retryable` es `true`.
 
 ## 8. Seguridad del navegador

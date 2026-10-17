@@ -4,7 +4,9 @@
   "type": "object",
   "properties": {
     "sessionId": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
     },
     "options": {
       "maxItems": 10,
@@ -22,34 +24,26 @@
             "minLength": 1,
             "maxLength": 120
           },
-          "initialElement": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 300
-          }
-        },
-        "required": [
-          "id",
-          "title",
-          "initialElement"
-        ],
-        "additionalProperties": false
-      }
-    },
-    "guide": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "goal": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 60
-            },
-            "step": {
+          "steps": {
+            "minItems": 1,
+            "maxItems": 15,
+            "type": "array",
+            "items": {
               "type": "object",
               "properties": {
                 "element": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "instruction": {
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 300
@@ -60,11 +54,6 @@
                     "highlight",
                     "scrollAndHighlight"
                   ]
-                },
-                "instruction": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 300
                 },
                 "waitFor": {
                   "type": "string",
@@ -77,29 +66,26 @@
               },
               "required": [
                 "element",
-                "presentation",
                 "instruction",
+                "presentation",
                 "waitFor"
               ],
               "additionalProperties": false
             }
-          },
-          "required": [
-            "goal",
-            "step"
-          ],
-          "additionalProperties": false
+          }
         },
-        {
-          "type": "null"
-        }
-      ]
+        "required": [
+          "id",
+          "title",
+          "steps"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
     "sessionId",
-    "options",
-    "guide"
+    "options"
   ],
   "additionalProperties": false
 }
