@@ -4,12 +4,15 @@
  * conservadora y omite contenido dudoso en lugar de intentar "arreglarlo".
  */
 
-/** Palabras que anuncian una credencial. */
-const CREDENTIAL = String.raw`contraseña|clave(?: fiscal)?|password|passwd|token|api[ _-]?key|pin`;
+/** Palabras que anuncian una credencial, en singular y plural. */
+const CREDENTIAL = String.raw`contraseñas?|claves?(?: fiscal(?:es)?)?|passwords?|passwd|tokens?|api[ _-]?keys?|pins?`;
+// Límites de palabra Unicode: `\b` de JavaScript no considera letra a la ñ ni a las vocales con tilde.
+const WORD_START = String.raw`(?<![\p{L}\p{N}_])`;
+const WORD_END = String.raw`(?![\p{L}\p{N}_])`;
 /** Separadores con los que los sitios arman títulos y menús ("Inicio - Banco | Cuenta"). */
 const TITLE_SEPARATOR = /\s+[-–—|·:]\s+/;
 /** Primera palabra de credencial y todo lo que sigue. */
-const CREDENTIAL_AND_REST = new RegExp(String.raw`(\b(?:${CREDENTIAL})\b)[\s\S]*$`, 'iu');
+const CREDENTIAL_AND_REST = new RegExp(String.raw`(${WORD_START}(?:${CREDENTIAL})${WORD_END})[\s\S]*$`, 'iu');
 
 const PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   // URLs: pueden llevar tokens o datos personales en path y query.
@@ -20,7 +23,14 @@ const PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   // Un secreto puede tener espacios, puntos, guiones o venir en otra línea, y no hay forma de
   // saber dónde termina: se oculta todo lo que sigue. Los textos que pasan por acá son de una
   // línea (chat, etiquetas, títulos), así que en la práctica se pierde solo el resto de esa línea.
-  [new RegExp(String.raw`\b(${CREDENTIAL})([^\S\n]*(?::|=|\bes\b)\s*|[^\S\n]*\n\s*)[\s\S]*\S`, 'giu'), '$1$2[dato]'],
+  // Un espacio solo no alcanza ("olvidé mi contraseña del banco" es un pedido, no un secreto).
+  [
+    new RegExp(
+      String.raw`${WORD_START}(${CREDENTIAL})${WORD_END}([^\S\n]*(?::|=|${WORD_START}(?:es|son)${WORD_END})\s*|[^\S\n]*\n\s*)[\s\S]*\S`,
+      'giu',
+    ),
+    '$1$2[dato]',
+  ],
   // Cadenas de 8 o más caracteres con letras y números mezclados: claves, tokens, códigos, IBAN.
   [/\b(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{8,}\b/g, '[dato]'],
 ];

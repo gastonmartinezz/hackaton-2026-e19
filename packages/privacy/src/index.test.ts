@@ -34,6 +34,14 @@ describe('redactText', () => {
     expect(redactText('Turno\r\nclave: x\u2028y', { maxLength: 500 })).toBe('Turno clave: [dato]');
     expect(redactText('mi contraseña es\n  gatito 123', { maxLength: 500 })).toBe('mi contraseña es [dato]');
     expect(redactText('Olvidé mi contraseña')).toBe('Olvidé mi contraseña');
+    // Plurales y palabras con ñ o tilde.
+    expect(redactText('contraseñas: gatito')).toBe('contraseñas: [dato]');
+    expect(redactText('mis claves son gatito y perro')).toBe('mis claves son [dato]');
+    expect(redactText('tokens=abc')).toBe('tokens=[dato]');
+    expect(sanitizeTitle('Contraseñas - gatito | Banco')).toBe('Contraseñas');
+    // Un espacio solo no anuncia un valor: se conserva el pedido.
+    expect(redactText('olvidé mi contraseña del home banking')).toBe('olvidé mi contraseña del home banking');
+    expect(sanitizeTitle('Pinterest - Inicio')).toBe('Pinterest - Inicio');
   });
 
   it('conserva números cortos útiles y normaliza espacios', () => {
