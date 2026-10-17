@@ -16,11 +16,11 @@ const PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   [/\b(?:https?:\/\/|www\.)[^\s<>"']+/gi, '[enlace]'],
   // Correos.
   [/[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu, '[correo]'],
-  // Valor que sigue a una palabra de credencial ("clave: x", "mi contraseña es x"). Un secreto
-  // puede tener espacios, puntos o guiones y no hay forma de saber dónde termina: se oculta
-  // el resto de la línea. Si la línea termina justo en el separador ("clave:\nhunter2"), el
-  // valor está en la línea siguiente y se oculta esa (solo una).
-  [new RegExp(String.raw`\b(${CREDENTIAL})([^\S\n]*(?::|=|\bes\b)[^\S\n]*(?:\n[^\S\n]*)?)[^\n]*\S`, 'giu'), '$1$2[dato]'],
+  // Valor que sigue a una palabra de credencial ("clave: x", "mi contraseña es x", "password\nx").
+  // Un secreto puede tener espacios, puntos, guiones o venir en otra línea, y no hay forma de
+  // saber dónde termina: se oculta todo lo que sigue. Los textos que pasan por acá son de una
+  // línea (chat, etiquetas, títulos), así que en la práctica se pierde solo el resto de esa línea.
+  [new RegExp(String.raw`\b(${CREDENTIAL})([^\S\n]*(?::|=|\bes\b)\s*|[^\S\n]*\n\s*)[\s\S]*\S`, 'giu'), '$1$2[dato]'],
   // Cadenas de 8 o más caracteres con letras y números mezclados: claves, tokens, códigos, IBAN.
   [/\b(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{8,}\b/g, '[dato]'],
 ];
@@ -48,9 +48,8 @@ export interface RedactOptions {
  * normaliza espacios y trunca.
  */
 export function redactText(input: string, { maxLength = 120 }: RedactOptions = {}): string {
-  // Los saltos de línea se conservan hasta después de los patrones: el valor de una
-  // credencial se oculta hasta el fin de su línea (o de la siguiente, si su línea
-  // termina en el separador), no del texto entero.
+  // Los saltos de línea se conservan hasta después de los patrones: una palabra de
+  // credencial al final de una línea anuncia que el valor viene en la siguiente.
   let text = input
     .normalize('NFC')
     .replace(/\r\n?|[\u2028\u2029]/g, '\n')

@@ -27,11 +27,11 @@ describe('redactText', () => {
     expect(redactText('mi contraseña es mi perro firulais')).toBe('mi contraseña es [dato]');
     expect(redactText('clave: abc12.def34.ghi56')).toBe('clave: [dato]');
     expect(redactText('password: Abcdef.9x y nada más')).toBe('password: [dato]');
-    // Hasta el fin de la línea, no del texto: lo que sigue en otra línea se conserva.
-    expect(redactText('pin: 1234\nQuiero turno el martes', { maxLength: 500 })).toBe('pin: [dato] Quiero turno el martes');
-    expect(redactText('clave: x y\r\nOtra línea\u2028Tercera', { maxLength: 500 })).toBe('clave: [dato] Otra línea Tercera');
-    // Línea que termina en el separador: el valor está en la siguiente (y solo en esa).
-    expect(redactText('clave:\nhunter2\nQuiero turno', { maxLength: 500 })).toBe('clave: [dato] Quiero turno');
+    // Con otras líneas, saltos o líneas en blanco en el medio: se oculta todo lo que sigue.
+    expect(redactText('pin: 1234\nQuiero turno el martes', { maxLength: 500 })).toBe('pin: [dato]');
+    expect(redactText('clave:\n\nhunter2', { maxLength: 500 })).toBe('clave: [dato]');
+    expect(redactText('password\nhunter2', { maxLength: 500 })).toBe('password [dato]');
+    expect(redactText('Turno\r\nclave: x\u2028y', { maxLength: 500 })).toBe('Turno clave: [dato]');
     expect(redactText('mi contraseña es\n  gatito 123', { maxLength: 500 })).toBe('mi contraseña es [dato]');
     expect(redactText('Olvidé mi contraseña')).toBe('Olvidé mi contraseña');
   });
