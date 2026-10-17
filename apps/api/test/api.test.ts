@@ -122,6 +122,23 @@ describe('POST /v1/interpret', () => {
     expect(second.json()).toMatchObject({ sessionId, type: 'redirect' });
   });
 
+  it('pasa a Claude los datos de la persona', async () => {
+    const { model, inputs } = recordingModel();
+    app = await testApp({ model });
+    const user = { location: { country: 'AR', region: 'Córdoba', city: 'Villa María' }, ageRange: '65-74', language: 'es-AR' };
+    expect((await post('/v1/interpret', { ...payload, user })).statusCode).toBe(200);
+    expect(inputs.interpret[0].user).toEqual(user);
+
+    await post('/v1/interpret', payload);
+    expect(inputs.interpret[1].user).toBeNull();
+  });
+
+  it('rechaza datos de la persona fuera del contrato', async () => {
+    app = await testApp();
+    const res = await post('/v1/interpret', { ...payload, user: { location: { street: 'Mitre 123' } } });
+    expect(res.statusCode).toBe(400);
+  });
+
   it('rechaza una URL que no es http(s)', async () => {
     app = await testApp({
       model: interpretReturning({ type: 'redirect', message: 'Te llevo.', url: 'javascript:alert(1)', options: [], ...internal }),

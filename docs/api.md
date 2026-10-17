@@ -63,6 +63,25 @@ El front envía **todo el historial** del chat en cada llamada, para que Claude 
 }
 ```
 
+Opcionalmente, el front manda en `user` datos de la persona para que Claude priorice sitios de **su localidad** (por ejemplo, el municipio o la provincia donde vive). Todos los campos son opcionales y se envían en cada llamada:
+
+```json
+{
+  "messages": [{ "role": "user", "content": "Quiero pagar la tasa municipal" }],
+  "user": {
+    "location": { "country": "AR", "region": "Córdoba", "city": "Villa María" },
+    "ageRange": "65-74",
+    "language": "es-AR",
+    "timeZone": "America/Argentina/Cordoba"
+  }
+}
+```
+
+- `location.country`: código ISO 3166-1 alfa-2. `region` (provincia o estado) y `city` (ciudad o localidad, nunca la dirección): hasta 80 caracteres.
+- `ageRange`: `under-50`, `50-64`, `65-74` o `75-plus`. Nunca la edad exacta.
+- `language` (BCP 47) y `timeZone` (IANA) salen del sistema; sin `location`, Claude los usa como pista del país.
+- `user` no se guarda en la sesión ni aparece en los logs.
+
 La respuesta tiene siempre `sessionId`, `type` y `message`:
 
 ```json

@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { sanitizeOrigin } from '@asistente/privacy';
 import { BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
 import {
+  TERMS_VERSION,
   UI_COMMAND_CHANNEL,
   UI_STATE_CHANNEL,
   UiCommandSchema,
@@ -22,6 +23,7 @@ import { PageBridge } from './page-bridge';
 import type { PrefsStore } from './prefs';
 import { SiteView } from './site-view';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
+import { buildUserContext, type SystemInfo } from './user-context';
 
 const BASE_TOP_BAR = 76;
 const BASE_PANEL = 420;
@@ -42,6 +44,7 @@ const PERMISSION_NAMES: Record<string, string> = {
 export interface AppControllerOptions {
   api: ApiClient;
   prefs: PrefsStore;
+  system: SystemInfo;
   uiPreloadPath: string;
   pagePreloadPath: string;
   rendererUrl: string | null;
@@ -89,6 +92,7 @@ export class AppController {
       session,
       () => this.#publish(),
       (url) => this.#openDestination(url),
+      () => buildUserContext(options.prefs.value.profile, options.system),
     );
     this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
     this.#wireSite();
@@ -128,7 +132,12 @@ export class AppController {
   }
 
   #guideAllowed(): boolean {
-    return GUIDE_ENABLED && this.options.prefs.isAiEnabled(this.#origin());
+    return GUIDE_ENABLED && this.#termsAccepted() && this.options.prefs.isAiEnabled(this.#origin());
+  }
+
+  /** Sin condiciones aceptadas no se consulta a la IA. */
+  #termsAccepted(): boolean {
+    return this.options.prefs.value.termsAccepted === TERMS_VERSION;
   }
 
   #origin(): string | null {
@@ -147,6 +156,11 @@ export class AppController {
       guideEnabled: GUIDE_ENABLED,
       layout: this.#layoutSizes(),
       prefs: { textScale: this.options.prefs.value.textScale, aiEnabledForSite: this.options.prefs.isAiEnabled(this.#origin()) },
+      profile: {
+        ...this.options.prefs.value.profile,
+        termsAccepted: this.#termsAccepted(),
+        suggestedCountry: this.options.system.country,
+      },
       nav: {
         visible: this.#siteVisible,
         url: url === 'about:blank' ? '' : url,
@@ -278,8 +292,14 @@ export class AppController {
         this.#publish();
         return;
       case 'submitIntent':
-        await this.#chat.submit(command.text);
+        if (this.#termsAccepted()) await this.#chat.submit(command.text);
         return;
+      case 'saveProfile': {
+        const { country, region, city, ageRange } = command;
+        await this.options.prefs.update({ termsAccepted: TERMS_VERSION, profile: { country, region, city, ageRange } });
+        this.#publish();
+        return;
+      }
       case 'resetChat':
         // Empezar de nuevo descarta la sesión: la guía no puede seguir con la anterior.
         this.#assistant.exit();
@@ -352,7 +372,7 @@ export class AppController {
         const origin = this.#origin();
         if (!origin) return;
         await this.options.prefs.setAiEnabled(origin, command.enabled);
-        if (command.enabled && GUIDE_ENABLED) this.#assistant.analyze(this.#chat.goal ?? undefined);
+        if (this.#guideAllowed()) this.#assistant.analyze(this.#chat.goal ?? undefined);
         else this.#assistant.exit();
         this.#publish();
         return;
