@@ -30,6 +30,9 @@ describe('redactText', () => {
     // Hasta el fin de la línea, no del texto: lo que sigue en otra línea se conserva.
     expect(redactText('pin: 1234\nQuiero turno el martes', { maxLength: 500 })).toBe('pin: [dato] Quiero turno el martes');
     expect(redactText('clave: x y\r\nOtra línea\u2028Tercera', { maxLength: 500 })).toBe('clave: [dato] Otra línea Tercera');
+    // Línea que termina en el separador: el valor está en la siguiente (y solo en esa).
+    expect(redactText('clave:\nhunter2\nQuiero turno', { maxLength: 500 })).toBe('clave: [dato] Quiero turno');
+    expect(redactText('mi contraseña es\n  gatito 123', { maxLength: 500 })).toBe('mi contraseña es [dato]');
     expect(redactText('Olvidé mi contraseña')).toBe('Olvidé mi contraseña');
   });
 
