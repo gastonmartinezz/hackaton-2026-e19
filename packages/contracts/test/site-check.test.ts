@@ -25,6 +25,8 @@ describe('SiteCheckRequest', () => {
   });
 });
 
+const SOURCE = { name: 'Disposición NIC Argentina 153/2016', reviewedAt: '2026-10-17T00:00:00Z' };
+
 const complete = { reputation: 'complete', identity: 'complete', content: 'complete', registration: 'unavailable', connection: 'unavailable' } as const;
 
 const response = (over: Partial<Response> = {}): Response =>
@@ -46,12 +48,12 @@ const phishing: SiteCheckReason = { code: 'KNOWN_PHISHING', category: 'fraud', e
 
 describe('siteIndicatorState', () => {
   it('el riesgo alto tiene prioridad sobre la identidad oficial', () => {
-    const r = response({ risk: 'high', identity: { status: 'verified_official', basis: 'government_domain', organization: 'X' }, reasons: [phishing] });
+    const r = response({ risk: 'high', identity: { status: 'verified_official', basis: 'government_domain', organization: 'X', source: SOURCE }, reasons: [phishing] });
     expect(siteIndicatorState(r)).toBe('possible_scam');
   });
 
   it('oficial solo con identidad verificada y cobertura completa', () => {
-    expect(siteIndicatorState(response({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'X' } }))).toBe('official');
+    expect(siteIndicatorState(response({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'X', source: SOURCE } }))).toBe('official');
     expect(siteIndicatorState(response())).toBe('no_alerts');
   });
 
@@ -71,5 +73,6 @@ describe('SiteIdentity', () => {
   it('la oficialidad exige una fuente de autoridad', () => {
     expect(() => response({ identity: { status: 'verified_official', organization: 'X' } })).toThrow();
     expect(() => response({ identity: { status: 'unknown', basis: 'government_domain' } })).toThrow();
+    expect(() => response({ identity: { status: 'verified_official', basis: 'official_catalog', organization: 'X' } })).toThrow();
   });
 });
