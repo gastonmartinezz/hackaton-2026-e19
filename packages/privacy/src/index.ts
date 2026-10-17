@@ -146,3 +146,4 @@ export function findLeaks(payload: unknown, secrets: readonly string[]): string[
   const serialized = JSON.stringify(payload).toLowerCase();
   return secrets.filter((secret) => secret.length > 0 && serialized.includes(secret.toLowerCase()));
 }
+export * from './url';
