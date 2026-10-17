@@ -54,6 +54,7 @@ describe('checkEligibility', () => {
 describe('registrableDomain', () => {
   it('aproxima eTLD+1', () => {
     expect(registrableDomain('www.argentina.gob.ar')).toBe('argentina.gob.ar');
+    expect(registrableDomain('tramites.mostrame-demo.gub.uy')).toBe('mostrame-demo.gub.uy');
     expect(registrableDomain('login.banco.com')).toBe('banco.com');
     expect(registrableDomain('a.b.bbc.co.uk')).toBe('bbc.co.uk');
     expect(registrableDomain('banco.com')).toBe('banco.com');

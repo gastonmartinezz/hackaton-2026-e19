@@ -25,8 +25,8 @@ if (config.useMockBackend && config.isDev) {
   // `*.example` (nunca resuelven en internet) que en desarrollo apuntan al
   // servidor local de fixtures. Así el backend simulado ve un hostname público
   // y se puede ver cada estado del indicador. Solo con el backend simulado.
-  // `*.mostrame-demo.gob.ar` muestra «Sitio oficial» del Estado con su terminación real.
-  app.commandLine.appendSwitch('host-resolver-rules', 'MAP *.example 127.0.0.1, MAP *.mostrame-demo.gob.ar 127.0.0.1');
+  // `*.mostrame-demo.gob.ar` y `*.mostrame-demo.gub.uy` muestran «Sitio oficial» del Estado con su terminación real.
+  app.commandLine.appendSwitch('host-resolver-rules', 'MAP *.example 127.0.0.1, MAP *.mostrame-demo.gob.ar 127.0.0.1, MAP *.mostrame-demo.gub.uy 127.0.0.1');
 }
 
 if (!app.requestSingleInstanceLock()) {

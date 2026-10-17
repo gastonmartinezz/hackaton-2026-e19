@@ -95,8 +95,8 @@ export const CONTINUE_ACTION: SiteCheckAction = { id: 'continue', label: 'Contin
 
 const NO_DATA = 'No ingreses contraseñas ni códigos.';
 
-/** Terminaciones reservadas al Estado que reconoce el backend (`identity.basis: government_domain`). */
-const GOVERNMENT_SUFFIXES = ['gob.ar', 'gov.ar', 'mil.ar', 'gov', 'mil'];
+/** Terminaciones reservadas al Estado que reconoce el backend (`identity.basis: government_domain`): Argentina, Uruguay y EE. UU. */
+const GOVERNMENT_SUFFIXES = ['gob.ar', 'gov.ar', 'mil.ar', 'gub.uy', 'gov', 'mil'];
 
 /** Terminación reservada al Estado con la que termina el hostname («.gob.ar»), o null. */
 export function governmentSuffix(hostname: string | null | undefined): string | null {
@@ -122,14 +122,20 @@ export function plainDate(iso: string): string {
  */
 export function officialSummary(response: SiteCheckResponse | null, hostname?: string | null): string {
   const { basis, organization } = response?.identity ?? {};
-  if (basis === 'government_domain') {
-    const who = ofOrganization(organization ?? 'Estado');
-    const suffix = governmentSuffix(hostname);
-    return suffix
-      ? `Es un sitio ${who}: su dirección termina en ${suffix}, que solo pueden usar organismos públicos.`
-      : `Es un sitio ${who}: su dirección usa una terminación que solo pueden usar organismos públicos.`;
+  switch (basis) {
+    case 'government_domain': {
+      // Sin asumir país: la organización viene de la respuesta y la terminación, del hostname.
+      const who = ofOrganization(organization ?? 'Estado');
+      const suffix = governmentSuffix(hostname);
+      return suffix
+        ? `Es un sitio ${who}: su dirección termina en ${suffix}, que solo pueden usar organismos públicos.`
+        : `Es un sitio ${who}: su dirección usa una terminación que solo pueden usar organismos públicos.`;
+    }
+    case 'financial_regulator':
+      return `La dirección pertenece a ${organization ?? 'una entidad financiera registrada'}, según el registro de entidades del Banco Central.`;
+    default:
+      return `La dirección pertenece a ${organization ?? 'una organización de nuestra lista'}, según nuestra lista de sitios oficiales revisada.`;
   }
-  return `La dirección pertenece a ${organization ?? 'una entidad financiera registrada'}, según el registro de entidades del Banco Central.`;
 }
 
 /** «Ver por qué» de «Sitio oficial»: la fuente y la fecha de la revisión, en lenguaje simple. */
@@ -139,7 +145,9 @@ function officialSources(response: SiteCheckResponse | null, hostname?: string |
   const source =
     basis === 'government_domain'
       ? `Fuente: las direcciones terminadas en ${governmentSuffix(hostname) ?? 'esa terminación'} solo se entregan a organismos ${ofOrganization(organization ?? 'Estado')}.`
-      : 'Fuente: registro de entidades financieras del Banco Central de la República Argentina (BCRA).';
+      : basis === 'financial_regulator'
+        ? 'Fuente: registro de entidades financieras del Banco Central de la República Argentina (BCRA).'
+        : 'Fuente: nuestra lista de sitios oficiales revisada, que indica de dónde sale cada dirección.';
   return [source, `Revisado el ${plainDate(response.checkedAt)}.`];
 }
 

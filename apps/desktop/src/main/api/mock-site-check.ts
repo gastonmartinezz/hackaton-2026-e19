@@ -1,18 +1,21 @@
 /**
  * TEMPORAL — respuestas simuladas de POST /v1/site-check para ver cada estado
  * del indicador sin el backend real. Decide por el hostname de las páginas de
- * demostración (`*.example` y `*.mostrame-demo.gob.ar`, que en desarrollo
+ * demostración (`*.example`, `*.mostrame-demo.gob.ar` y `*.mostrame-demo.gub.uy`, que en desarrollo
  * resuelven al servidor local de fixtures) y, para el resto, devuelve una
  * revisión incompleta: el simulador no consulta fuentes reales y nunca aprueba
  * un sitio que no conoce.
  *
  * «Sitio oficial» sigue la regla del contrato: solo con una fuente de autoridad
- * (`identity.basis`): zona reservada al Estado o padrón de entidades del BCRA.
+ * (`identity.basis`): zona reservada al Estado, padrón de entidades del BCRA o
+ * catálogo curado (sitios de Uruguay).
  *
  * | Hostname                      | Estado esperado          |
  * |-------------------------------|--------------------------|
  * | banco-demo.example            | Sitio oficial (padrón del BCRA: Banco de Demostración) |
  * | tramites.mostrame-demo.gob.ar | Sitio oficial (zona reservada al Estado: Estado argentino) |
+ * | tramites.mostrame-demo.gub.uy | Sitio oficial (zona reservada al Estado: Estado uruguayo) |
+ * | usina-uy.example              | Sitio oficial (catálogo curado: Usina de Demostración, Uruguay) |
  * | sin-alertas.example           | Sin alertas detectadas (Atención si aparece un campo de contraseña) |
  * | atencion.example              | Atención                 |
  * | bancodemo-acceso.example      | Posible estafa (imita a Banco de Demostración; ya en la fase dirección) |
@@ -98,6 +101,10 @@ export function mockSiteCheck(raw: SiteCheckRequest): SiteCheckResponse {
       return respond({ identity: { status: 'verified_official', basis: 'financial_regulator', organization: MOCK_ORGANIZATION } });
     case 'tramites.mostrame-demo.gob.ar':
       return respond({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'Estado argentino' } });
+    case 'tramites.mostrame-demo.gub.uy':
+      return respond({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'Estado uruguayo' } });
+    case 'usina-uy.example':
+      return respond({ identity: { status: 'verified_official', basis: 'official_catalog', organization: 'Usina de Demostración (Uruguay)' } });
     case 'sin-alertas.example':
     case 'lenta.example':
       if (hasPassword) {
