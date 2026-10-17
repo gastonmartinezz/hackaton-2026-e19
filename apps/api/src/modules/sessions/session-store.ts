@@ -58,19 +58,19 @@ export class SessionStore {
   }
 
   /** El front envía el chat completo en cada llamada: se reemplaza. */
-  setChat(id: string, chat: ChatMessage[]): void {
-    const session = this.touch(id);
+  setChat(id: string, owner: string, chat: ChatMessage[]): void {
+    const session = this.touch(id, owner);
     if (session) session.chat = chat;
   }
 
-  mergeMetadata(id: string, metadata: Metadata | undefined): void {
-    const session = this.touch(id);
+  mergeMetadata(id: string, owner: string, metadata: Metadata | undefined): void {
+    const session = this.touch(id, owner);
     if (!session || !metadata?.page) return;
     session.metadata.page = { ...session.metadata.page, ...metadata.page };
   }
 
-  append(id: string, entry: SessionEntry): void {
-    const session = this.touch(id);
+  append(id: string, owner: string, entry: SessionEntry): void {
+    const session = this.touch(id, owner);
     if (!session) return;
     session.history.push(entry);
     if (session.history.length > MAX_HISTORY) session.history.shift();
@@ -94,8 +94,9 @@ export class SessionStore {
     return session;
   }
 
-  private touch(id: string): Session | undefined {
-    const session = this.sessions.get(id);
+  /** Renueva el vencimiento solo de una sesión vigente y del mismo dueño; nunca revive una vencida. */
+  private touch(id: string, owner: string): Session | undefined {
+    const session = this.find(id, owner);
     if (session) session.expiresAt = this.now() + this.ttlMs;
     return session;
   }

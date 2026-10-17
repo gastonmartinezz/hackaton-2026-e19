@@ -16,7 +16,7 @@ export class OptionsService {
     if (!this.sessions.context(sessionId, owner)) {
       throw new AppError('SESSION_NOT_FOUND', 'Sesión inexistente o vencida');
     }
-    this.sessions.mergeMetadata(sessionId, request.metadata);
+    this.sessions.mergeMetadata(sessionId, owner, request.metadata);
 
     const output = await this.model.generate({
       task: 'options',
@@ -28,7 +28,7 @@ export class OptionsService {
     const parsed = OptionsResponse.safeParse({ sessionId, ...output });
     if (!parsed.success) throw new AppError('AI_INVALID_RESPONSE', 'Respuesta de Claude incoherente con el contrato');
 
-    this.sessions.append(sessionId, { type: 'options', options: parsed.data.options });
+    this.sessions.append(sessionId, owner, { type: 'options', options: parsed.data.options });
     return parsed.data;
   }
 }

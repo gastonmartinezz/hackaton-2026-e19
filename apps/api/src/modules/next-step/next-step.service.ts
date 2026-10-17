@@ -18,7 +18,7 @@ export class NextStepService {
     const option = findOption(existing.history, request.optionId);
     if (!option) throw new AppError('BAD_REQUEST', 'optionId no corresponde a ninguna opción de esta sesión');
 
-    this.sessions.mergeMetadata(request.sessionId, request.metadata);
+    this.sessions.mergeMetadata(request.sessionId, owner, request.metadata);
     const output = await this.model.generate({
       task: 'nextStep',
       system: SYSTEM_PROMPTS.nextStep,
@@ -35,7 +35,7 @@ export class NextStepService {
     const parsed = NextStepResponse.safeParse({ sessionId: request.sessionId, ...output });
     if (!parsed.success) throw new AppError('AI_INVALID_RESPONSE', 'Respuesta de Claude incoherente con el contrato');
 
-    this.sessions.append(request.sessionId, {
+    this.sessions.append(request.sessionId, owner, {
       type: 'nextStep',
       optionId: request.optionId,
       expectedStep: request.expectedStep,

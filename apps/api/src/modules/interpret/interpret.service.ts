@@ -36,8 +36,8 @@ export class InterpretService {
     const parsed = InterpretResponse.safeParse(candidate);
     if (!parsed.success) throw new AppError('AI_INVALID_RESPONSE', 'Respuesta de Claude incoherente con el contrato');
 
-    this.sessions.setChat(sessionId, request.messages);
-    this.sessions.append(sessionId, {
+    this.sessions.setChat(sessionId, owner, request.messages);
+    this.sessions.append(sessionId, owner, {
       type: 'interpret',
       response: output.type,
       goal: output.goal,
