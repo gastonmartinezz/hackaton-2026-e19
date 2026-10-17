@@ -17,13 +17,17 @@ Endpoints: `GET /health`, `POST /v1/interpret`, `POST /v1/options` y `POST /v1/n
 ## Desarrollo
 
 ```sh
-pnpm install
 cp apps/api/.env.example apps/api/.env
-pnpm dev            # http://localhost:3000, documentación en /docs
-pnpm test           # contratos + API
+pnpm bootstrap       # install + build de todos los paquetes
+pnpm dev:api         # API en http://localhost:3000, documentación en /docs (alias: pnpm dev)
+pnpm dev:desktop:api # en otra terminal: Electron contra la API local
+pnpm dev:desktop     # Electron con el backend simulado del front, sin API
+pnpm test           # todos los paquetes
 pnpm typecheck
 pnpm contracts:schemas   # regenera packages/contracts/schemas/v1/*.json
 ```
+
+`dev:desktop:api` toma el puerto y el primer token de `API_ACCESS_TOKENS` de `apps/api/.env`, y los pasa como `ASISTENTE_API_URL` y `ASISTENTE_API_TOKEN`. Si esas variables ya están definidas, se respetan.
 
 En desarrollo, `AI_PROVIDER=mock` permite trabajar sin clave de Anthropic. Para usar Claude, definir `AI_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`. El modelo se elige con `CLAUDE_MODEL` y el esfuerzo con `CLAUDE_EFFORT`.
 
