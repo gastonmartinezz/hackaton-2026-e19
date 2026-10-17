@@ -65,7 +65,7 @@ export class HelpCardView {
    * Ubica la vista dentro del área del sitio. `target` es el control resaltado
    * en coordenadas de esa área. Devuelve la disposición que la tarjeta tiene que usar.
    */
-  layout(area: Rect, sizes: { cardWidth: number; pillWidth: number }, target: TargetRect | null, visible: boolean): CardLayout {
+  layout(area: Rect, sizes: { cardWidth: number; pillWidth: number }, target: (TargetRect & { field?: boolean }) | null, visible: boolean): CardLayout {
     const width = Math.min(sizes.cardWidth, Math.round(area.width * 0.42));
     const maxHeight = Math.max(0, area.height - CARD_GAP * 2);
     const right = area.x + area.width - CARD_GAP;
@@ -100,12 +100,13 @@ export class HelpCardView {
  * Arriba a la derecha; si así tapa el control resaltado, abajo; si también lo
  * tapa, achicada. `target` está en coordenadas del área del sitio.
  */
-export function placeCard(area: Rect, width: number, height: number, target: TargetRect | null) {
+export function placeCard(area: Rect, width: number, height: number, target: (TargetRect & { field?: boolean }) | null) {
   const right = area.x + area.width - CARD_GAP;
   const top: Rect = { x: right - width, y: area.y + CARD_GAP, width, height };
   const bottom: Rect = { ...top, y: area.y + area.height - CARD_GAP - height };
-  // El anillo y el rótulo «Acá» también cuentan como parte del control.
-  const hit = target ? { x: target.x + area.x - 12, y: target.y + area.y - 56, width: target.width + 24, height: target.height + 68 } : null;
+  // El anillo y el rótulo «Acá» (arriba, o al costado en los campos) también cuentan como parte del control.
+  const label = target?.field ? 120 : 0;
+  const hit = target ? { x: target.x + area.x - 12, y: target.y + area.y - 56, width: target.width + 24 + label, height: target.height + 68 } : null;
   const placement: CardLayout['placement'] = !hit || !intersects(top, hit) ? 'top' : !intersects(bottom, hit) ? 'bottom' : 'compact';
   return { placement, top, bottom };
 }

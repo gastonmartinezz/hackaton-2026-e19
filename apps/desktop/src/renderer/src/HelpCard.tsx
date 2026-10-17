@@ -136,7 +136,7 @@ function cardMode(state: AppState, minimized: boolean, expandedFor: number | nul
   const { nav, guide, prefs, notices } = state;
   if (!nav.visible) return 'none';
   if (guide.phase === 'idle') {
-    if (notices.length > 0 || nav.error) return 'card';
+    if (notices.length > 0 || nav.error || !nav.secure) return 'card';
     return guide.exited ? 'toast' : 'none';
   }
   if (!prefs.aiEnabledForSite) return 'none';
@@ -475,6 +475,14 @@ function PageProblems({ state }: { state: AppState }) {
   const { nav, guide } = state;
   return (
     <>
+      {nav.secure ? null : (
+        <p className="mm-callout warn" role="alert">
+          <Icon name="shield-alert" />
+          <span>
+            <b>Conexión no segura.</b> No escribas datos personales en esta página.
+          </span>
+        </p>
+      )}
       {nav.error ? (
         <div className="notice" data-tone="error" role="alert">
           <p>{nav.error}</p>

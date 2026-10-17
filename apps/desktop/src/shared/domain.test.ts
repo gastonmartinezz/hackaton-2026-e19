@@ -10,6 +10,12 @@ describe('splitDomain', () => {
     expect(splitDomain('example.com')).toEqual({ sub: '', main: 'example.com' });
   });
 
+  it('no resalta etiquetas elegidas por quien registra el dominio', () => {
+    expect(splitDomain('paypal.t.co')).toEqual({ sub: 'paypal.', main: 't.co' });
+    expect(splitDomain('banco.xyz.uy')).toEqual({ sub: 'banco.', main: 'xyz.uy' });
+    expect(splitDomain('phish.eu.org')).toEqual({ sub: 'phish.', main: 'eu.org' });
+  });
+
   it('no divide direcciones IP ni nombres locales', () => {
     expect(splitDomain('127.0.0.1')).toEqual({ sub: '', main: '127.0.0.1' });
     expect(splitDomain('localhost')).toEqual({ sub: '', main: 'localhost' });

@@ -144,7 +144,7 @@ export class AppController {
     const layout = this.#card.layout(
       area,
       { cardWidth: cardWidth(scale), pillWidth: pillWidth(scale) },
-      this.#assistant.target?.rect ?? null,
+      this.#assistant.target?.rect ? { ...this.#assistant.target.rect, field: this.#assistant.target.field } : null,
       this.#siteVisible,
     );
     if (layout.placement !== this.#cardLayout.placement || layout.maxHeight !== this.#cardLayout.maxHeight) {

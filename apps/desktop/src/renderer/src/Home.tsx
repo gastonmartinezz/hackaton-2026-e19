@@ -15,7 +15,10 @@ const UNSURE = 'No estoy seguro';
 export function Home({ state }: { state: AppState }) {
   const { chat } = state;
   const busy = chat.phase === 'interpreting';
-  const mode = chat.phase === 'clarifying' ? 'ask' : chat.phase === 'results' ? 'reco' : 'search';
+  // Mientras responde, la pantalla no salta al buscador vacío: queda como estaba.
+  const lastMode = useRef<'search' | 'ask' | 'reco'>('search');
+  const mode = chat.phase === 'clarifying' ? 'ask' : chat.phase === 'results' ? 'reco' : busy || (chat.phase === 'error' && chat.query) ? lastMode.current : 'search';
+  lastMode.current = mode;
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 

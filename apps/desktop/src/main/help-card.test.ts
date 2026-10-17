@@ -12,6 +12,11 @@ describe('placeCard', () => {
     expect(card({ x: 40, y: 200, width: 120, height: 40 })).toBe('top');
   });
 
+  it('cuenta el rótulo «Acá» al costado de un campo', () => {
+    expect(placeCard(area, 440, 400, { x: 820, y: 100, width: 100, height: 30, field: true }).placement).toBe('bottom');
+    expect(placeCard(area, 440, 400, { x: 820, y: 100, width: 100, height: 30 }).placement).toBe('top');
+  });
+
   it('baja si arriba taparía el control, y se achica si tampoco entra abajo', () => {
     expect(card({ x: 1100, y: 100, width: 120, height: 40 })).toBe('bottom');
     expect(card({ x: 1100, y: 380, width: 120, height: 40 }, 700)).toBe('compact');
