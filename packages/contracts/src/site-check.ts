@@ -184,12 +184,28 @@ export const SiteIdentity = z.strictObject({
   basis: z.enum(['government_domain', 'financial_regulator', 'official_catalog']).optional(),
   /** Organización según la fuente (p. ej. «Estado argentino» o el nombre del padrón). Solo con `verified_official`. */
   organization: ShortText(120).optional(),
+  /**
+   * De dónde sale la oficialidad y cuándo se revisó esa fuente (fecha de la norma o de la entrada
+   * del catálogo, o de descarga del padrón). Obligatoria con `verified_official`.
+   */
+  source: z
+    .strictObject({
+      name: ShortText(160),
+      url: WebUrl.optional(),
+      reviewedAt: z.iso.datetime(),
+    })
+    .optional(),
   /** Organización que el sitio parece imitar (con BRAND_IMPERSONATION o LOOKALIKE_DOMAIN). */
   impersonatedOrganization: ShortText(120).optional(),
-}).refine((i) => (i.status === 'verified_official') === (i.basis !== undefined), {
-  message: 'basis es obligatorio con verified_official y no se envía en otro caso',
-  path: ['basis'],
-});
+})
+  .refine((i) => (i.status === 'verified_official') === (i.basis !== undefined), {
+    message: 'basis es obligatorio con verified_official y no se envía en otro caso',
+    path: ['basis'],
+  })
+  .refine((i) => (i.status === 'verified_official') === (i.source !== undefined), {
+    message: 'source es obligatorio con verified_official y no se envía en otro caso',
+    path: ['source'],
+  });
 export type SiteIdentity = z.infer<typeof SiteIdentity>;
 
 export const SiteCheckResponse = z.strictObject({
