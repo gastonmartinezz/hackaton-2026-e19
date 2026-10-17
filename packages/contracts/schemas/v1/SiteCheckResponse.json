@@ -41,7 +41,8 @@
           "type": "string",
           "enum": [
             "government_domain",
-            "financial_regulator"
+            "financial_regulator",
+            "official_catalog"
           ]
         },
         "organization": {
