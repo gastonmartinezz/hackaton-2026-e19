@@ -8,7 +8,7 @@ Monorepo pnpm. La especificación está en `especificacion-plataforma.md`. La se
 | `packages/contracts` | Contratos v1 (Zod + JSON Schema) | Compartido front/backend, cambios solo por acuerdo |
 | `docs/api.md` | Guía de la API para el front | Agustin |
 
-Endpoints: `GET /health`, `POST /v1/interpret` y `POST /v1/options`. El detalle está en `docs/api.md`.
+Endpoints: `GET /health`, `POST /v1/interpret`, `POST /v1/options` y `POST /v1/next-step`. El detalle está en `docs/api.md`.
 
 ## Requisitos
 
@@ -35,4 +35,4 @@ Se despliega en Tenki Sandbox (https://tenki.cloud/docs/sandbox). Las instruccio
 
 - Los secretos (`ANTHROPIC_API_KEY`, `API_ACCESS_TOKENS`) quedan solo en el servidor. Nunca van en el cliente.
 - En producción, el servidor no arranca en modo `mock`.
-- Las sesiones de `/v1/options` están en memoria: vencen a los 30 minutos sin uso y se pierden si el servidor se reinicia.
+- Las sesiones (empiezan en `/v1/interpret` y siguen en `/v1/options` y `/v1/next-step`) están en memoria: vencen a los 30 minutos sin uso y se pierden si el servidor se reinicia.

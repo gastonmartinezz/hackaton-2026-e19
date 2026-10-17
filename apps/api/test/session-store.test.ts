@@ -11,11 +11,21 @@ describe('SessionStore', () => {
     const id = store.create('owner');
 
     now = 29 * 60_000;
-    store.append(id, { options: [], guide: null });
+    store.append(id, { type: 'options', options: [] });
     now = 58 * 60_000;
-    expect(store.history(id, 'owner')).toHaveLength(1);
+    expect(store.context(id, 'owner')?.history).toHaveLength(1);
 
     now = 90 * 60_000;
-    expect(store.history(id, 'owner')).toBeUndefined();
+    expect(store.context(id, 'owner')).toBeUndefined();
+  });
+
+  it('devuelve copias: modificar el contexto no cambia la sesión', () => {
+    store = new SessionStore(60_000);
+    const id = store.create('owner');
+    store.mergeMetadata(id, { page: { title: 'Inicio' } });
+    const context = store.context(id, 'owner')!;
+    context.history.push({ type: 'options', options: [] });
+    context.metadata.page!.title = 'Otro';
+    expect(store.context(id, 'owner')).toEqual({ chat: [], metadata: { page: { title: 'Inicio' } }, history: [] });
   });
 });

@@ -12,25 +12,23 @@ export class OptionsService {
   ) {}
 
   async options(request: OptionsRequest, owner: string): Promise<OptionsResponse> {
-    let sessionId = request.sessionId;
-    let history = sessionId ? this.sessions.history(sessionId, owner) : [];
-    if (!history) throw new AppError('SESSION_NOT_FOUND', 'Sesión inexistente o vencida');
-    if (!sessionId) {
-      sessionId = this.sessions.create(owner);
-      history = [];
+    const sessionId = request.sessionId ?? this.sessions.create(owner);
+    if (!this.sessions.context(sessionId, owner)) {
+      throw new AppError('SESSION_NOT_FOUND', 'Sesión inexistente o vencida');
     }
+    this.sessions.mergeMetadata(sessionId, request.metadata);
 
     const output = await this.model.generate({
       task: 'options',
       system: SYSTEM_PROMPTS.options,
-      input: { goal: request.goal, history: [...history], html: request.html },
+      input: { context: this.sessions.context(sessionId, owner), html: request.html },
       schema: OptionsOutput,
     });
 
     const parsed = OptionsResponse.safeParse({ sessionId, ...output });
     if (!parsed.success) throw new AppError('AI_INVALID_RESPONSE', 'Respuesta de Claude incoherente con el contrato');
 
-    this.sessions.append(sessionId, { goal: request.goal, options: parsed.data.options, guide: parsed.data.guide });
+    this.sessions.append(sessionId, { type: 'options', options: parsed.data.options });
     return parsed.data;
   }
 }

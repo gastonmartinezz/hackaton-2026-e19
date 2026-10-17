@@ -8,7 +8,7 @@ export const optionsRoutes: FastifyPluginAsyncZod<{ service: OptionsService }> =
     {
       schema: {
         tags: ['options'],
-        summary: 'Devuelve las opciones de la página y el próximo paso de la guía',
+        summary: 'Devuelve las opciones de la página con la guía de cada una',
         body: OptionsRequest,
         response: { 200: OptionsResponse, '4xx': ApiError, '5xx': ApiError },
       },

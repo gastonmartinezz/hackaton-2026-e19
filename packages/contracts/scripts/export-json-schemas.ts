@@ -10,6 +10,8 @@ const exported = {
   InterpretResponse: contracts.InterpretResponse,
   OptionsRequest: contracts.OptionsRequest,
   OptionsResponse: contracts.OptionsResponse,
+  NextStepRequest: contracts.NextStepRequest,
+  NextStepResponse: contracts.NextStepResponse,
   ApiError: contracts.ApiError,
 };
 

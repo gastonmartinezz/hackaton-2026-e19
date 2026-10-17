@@ -20,7 +20,27 @@ Responsable: Agustin. Los contratos (Zod) están en `packages/contracts/src` y e
 |---|---|---|
 | GET | `/health` | Saber si el servidor está vivo. Sin token |
 | POST | `/v1/interpret` | Chat de la home: interpreta lo que pide la persona |
-| POST | `/v1/options` | Opciones de la página actual y próximo paso de la guía |
+| POST | `/v1/options` | Opciones de la página actual, cada una con su guía |
+| POST | `/v1/next-step` | Pasos reales cuando la guía llega a un paso teórico |
+
+## La sesión: un solo recorrido de punta a punta
+
+La sesión **empieza en `/v1/interpret`** y acompaña todo el recorrido hasta el último `/v1/next-step`. El backend devuelve el `sessionId` en **todas** las respuestas y el front lo manda en cada llamada siguiente.
+
+En la sesión, el backend acumula:
+
+- **De `interpret`:** el chat y la decisión de Claude (objetivo entendido y motivo). La decisión **no vuelve al front**.
+- **De `options`:** el metadato de la página y las opciones devueltas.
+- **De `next-step`:** los pasos que completó la persona y los pasos nuevos.
+
+En cada llamada, Claude recibe **todo** ese recorrido como contexto. El HTML no se guarda.
+
+```
+interpret (sin sessionId) → crea s-abc
+interpret (s-abc)         → mismo chat, hasta redirect u options
+options   (s-abc)         → opciones con sus pasos
+next-step (s-abc)         → pasos reales y done
+```
 
 ### POST /v1/interpret
 
@@ -30,10 +50,11 @@ El objetivo es siempre **llegar a una URL**:
 - Si hay más de una posible, responde `options`.
 - Si todavía no puede llegar a una URL, responde `question`. El front muestra la pregunta, agrega la respuesta de la persona al historial y vuelve a llamar. Esto se repite hasta obtener un `redirect` u `options`.
 
-El front envía **todo el historial** del chat en cada llamada, para que Claude no pierda el contexto. El último mensaje tiene que ser de la persona (`user`).
+El front envía **todo el historial** del chat en cada llamada, para que Claude no pierda el contexto. El último mensaje tiene que ser de la persona (`user`). En el primer mensaje no hay `sessionId`; en los siguientes, se manda el que devolvió el backend.
 
 ```json
 {
+  "sessionId": "s-abc",
   "messages": [
     { "role": "user", "content": "Quiero renovar mi documento" },
     { "role": "assistant", "content": "¿En qué país querés hacer el trámite?" },
@@ -42,17 +63,17 @@ El front envía **todo el historial** del chat en cada llamada, para que Claude 
 }
 ```
 
-La respuesta tiene siempre `type` y `message`:
+La respuesta tiene siempre `sessionId`, `type` y `message`:
 
 ```json
 // Claude resolvió el sitio: el front lleva directo a la URL
-{ "type": "redirect", "message": "Te llevo al sitio de turnos.", "url": "https://..." }
+{ "sessionId": "s-abc", "type": "redirect", "message": "Te llevo al sitio de turnos.", "url": "https://..." }
 
 // Falta información: el front muestra la pregunta en el chat
-{ "type": "question", "message": "¿En qué país querés hacer el trámite?" }
+{ "sessionId": "s-abc", "type": "question", "message": "¿En qué país querés hacer el trámite?" }
 
 // Varios sitios posibles (2 a 5): el front muestra las opciones para elegir
-{ "type": "options", "message": "Encontré estas opciones:",
+{ "sessionId": "s-abc", "type": "options", "message": "Encontré estas opciones:",
   "options": [ { "title": "...", "url": "https://...", "reason": "..." } ] }
 ```
 
@@ -61,12 +82,21 @@ La respuesta tiene siempre `type` y `message`:
 
 ### POST /v1/options
 
-El front envía los fragmentos de HTML que considera importantes. Claude devuelve las opciones y el próximo paso, usando **selectores CSS** sobre ese HTML.
+El front envía el `sessionId` de `interpret`, los fragmentos de HTML que considera importantes y, opcionalmente, el **metadato** de la página. Claude devuelve las opciones disponibles, **cada una con su guía completa** (`steps`), teniendo en cuenta todo el recorrido.
 
-Primera llamada en una página (sin `sessionId`): el backend crea la sesión.
+Cada paso tiene un `element`:
+
+- **`"#el-3"`**: el id de un elemento del HTML enviado. El front lo ubica y dibuja la indicación (cuadrado, flecha, etc.).
+- **`null`**: **paso teórico**. El elemento todavía no existe porque aparece después de una acción de la persona. Los pasos siguientes a uno teórico también lo son.
+
+Si todos los pasos de una opción son reales (por ejemplo, botones que no cargan HTML nuevo), el front guía de punta a punta sin volver a llamar.
 
 ```json
-{ "html": "<form><input id=\"search\" placeholder=\"Buscar\">...</form>" }
+{
+  "sessionId": "s-abc",
+  "html": "<a id=\"el-3\">Turnos</a> <a id=\"el-4\">Contacto</a>",
+  "metadata": { "page": { "title": "Hospital X - Inicio", "language": "es" } }
+}
 ```
 
 Respuesta:
@@ -75,45 +105,77 @@ Respuesta:
 {
   "sessionId": "s-abc",
   "options": [
-    { "id": "search", "title": "Buscar un producto", "initialElement": "#search" }
-  ],
-  "guide": {
-    "goal": "search",
-    "step": {
-      "element": "#search",
-      "presentation": "highlight",
-      "instruction": "Escribí acá el producto que estás buscando.",
-      "waitFor": "userInteraction"
+    {
+      "id": "turno",
+      "title": "Sacar un turno",
+      "steps": [
+        { "element": "#el-3", "instruction": "Hacé clic en Turnos.", "presentation": "highlight", "waitFor": "userInteraction" },
+        { "element": null, "instruction": "Elegí la especialidad.", "presentation": "highlight", "waitFor": "userInteraction" }
+      ]
     }
-  }
+  ]
 }
 ```
 
-Siguientes llamadas: el front manda el mismo `sessionId`, la opción elegida (`goal`) y los fragmentos nuevos. Responde con la misma estructura.
+- **Sin `sessionId`** (página abierta sin pasar por el chat), el backend crea una sesión nueva.
+- **`metadata`** se acumula en la sesión: los campos nuevos pisan a los anteriores y los que no se mandan se conservan. Hoy acepta `page.title` y `page.language`.
+- Se puede volver a llamar con el mismo `sessionId`, por ejemplo en una página nueva de la misma tarea.
+
+### POST /v1/next-step
+
+Se llama cuando la guía llega a un **paso teórico** (`element: null`), después de que la persona realizó la acción anterior y la página mostró el HTML nuevo.
 
 ```json
-{ "sessionId": "s-abc", "goal": "search", "html": "<...fragmentos nuevos...>" }
+{
+  "sessionId": "s-abc",
+  "optionId": "turno",
+  "expectedStep": { "element": null, "instruction": "Elegí la especialidad.", "presentation": "highlight", "waitFor": "userInteraction" },
+  "completedSteps": [
+    { "element": "#el-3", "instruction": "Hacé clic en Turnos.", "presentation": "highlight", "waitFor": "userInteraction" }
+  ],
+  "html": "<select id=\"el-9\" aria-label=\"Especialidad\">...</select>",
+  "metadata": { "page": { "title": "Hospital X - Especialidades" } }
+}
 ```
+
+Respuesta:
+
+```json
+{
+  "sessionId": "s-abc",
+  "steps": [
+    { "element": "#el-9", "instruction": "Elegí la especialidad.", "presentation": "highlight", "waitFor": "userInteraction" }
+  ],
+  "done": false
+}
+```
+
+- **`completedSteps`** (obligatorio, puede ser `[]`): los pasos que completó la persona desde la última llamada. Quedan guardados en la sesión.
+- **`metadata`** es opcional y se acumula igual que en `/v1/options`.
+- **`steps`** son los pasos que siguen, con el mismo formato. Si vuelve a aparecer un paso teórico, se llama otra vez a `/v1/next-step`.
+- **`done: true`** significa que la tarea terminó; en ese caso `steps` viene vacío.
+- **`optionId`** tiene que ser el id de una opción que `/v1/options` devolvió en esa sesión. Si no, responde `400 BAD_REQUEST`.
+
+### Valores y vencimiento de la sesión
 
 | Campo | Valores |
 |---|---|
 | `presentation` | `highlight`, `scrollAndHighlight` |
 | `waitFor` | `userInteraction`, `navigation`, `userConfirmation` |
-| `guide` | `null` si Claude no encuentra un paso posible en el HTML recibido |
 
-**Sesiones:**
-- Viven en memoria del servidor y vencen a los **30 minutos sin uso**. Un reinicio del servidor las borra.
-- Guardan las opciones y los pasos anteriores, **no el HTML**. Claude los recibe en cada llamada para seguir la tarea.
-- Un `sessionId` inexistente, vencido o creado con otro token devuelve `404 SESSION_NOT_FOUND`. El front vuelve a llamar sin `sessionId` para empezar una sesión nueva.
+- Las sesiones viven en memoria del servidor y vencen a los **30 minutos sin uso**; cada llamada renueva el plazo. Un reinicio del servidor las borra.
+- Un `sessionId` inexistente, vencido o creado con otro token devuelve `404 SESSION_NOT_FOUND`. En ese caso el recorrido anterior se perdió: el front empieza una sesión nueva llamando sin `sessionId`.
 
 ## Qué queda del lado del front
 
-1. **Chat:** guardar el historial y enviarlo completo en cada `/v1/interpret`. Según `type`: redirigir, mostrar la pregunta o mostrar las opciones de sitios.
-2. **Fragmentos de HTML:** elegir con sus reglas qué HTML enviar a `/v1/options` y volver a enviar fragmentos nuevos cuando la página cambia.
-3. **Sesión:** guardar el `sessionId` que devuelve la primera llamada, mandarlo en las siguientes junto con el `goal` elegido, y empezar de nuevo si llega `SESSION_NOT_FOUND`.
-4. **Selectores:** ubicar el elemento con `document.querySelector(element)` y manejar los casos en que el selector no encuentra nada o encuentra varios elementos. Claude genera los selectores y el backend no los verifica contra el HTML.
-5. **Representación visual:** resaltar según `presentation`, mostrar `instruction` y esperar según `waitFor` antes de pedir el próximo paso.
-6. **Errores:** mostrar un mensaje según `code` y reintentar solo si `retryable` es `true`.
+1. **Sesión:** guardar el `sessionId` que devuelve la primera llamada a `/v1/interpret` y mandarlo en **todas** las llamadas siguientes (`interpret`, `options` y `next-step`). Si llega `SESSION_NOT_FOUND`, empezar una sesión nueva.
+2. **Chat:** guardar el historial y enviarlo completo en cada `/v1/interpret`. Según `type`: redirigir, mostrar la pregunta o mostrar las opciones de sitios.
+3. **Fragmentos de HTML:** armar el HTML que se envía, con un id por elemento y sin datos sensibles.
+4. **Metadato:** enviar en `metadata.page` los datos de la página que tenga (título, idioma) al cargarla.
+5. **Guía:** recorrer los `steps` de la opción elegida. Ante un paso con `element: null`, esperar la acción de la persona y llamar a `/v1/next-step` con el HTML nuevo y los `completedSteps`.
+6. **Elementos:** ubicar `element` en la página (si hace falta, subiendo al elemento padre) y manejar el caso en que no se encuentra. El backend no verifica que el id exista en el HTML.
+7. **Representación visual:** dibujar la indicación según `presentation`, mostrar `instruction` y esperar según `waitFor`.
+8. **Errores:** mostrar un mensaje según `code` y reintentar solo si `retryable` es `true`. El backend puede tardar hasta ~90 segundos en el peor caso (30 s por intento con hasta 2 reintentos).
 
 ## Errores
 
@@ -144,4 +206,5 @@ Formato único para todos los endpoints:
 Con `AI_PROVIDER=mock` (el valor por defecto en desarrollo), el servidor responde sin llamar a Claude:
 
 - `/v1/interpret`: con un solo mensaje devuelve `question`; con más de uno devuelve `redirect` a `https://www.example.com/`.
-- `/v1/options`: usa el primer `id="..."` del HTML como selector (`#id`). Si no hay ninguno, devuelve `options: []` y `guide: null`.
+- `/v1/options`: devuelve una opción `start` con dos pasos: el primero sobre el primer `id="..."` del HTML y el segundo teórico (`element: null`). Si el HTML no tiene ids, devuelve `options: []`.
+- `/v1/next-step`: si el HTML tiene un `id="..."`, devuelve un paso sobre ese elemento con `done: false`. Si no tiene ninguno, devuelve `steps: []` y `done: true`.

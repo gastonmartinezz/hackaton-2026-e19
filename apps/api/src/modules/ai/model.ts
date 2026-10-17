@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-export type AiTask = 'interpret' | 'options';
+export type AiTask = 'interpret' | 'options' | 'nextStep';
 
 export interface StructuredRequest<S extends z.ZodType> {
   task: AiTask;
