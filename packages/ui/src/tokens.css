@@ -22,6 +22,9 @@
   --color-error-bg: #fde8e8;
   --color-info-bg: #e6eefb;
   --color-success-bg: #e5f4e8;
+  --color-positive: #1e6b30;
+  --color-warning: #7a4a00;
+  --color-warning-bg: #fff3d6;
   color-scheme: light;
 }
 
@@ -38,6 +41,9 @@
     --color-error-bg: #3a1515;
     --color-info-bg: #18243a;
     --color-success-bg: #15301c;
+    --color-positive: #8fd6a0;
+    --color-warning: #ffcf70;
+    --color-warning-bg: #3a2c10;
     color-scheme: dark;
   }
 }
@@ -159,4 +165,9 @@ body {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+.ui-icon {
+  flex: none;
+  vertical-align: -0.2em;
 }

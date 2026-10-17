@@ -18,6 +18,7 @@ function setup(...responses: Reply[]) {
       return { ...next, sessionId: request.sessionId ?? `s-${sent.length}` };
     }),
     options: vi.fn(),
+    siteCheck: vi.fn(),
     nextStep: vi.fn(),
   };
   const onRedirect = vi.fn();
@@ -118,6 +119,7 @@ describe('Chat (/v1/interpret)', () => {
         return { sessionId: request.sessionId ?? 's-nueva', type: 'question' as const, message: '¿Qué?' };
       }),
       options: vi.fn(),
+      siteCheck: vi.fn(),
       nextStep: vi.fn(),
     };
     await new Chat(api, session, () => {}, vi.fn()).submit('turno');

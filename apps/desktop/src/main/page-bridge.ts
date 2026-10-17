@@ -5,6 +5,7 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import type { PageSnapshot } from '@asistente/page-analyzer';
+import type { PageSummary } from '@hackaton/contracts';
 import { sanitizeLabel } from '@asistente/privacy';
 import { ipcMain, type IpcMainEvent } from 'electron';
 import type { z } from 'zod';
@@ -13,17 +14,22 @@ import {
   InteractionMessageSchema,
   PAGE_CHANNELS,
   ShownMessageSchema,
+  SignatureMessageSchema,
   SnapshotMessageSchema,
+  SummaryMessageSchema,
   ValidationMessageSchema,
   type EXTRACT_NOTES,
   type ShowResult,
 } from '../shared/ipc';
+import { resanitizeSummary } from './site-protection/resanitize';
 import type { SiteView } from './site-view';
 
 export interface PageBridgeEvents {
   changed: [{ structural: boolean; targetPresent: boolean | null }];
   interaction: [{ elementId: string }];
   validationError: [];
+  /** Cambió la huella de formularios o identidad (protección de sitios). */
+  signature: [];
 }
 
 export interface ShownTarget {
@@ -42,6 +48,7 @@ type Pending<T> = { resolve(value: T): void; reject(error: Error): void; timer: 
 export class PageBridge extends EventEmitter<PageBridgeEvents> {
   readonly #snapshots = new Map<string, Pending<ExtractedPage> & { navigationId: string; revision: number }>();
   readonly #shows = new Map<string, Pending<ShownTarget>>();
+  readonly #summaries = new Map<string, Pending<PageSummary> & { navigationId: string; contentVersion: number }>();
   readonly #disposers: Array<() => void> = [];
 
   constructor(private readonly site: SiteView) {
@@ -67,6 +74,44 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
     this.#on(PAGE_CHANNELS.changed, ChangedMessageSchema, (message) => this.emit('changed', message));
     this.#on(PAGE_CHANNELS.interaction, InteractionMessageSchema, (message) => this.emit('interaction', message));
     this.#on(PAGE_CHANNELS.validation, ValidationMessageSchema, () => this.emit('validationError'));
+    this.#on(PAGE_CHANNELS.summary, SummaryMessageSchema, ({ requestId, navigationId, contentVersion, summary }) => {
+      const pending = this.#summaries.get(requestId);
+      if (!pending) return;
+      this.#summaries.delete(requestId);
+      clearTimeout(pending.timer);
+      if (navigationId !== pending.navigationId || contentVersion !== pending.contentVersion) {
+        pending.reject(new Error('resumen fuera de correlación'));
+        return;
+      }
+      try {
+        pending.resolve(resanitizeSummary(summary));
+      } catch {
+        pending.reject(new Error('resumen inválido'));
+      }
+    });
+    this.#on(PAGE_CHANNELS.signature, SignatureMessageSchema, () => this.emit('signature'));
+  }
+
+  /** Resumen sanitizado para /v1/site-check (independiente de la guía). */
+  summarize(navigationId: string, contentVersion: number): Promise<PageSummary> {
+    const requestId = shortId();
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.#summaries.delete(requestId);
+        reject(new Error('resumen sin respuesta'));
+      }, 5000);
+      this.#summaries.set(requestId, { resolve, reject, timer, navigationId, contentVersion });
+      this.site.contents.send(PAGE_CHANNELS.summarize, { requestId, navigationId, contentVersion });
+    });
+  }
+
+  /** Al navegar: los resúmenes pedidos al documento anterior ya no sirven. */
+  cancelSummaries(): void {
+    for (const [id, pending] of this.#summaries) {
+      clearTimeout(pending.timer);
+      pending.reject(new Error('cancelado'));
+      this.#summaries.delete(id);
+    }
   }
 
   extract(pageId: string, navigationId: string, revision: number): Promise<ExtractedPage> {
@@ -113,6 +158,7 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
 
   dispose(): void {
     this.cancelPending();
+    this.cancelSummaries();
     for (const dispose of this.#disposers) dispose();
   }
 

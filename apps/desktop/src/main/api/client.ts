@@ -11,6 +11,8 @@ import type {
   NextStepResponse,
   OptionsRequest,
   OptionsResponse,
+  SiteCheckRequest,
+  SiteCheckResponse,
 } from '@hackaton/contracts';
 
 export interface ApiClient {
@@ -21,6 +23,8 @@ export interface ApiClient {
   options(request: OptionsRequest, signal: AbortSignal): Promise<OptionsResponse>;
   /** POST /v1/next-step: pasos reales cuando la guía llega a un paso teórico. */
   nextStep(request: NextStepRequest, signal: AbortSignal): Promise<NextStepResponse>;
+  /** POST /v1/site-check: protección de sitios (fase dirección o contenido). */
+  siteCheck(request: SiteCheckRequest, signal: AbortSignal): Promise<SiteCheckResponse>;
 }
 
 /**

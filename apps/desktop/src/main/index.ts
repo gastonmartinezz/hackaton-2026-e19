@@ -14,7 +14,19 @@ import { loadConfig } from './config';
 import { log } from './log';
 import { PrefsStore } from './prefs';
 
+/** Puerto preferido de las páginas de prueba (direcciones de demostración estables). */
+const FIXTURES_PORT = 47_321;
+
 app.enableSandbox();
+
+const config = loadConfig();
+if (config.useMockBackend && config.isDev) {
+  // Protección de sitios: las páginas de demostración usan nombres reservados
+  // `*.example` (nunca resuelven en internet) que en desarrollo apuntan al
+  // servidor local de fixtures. Así el backend simulado ve un hostname público
+  // y se puede ver cada estado del indicador. Solo con el backend simulado.
+  app.commandLine.appendSwitch('host-resolver-rules', 'MAP *.example 127.0.0.1');
+}
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -36,12 +48,11 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(async () => {
-    const config = loadConfig();
     if (config.useMockBackend) {
       const fixturesDir = join(app.getAppPath(), '../../tests/fixtures/pages');
       let fixturesOrigin: string | null = null;
       if (config.isDev && existsSync(fixturesDir)) {
-        const server = await startFixturesServer(fixturesDir);
+        const server = await startFixturesServer(fixturesDir, FIXTURES_PORT);
         fixturesOrigin = server.origin;
         closeFixtures = server.close;
       }

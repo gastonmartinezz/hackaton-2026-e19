@@ -2,13 +2,15 @@
  * Componentes funcionales básicos de prueba (Gaston). Reemplazables por la UI
  * final de Emi sin tocar la lógica: reciben datos y callbacks, nada más.
  */
-import { useId, type ButtonHTMLAttributes, type ComponentPropsWithRef, type ReactNode } from 'react';
+import { useId, type ComponentPropsWithRef, type ReactNode } from 'react';
+
+export { Icon, type IconName } from './icons';
 
 export function Button({
   variant = 'secondary',
   type = 'button',
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' }) {
+}: ComponentPropsWithRef<'button'> & { variant?: 'primary' | 'secondary' }) {
   return <button {...props} type={type} className="ui-button" data-variant={variant} />;
 }
 

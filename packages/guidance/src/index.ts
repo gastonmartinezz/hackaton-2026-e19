@@ -228,3 +228,33 @@ export function evaluateObservation(step: ActiveStep, observation: Observation):
         : null;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Pausa por riesgo alto (protección de sitios)                        */
+/* ------------------------------------------------------------------ */
+
+/** Lo que se sabe localmente del elemento destino de un paso (del snapshot). */
+export interface StepTarget {
+  role: string;
+  inputType?: string | undefined;
+  /** El elemento está dentro de un formulario (un botón ahí envía o confirma). */
+  inForm?: boolean | undefined;
+}
+
+/** Roles donde la persona ingresa o elige datos. */
+const DATA_ROLES: ReadonlySet<string> = new Set(['textbox', 'searchbox', 'combobox', 'spinbutton', 'listbox', 'checkbox', 'radio', 'switch', 'slider']);
+
+/** Verbos y datos que invitan a ingresar información o confirmar una operación (sin tildes). */
+const SENSITIVE_INSTRUCTION =
+  /\b(escrib|complet|ingres|introduc|anot|carg|pone|tipe|confirm|acept|autoriz|valid|firm|pag(?:ar|a|as|o|os|ue|ues|uen)\b|abon|transfer|envi|compr|suscrib|registr|inicia r? ?sesion|clave|contrasen|codigo|token|pin\b|tarjeta|cvv|cbu|cvu|alias|dni|documento|password|sign in|log ?in|pay|submit|enter)/;
+
+/**
+ * Indica si un paso invita a ingresar datos o confirmar una operación. Ante un
+ * posible sitio de estafa estas indicaciones se pausan; las de navegación
+ * («Hacé clic en Inicio») siguen. Conservador: ante la duda, pausa.
+ */
+export function isSensitiveStep(step: Pick<GuideStep, 'instruction'>, target?: StepTarget): boolean {
+  if (target && (DATA_ROLES.has(target.role) || (target.role === 'button' && target.inForm))) return true;
+  const text = step.instruction.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+  return SENSITIVE_INSTRUCTION.test(text);
+}
