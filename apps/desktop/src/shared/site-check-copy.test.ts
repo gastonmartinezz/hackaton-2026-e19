@@ -108,3 +108,10 @@ describe('textos del indicador', () => {
     expect(panel.title).toBe('Atención');
   });
 });
+
+describe('nota de cobertura', () => {
+  it('no se muestra por registro o conexión no disponibles (no son obligatorios)', () => {
+    expect(siteCheckCopy('no_alerts', response()).panel.coverageNote).toBeNull();
+    expect(siteCheckCopy('unverified', response({ status: 'partial', coverage: { ...COMPLETE, reputation: 'unavailable' } })).panel.coverageNote).not.toBeNull();
+  });
+});

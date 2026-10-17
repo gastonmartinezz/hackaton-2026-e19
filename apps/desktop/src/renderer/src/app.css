@@ -297,10 +297,8 @@ body {
 .site-check-details summary {
   cursor: pointer;
   font-weight: 700;
-  padding: calc(var(--space) / 2) 0;
+  padding: calc(var(--space) * 0.75) 0;
   min-height: calc(2.75rem * var(--text-scale));
-  display: flex;
-  align-items: center;
 }
 .site-check-details ul {
   margin: 0 0 var(--space);
@@ -335,4 +333,23 @@ body {
 }
 .site-check-continue-hint {
   color: var(--color-muted);
+}
+
+/* La barra suma el indicador: la etiqueta «Dirección» queda solo para lectores de pantalla. */
+.topbar .address {
+  min-width: 12rem;
+}
+.topbar .address .ui-field {
+  grid-template-columns: 1fr;
+}
+.topbar .address label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.topbar .address input {
+  min-width: 0;
 }

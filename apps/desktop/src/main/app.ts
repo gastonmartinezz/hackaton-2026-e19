@@ -62,7 +62,7 @@ export class AppController {
   #siteVisible = false;
   /** Alto del panel de protección anclado a la barra (lo mide la interfaz). */
   #overlayHeight = 0;
-  /** Hosts con «Posible estafa» en esta sesión: «Salir de este sitio» no vuelve a ellos. */
+  /** Hosts con «Posible estafa» o «Atención» en esta sesión: «Salir de este sitio» no vuelve a ellos. */
   readonly #riskyHosts = new Set<string>();
   #notices: Array<Notice & { url?: string | undefined }> = [];
   #publishScheduled = false;
@@ -152,7 +152,8 @@ export class AppController {
   #onProtectionChange(): void {
     const highRisk = this.#protection.highRisk;
     const host = this.#protection.target?.hostname;
-    if (highRisk && host) this.#riskyHosts.add(host);
+    const kind = this.#protection.snapshot.kind;
+    if (host && (kind === 'possible_scam' || kind === 'attention')) this.#riskyHosts.add(host);
     this.#assistant.setRiskHold(highRisk);
     this.#layout();
     this.#publish();

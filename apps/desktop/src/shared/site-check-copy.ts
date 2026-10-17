@@ -118,7 +118,9 @@ export function scamSummary(response: SiteCheckResponse | null): string {
 
 function coverageNote(response: SiteCheckResponse | null): string | null {
   if (!response) return null;
-  const levels = Object.values(response.coverage);
+  // Registro y conexión no son obligatorios (regla de cobertura del contrato): su ausencia no se señala.
+  const { reputation, identity, content } = response.coverage;
+  const levels = [reputation, identity, content];
   const incomplete = response.status === 'partial' || response.status === 'unavailable' || levels.some((l) => l === 'partial' || l === 'unavailable');
   return incomplete ? 'Algunas comprobaciones no estuvieron disponibles, así que la revisión no está completa.' : null;
 }
