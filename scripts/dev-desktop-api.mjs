@@ -35,4 +35,12 @@ const child = spawn(fileURLToPath(new URL('node_modules/.bin/electron-vite', des
     ASISTENTE_API_TOKEN: process.env.ASISTENTE_API_TOKEN ?? token,
   },
 });
+child.on('error', (error) => {
+  console.error(
+    error.code === 'ENOENT'
+      ? 'No se encontró electron-vite en apps/desktop: correr `pnpm install` (o `pnpm bootstrap`).'
+      : `No se pudo abrir Electron: ${error.message}`,
+  );
+  process.exit(1);
+});
 child.on('exit', (code) => process.exit(code ?? 1));
