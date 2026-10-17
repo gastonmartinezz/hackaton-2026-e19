@@ -1,16 +1,17 @@
 /**
  * Orquestador local de la guía. Despacha eventos a la máquina de estados de
  * @asistente/guidance y ejecuta los efectos de cada fase: extraer, pedir
- * opciones o siguiente paso a POST /v1/options, mostrar y verificar.
+ * opciones (POST /v1/options) o pasos reales (POST /v1/next-step), mostrar y
+ * verificar.
  *
- * El backend guarda el historial en una sesión (`sessionId`). Una navegación o
+ * La sesión del backend es la misma del chat (`ApiSession`). Una navegación o
  * un cambio de fase invalida el trabajo anterior por época.
  */
 import { randomUUID } from 'node:crypto';
-import type { OptionsResponse } from '@hackaton/contracts';
+import type { Metadata, OptionsResponse } from '@hackaton/contracts';
 import { snapshotToHtml, type PageSnapshot } from '@asistente/page-analyzer';
-import { evaluateObservation, initialState, transition, type GuideEvent, type GuideState, type Observation } from '@asistente/guidance';
-import { ApiFailure, isAbort, userMessage, type ApiClient } from './api/client';
+import { evaluateObservation, expectedStep, initialState, transition, type GuideEvent, type GuideState, type Observation } from '@asistente/guidance';
+import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession } from './api/client';
 import { log } from './log';
 import type { ExtractedPage, ShownTarget } from './page-bridge';
 
@@ -23,8 +24,11 @@ export interface PagePort {
 
 export interface AssistantDeps {
   api: ApiClient;
+  session: ApiSession;
   page: PagePort;
   onChange(): void;
+  /** Espera antes de leer la página después de una interacción (el DOM cambia de forma asíncrona). */
+  settleMs?: number;
 }
 
 /** Máximo de pasos seguidos sin poder señalar el destino antes de abandonar. */
@@ -45,7 +49,6 @@ export class Assistant {
   #epoch = 0;
   #controller: AbortController | undefined;
   #pendingGoal: string | undefined;
-  #sessionId: string | undefined;
   #unshown = 0;
   #pageReady = false;
 
@@ -160,17 +163,15 @@ export class Assistant {
       this.targetVisible = null;
       this.deps.page.clear();
     }
-    if (next.phase === 'analyzing' || next.phase === 'idle') {
-      this.#unshown = 0;
-      // Página nueva sin tarea elegida: el backend crea otra sesión.
-      this.#sessionId = undefined;
-    }
+    if (next.phase === 'analyzing' || next.phase === 'idle') this.#unshown = 0;
     this.deps.onChange();
 
     switch (next.phase) {
       case 'analyzing':
+        void this.#runOptions(epoch);
+        break;
       case 'guiding':
-        void this.#request(epoch);
+        void this.#runNext(epoch);
         break;
       case 'verifying':
         void this.#runVerify(epoch);
@@ -205,40 +206,73 @@ export class Assistant {
     return snapshot;
   }
 
-  /** Opciones (fase analyzing) o próximo paso (fase guiding): mismo endpoint. */
-  async #request(epoch: number): Promise<void> {
+  async #runOptions(epoch: number): Promise<void> {
     try {
-      const snapshot = this.state.phase === 'guiding' && this.#snapshot ? this.#snapshot : await this.#extract(epoch);
+      const snapshot = await this.#extract(epoch);
       if (!snapshot || epoch !== this.#epoch) return;
-      if (this.state.stepCount >= MAX_STEPS) {
-        this.#dispatch({ type: 'FAILED', message: 'La guía se extendió demasiado. Podés volver a las opciones o al inicio.' });
-        return;
+      const request = { html: snapshotToHtml(snapshot), ...metadataOf(snapshot) };
+      const signal = this.#signal();
+      const { session, api } = this.deps;
+      let response: OptionsResponse;
+      try {
+        response = await api.options(session.id ? { ...request, sessionId: session.id } : request, signal);
+      } catch (error) {
+        // Sesión vencida o servidor reiniciado: se empieza otra.
+        if (!(error instanceof ApiFailure) || error.code !== 'SESSION_NOT_FOUND') throw error;
+        session.reset();
+        response = await api.options(request, signal);
       }
-      const response = await this.#callOptions(snapshotToHtml(snapshot), this.state.option?.id);
       if (epoch !== this.#epoch) return;
-      this.#sessionId = response.sessionId;
-      this.#dispatch({ type: 'RESPONSE', response });
+      session.id = response.sessionId;
+      this.#dispatch({ type: 'OPTIONS', options: response.options });
     } catch (error) {
       this.#fail(epoch, error);
     }
   }
 
-  async #callOptions(html: string, goal: string | undefined): Promise<OptionsResponse> {
-    const signal = this.#signal();
-    const request = { html, ...(goal ? { goal } : {}) };
-    if (!this.#sessionId) return this.deps.api.options(request, signal);
+  /** Paso teórico (o que no se pudo mostrar): pasos reales con el HTML actual. */
+  async #runNext(epoch: number): Promise<void> {
     try {
-      return await this.deps.api.options({ ...request, sessionId: this.#sessionId }, signal);
+      const { option, step, completed, stepCount } = this.state;
+      const sessionId = this.deps.session.id;
+      if (!option || !step) return;
+      if (stepCount >= MAX_STEPS) {
+        this.#dispatch({ type: 'FAILED', message: 'La guía se extendió demasiado. Podés volver a las opciones o al inicio.' });
+        return;
+      }
+      if (!sessionId) {
+        // Sin sesión el backend no conoce la opción elegida: se vuelve a analizar.
+        this.#dispatch({ type: 'ANALYZE' });
+        return;
+      }
+      const snapshot = this.#snapshot ?? (await this.#extract(epoch));
+      if (!snapshot || epoch !== this.#epoch) return;
+      const response = await this.deps.api.nextStep(
+        { sessionId, optionId: option.id, expectedStep: expectedStep(step), completedSteps: completed, html: snapshotToHtml(snapshot), ...metadataOf(snapshot) },
+        this.#signal(),
+      );
+      if (epoch !== this.#epoch) return;
+      this.deps.session.id = response.sessionId;
+      this.#dispatch({ type: 'NEXT', response });
     } catch (error) {
-      // Sesión vencida o reiniciada en el servidor: se empieza otra con el mismo objetivo.
-      if (!(error instanceof ApiFailure) || error.code !== 'SESSION_NOT_FOUND') throw error;
-      this.#sessionId = undefined;
-      return this.deps.api.options(request, signal);
+      if (epoch === this.#epoch && error instanceof ApiFailure && error.code === 'SESSION_NOT_FOUND') {
+        // La sesión venció: la opción elegida ya no existe en el backend.
+        log('guide.session_lost');
+        this.deps.session.reset();
+        this.#dispatch({ type: 'ANALYZE' });
+        return;
+      }
+      this.#fail(epoch, error);
     }
   }
 
   async #runVerify(epoch: number): Promise<void> {
     try {
+      // Después de una interacción la página suele cambiar un instante después.
+      if (this.state.lastOutcome === 'signalObserved' || this.state.lastOutcome === 'userConfirmed') {
+        await new Promise((resolve) => setTimeout(resolve, this.deps.settleMs ?? 600));
+        if (epoch !== this.#epoch) return;
+      }
       const snapshot = await this.#extract(epoch);
       if (!snapshot) return;
       this.#dispatch({ type: 'REQUEST_NEXT' });
@@ -250,6 +284,13 @@ export class Assistant {
   async #showStep(epoch: number): Promise<void> {
     const step = this.state.step;
     if (!step) return;
+    if (step.element === null) {
+      // Paso teórico: solo la instrucción; se espera la acción de la persona.
+      this.targetVisible = null;
+      this.deps.page.clear();
+      this.deps.onChange();
+      return;
+    }
     const { result, elementId } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
     if (epoch !== this.#epoch) return;
     // Sin ID local no se puede verificar la interacción: se trata como no señalado.
@@ -275,6 +316,11 @@ export class Assistant {
     log('guide.failed', { code: `code:${code}` });
     this.#dispatch({ type: 'FAILED', message: userMessage(error) });
   }
+}
+
+function metadataOf(snapshot: PageSnapshot): { metadata?: Metadata } {
+  const page = { ...(snapshot.title ? { title: snapshot.title } : {}), ...(snapshot.language ? { language: snapshot.language } : {}) };
+  return Object.keys(page).length > 0 ? { metadata: { page } } : {};
 }
 
 function shortId(): string {

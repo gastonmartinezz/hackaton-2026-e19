@@ -69,6 +69,19 @@ export function sanitizeLabel(raw: string, maxLength = 120): string {
 }
 
 /**
+ * Título del documento listo para enviar. Los sitios suelen armarlo por partes
+ * ("Mi cuenta - Hola, Marta | Banco"): se descartan las partes dudosas y se
+ * conserva el resto, o cadena vacía si no queda nada.
+ */
+export function sanitizeTitle(raw: string, maxLength = 200): string {
+  const parts = raw
+    .split(/\s+[-–—|·:]\s+/)
+    .map((part) => sanitizeLabel(part, maxLength))
+    .filter(Boolean);
+  return redactText(parts.join(' - '), { maxLength });
+}
+
+/**
  * Devuelve solo el origen (esquema, host y puerto) de una URL http(s). Descarta
  * credenciales, path, query y fragmento. Devuelve null para otros esquemas.
  */

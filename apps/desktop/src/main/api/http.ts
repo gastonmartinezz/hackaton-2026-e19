@@ -4,7 +4,7 @@
  * como `retryable`.
  */
 import { randomUUID } from 'node:crypto';
-import { ApiError, InterpretResponse, OptionsResponse } from '@hackaton/contracts';
+import { ApiError, InterpretResponse, NextStepResponse, OptionsResponse } from '@hackaton/contracts';
 import type { z } from 'zod';
 import { log } from '../log';
 import { ApiFailure, type ApiClient } from './client';
@@ -35,6 +35,10 @@ export class HttpApiClient implements ApiClient {
 
   async options(request: Parameters<ApiClient['options']>[0], signal: AbortSignal) {
     return this.#parse(OptionsResponse, await this.#post('/v1/options', request, signal));
+  }
+
+  async nextStep(request: Parameters<ApiClient['nextStep']>[0], signal: AbortSignal) {
+    return this.#parse(NextStepResponse, await this.#post('/v1/next-step', request, signal));
   }
 
   #parse<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {
