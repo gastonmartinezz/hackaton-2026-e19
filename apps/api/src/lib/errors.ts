@@ -25,6 +25,8 @@ export class AppError extends Error {
     readonly code: ErrorCode,
     message: string,
     readonly details?: Array<{ path: string; message: string }>,
+    /** Pisa el valor por código cuando reintentar no tiene sentido (p. ej. un proveedor apagado). */
+    private readonly retryableOverride?: boolean,
   ) {
     super(message);
     this.name = 'AppError';
@@ -32,7 +34,7 @@ export class AppError extends Error {
   }
 
   get retryable(): boolean {
-    return RETRYABLE.has(this.code);
+    return this.retryableOverride ?? RETRYABLE.has(this.code);
   }
 }
 
