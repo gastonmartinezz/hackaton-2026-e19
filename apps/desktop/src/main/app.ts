@@ -3,13 +3,17 @@
  * chat y el asistente; valida los comandos de la interfaz y publica el estado.
  */
 import { randomUUID } from 'node:crypto';
-import { sanitizeOrigin } from '@asistente/privacy';
+import { dirname, join } from 'node:path';
+import { Limits } from '@hackaton/contracts';
+import { minimizeIntent, sanitizeOrigin } from '@asistente/privacy';
 import { BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
 import {
+  TERMS_VERSION,
   UI_COMMAND_CHANNEL,
   UI_STATE_CHANNEL,
   UiCommandSchema,
   type AppState,
+  type CardLayout,
   type Notice,
   type NoticeAction,
   type SiteCheckView,
@@ -18,7 +22,8 @@ import {
 import { announcementText, CONTINUE_ACTION, siteCheckCopy } from '../shared/site-check-copy';
 import { ApiSession, type ApiClient } from './api/client';
 import { Assistant } from './assistant';
-import { Chat } from './chat';
+import { Chat, UNSURE_ANSWER } from './chat';
+import { HelpCardView } from './help-card';
 import { log } from './log';
 import { PageBridge } from './page-bridge';
 import type { PrefsStore } from './prefs';
@@ -26,9 +31,12 @@ import { SiteProtection } from './site-protection/coordinator';
 import { checkEligibility } from './site-protection/eligibility';
 import { SiteView } from './site-view';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
+import { buildUserContext, type SystemInfo } from './user-context';
 
-const BASE_TOP_BAR = 76;
-const BASE_PANEL = 420;
+/** Igual que --chrome-h y --card-w de design/tokens.css, y el ancho de la tarjeta achicada. */
+const chromeHeight = (scale: number) => Math.round(72 + (scale - 1) * 16);
+const cardWidth = (scale: number) => Math.round(400 + (scale - 1) * 200);
+const pillWidth = (scale: number) => Math.round(560 + (scale - 1) * 200);
 /** Opciones y guía dentro de la página (POST /v1/options y /v1/next-step). */
 const GUIDE_ENABLED = true;
 const PRIMARY_OPTIONS = 3;
@@ -46,6 +54,7 @@ const PERMISSION_NAMES: Record<string, string> = {
 export interface AppControllerOptions {
   api: ApiClient;
   prefs: PrefsStore;
+  system: SystemInfo;
   uiPreloadPath: string;
   pagePreloadPath: string;
   rendererUrl: string | null;
@@ -58,9 +67,15 @@ export class AppController {
   readonly #bridge: PageBridge;
   readonly #assistant: Assistant;
   readonly #chat: Chat;
-  readonly #protection: SiteProtection;
+  readonly #card: HelpCardView;
+  #cardLayout: CardLayout = { placement: 'top', maxHeight: 0 };
   #siteVisible = false;
-  /** Alto del panel de protección anclado a la barra (lo mide la interfaz). */
+  /** La persona tocó «Salir de la ayuda» en esta página (pantalla 21). */
+  #helpExited = false;
+  /** «Mostrame cómo» (true) o «Solo ir al sitio» (false) para el próximo destino. */
+  #wantGuide = true;
+  readonly #protection: SiteProtection;
+  /** Alto de la franja de protección debajo de la barra (la mide la interfaz). */
   #overlayHeight = 0;
   /** Hosts con «Posible estafa» o «Atención» en esta sesión: «Salir de este sitio» no vuelve a ellos. */
   readonly #riskyHosts = new Set<string>();
@@ -73,9 +88,10 @@ export class AppController {
       height: 860,
       minWidth: 900,
       minHeight: 600,
-      title: 'Navegador asistido',
+      title: 'Mostrame',
       show: false,
-      backgroundColor: '#ffffff',
+      // --color-bg de design/tokens.css: evita un destello blanco al abrir.
+      backgroundColor: '#FBF7F0',
       webPreferences: {
         preload: options.uiPreloadPath,
         sandbox: true,
@@ -91,6 +107,9 @@ export class AppController {
     this.#site = new SiteView(options.pagePreloadPath);
     this.window.contentView.addChildView(this.#site.view);
     this.#site.view.setVisible(false);
+    // La tarjeta va después del sitio: queda encima.
+    this.#card = new HelpCardView(options.uiPreloadPath);
+    this.window.contentView.addChildView(this.#card.view);
     this.#bridge = new PageBridge(this.#site);
     const session = new ApiSession();
     this.#chat = new Chat(
@@ -98,6 +117,7 @@ export class AppController {
       session,
       () => this.#publish(),
       (url) => this.#openDestination(url),
+      () => buildUserContext(options.prefs.value.profile, options.system),
     );
     this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
     this.#protection = new SiteProtection({
@@ -117,36 +137,49 @@ export class AppController {
   }
 
   async load(): Promise<void> {
-    if (this.options.rendererUrl) await this.window.loadURL(this.options.rendererUrl);
-    else await this.window.loadFile(this.options.rendererFile);
+    const { rendererUrl, rendererFile } = this.options;
+    if (rendererUrl) {
+      await this.window.loadURL(rendererUrl);
+      await this.#card.contents.loadURL(`${rendererUrl.replace(/\/$/, '')}/card.html`);
+    } else {
+      await this.window.loadFile(rendererFile);
+      await this.#card.contents.loadFile(join(dirname(rendererFile), 'card.html'));
+    }
     this.#layout();
     this.#publish();
   }
 
   /* --------------------------------- Estado -------------------------------- */
 
-  #layoutSizes() {
-    const scale = this.options.prefs.value.textScale;
-    const [width] = this.window.getContentSize();
-    return {
-      topBarHeight: Math.round(BASE_TOP_BAR * Math.min(scale, 1.5)),
-      panelWidth: Math.min(Math.round(BASE_PANEL * scale), Math.round((width ?? 1280) * 0.5)),
-    };
-  }
-
   /**
-   * La vista del sitio es nativa y queda por encima de la interfaz propia: el
-   * panel de protección la empuja hacia abajo y la advertencia de riesgo alto la
-   * oculta. Así el contenido web nunca tapa el indicador ni los avisos.
+   * El sitio ocupa todo el ancho debajo de la barra; la tarjeta flota encima.
+   * Protección de sitios: el panel anclado a la barra empuja el sitio (y la
+   * tarjeta) hacia abajo, y la advertencia de riesgo alto oculta ambos. Las
+   * vistas nativas quedan encima de la interfaz propia: así el contenido web
+   * nunca tapa el indicador ni los avisos.
    */
   #layout(): void {
+    const scale = this.options.prefs.value.textScale;
     const [width = 0, height = 0] = this.window.getContentSize();
-    const { topBarHeight, panelWidth } = this.#layoutSizes();
     const protection = this.#protection.snapshot;
-    const overlay = protection.panelOpen ? Math.min(this.#overlayHeight, Math.max(0, height - topBarHeight - 80)) : 0;
-    const top = topBarHeight + overlay;
-    this.#site.view.setBounds({ x: panelWidth, y: top, width: Math.max(0, width - panelWidth), height: Math.max(0, height - top) });
-    this.#site.view.setVisible(this.#siteVisible && !protection.warningOpen);
+    const chrome = chromeHeight(scale);
+    // Franja de protección debajo de la barra (indicador cuando no entra en la píldora y/o panel abierto).
+    const overlay = this.#siteVisible ? Math.min(this.#overlayHeight, Math.max(0, height - chrome - 120)) : 0;
+    const top = chrome + overlay;
+    const area = { x: 0, y: top, width, height: Math.max(0, height - top) };
+    const siteShown = this.#siteVisible && !protection.warningOpen;
+    this.#site.view.setBounds(area);
+    this.#site.view.setVisible(siteShown);
+    const layout = this.#card.layout(
+      area,
+      { cardWidth: cardWidth(scale), pillWidth: pillWidth(scale) },
+      this.#assistant.target?.rect ? { ...this.#assistant.target.rect, field: this.#assistant.target.field } : null,
+      siteShown,
+    );
+    if (layout.placement !== this.#cardLayout.placement || layout.maxHeight !== this.#cardLayout.maxHeight) {
+      this.#cardLayout = layout;
+      this.#publish();
+    }
   }
 
   #onProtectionChange(): void {
@@ -210,7 +243,12 @@ export class AppController {
   }
 
   #guideAllowed(): boolean {
-    return GUIDE_ENABLED && this.options.prefs.isAiEnabled(this.#origin());
+    return GUIDE_ENABLED && this.#termsAccepted() && this.options.prefs.isAiEnabled(this.#origin());
+  }
+
+  /** Sin condiciones aceptadas no se consulta a la IA. */
+  #termsAccepted(): boolean {
+    return this.options.prefs.value.termsAccepted === TERMS_VERSION;
   }
 
   #origin(): string | null {
@@ -227,8 +265,13 @@ export class AppController {
     return {
       mockBackend: this.options.api.isMock,
       guideEnabled: GUIDE_ENABLED,
-      layout: this.#layoutSizes(),
+      layout: { topBarHeight: chromeHeight(this.options.prefs.value.textScale), card: this.#cardLayout },
       prefs: { textScale: this.options.prefs.value.textScale, aiEnabledForSite: this.options.prefs.isAiEnabled(this.#origin()) },
+      profile: {
+        ...this.options.prefs.value.profile,
+        termsAccepted: this.#termsAccepted(),
+        suggestedCountry: this.options.system.country,
+      },
       nav: {
         visible: this.#siteVisible,
         url: url === 'about:blank' ? '' : url,
@@ -243,6 +286,8 @@ export class AppController {
       chat: {
         phase: this.#chat.phase,
         messages: this.#chat.messages,
+        ...this.#chatProgress(),
+        question: this.#chat.phase === 'clarifying' ? this.#chat.question : null,
         goal: this.#chat.goal,
         error: this.#chat.error,
         candidates: this.#chat.candidates.map((c) => {
@@ -261,11 +306,21 @@ export class AppController {
         stepCount: guide.stepCount,
         message: guide.message ?? null,
         targetVisible: this.#assistant.targetVisible,
+        targetField: this.#assistant.target?.field ?? false,
+        waitFor: guide.phase === 'waitingForUser' ? (guide.step?.waitFor ?? null) : null,
+        exited: this.#helpExited && guide.phase === 'idle',
+        done: this.#assistant.done,
+        evidence: guide.phase === 'completed' ? this.#assistant.evidence : null,
         partialPage: this.#assistant.partialPage,
       },
       notices: this.#notices.map(({ url: _url, ...notice }) => notice),
       siteCheck: this.#siteCheckView(),
     };
+  }
+
+  #chatProgress() {
+    const [first, ...rest] = this.#chat.messages.filter((m) => m.from === 'user').map((m) => m.text);
+    return { query: first ?? null, answered: rest.filter((t) => t !== UNSURE_ANSWER), unsure: rest.at(-1) === UNSURE_ANSWER };
   }
 
   /** Agrupa cambios en una sola publicación por vuelta del event loop. */
@@ -275,7 +330,11 @@ export class AppController {
     setImmediate(() => {
       this.#publishScheduled = false;
       if (this.window.isDestroyed()) return;
-      this.window.webContents.send(UI_STATE_CHANNEL, this.#state());
+      // El control señalado puede haber cambiado: se reubica la tarjeta.
+      this.#layout();
+      const state = this.#state();
+      this.window.webContents.send(UI_STATE_CHANNEL, state);
+      if (!this.#card.contents.isDestroyed()) this.#card.contents.send(UI_STATE_CHANNEL, state);
     });
   }
 
@@ -292,6 +351,7 @@ export class AppController {
   #wireSite(): void {
     const site = this.#site;
     site.on('navigationStarted', ({ url }) => {
+      this.#helpExited = false;
       this.#bridge.cancelSummaries();
       this.#protection.navigationStarted(url);
       this.#assistant.navigationStarted();
@@ -332,8 +392,8 @@ export class AppController {
   }
 
   /** Destino elegido en el chat: al cargar, la guía analiza la página con ese objetivo. */
-  #openDestination(url: string): void {
-    this.#assistant.expectDestination(this.#chat.goal ?? '');
+  #openDestination(url: string, guide = this.#wantGuide): void {
+    if (guide) this.#assistant.expectDestination(this.#chat.goal ?? '');
     this.#showSite(url);
   }
 
@@ -356,10 +416,15 @@ export class AppController {
   }
 
   async #onCommand(event: IpcMainInvokeEvent, raw: unknown): Promise<void> {
-    if (event.sender !== this.window.webContents || event.senderFrame !== event.sender.mainFrame) return;
+    const fromCard = event.sender === this.#card.contents;
+    if ((event.sender !== this.window.webContents && !fromCard) || event.senderFrame !== event.sender.mainFrame) return;
     const parsed = UiCommandSchema.safeParse(raw);
     if (!parsed.success) {
       log('ui.invalid_command');
+      return;
+    }
+    if (parsed.data.type === 'cardLayout') {
+      if (fromCard && this.#card.report(parsed.data)) this.#layout();
       return;
     }
     await this.#run(parsed.data);
@@ -370,9 +435,21 @@ export class AppController {
       case 'ready':
         this.#publish();
         return;
-      case 'submitIntent':
-        await this.#chat.submit(command.text);
+      case 'submitIntent': {
+        if (!this.#termsAccepted()) return;
+        if (command.guide !== undefined) this.#wantGuide = command.guide;
+        // «Solo ir al sitio» con una dirección escrita: se abre directo.
+        const url = command.guide === false ? parseAddressInput(command.text) : null;
+        if (url) this.#showSite(url);
+        else await this.#chat.submit(command.text);
         return;
+      }
+      case 'saveProfile': {
+        const { country, region, city, ageRange } = command;
+        await this.options.prefs.update({ termsAccepted: TERMS_VERSION, profile: { country, region, city, ageRange } });
+        this.#publish();
+        return;
+      }
       case 'resetChat':
         // Empezar de nuevo descarta la sesión: la guía no puede seguir con la anterior.
         this.#assistant.exit();
@@ -382,7 +459,7 @@ export class AppController {
         // La URL sale del resultado recibido, nunca del renderer.
         const candidate = this.#chat.candidate(command.candidateId);
         if (!candidate) return;
-        this.#openDestination(candidate.url);
+        this.#openDestination(candidate.url, command.guide ?? this.#wantGuide);
         return;
       }
       case 'navigate': {
@@ -392,6 +469,18 @@ export class AppController {
           return;
         }
         this.#showSite(url);
+        return;
+      }
+      case 'search': {
+        const url = parseAddressInput(command.text);
+        if (url) {
+          this.#showSite(url);
+          return;
+        }
+        // No es una dirección: es un pedido. Se empieza de nuevo desde el inicio.
+        if (!this.#termsAccepted()) return;
+        await this.#run({ type: 'home' });
+        await this.#chat.submit(command.text);
         return;
       }
       case 'back':
@@ -406,15 +495,26 @@ export class AppController {
       case 'home':
         this.#assistant.exit();
         this.#chat.reset();
+        this.#wantGuide = true;
         this.#siteVisible = false;
         this.#protection.clear();
+        this.#helpExited = false;
         this.#site.clear();
         this.#notices = [];
         this.#layout();
         this.#publish();
         return;
       case 'analyzePage':
+        this.#helpExited = false;
         if (this.#siteVisible && this.#guideAllowed()) this.#assistant.analyze(this.#chat.goal ?? undefined);
+        this.#publish();
+        return;
+      case 'askOnPage': {
+        const goal = minimizeIntent(command.text, Limits.maxMessageLength);
+        if (goal && this.#siteVisible && this.#guideAllowed()) this.#assistant.analyze(goal);
+        return;
+      }
+      case 'cardLayout':
         return;
       case 'selectOption':
         this.#assistant.select(command.optionId);
@@ -426,17 +526,23 @@ export class AppController {
         this.#assistant.back();
         return;
       case 'exitHelp':
+        this.#helpExited = this.#assistant.state.phase !== 'idle';
         this.#assistant.exit();
+        this.#publish();
         return;
       case 'confirmDone':
         this.#assistant.confirmDone();
         return;
+      case 'resumeGuide':
+        this.#assistant.resume();
+        return;
+      case 'finishHelp':
+        this.#assistant.exit();
+        return;
       case 'retry':
         this.#assistant.retry();
         return;
-      // TODO(UI final): la UI de esta etapa no expone setTextScale ni
-      // setAiForSite (la home es solo el input). Se mantienen para la UI final: el
-      // tamaño de texto es clave para el público y la IA por sitio va con la guía.
+      // TODO(UI final): setAiForSite no tiene control en la UI de Mostrame todavía.
       case 'setTextScale':
         await this.options.prefs.update({ textScale: command.scale });
         this.#layout();
@@ -446,7 +552,7 @@ export class AppController {
         const origin = this.#origin();
         if (!origin) return;
         await this.options.prefs.setAiEnabled(origin, command.enabled);
-        if (command.enabled && GUIDE_ENABLED) this.#assistant.analyze(this.#chat.goal ?? undefined);
+        if (this.#guideAllowed()) this.#assistant.analyze(this.#chat.goal ?? undefined);
         else this.#assistant.exit();
         this.#publish();
         return;

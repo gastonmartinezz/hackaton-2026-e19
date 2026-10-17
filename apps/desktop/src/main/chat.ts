@@ -5,13 +5,16 @@
  * los mensajes de la persona se minimizan antes de salir del equipo.
  */
 import { randomUUID } from 'node:crypto';
-import { Limits, type ChatMessage as ApiMessage, type SiteOption } from '@hackaton/contracts';
+import { Limits, type ChatMessage as ApiMessage, type SiteOption, type UserContext } from '@hackaton/contracts';
 import { minimizeIntent } from '@asistente/privacy';
 import type { ChatMessage, ChatPhase } from '../shared/ipc';
 import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession, type SessionTicket } from './api/client';
+import { questionExtras } from './api/pending-contract';
 import { log } from './log';
 
 const MAX_MESSAGES = 30;
+/** Respuesta fija del botón «No estoy seguro»: el backend no insiste y recomienda. */
+export const UNSURE_ANSWER = 'No estoy seguro';
 
 export interface Candidate extends SiteOption {
   id: string;
@@ -24,6 +27,8 @@ export class Chat {
   goal: string | null = null;
   candidates: Candidate[] = [];
   error: string | null = null;
+  /** Pregunta pendiente con sus respuestas sugeridas (pantallas 02 y 03). */
+  question: { text: string; answers: string[]; reason: string | null } | null = null;
 
   #history: ApiMessage[] = [];
   #controller: AbortController | undefined;
@@ -35,6 +40,8 @@ export class Chat {
     private readonly onChange: () => void,
     /** `redirect`: la URL sale de la respuesta validada, nunca del renderer. */
     private readonly onRedirect: (url: string) => void,
+    /** Localidad y demás datos de la persona; se leen en cada envío por si cambiaron. */
+    private readonly userContext: () => UserContext | undefined = () => undefined,
   ) {}
 
   get busy(): boolean {
@@ -49,6 +56,7 @@ export class Chat {
     this.#history.push({ role: 'user', content: minimized });
     this.goal ??= minimized;
     this.candidates = [];
+    this.question = null;
     this.error = null;
 
     const controller = new AbortController();
@@ -64,6 +72,7 @@ export class Chat {
       this.#history.push({ role: 'assistant', content: response.message });
       switch (response.type) {
         case 'question':
+          this.question = { text: response.message, ...questionExtras(response) };
           this.#set('clarifying');
           return;
         case 'options':
@@ -83,15 +92,16 @@ export class Chat {
   }
 
   async #interpret(ticket: SessionTicket, signal: AbortSignal) {
-    const messages = this.#history.slice(-Limits.maxMessages);
-    if (!ticket.id) return this.api.interpret({ messages }, signal);
+    const user = this.userContext();
+    const body = { messages: this.#history.slice(-Limits.maxMessages), ...(user ? { user } : {}) };
+    if (!ticket.id) return this.api.interpret(body, signal);
     try {
-      return await this.api.interpret({ sessionId: ticket.id, messages }, signal);
+      return await this.api.interpret({ sessionId: ticket.id, ...body }, signal);
     } catch (error) {
       // Sesión vencida o servidor reiniciado: el historial va completo, se empieza otra.
       if (!(error instanceof ApiFailure) || error.code !== 'SESSION_NOT_FOUND') throw error;
       const retry = ticket.expire();
-      const response = await this.api.interpret(retry.id ? { sessionId: retry.id, messages } : { messages }, signal);
+      const response = await this.api.interpret(retry.id ? { sessionId: retry.id, ...body } : body, signal);
       retry.commit(response.sessionId);
       return response;
     }
@@ -107,6 +117,7 @@ export class Chat {
     this.messages = [];
     this.goal = null;
     this.candidates = [];
+    this.question = null;
     this.error = null;
     this.#history = [];
     this.session.reset();

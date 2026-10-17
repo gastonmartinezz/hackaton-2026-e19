@@ -17,13 +17,17 @@ Endpoints: `GET /health`, `POST /v1/interpret`, `POST /v1/options` y `POST /v1/n
 ## Desarrollo
 
 ```sh
-pnpm install
 cp apps/api/.env.example apps/api/.env
-pnpm dev            # http://localhost:3000, documentación en /docs
-pnpm test           # contratos + API
+pnpm bootstrap       # install + build de todos los paquetes
+pnpm dev:api         # API en http://localhost:3000, documentación en /docs (alias: pnpm dev)
+pnpm dev:desktop:api # en otra terminal: Electron contra la API local
+pnpm dev:desktop     # Electron con el backend simulado del front, sin API
+pnpm test           # todos los paquetes
 pnpm typecheck
 pnpm contracts:schemas   # regenera packages/contracts/schemas/v1/*.json
 ```
+
+`dev:desktop:api` toma el puerto y el primer token de `API_ACCESS_TOKENS` de `apps/api/.env`, y los pasa como `ASISTENTE_API_URL` y `ASISTENTE_API_TOKEN`. Si esas variables ya están definidas, se respetan.
 
 En desarrollo, `AI_PROVIDER=mock` permite trabajar sin clave de Anthropic. Para usar Claude, definir `AI_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`. El modelo se elige con `CLAUDE_MODEL` y el esfuerzo con `CLAUDE_EFFORT`.
 
@@ -31,7 +35,39 @@ En desarrollo y tests, el paquete de contratos se resuelve desde `src` mediante 
 
 ## Despliegue
 
-Se despliega en Tenki Sandbox (https://tenki.cloud/docs/sandbox). Las instrucciones están pendientes.
+Se despliega en Tenki Sandbox (https://tenki.cloud/docs/sandbox) con `deploy/tenki/deploy.sh`.
+
+Preparación, una sola vez:
+
+```sh
+tenki login                                   # aceptar con "Allow Secrets access"
+tenki secrets create ANTHROPIC_API_KEY        # en una terminal interactiva; pega la clave oculta
+cp deploy/tenki/.env.example deploy/tenki/.env.sandbox
+# completar API_ACCESS_TOKENS (openssl rand -base64 32); el archivo no se versiona
+```
+
+Despliegue y redespliegue (requiere `jq`):
+
+```sh
+./deploy/tenki/deploy.sh
+```
+
+El script crea lo que falte y es seguro repetirlo:
+
+- La política `anthropic` (`deploy/tenki/anthropic-policy.json`).
+- Un sandbox *sticky* `asistente-api`, que corre hasta que se lo termine.
+- La URL fija `asistente-api`. Si el sandbox se recrea, se vuelve a asociar sola.
+
+Después sube el último commit (`git archive HEAD`), compila, reinicia la API e imprime la URL. Los cambios sin commit no se suben.
+
+La clave de Anthropic nunca entra al sandbox. El `.env` del sandbox lleva el marcador `secrets://ANTHROPIC_API_KEY` y Tenki lo reemplaza por la clave real fuera de la VM. El reemplazo se hace solo en los `POST` a `api.anthropic.com/v1/` que permite la política.
+
+Para usar la app de escritorio contra el sandbox, definir:
+
+- `ASISTENTE_API_URL`: la URL impresa.
+- `ASISTENTE_API_TOKEN`: uno de los `API_ACCESS_TOKENS` de `.env.sandbox`.
+
+El log está en `/home/tenki/api.log` y se ve con `tenki sandbox exec --session asistente-api -c 'tail -50 api.log'`. El proceso no sobrevive a un reinicio del agente de Tenki. Si la URL deja de responder, alcanza con volver a correr el script.
 
 - Los secretos (`ANTHROPIC_API_KEY`, `API_ACCESS_TOKENS`) quedan solo en el servidor. Nunca van en el cliente.
 - En producción, el servidor no arranca en modo `mock`.

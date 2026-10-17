@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SiteCheckView, UiCommand } from '../../shared/ipc';
 import { CONTINUE_ACTION, siteCheckCopy, type SiteIndicatorKind } from '../../shared/site-check-copy';
-import { SiteCheckAnnouncer, SiteCheckIndicator, SiteCheckPanel, SiteCheckWarning } from './SiteCheck';
+import { SiteCheckAnnouncer, SiteCheckIndicator, SiteCheckPanel, SiteCheckUnderBar, SiteCheckWarning } from './SiteCheck';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -37,7 +37,7 @@ describe('SiteCheckIndicator', () => {
     render(<SiteCheckIndicator view={view('no_alerts')} />);
     const button = container.querySelector('button')!;
     expect(button.textContent).toContain('Sin alertas detectadas');
-    expect(button.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    expect(button.querySelector('.ic[aria-hidden="true"] svg')).not.toBeNull();
     expect(button.getAttribute('aria-expanded')).toBe('false');
     expect(button.getAttribute('aria-controls')).toBe('site-check-panel');
     act(() => button.click());
@@ -50,7 +50,7 @@ describe('SiteCheckIndicator', () => {
     for (const kind of ['checking', 'official', 'no_alerts', 'attention', 'possible_scam', 'unverified', 'local'] as const) {
       render(<SiteCheckIndicator view={view(kind)} />);
       expect(container.textContent).not.toMatch(/segur/i);
-      expect(container.querySelector('[data-icon]')).not.toBeNull();
+      expect(container.querySelector('.ic svg')).not.toBeNull();
     }
   });
 });
@@ -74,10 +74,18 @@ describe('SiteCheckPanel', () => {
     expect(sent).toContainEqual({ type: 'siteCheckPanel', open: false });
   });
 
-  it('cerrado no ocupa lugar y avisa alto 0', () => {
-    render(<SiteCheckPanel view={view('official')} />);
+  it('cerrado y con el indicador en la píldora, la franja no ocupa lugar y avisa alto 0', () => {
+    render(<SiteCheckUnderBar view={view('official')} showIndicator={false} />);
     expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.querySelector('.site-check-band')).toBeNull();
     expect(sent).toContainEqual({ type: 'siteCheckOverlay', height: 0 });
+  });
+
+  it('si el indicador no entra en la píldora, va en la franja de abajo junto al panel', () => {
+    render(<SiteCheckUnderBar view={view('attention', { panelOpen: true })} showIndicator />);
+    const band = container.querySelector('.site-check-band')!;
+    expect(band.querySelector('.site-badge')!.textContent).toContain('Atención');
+    expect(band.querySelector('[role="dialog"]')).not.toBeNull();
   });
 });
 
@@ -87,7 +95,7 @@ describe('SiteCheckWarning', () => {
     render(<SiteCheckWarning view={view('possible_scam', { warning: { ...scam.panel, continueAction: CONTINUE_ACTION } })} />);
     const dialog = container.querySelector('[role="alertdialog"]')!;
     const buttons = [...dialog.querySelectorAll('button')];
-    expect(buttons.map((b) => b.textContent)).toEqual(['Salir de este sitio', 'Continuar de todos modos']);
+    expect(buttons.map((b) => b.textContent?.trim())).toEqual(['Salir de este sitio', 'Continuar de todos modos']);
     expect(document.activeElement).toBe(buttons[0]);
     act(() => buttons[0]!.click());
     act(() => buttons[1]!.click());

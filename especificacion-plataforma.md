@@ -78,6 +78,12 @@ Antes de un cambio incompatible, documentar la propuesta, ejemplo de entrada/sal
 
 ### Registro de cambios
 
+**v1.5 · 17/10/2026 · decidido por Agustin.** Integración de la UI de Mostrame (diseño de Emi, v1.5):
+
+- Agustin integra la UI del diseño de Emi en `apps/desktop` y `packages/ui`, incluido el proceso principal y el IPC interno cuando la UI lo necesita (regla 7). La fuente de diseño vive en `design/` y las reglas de UI en `CLAUDE.md`.
+- No es la UI final: le da vida al diseño para probar los flujos.
+- El trabajo de front va en ramas hijas de `initial-ui`, una por funcionalidad. Los cambios de backend que pide la UI van en ramas propias contra `main`.
+
 **v1.4 · 17/10/2026 · acordado por Agustin.** La sesión cubre todo el recorrido:
 
 - La sesión empieza en `POST /v1/interpret`, que recibe `sessionId` opcional y lo devuelve en todas sus respuestas. El front lo manda en todas las llamadas siguientes.

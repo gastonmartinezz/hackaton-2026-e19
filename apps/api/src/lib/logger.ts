@@ -1,12 +1,12 @@
 import type { FastifyServerOptions } from 'fastify';
 import type { AppConfig } from '../config/env.js';
 
-/** Logs técnicos sin contenido: nada de cuerpos, mensajes, HTML ni headers de autenticación. */
+/** Logs técnicos sin contenido: nada de cuerpos, mensajes, datos de la persona, HTML ni headers de autenticación. */
 export function buildLoggerOptions(config: AppConfig): FastifyServerOptions['logger'] {
   return {
     level: config.LOG_LEVEL,
     redact: {
-      paths: ['req.headers.authorization', 'req.headers.cookie', 'body', '*.body', '*.html', '*.messages'],
+      paths: ['req.headers.authorization', 'req.headers.cookie', 'body', '*.body', '*.html', '*.messages', '*.user'],
       censor: '[redactado]',
     },
     serializers: {

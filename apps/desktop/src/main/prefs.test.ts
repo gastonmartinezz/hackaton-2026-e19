@@ -11,12 +11,32 @@ describe('PrefsStore', () => {
     // Un archivo donde debería ir el directorio hace fallar la primera escritura.
     await writeFile(dir, 'x');
     const store = new PrefsStore(dir);
-    await expect(store.update({ textScale: 1.5 })).rejects.toThrow();
+    await expect(store.update({ textScale: 1.45 })).rejects.toThrow();
 
     await rm(dir);
     await store.setAiEnabled('https://a.gob.ar', false);
     const saved = JSON.parse(await readFile(join(dir, 'preferences.json'), 'utf8'));
-    expect(saved).toMatchObject({ textScale: 1.5, aiDisabledOrigins: ['https://a.gob.ar'] });
+    expect(saved).toMatchObject({ textScale: 1.45, aiDisabledOrigins: ['https://a.gob.ar'] });
     await rm(root, { recursive: true });
+  });
+
+  it('un archivo anterior a la pantalla inicial conserva sus datos y pide las condiciones', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'prefs-'));
+    await writeFile(join(dir, 'preferences.json'), JSON.stringify({ version: 1, textScale: 1.25, aiDisabledOrigins: [] }));
+    const prefs = await new PrefsStore(dir).load();
+    expect(prefs).toMatchObject({ textScale: 1.2, termsAccepted: null, profile: { country: null, city: '', ageRange: null } });
+    await rm(dir, { recursive: true });
+  });
+});
+
+describe('PrefsStore · escala de letra', () => {
+  it('lleva las escalas viejas a la permitida más cercana', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'prefs-'));
+    await writeFile(join(dir, 'preferences.json'), JSON.stringify({ version: 1, textScale: 1.5, aiDisabledOrigins: [] }));
+    const store = new PrefsStore(dir);
+    expect((await store.load()).textScale).toBe(1.45);
+    await writeFile(join(dir, 'preferences.json'), JSON.stringify({ version: 1, textScale: 1, aiDisabledOrigins: [] }));
+    expect((await store.load()).textScale).toBe(1.2);
+    await rm(dir, { recursive: true });
   });
 });

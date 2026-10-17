@@ -4,13 +4,19 @@
  * proceso principal. Todo mensaje entrante se valida acá con Zod.
  */
 import { PageSnapshotSchema } from '@asistente/page-analyzer';
-import { ContentVersion, PageSummary } from '@hackaton/contracts';
+import { AgeRange, ContentVersion, CountryCode, PageSummary } from '@hackaton/contracts';
 import { z } from 'zod';
 import type { SiteCheckAction, SiteCheckPanelCopy, SiteCheckTone, SiteIndicatorKind } from './site-check-copy';
 
 const Id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
-export const TEXT_SCALES = [1, 1.25, 1.5, 1.75] as const;
+/** Tamaño de letra de Mostrame (design/tokens.css): 1.2 es la base del producto. */
+export const TEXT_SCALES = [1.2, 1.45, 1.75] as const;
+export type TextScale = (typeof TEXT_SCALES)[number];
+export const DEFAULT_TEXT_SCALE: TextScale = 1.2;
+
+/** Cambiarla cuando cambie el texto de las condiciones: se vuelven a pedir. */
+export const TERMS_VERSION = '2026-10-17';
 
 /* ---------------------------- Interfaz propia ---------------------------- */
 
@@ -19,10 +25,13 @@ export const UI_STATE_CHANNEL = 'ui:state';
 
 export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ready') }),
-  z.strictObject({ type: z.literal('submitIntent'), text: z.string().trim().min(1).max(500) }),
-  z.strictObject({ type: z.literal('openCandidate'), candidateId: Id }),
+  /** `guide: false` es «Solo ir al sitio»: se abre el destino sin la guía. Por defecto, «Mostrame cómo». */
+  z.strictObject({ type: z.literal('submitIntent'), text: z.string().trim().min(1).max(500), guide: z.boolean().optional() }),
+  z.strictObject({ type: z.literal('openCandidate'), candidateId: Id, guide: z.boolean().optional() }),
   z.strictObject({ type: z.literal('resetChat') }),
   z.strictObject({ type: z.literal('navigate'), input: z.string().trim().min(1).max(2048) }),
+  /** Buscador de la barra: una dirección abre el sitio; cualquier otro texto vuelve al inicio con esa búsqueda. */
+  z.strictObject({ type: z.literal('search'), text: z.string().trim().min(1).max(500) }),
   z.strictObject({ type: z.literal('back') }),
   z.strictObject({ type: z.literal('forward') }),
   z.strictObject({ type: z.literal('reload') }),
@@ -33,6 +42,10 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('stepBack') }),
   z.strictObject({ type: z.literal('exitHelp') }),
   z.strictObject({ type: z.literal('confirmDone') }),
+  /** «Todavía no» → «Creo que me falta un paso» (17): se vuelve a mirar la página. */
+  z.strictObject({ type: z.literal('resumeGuide') }),
+  /** Termina la ayuda sin el aviso «Saliste de la ayuda» (tarea terminada). */
+  z.strictObject({ type: z.literal('finishHelp') }),
   z.strictObject({ type: z.literal('retry') }),
   z.strictObject({ type: z.literal('setTextScale'), scale: z.union(TEXT_SCALES.map((s) => z.literal(s))) }),
   z.strictObject({ type: z.literal('setAiForSite'), enabled: z.boolean() }),
@@ -43,12 +56,35 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('siteCheckRetry') }),
   z.strictObject({ type: z.literal('siteCheckLeave') }),
   z.strictObject({ type: z.literal('siteCheckContinue') }),
-  /** Alto del panel anclado a la barra: la vista del sitio baja para no taparlo. */
+  /** Alto de la franja de protección debajo de la barra (panel o indicador): la vista del sitio baja para no taparla. */
   z.strictObject({ type: z.literal('siteCheckOverlay'), height: z.number().int().min(0).max(2000) }),
+  /** «¿No está lo que buscás?» (pantalla 11): se vuelve a mirar la página con ese pedido. */
+  z.strictObject({ type: z.literal('askOnPage'), text: z.string().trim().min(1).max(500) }),
+  /** Solo desde la tarjeta flotante: qué muestra y cuánto mide. */
+  z.strictObject({ type: z.literal('cardLayout'), mode: z.enum(['none', 'card', 'pill', 'toast']), height: z.number().int().min(0).max(5000) }),
+  /** Pantalla inicial: guardar los datos exige aceptar las condiciones. */
+  z.strictObject({
+    type: z.literal('saveProfile'),
+    acceptTerms: z.literal(true),
+    country: CountryCode.nullable(),
+    region: z.string().trim().max(80),
+    city: z.string().trim().max(80),
+    ageRange: AgeRange.nullable(),
+  }),
 ]);
 export type UiCommand = z.infer<typeof UiCommandSchema>;
 
 export type NoticeAction = 'openHere' | 'openExternal' | 'dismiss';
+
+/** Qué muestra la tarjeta flotante: nada, la tarjeta, la barra achicada (12) o el aviso al salir (21). */
+export type CardMode = 'none' | 'card' | 'pill' | 'toast';
+
+export interface CardLayout {
+  /** `compact`: la tarjeta taparía el control resaltado arriba y abajo; se achica. */
+  placement: 'top' | 'bottom' | 'compact';
+  /** Alto máximo de la tarjeta en px; el cuerpo se desplaza si no entra. */
+  maxHeight: number;
+}
 
 export interface Notice {
   id: string;
@@ -84,8 +120,18 @@ export interface AppState {
   mockBackend: boolean;
   /** Opciones y guía dentro de la página. */
   guideEnabled: boolean;
-  layout: { topBarHeight: number; panelWidth: number };
+  layout: { topBarHeight: number; card: CardLayout };
   prefs: { textScale: number; aiEnabledForSite: boolean };
+  /** Datos de la pantalla inicial. Sin condiciones aceptadas, la app muestra esa pantalla. */
+  profile: {
+    termsAccepted: boolean;
+    country: string | null;
+    /** País de la configuración del sistema, para proponerlo la primera vez. */
+    suggestedCountry: string | null;
+    region: string;
+    city: string;
+    ageRange: AgeRange | null;
+  };
   nav: {
     visible: boolean;
     url: string;
@@ -102,6 +148,14 @@ export interface AppState {
   chat: {
     phase: ChatPhase;
     messages: ChatMessage[];
+    /** Lo que la persona buscó primero, tal como lo escribió (queda en el buscador). */
+    query: string | null;
+    /** Respuestas que ya dio a las preguntas (píldoras de «lo que ya me contaste»). */
+    answered: string[];
+    /** Pregunta pendiente con respuestas sugeridas, si el backend las mandó. */
+    question: { text: string; answers: string[]; reason: string | null } | null;
+    /** La última respuesta fue «No estoy seguro»: los sitios son una recomendación. */
+    unsure: boolean;
     goal: string | null;
     candidates: CandidateView[];
     error: string | null;
@@ -118,6 +172,16 @@ export interface AppState {
     stepCount: number;
     message: string | null;
     targetVisible: boolean | null;
+    /** El control señalado es un campo: la persona escribe ahí (08). */
+    targetField: boolean;
+    /** Cómo avanza el paso actual: `userConfirmation` pide «Listo, ya lo escribí». */
+    waitFor: 'userInteraction' | 'navigation' | 'userConfirmation' | null;
+    /** «Ya hiciste»: solo pasos pasados, en pasado. Nunca valores. */
+    done: string[];
+    /** Texto visible de la página que prueba que terminó (09). Sin él no se dice «Listo». */
+    evidence: string | null;
+    /** La persona salió de la ayuda en esta página (21). */
+    exited: boolean;
     partialPage: boolean;
   };
   notices: Notice[];
@@ -190,7 +254,19 @@ export const SnapshotMessageSchema = z.strictObject({
 export const SHOW_RESULTS = ['shown', 'stale', 'notVisible'] as const;
 export type ShowResult = (typeof SHOW_RESULTS)[number];
 
-export const ShownMessageSchema = z.strictObject({ requestId: Id, result: z.enum(SHOW_RESULTS), elementId: Id.optional() });
+const Px = z.number().finite().min(-100_000).max(100_000);
+/** Posición del control en la vista del sitio (después de desplazar), para que la tarjeta no lo tape. */
+export const TargetRectSchema = z.strictObject({ x: Px, y: Px, width: Px.nonnegative(), height: Px.nonnegative() });
+export type TargetRect = z.infer<typeof TargetRectSchema>;
+
+export const ShownMessageSchema = z.strictObject({
+  requestId: Id,
+  result: z.enum(SHOW_RESULTS),
+  elementId: Id.optional(),
+  rect: TargetRectSchema.optional(),
+  /** El control es un campo: la persona escribe ahí (pantalla 08). */
+  field: z.boolean().optional(),
+});
 
 export const ChangedMessageSchema = z.strictObject({ structural: z.boolean(), targetPresent: z.boolean().nullable() });
 

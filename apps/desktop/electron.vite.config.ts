@@ -33,7 +33,8 @@ export default defineConfig({
     root: 'src/renderer',
     plugins: [react()],
     build: {
-      rollupOptions: { input: resolve('src/renderer/index.html') },
+      // index: barra e inicio (ventana). card: tarjeta flotante de ayuda (vista sobre el sitio).
+      rollupOptions: { input: { index: resolve('src/renderer/index.html'), card: resolve('src/renderer/card.html') } },
     },
   },
 });

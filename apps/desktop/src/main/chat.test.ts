@@ -1,13 +1,18 @@
-import type { InterpretRequest, InterpretResponse } from '@hackaton/contracts';
+import type { InterpretRequest, InterpretResponse, UserContext } from '@hackaton/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiFailure, ApiSession, type ApiClient } from './api/client';
 import { interpretMock } from './api/mock';
-import { Chat } from './chat';
+import { questionExtras } from './api/pending-contract';
+import { Chat, UNSURE_ANSWER } from './chat';
 
 type Reply = DistributiveOmit<InterpretResponse, 'sessionId'> | ApiFailure;
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
 function setup(...responses: Reply[]) {
+  return setupWith(() => undefined, ...responses);
+}
+
+function setupWith(userContext: () => UserContext | undefined, ...responses: Reply[]) {
   const sent: InterpretRequest[] = [];
   const api: ApiClient = {
     isMock: true,
@@ -23,7 +28,7 @@ function setup(...responses: Reply[]) {
   };
   const onRedirect = vi.fn();
   const session = new ApiSession();
-  const chat = new Chat(api, session, () => {}, onRedirect);
+  const chat = new Chat(api, session, () => {}, onRedirect, userContext);
   return { chat, sent, onRedirect, session };
 }
 
@@ -80,6 +85,26 @@ describe('Chat (/v1/interpret)', () => {
     expect(chat.messages[0]!.text).toContain('30123456');
     expect(JSON.stringify(sent)).not.toContain('30123456');
     expect(JSON.stringify(sent)).not.toContain('marta@correo.com');
+  });
+
+  it('envía los datos de la persona en cada llamada, también al reintentar por sesión vencida', async () => {
+    let user: UserContext = { location: { country: 'AR', city: 'Rosario' } };
+    const { chat, sent } = setupWith(
+      () => user,
+      { type: 'question', message: '¿Qué trámite?' },
+      new ApiFailure('SESSION_NOT_FOUND', false),
+      { type: 'redirect', message: 'Vamos.', url: 'https://www.rosario.gob.ar/' },
+    );
+    await chat.submit('pagar la tasa municipal');
+    user = { location: { country: 'AR', city: 'Funes' }, ageRange: '65-74' };
+    await chat.submit('la del auto');
+    expect(sent.map((r) => r.user)).toEqual([{ location: { country: 'AR', city: 'Rosario' } }, user, user]);
+  });
+
+  it('sin datos de la persona no envía el campo', async () => {
+    const { chat, sent } = setup({ type: 'question', message: '¿Qué?' });
+    await chat.submit('algo');
+    expect(sent[0]).not.toHaveProperty('user');
   });
 
   it('muestra un error simple y permite volver a intentar', async () => {
@@ -154,5 +179,25 @@ describe('interpretMock (backend simulado del cliente)', () => {
     expect(ask('hola').type).toBe('question');
     expect(ask('quiero ver los horarios')).toMatchObject({ type: 'redirect', url: 'http://127.0.0.1:1/horarios.html' });
     expect(ask('mostrame opciones')).toMatchObject({ type: 'options' });
+  });
+});
+
+describe('Chat · respuestas sugeridas (TEMPORAL, campos pendientes del contrato)', () => {
+  it('guarda la pregunta con sus respuestas y su motivo, e ignora formas inválidas', () => {
+    expect(questionExtras({ answers: ['Cédula', 'Pasaporte'], reason: 'Cada documento va a un sitio distinto.' })).toEqual({
+      answers: ['Cédula', 'Pasaporte'],
+      reason: 'Cada documento va a un sitio distinto.',
+    });
+    expect(questionExtras({ answers: ['Una sola'] })).toEqual({ answers: [], reason: null });
+    expect(questionExtras({})).toEqual({ answers: [], reason: null });
+  });
+
+  it('el mock no insiste después de «No estoy seguro»', () => {
+    const sites = [
+      { title: 'A', url: 'https://a.example', reason: 'a' },
+      { title: 'B', url: 'https://b.example', reason: 'b' },
+    ];
+    const messages = ['hola', UNSURE_ANSWER].map((content) => ({ role: 'user' as const, content }));
+    expect(interpretMock({ messages }, sites).type).toBe('options');
   });
 });

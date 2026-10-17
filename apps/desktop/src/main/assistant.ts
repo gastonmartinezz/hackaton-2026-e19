@@ -22,7 +22,10 @@ import {
   type StepTarget,
 } from '@asistente/guidance';
 import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession } from './api/client';
+import { nextStepEvidence } from './api/pending-contract';
+import { pastTense } from './done-steps';
 import { log } from './log';
+import type { TargetRect } from '../shared/ipc';
 import type { ExtractedPage, ShownTarget } from './page-bridge';
 
 export interface PagePort {
@@ -44,10 +47,18 @@ export interface AssistantDeps {
 /** Máximo de pasos seguidos sin poder señalar el destino antes de abandonar. */
 const MAX_UNSHOWN_STEPS = 3;
 const MAX_STEPS = 60;
+/** «Ya hiciste» muestra solo los últimos pasos para no empujar la instrucción actual. */
+const MAX_DONE = 4;
 
 export class Assistant {
   state: GuideState = initialState;
   targetVisible: boolean | null = null;
+  /** «Ya hiciste»: la opción elegida y los pasos hechos, en pasado. */
+  done: string[] = [];
+  /** Cita de la página que prueba que la tarea terminó; sin ella no se dice «Listo». */
+  evidence: string | null = null;
+  /** Dónde quedó el control señalado en la vista del sitio, y si es un campo. */
+  target: { rect: TargetRect | undefined; field: boolean } | null = null;
   partialPage = false;
   announceKey = 0;
   /**
@@ -92,6 +103,12 @@ export class Assistant {
     this.#dispatch({ type: 'OUTCOME', outcome: 'userConfirmed' });
   }
 
+  /** «Todavía no» después de terminar: se vuelve a mirar la página. */
+  resume(): void {
+    this.evidence = null;
+    this.#dispatch({ type: 'RESUME' });
+  }
+
   retry(): void {
     this.#dispatch({ type: 'RETRY' });
   }
@@ -131,6 +148,7 @@ export class Assistant {
     this.#pageReady = false;
     this.#invalidate();
     this.targetVisible = null;
+    this.target = null;
   }
 
   navigated({ sameDocument, aiEnabled }: { sameDocument: boolean; aiEnabled: boolean }): void {
@@ -186,6 +204,7 @@ export class Assistant {
     const next = transition(previous, event);
     if (next === previous) return;
     this.state = next;
+    this.#trackDone(previous, next, event);
     if (event.type === 'SHOWN') return;
     log('guide.transition', { from: `phase:${previous.phase}`, to: `phase:${next.phase}`, steps: next.stepCount });
 
@@ -193,6 +212,7 @@ export class Assistant {
     this.paused = false;
     if (next.phase !== 'waitingForUser') {
       this.targetVisible = null;
+      this.target = null;
       this.deps.page.clear();
     }
     if (next.phase === 'analyzing' || next.phase === 'idle') this.#unshown = 0;
@@ -211,6 +231,25 @@ export class Assistant {
       case 'waitingForUser':
         void this.#showStep(epoch);
         break;
+    }
+  }
+
+  /** Lleva la lista de «Ya hiciste». Nunca incluye valores: solo instrucciones y títulos. */
+  #trackDone(previous: GuideState, next: GuideState, event: GuideEvent): void {
+    if (event.type === 'ANALYZE' || event.type === 'EXIT' || event.type === 'BACK' || next.phase === 'idle' || next.phase === 'analyzing') {
+      this.done = [];
+      this.evidence = null;
+      return;
+    }
+    if (event.type === 'SELECT' && next.option) {
+      this.done = [`Elegiste «${next.option.title}»`];
+      return;
+    }
+    if (event.type !== 'OUTCOME' && event.type !== 'NAVIGATED') return;
+    const progressed = next.lastOutcome === 'signalObserved' || next.lastOutcome === 'userConfirmed';
+    const moved = next.phase !== 'waitingForUser' || next.step !== previous.step;
+    if (previous.phase === 'waitingForUser' && previous.step && progressed && moved) {
+      this.done = [...this.done, pastTense(previous.step.instruction)].slice(-MAX_DONE);
     }
   }
 
@@ -292,6 +331,7 @@ export class Assistant {
       // El backend devuelve la sesión en cada respuesta: la siguiente llamada usa esa.
       this.#guideSessionId = response.sessionId;
       if (ticket.id === sessionId) ticket.commit(response.sessionId);
+      this.evidence = response.done ? nextStepEvidence(response) : null;
       this.#dispatch({ type: 'NEXT', response });
     } catch (error) {
       if (epoch === this.#epoch && error instanceof ApiFailure && error.code === 'SESSION_NOT_FOUND') {
@@ -337,15 +377,17 @@ export class Assistant {
     if (step.element === null) {
       // Paso teórico: solo la instrucción; se espera la acción de la persona.
       this.targetVisible = null;
+      this.target = null;
       this.deps.page.clear();
       this.deps.onChange();
       return;
     }
-    const { result, elementId } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
+    const { result, elementId, rect, field } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
     if (epoch !== this.#epoch) return;
     // Sin ID local no se puede verificar la interacción: se trata como no señalado.
     const shown = result === 'shown' && elementId !== undefined;
     this.targetVisible = shown;
+    this.target = shown ? { rect, field: field ?? false } : null;
     if (shown) {
       this.#unshown = 0;
       this.#dispatch({ type: 'SHOWN', elementId });
