@@ -66,12 +66,15 @@ export function SiteCheckIndicator({ view }: { view: SiteCheckView }) {
   );
 }
 
-/** Motivos, cobertura y comentario de la IA: cerrados al abrir («Ver por qué»). */
+/** Fuente de la oficialidad, motivos, cobertura y comentario de la IA: cerrados al abrir («Ver por qué»). */
 function Details({ panel }: { panel: SiteCheckPanelCopy }) {
-  if (panel.reasons.length === 0 && !panel.coverageNote && !panel.explanation) return null;
+  if (panel.sources.length === 0 && panel.reasons.length === 0 && !panel.coverageNote && !panel.explanation) return null;
   return (
     <details className="site-check-details">
       <summary>Ver por qué</summary>
+      {panel.sources.map((line) => (
+        <p key={line}>{line}</p>
+      ))}
       {panel.reasons.length > 0 ? (
         <ul>
           {panel.reasons.map((reason) => (

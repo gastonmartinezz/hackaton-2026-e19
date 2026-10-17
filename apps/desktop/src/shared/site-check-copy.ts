@@ -28,6 +28,8 @@ export interface SiteCheckPanelCopy {
   body: string[];
   primary: SiteCheckAction;
   secondary: SiteCheckAction | null;
+  /** «Ver por qué»: de dónde sale la oficialidad y cuándo se revisó (solo «Sitio oficial»). */
+  sources: string[];
   /** «Ver por qué»: motivos en lenguaje simple, cerrados al abrir. */
   reasons: string[];
   /** Aviso de revisión incompleta, dentro de los detalles. */
@@ -93,6 +95,54 @@ export const CONTINUE_ACTION: SiteCheckAction = { id: 'continue', label: 'Contin
 
 const NO_DATA = 'No ingreses contraseñas ni códigos.';
 
+/** Terminaciones reservadas al Estado que reconoce el backend (`identity.basis: government_domain`). */
+const GOVERNMENT_SUFFIXES = ['gob.ar', 'gov.ar', 'mil.ar', 'gov', 'mil'];
+
+/** Terminación reservada al Estado con la que termina el hostname («.gob.ar»), o null. */
+export function governmentSuffix(hostname: string | null | undefined): string | null {
+  const host = hostname?.toLowerCase().replace(/\.$/, '');
+  if (!host) return null;
+  const suffix = GOVERNMENT_SUFFIXES.find((s) => host === s || host.endsWith(`.${s}`));
+  return suffix ? `.${suffix}` : null;
+}
+
+/** «del Estado argentino», «del Gobierno de Estados Unidos», «de Banco Nación». */
+function ofOrganization(organization: string): string {
+  return /^(estado|gobierno)\b/i.test(organization) ? `del ${organization}` : `de ${organization}`;
+}
+
+/** Fecha simple para personas: «17 de octubre de 2026». */
+export function plainDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
+}
+
+/**
+ * Frase de «Sitio oficial» según la fuente de autoridad del contrato (`identity.basis`).
+ * La oficialidad nunca sale de la IA: solo de la zona reservada al Estado o del padrón del BCRA.
+ */
+export function officialSummary(response: SiteCheckResponse | null, hostname?: string | null): string {
+  const { basis, organization } = response?.identity ?? {};
+  if (basis === 'government_domain') {
+    const who = ofOrganization(organization ?? 'Estado');
+    const suffix = governmentSuffix(hostname);
+    return suffix
+      ? `Es un sitio ${who}: su dirección termina en ${suffix}, que solo pueden usar organismos públicos.`
+      : `Es un sitio ${who}: su dirección usa una terminación que solo pueden usar organismos públicos.`;
+  }
+  return `La dirección pertenece a ${organization ?? 'una entidad financiera registrada'}, según el registro de entidades del Banco Central.`;
+}
+
+/** «Ver por qué» de «Sitio oficial»: la fuente y la fecha de la revisión, en lenguaje simple. */
+function officialSources(response: SiteCheckResponse | null, hostname?: string | null): string[] {
+  if (!response) return [];
+  const { basis, organization } = response.identity;
+  const source =
+    basis === 'government_domain'
+      ? `Fuente: las direcciones terminadas en ${governmentSuffix(hostname) ?? 'esa terminación'} solo se entregan a organismos ${ofOrganization(organization ?? 'Estado')}.`
+      : 'Fuente: registro de entidades financieras del Banco Central de la República Argentina (BCRA).';
+  return [source, `Revisado el ${plainDate(response.checkedAt)}.`];
+}
+
 export function reasonPhrases(response: SiteCheckResponse | null): string[] {
   if (!response) return [];
   const ordered = [...response.reasons].sort((a, b) => Number(a.category === 'technical') - Number(b.category === 'technical'));
@@ -126,9 +176,15 @@ function coverageNote(response: SiteCheckResponse | null): string | null {
 }
 
 /** Textos del indicador y del panel para un estado. `response` es la respuesta que lo produjo, si la hay. */
-export function siteCheckCopy(kind: Exclude<SiteIndicatorKind, 'none'>, response: SiteCheckResponse | null = null): SiteCheckCopy {
+export function siteCheckCopy(
+  kind: Exclude<SiteIndicatorKind, 'none'>,
+  response: SiteCheckResponse | null = null,
+  /** Hostname revisado: dice la terminación real en «Sitio oficial» del Estado. */
+  hostname: string | null = null,
+): SiteCheckCopy {
   const label = INDICATOR_LABELS[kind];
   const details = {
+    sources: [] as string[],
     reasons: reasonPhrases(response),
     coverageNote: coverageNote(response),
     explanation: response?.explanation ?? null,
@@ -147,10 +203,11 @@ export function siteCheckCopy(kind: Exclude<SiteIndicatorKind, 'none'>, response
       case 'official':
         return {
           title: label,
-          body: [`La dirección pertenece a ${response?.identity.organization ?? 'una organización registrada'}, según nuestro registro de sitios oficiales.`],
+          body: [officialSummary(response, hostname)],
           primary: CLOSE,
           secondary: null,
           ...details,
+          sources: officialSources(response, hostname),
         };
       case 'no_alerts':
         return {
@@ -184,6 +241,7 @@ export function siteCheckCopy(kind: Exclude<SiteIndicatorKind, 'none'>, response
           body: ['Esta página está en tu equipo o en una red privada, como las páginas de prueba. No la enviamos a revisar.'],
           primary: CLOSE,
           secondary: null,
+          sources: [],
           reasons: [],
           coverageNote: null,
           explanation: null,
@@ -196,6 +254,6 @@ export function siteCheckCopy(kind: Exclude<SiteIndicatorKind, 'none'>, response
 /** Texto para el anuncio accesible de un cambio de estado relevante. */
 export function announcementText(kind: Exclude<SiteIndicatorKind, 'none' | 'checking'>, response: SiteCheckResponse | null = null): string {
   if (kind === 'possible_scam') return `Posible estafa. ${scamSummary(response)}`;
-  if (kind === 'official' && response?.identity.organization) return `Sitio oficial de ${response.identity.organization}.`;
+  if (kind === 'official' && response?.identity.organization) return `Sitio oficial ${ofOrganization(response.identity.organization)}.`;
   return `Estado del sitio: ${INDICATOR_LABELS[kind]}.`;
 }

@@ -198,7 +198,8 @@ export class AppController {
     if (kind === 'none') {
       return { indicator: 'none', label: null, tone: 'neutral', panel: null, panelOpen: false, warning: null, announcement: null, guidePaused: false };
     }
-    const copy = siteCheckCopy(kind, snap.response);
+    const hostname = this.#protection.target?.hostname ?? null;
+    const copy = siteCheckCopy(kind, snap.response, hostname);
     const announced = snap.announcement?.kind;
     return {
       indicator: kind,
@@ -206,7 +207,7 @@ export class AppController {
       tone: copy.tone,
       panel: copy.panel,
       panelOpen: snap.panelOpen,
-      warning: snap.warningOpen ? { ...siteCheckCopy('possible_scam', snap.response).panel, continueAction: CONTINUE_ACTION } : null,
+      warning: snap.warningOpen ? { ...siteCheckCopy('possible_scam', snap.response, hostname).panel, continueAction: CONTINUE_ACTION } : null,
       announcement:
         snap.announcement && announced && announced !== 'none' && announced !== 'checking'
           ? { id: snap.announcement.id, text: announcementText(announced, snap.response) }
