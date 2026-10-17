@@ -178,8 +178,10 @@ export const SiteIdentity = z.strictObject({
    * Fuente de la oficialidad. Obligatoria con `verified_official`.
    * - `government_domain`: zona reservada al Estado (gob.ar, mil.ar, gov.ar, .gov, .mil).
    * - `financial_regulator`: padrón de entidades financieras del BCRA, descargado del regulador.
+   * - `official_catalog`: catálogo curado y versionado (p. ej. sitios de Uruguay), con fuente y fecha
+   *   de revisión verificables por entrada.
    */
-  basis: z.enum(['government_domain', 'financial_regulator']).optional(),
+  basis: z.enum(['government_domain', 'financial_regulator', 'official_catalog']).optional(),
   /** Organización según la fuente (p. ej. «Estado argentino» o el nombre del padrón). Solo con `verified_official`. */
   organization: ShortText(120).optional(),
   /** Organización que el sitio parece imitar (con BRAND_IMPERSONATION o LOOKALIKE_DOMAIN). */
