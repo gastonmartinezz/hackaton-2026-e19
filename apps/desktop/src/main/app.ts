@@ -23,8 +23,10 @@ import type { PrefsStore } from './prefs';
 import { SiteView } from './site-view';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
 
-const BASE_TOP_BAR = 76;
-const BASE_PANEL = 420;
+/** Igual que --chrome-h y --card-w de design/tokens.css, más el margen de la tarjeta. */
+const chromeHeight = (scale: number) => Math.round(72 + (scale - 1) * 16);
+const cardWidth = (scale: number) => Math.round(400 + (scale - 1) * 200);
+const CARD_GAP = 24;
 /** Opciones y guía dentro de la página (POST /v1/options y /v1/next-step). */
 const GUIDE_ENABLED = true;
 const PRIMARY_OPTIONS = 3;
@@ -64,9 +66,10 @@ export class AppController {
       height: 860,
       minWidth: 900,
       minHeight: 600,
-      title: 'Navegador asistido',
+      title: 'Mostrame',
       show: false,
-      backgroundColor: '#ffffff',
+      // --color-bg de design/tokens.css: evita un destello blanco al abrir.
+      backgroundColor: '#FBF7F0',
       webPreferences: {
         preload: options.uiPreloadPath,
         sandbox: true,
@@ -115,8 +118,8 @@ export class AppController {
     const scale = this.options.prefs.value.textScale;
     const [width] = this.window.getContentSize();
     return {
-      topBarHeight: Math.round(BASE_TOP_BAR * Math.min(scale, 1.5)),
-      panelWidth: Math.min(Math.round(BASE_PANEL * scale), Math.round((width ?? 1280) * 0.5)),
+      topBarHeight: chromeHeight(scale),
+      panelWidth: Math.min(cardWidth(scale) + CARD_GAP * 2, Math.round((width ?? 1280) * 0.5)),
     };
   }
 
@@ -301,6 +304,17 @@ export class AppController {
         this.#showSite(url);
         return;
       }
+      case 'search': {
+        const url = parseAddressInput(command.text);
+        if (url) {
+          this.#showSite(url);
+          return;
+        }
+        // No es una dirección: es un pedido. Se empieza de nuevo desde el inicio.
+        await this.#run({ type: 'home' });
+        await this.#chat.submit(command.text);
+        return;
+      }
       case 'back':
         this.#site.back();
         return;
@@ -340,9 +354,7 @@ export class AppController {
       case 'retry':
         this.#assistant.retry();
         return;
-      // TODO(UI final): la UI de esta etapa no expone setTextScale ni
-      // setAiForSite (la home es solo el input). Se mantienen para la UI final: el
-      // tamaño de texto es clave para el público y la IA por sitio va con la guía.
+      // TODO(UI final): setAiForSite no tiene control en la UI de Mostrame todavía.
       case 'setTextScale':
         await this.options.prefs.update({ textScale: command.scale });
         this.#layout();

@@ -5,17 +5,23 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
-import { TEXT_SCALES } from '../shared/ipc';
+import { DEFAULT_TEXT_SCALE, TEXT_SCALES } from '../shared/ipc';
 
 const PrefsSchema = z.object({
   version: z.literal(1),
-  textScale: z.union(TEXT_SCALES.map((s) => z.literal(s))).default(1),
+  /** Las escalas anteriores (1, 1.25, 1.5) pasan a la permitida más cercana. */
+  textScale: z.preprocess(nearestScale, z.union(TEXT_SCALES.map((s) => z.literal(s)))).default(DEFAULT_TEXT_SCALE),
   /** Orígenes en los que la persona desactivó la ayuda con IA. */
   aiDisabledOrigins: z.array(z.string().max(200)).max(500).default([]),
 });
 export type Prefs = z.infer<typeof PrefsSchema>;
 
-export const DEFAULT_PREFS: Prefs = { version: 1, textScale: 1, aiDisabledOrigins: [] };
+export const DEFAULT_PREFS: Prefs = { version: 1, textScale: DEFAULT_TEXT_SCALE, aiDisabledOrigins: [] };
+
+function nearestScale(value: unknown): unknown {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return value;
+  return TEXT_SCALES.reduce((best, scale) => (Math.abs(scale - value) < Math.abs(best - value) ? scale : best));
+}
 
 export class PrefsStore {
   #prefs: Prefs = DEFAULT_PREFS;

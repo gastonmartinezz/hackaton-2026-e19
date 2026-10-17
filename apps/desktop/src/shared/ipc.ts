@@ -8,7 +8,10 @@ import { z } from 'zod';
 
 const Id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
-export const TEXT_SCALES = [1, 1.25, 1.5, 1.75] as const;
+/** Tamaño de letra de Mostrame (design/tokens.css): 1.2 es la base del producto. */
+export const TEXT_SCALES = [1.2, 1.45, 1.75] as const;
+export type TextScale = (typeof TEXT_SCALES)[number];
+export const DEFAULT_TEXT_SCALE: TextScale = 1.2;
 
 /* ---------------------------- Interfaz propia ---------------------------- */
 
@@ -21,6 +24,8 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('openCandidate'), candidateId: Id }),
   z.strictObject({ type: z.literal('resetChat') }),
   z.strictObject({ type: z.literal('navigate'), input: z.string().trim().min(1).max(2048) }),
+  /** Buscador de la barra: una dirección abre el sitio; cualquier otro texto vuelve al inicio con esa búsqueda. */
+  z.strictObject({ type: z.literal('search'), text: z.string().trim().min(1).max(500) }),
   z.strictObject({ type: z.literal('back') }),
   z.strictObject({ type: z.literal('forward') }),
   z.strictObject({ type: z.literal('reload') }),

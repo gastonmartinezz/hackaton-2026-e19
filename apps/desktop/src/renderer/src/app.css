@@ -1,176 +1,38 @@
-/* Disposición de la UI básica de prueba. Sin decisiones de marca. */
-body {
-  overflow: hidden;
-}
-#root {
+/* Disposición de la ventana. Los componentes están en @asistente/ui/mostrame.css. */
+.app {
   height: 100vh;
-}
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space);
-  align-items: center;
-}
-
-/* Inicio: un input centrado; con pregunta u opciones pasa a chat con el input abajo. */
-.home {
-  height: 100vh;
-  display: grid;
-  gap: var(--space);
-  padding: calc(var(--space) * 2);
-  box-sizing: border-box;
-  justify-items: center;
-}
-.home[data-mode='search'] {
-  align-content: center;
-}
-.home[data-mode='chat'] {
-  grid-template-rows: 1fr auto auto;
-}
-.home > * {
-  width: min(760px, 100%);
-}
-.search {
-  display: flex;
-  gap: var(--space);
-}
-.search input {
-  flex: 1;
-}
-.messages {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space);
-}
-.message {
-  padding: var(--space);
-  max-width: 85%;
-}
-.message[data-from='user'] {
-  align-self: flex-end;
-}
-.message p {
-  margin: 0;
-}
-
-.browser {
-  display: grid;
-  height: 100vh;
-}
-.topbar {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: var(--space);
-  align-items: center;
-  padding: 0 var(--space);
-  border-bottom: 2px solid var(--color-border);
   overflow: hidden;
 }
-.topbar .address {
+.boot {
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  margin: 0;
+}
+.browse {
   flex: 1;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-}
-.topbar .address .ui-field {
-  grid-template-columns: auto 1fr;
-  align-items: center;
-}
-.site-identity {
-  display: grid;
-  line-height: 1.2;
-  padding: 0 var(--space);
-}
-.secure {
-  color: var(--color-muted);
-  font-size: var(--font-size-small);
-}
-.insecure {
-  color: var(--color-error);
-  font-weight: 700;
-  font-size: var(--font-size-small);
-}
-
-.panel {
-  overflow-y: auto;
-  padding: calc(var(--space) * 1.5);
-  display: grid;
-  gap: calc(var(--space) * 1.5);
-  align-content: start;
-  border-right: 2px solid var(--color-border);
-}
-.guide {
-  display: grid;
-  gap: var(--space);
-}
-.guide h2 {
-  margin: 0;
-  font-size: var(--font-size-large);
-}
-.goal {
-  margin: 0;
-  color: var(--color-muted);
-}
-.instruction {
-  font-size: var(--font-size-large);
-  font-weight: 700;
-  margin: 0 0 var(--space);
-}
-.step-count {
-  margin: 0;
-  color: var(--color-muted);
-}
-.controls {
+  min-height: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space);
-  padding-top: var(--space);
-  border-top: 2px solid var(--color-surface);
 }
-.options ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space);
-}
-.option .ui-button {
-  width: 100%;
-  text-align: left;
-}
-.option-description {
-  margin: calc(var(--space) / 2) 0 0;
-  color: var(--color-muted);
-  font-size: var(--font-size-small);
+.panel {
+  flex: none;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--card-gap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 .notices {
   display: grid;
-  gap: var(--space);
+  gap: var(--space-3);
 }
-.notices p,
-.ui-notice p {
-  margin: 0 0 var(--space);
-}
-.settings summary,
-.options summary {
-  cursor: pointer;
-  font-weight: 600;
-  padding: calc(var(--space) / 2) 0;
-}
-.settings fieldset {
-  border: none;
-  padding: 0;
-  margin: var(--space) 0;
-}
-.toggle {
-  display: flex;
-  gap: var(--space);
-  align-items: center;
-}
-.toggle input {
-  width: 1.4em;
-  height: 1.4em;
+.app > .notices {
+  position: absolute;
+  top: calc(var(--chrome-h) + var(--space-4));
+  right: var(--card-gap);
+  width: min(var(--card-w), calc(100vw - 2 * var(--card-gap)));
+  z-index: 1;
 }
