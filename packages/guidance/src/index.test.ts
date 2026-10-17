@@ -1,6 +1,6 @@
 import type { GuideStep, PageOption } from '@hackaton/contracts';
 import { describe, expect, it } from 'vitest';
-import { evaluateObservation, expectedStep, initialState, transition, type GuideEvent, type GuideState } from './index';
+import { evaluateObservation, expectedStep, initialState, isSensitiveStep, transition, type GuideEvent, type GuideState } from './index';
 
 const real = (id: string, waitFor: GuideStep['waitFor'] = 'userInteraction'): GuideStep => ({
   element: `#${id}`,
@@ -125,5 +125,23 @@ describe('evaluateObservation', () => {
     expect(evaluateObservation(shown, { kind: 'pageChange', targetPresent: false })).toBe('targetStale');
     expect(evaluateObservation(shown, { kind: 'validationError' })).toBe('validationError');
     expect(evaluateObservation(shown, { kind: 'userConfirmation' })).toBe('userConfirmed');
+  });
+});
+
+describe('isSensitiveStep', () => {
+  const s = (instruction: string) => ({ instruction });
+  it('pausa indicaciones que piden datos o confirmar operaciones', () => {
+    expect(isSensitiveStep(s('Escribí tu número de documento.'))).toBe(true);
+    expect(isSensitiveStep(s('Ingresá tu clave.'))).toBe(true);
+    expect(isSensitiveStep(s('Hacé clic en «Confirmar transferencia».'))).toBe(true);
+    expect(isSensitiveStep(s('Tocá «Pagar».'))).toBe(true);
+    expect(isSensitiveStep(s('Iniciá sesión con tu usuario.'))).toBe(true);
+    expect(isSensitiveStep(s('Hacé clic en «Siguiente».'), { role: 'button', inForm: true })).toBe(true);
+    expect(isSensitiveStep(s('Elegí una opción.'), { role: 'combobox' })).toBe(true);
+  });
+
+  it('deja seguir las de navegación', () => {
+    expect(isSensitiveStep(s('Hacé clic en «Horarios».'), { role: 'link' })).toBe(false);
+    expect(isSensitiveStep(s('Revisá la página que se abrió.'))).toBe(false);
   });
 });
