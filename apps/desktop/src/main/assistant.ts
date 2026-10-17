@@ -252,10 +252,12 @@ export class Assistant {
     if (!step) return;
     const { result, elementId } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
     if (epoch !== this.#epoch) return;
-    this.targetVisible = result === 'shown';
-    if (result === 'shown') {
+    // Sin ID local no se puede verificar la interacción: se trata como no señalado.
+    const shown = result === 'shown' && elementId !== undefined;
+    this.targetVisible = shown;
+    if (shown) {
       this.#unshown = 0;
-      if (elementId) this.#dispatch({ type: 'SHOWN', elementId });
+      this.#dispatch({ type: 'SHOWN', elementId });
       this.deps.onChange();
       return;
     }

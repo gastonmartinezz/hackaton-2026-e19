@@ -43,8 +43,9 @@ export class PrefsStore {
   update(patch: Partial<Omit<Prefs, 'version'>>): Promise<void> {
     this.#prefs = PrefsSchema.parse({ ...this.#prefs, ...patch });
     const snapshot = JSON.stringify(this.#prefs, null, 2);
-    // Escrituras en serie y atómicas (archivo temporal + rename).
-    this.#writing = this.#writing.then(async () => {
+    // Escrituras en serie y atómicas (archivo temporal + rename). Un fallo
+    // anterior no debe frenar las siguientes: solo lo recibe quien lo causó.
+    this.#writing = this.#writing.catch(() => undefined).then(async () => {
       await mkdir(dirname(this.#file), { recursive: true });
       const tmp = `${this.#file}.tmp`;
       await writeFile(tmp, snapshot, 'utf8');

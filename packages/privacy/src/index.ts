@@ -9,8 +9,10 @@ const PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   [/\b(?:https?:\/\/|www\.)[^\s<>"']+/gi, '[enlace]'],
   // Correos.
   [/[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu, '[correo]'],
-  // Cadenas largas con letras y números mezclados: tokens, códigos, IBAN.
-  [/\b(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{16,}\b/g, '[dato]'],
+  // Valor que sigue a una palabra de credencial ("clave: x", "mi contraseña es x"), sin importar su forma.
+  [/\b(contraseña|clave(?: fiscal)?|password|passwd|token|api[ _-]?key|pin)(\s*(?::|=|\bes\b)\s*)\S+/giu, '$1$2[dato]'],
+  // Cadenas de 8 o más caracteres con letras y números mezclados: claves, tokens, códigos, IBAN.
+  [/\b(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{8,}\b/g, '[dato]'],
 ];
 
 /** Números de 5 o más dígitos con separadores: teléfonos, documentos, tarjetas, CBU. */

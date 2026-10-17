@@ -14,6 +14,17 @@ describe('redactText', () => {
     expect(out).toContain('[enlace]');
   });
 
+  it('quita claves cortas y valores que siguen a palabras de credencial', () => {
+    for (const secret of ['Mar2026x', 'ab12cd34', 'Secreto123']) {
+      expect(redactText(`mi clave es ${secret}`)).not.toContain(secret);
+      expect(redactText(`uso ${secret} para entrar`)).not.toContain(secret);
+    }
+    expect(redactText('clave: hunter')).toBe('clave: [dato]');
+    expect(redactText('mi contraseña es gatito')).toBe('mi contraseña es [dato]');
+    expect(redactText('token=xyz')).toBe('token=[dato]');
+    expect(redactText('Olvidé mi contraseña')).toBe('Olvidé mi contraseña');
+  });
+
   it('conserva números cortos útiles y normaliza espacios', () => {
     expect(redactText('  Paso   2 de 3 \n')).toBe('Paso 2 de 3');
     expect(redactText('Horarios 2026')).toBe('Horarios 2026');
