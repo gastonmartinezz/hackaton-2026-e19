@@ -22,8 +22,11 @@ describe('redactText', () => {
     expect(redactText('clave: hunter')).toBe('clave: [dato]');
     expect(redactText('mi contraseña es gatito')).toBe('mi contraseña es [dato]');
     expect(redactText('token=xyz')).toBe('token=[dato]');
-    expect(redactText('clave: uno dos tres, gracias')).toBe('clave: [dato], gracias');
+    // Un secreto puede tener espacios, puntos o guiones: se oculta el resto de la línea.
+    expect(redactText('clave: uno dos tres, gracias')).toBe('clave: [dato]');
     expect(redactText('mi contraseña es mi perro firulais')).toBe('mi contraseña es [dato]');
+    expect(redactText('clave: abc12.def34.ghi56')).toBe('clave: [dato]');
+    expect(redactText('password: Abcdef.9x y nada más')).toBe('password: [dato]');
     expect(redactText('Olvidé mi contraseña')).toBe('Olvidé mi contraseña');
   });
 
@@ -43,11 +46,14 @@ describe('sanitizeTitle', () => {
     expect(sanitizeTitle('Mi cuenta | Sesión iniciada como marta | Banco')).toBe('Mi cuenta - Banco');
     expect(sanitizeTitle('Bienvenida Marta')).toBe('');
     expect(sanitizeTitle('Turnos · Hospital 30123456')).toBe('Turnos - Hospital [número]');
-    expect(sanitizeTitle('Contraseña : hunter2 | Banco')).toBe('Contraseña - Banco');
-    expect(sanitizeTitle('Mi clave es gatito - Banco')).not.toContain('gatito');
-    expect(sanitizeTitle('Contraseña - gatito | Banco')).toBe('Contraseña - Banco');
-    expect(sanitizeTitle('Clave: uno dos tres - Banco')).toBe('Clave: [dato] - Banco');
-    expect(sanitizeTitle('Recuperar contraseña')).toBe('Recuperar contraseña');
+    // Desde la palabra de credencial en adelante no sale nada, con cualquier separador.
+    expect(sanitizeTitle('Contraseña : hunter2 | Banco')).toBe('Contraseña');
+    expect(sanitizeTitle('Mi clave es gatito - Banco')).toBe('Mi clave');
+    expect(sanitizeTitle('Contraseña - gatito | Banco')).toBe('Contraseña');
+    expect(sanitizeTitle('Clave fiscal : 1234abcd : Sección de ayuda')).toBe('Clave fiscal');
+    expect(sanitizeTitle('mi contraseña es hola - mundo')).toBe('mi contraseña');
+    expect(sanitizeTitle('Banco | Recuperar contraseña')).toBe('Banco - Recuperar contraseña');
+    expect(sanitizeTitle('Pinterest - Inicio')).toBe('Pinterest - Inicio');
   });
 });
 

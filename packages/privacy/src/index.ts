@@ -8,15 +8,18 @@
 const CREDENTIAL = String.raw`contraseña|clave(?: fiscal)?|password|passwd|token|api[ _-]?key|pin`;
 /** Separadores con los que los sitios arman títulos y menús ("Inicio - Banco | Cuenta"). */
 const TITLE_SEPARATOR = /\s+[-–—|·:]\s+/;
+/** Primera palabra de credencial y todo lo que sigue. */
+const CREDENTIAL_AND_REST = new RegExp(String.raw`(\b(?:${CREDENTIAL})\b)[\s\S]*$`, 'iu');
 
 const PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   // URLs: pueden llevar tokens o datos personales en path y query.
   [/\b(?:https?:\/\/|www\.)[^\s<>"']+/gi, '[enlace]'],
   // Correos.
   [/[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu, '[correo]'],
-  // Valor que sigue a una palabra de credencial ("clave: x", "mi contraseña es x"), sin importar su
-  // forma ni cuántas palabras tenga: hasta el próximo separador de título o signo de puntuación.
-  [new RegExp(String.raw`\b(${CREDENTIAL})(\s*(?::|=|\bes\b)\s*)(?:(?!\s+[-–—|·]\s)[^\n,.;|])+`, 'giu'), '$1$2[dato]'],
+  // Valor que sigue a una palabra de credencial ("clave: x", "mi contraseña es x"). Un secreto
+  // puede tener espacios, puntos o guiones y no hay forma de saber dónde termina: se oculta
+  // el resto de la línea.
+  [new RegExp(String.raw`\b(${CREDENTIAL})(\s*(?::|=|\bes\b)\s*)[^\n]*\S`, 'giu'), '$1$2[dato]'],
   // Cadenas de 8 o más caracteres con letras y números mezclados: claves, tokens, códigos, IBAN.
   [/\b(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{8,}\b/g, '[dato]'],
 ];
@@ -80,14 +83,10 @@ export function sanitizeLabel(raw: string, maxLength = 120): string {
  * conserva el resto, o cadena vacía si no queda nada.
  */
 export function sanitizeTitle(raw: string, maxLength = 200): string {
-  // Primero se redacta el título entero: separar antes rompería patrones como
-  // "Contraseña : x", donde el valor sigue al separador.
-  const raws = redactText(raw, { maxLength: 1000 }).split(TITLE_SEPARATOR);
-  // "Contraseña - gatito": una parte que termina en una palabra de credencial
-  // anuncia que la siguiente puede ser el valor, así que esa se descarta.
-  const announcesCredential = new RegExp(String.raw`\b(?:${CREDENTIAL})\s*$`, 'iu');
-  const parts = raws
-    .filter((_, i) => i === 0 || !announcesCredential.test(raws[i - 1]!))
+  // Después de una palabra de credencial puede venir el valor con cualquier separador
+  // ("Contraseña - x", "clave: a.b - c"), así que el título se corta ahí.
+  const parts = redactText(raw.replace(CREDENTIAL_AND_REST, '$1'), { maxLength: 1000 })
+    .split(TITLE_SEPARATOR)
     .map((part) => sanitizeLabel(part, maxLength))
     .filter(Boolean);
   return redactText(parts.join(' - '), { maxLength });
