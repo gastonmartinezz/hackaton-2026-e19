@@ -1,0 +1,35 @@
+{
+  "name": "@asistente/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Navegador asistido para personas mayores (cliente Electron)",
+  "type": "module",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "package": "electron-vite build && electron-builder --config electron-builder.yml"
+  },
+  "devDependencies": {
+    "@asistente/contracts": "workspace:*",
+    "@asistente/guidance": "workspace:*",
+    "@asistente/page-analyzer": "workspace:*",
+    "@asistente/privacy": "workspace:*",
+    "@asistente/ui": "workspace:*",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^6.0.0",
+    "happy-dom": "^21.0.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vite": "^8.3.4",
+    "zod": "^4.6.7"
+  }
+}

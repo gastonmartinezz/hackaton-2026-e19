@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Turnos de prueba</title></head>
+<body>
+  <main>
+    <h1>Pedir turno (página de prueba)</h1>
+    <form id="turno" aria-label="Pedir turno" action="confirmacion.html" method="get">
+      <p><label for="nombre">Nombre y apellido</label> <input id="nombre" name="nombre" required></p>
+      <p><label for="doc">Número de documento</label> <input id="doc" name="doc" inputmode="numeric" required pattern="[0-9]{7,8}"></p>
+      <p><label for="sede">Sede</label>
+        <select id="sede" name="sede" required><option value="">Elegí una</option><option>Centro</option><option>Norte</option></select></p>
+      <p><button type="submit">Confirmar turno</button></p>
+    </form>
+  </main>
+</body>
+</html>
