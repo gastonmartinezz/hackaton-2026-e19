@@ -37,6 +37,13 @@
             "unknown"
           ]
         },
+        "basis": {
+          "type": "string",
+          "enum": [
+            "government_domain",
+            "financial_regulator"
+          ]
+        },
         "organization": {
           "type": "string",
           "minLength": 1,

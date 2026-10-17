@@ -169,12 +169,24 @@ export const SiteCheckReason = z.strictObject({
 export type SiteCheckReason = z.infer<typeof SiteCheckReason>;
 
 export const SiteIdentity = z.strictObject({
-  /** `verified_official` solo sale del catálogo; nunca de la IA, HTTPS ni apariencia. */
+  /**
+   * `verified_official` solo sale de una fuente de autoridad (ver `basis`); nunca de la IA,
+   * HTTPS, rankings, certificados ni apariencia.
+   */
   status: z.enum(['verified_official', 'unknown']),
-  /** Organización del catálogo. Solo con `verified_official`. */
+  /**
+   * Fuente de la oficialidad. Obligatoria con `verified_official`.
+   * - `government_domain`: zona reservada al Estado (gob.ar, mil.ar, gov.ar, .gov, .mil).
+   * - `financial_regulator`: padrón de entidades financieras del BCRA, descargado del regulador.
+   */
+  basis: z.enum(['government_domain', 'financial_regulator']).optional(),
+  /** Organización según la fuente (p. ej. «Estado argentino» o el nombre del padrón). Solo con `verified_official`. */
   organization: ShortText(120).optional(),
   /** Organización que el sitio parece imitar (con BRAND_IMPERSONATION o LOOKALIKE_DOMAIN). */
   impersonatedOrganization: ShortText(120).optional(),
+}).refine((i) => (i.status === 'verified_official') === (i.basis !== undefined), {
+  message: 'basis es obligatorio con verified_official y no se envía en otro caso',
+  path: ['basis'],
 });
 export type SiteIdentity = z.infer<typeof SiteIdentity>;
 

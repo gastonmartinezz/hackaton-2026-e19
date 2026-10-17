@@ -46,12 +46,12 @@ const phishing: SiteCheckReason = { code: 'KNOWN_PHISHING', category: 'fraud', e
 
 describe('siteIndicatorState', () => {
   it('el riesgo alto tiene prioridad sobre la identidad oficial', () => {
-    const r = response({ risk: 'high', identity: { status: 'verified_official', organization: 'X' }, reasons: [phishing] });
+    const r = response({ risk: 'high', identity: { status: 'verified_official', basis: 'government_domain', organization: 'X' }, reasons: [phishing] });
     expect(siteIndicatorState(r)).toBe('possible_scam');
   });
 
   it('oficial solo con identidad verificada y cobertura completa', () => {
-    expect(siteIndicatorState(response({ identity: { status: 'verified_official', organization: 'X' } }))).toBe('official');
+    expect(siteIndicatorState(response({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'X' } }))).toBe('official');
     expect(siteIndicatorState(response())).toBe('no_alerts');
   });
 
@@ -64,5 +64,12 @@ describe('siteIndicatorState', () => {
   it('pending muestra revisando salvo que ya haya riesgo', () => {
     expect(siteIndicatorState(response({ status: 'pending', coverage: { ...complete, content: 'pending' } }))).toBe('checking');
     expect(siteIndicatorState(response({ status: 'pending', risk: 'medium' }))).toBe('attention');
+  });
+});
+
+describe('SiteIdentity', () => {
+  it('la oficialidad exige una fuente de autoridad', () => {
+    expect(() => response({ identity: { status: 'verified_official', organization: 'X' } })).toThrow();
+    expect(() => response({ identity: { status: 'unknown', basis: 'government_domain' } })).toThrow();
   });
 });
