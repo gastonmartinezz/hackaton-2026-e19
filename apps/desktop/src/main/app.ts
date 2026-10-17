@@ -16,7 +16,7 @@ import {
 } from '../shared/ipc';
 import { ApiSession, type ApiClient } from './api/client';
 import { Assistant } from './assistant';
-import { Chat } from './chat';
+import { Chat, UNSURE_ANSWER } from './chat';
 import { log } from './log';
 import { PageBridge } from './page-bridge';
 import type { PrefsStore } from './prefs';
@@ -57,6 +57,8 @@ export class AppController {
   readonly #assistant: Assistant;
   readonly #chat: Chat;
   #siteVisible = false;
+  /** «Mostrame cómo» (true) o «Solo ir al sitio» (false) para el próximo destino. */
+  #wantGuide = true;
   #notices: Array<Notice & { url?: string | undefined }> = [];
   #publishScheduled = false;
 
@@ -163,6 +165,8 @@ export class AppController {
       chat: {
         phase: this.#chat.phase,
         messages: this.#chat.messages,
+        ...this.#chatProgress(),
+        question: this.#chat.phase === 'clarifying' ? this.#chat.question : null,
         goal: this.#chat.goal,
         error: this.#chat.error,
         candidates: this.#chat.candidates.map((c) => {
@@ -185,6 +189,11 @@ export class AppController {
       },
       notices: this.#notices.map(({ url: _url, ...notice }) => notice),
     };
+  }
+
+  #chatProgress() {
+    const [first, ...rest] = this.#chat.messages.filter((m) => m.from === 'user').map((m) => m.text);
+    return { query: first ?? null, answered: rest.filter((t) => t !== UNSURE_ANSWER), unsure: rest.at(-1) === UNSURE_ANSWER };
   }
 
   /** Agrupa cambios en una sola publicación por vuelta del event loop. */
@@ -242,8 +251,8 @@ export class AppController {
   }
 
   /** Destino elegido en el chat: al cargar, la guía analiza la página con ese objetivo. */
-  #openDestination(url: string): void {
-    this.#assistant.expectDestination(this.#chat.goal ?? '');
+  #openDestination(url: string, guide = this.#wantGuide): void {
+    if (guide) this.#assistant.expectDestination(this.#chat.goal ?? '');
     this.#showSite(url);
   }
 
@@ -280,9 +289,14 @@ export class AppController {
       case 'ready':
         this.#publish();
         return;
-      case 'submitIntent':
-        await this.#chat.submit(command.text);
+      case 'submitIntent': {
+        if (command.guide !== undefined) this.#wantGuide = command.guide;
+        // «Solo ir al sitio» con una dirección escrita: se abre directo.
+        const url = command.guide === false ? parseAddressInput(command.text) : null;
+        if (url) this.#showSite(url);
+        else await this.#chat.submit(command.text);
         return;
+      }
       case 'resetChat':
         // Empezar de nuevo descarta la sesión: la guía no puede seguir con la anterior.
         this.#assistant.exit();
@@ -292,7 +306,7 @@ export class AppController {
         // La URL sale del resultado recibido, nunca del renderer.
         const candidate = this.#chat.candidate(command.candidateId);
         if (!candidate) return;
-        this.#openDestination(candidate.url);
+        this.#openDestination(candidate.url, command.guide ?? this.#wantGuide);
         return;
       }
       case 'navigate': {
@@ -327,6 +341,7 @@ export class AppController {
       case 'home':
         this.#assistant.exit();
         this.#chat.reset();
+        this.#wantGuide = true;
         this.#siteVisible = false;
         this.#site.clear();
         this.#notices = [];

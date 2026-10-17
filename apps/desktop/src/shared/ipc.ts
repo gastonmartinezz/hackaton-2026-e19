@@ -20,8 +20,9 @@ export const UI_STATE_CHANNEL = 'ui:state';
 
 export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ready') }),
-  z.strictObject({ type: z.literal('submitIntent'), text: z.string().trim().min(1).max(500) }),
-  z.strictObject({ type: z.literal('openCandidate'), candidateId: Id }),
+  /** `guide: false` es «Solo ir al sitio»: se abre el destino sin la guía. Por defecto, «Mostrame cómo». */
+  z.strictObject({ type: z.literal('submitIntent'), text: z.string().trim().min(1).max(500), guide: z.boolean().optional() }),
+  z.strictObject({ type: z.literal('openCandidate'), candidateId: Id, guide: z.boolean().optional() }),
   z.strictObject({ type: z.literal('resetChat') }),
   z.strictObject({ type: z.literal('navigate'), input: z.string().trim().min(1).max(2048) }),
   /** Buscador de la barra: una dirección abre el sitio; cualquier otro texto vuelve al inicio con esa búsqueda. */
@@ -95,6 +96,14 @@ export interface AppState {
   chat: {
     phase: ChatPhase;
     messages: ChatMessage[];
+    /** Lo que la persona buscó primero, tal como lo escribió (queda en el buscador). */
+    query: string | null;
+    /** Respuestas que ya dio a las preguntas (píldoras de «lo que ya me contaste»). */
+    answered: string[];
+    /** Pregunta pendiente con respuestas sugeridas, si el backend las mandó. */
+    question: { text: string; answers: string[]; reason: string | null } | null;
+    /** La última respuesta fue «No estoy seguro»: los sitios son una recomendación. */
+    unsure: boolean;
     goal: string | null;
     candidates: CandidateView[];
     error: string | null;

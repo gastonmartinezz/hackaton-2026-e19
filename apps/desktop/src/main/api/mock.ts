@@ -121,11 +121,19 @@ export function interpretMock(request: InterpretRequest, sites: SiteOption[]): M
     if (options.length >= 2) return { type: 'options', message: 'Encontré estos sitios. Elegí uno para abrirlo.', options };
   }
   if (matches.length === 1) return { type: 'redirect', message: `Te llevo a ${matches[0]!.title}.`, url: matches[0]!.url };
+  // «No estoy seguro»: no se insiste, se recomiendan sitios.
+  if (normalize(users.at(-1)?.content ?? '') === 'no estoy seguro')
+    return { type: 'options', message: 'Por lo que buscaste, estos sitios son los que mejor se ajustan.', options: sites.slice(0, 5) };
   if (users.length >= 3) return { type: 'options', message: 'No estoy seguro; estos sitios pueden servirte.', options: sites.slice(0, 5) };
-  return {
+  if (users.length > 1) return { type: 'question', message: '¿Podés contarme un poco más?' };
+  // TEMPORAL: answers y reason todavía no están en el contrato (ver api/pending-contract.ts).
+  const question: MockInterpretation & { answers: string[]; reason: string } = {
     type: 'question',
-    message: users.length === 1 ? '¿Qué querés hacer? Por ejemplo: ver horarios, buscar un libro o pedir un turno.' : '¿Podés contarme un poco más?',
+    message: '¿Qué querés hacer?',
+    answers: ['Ver horarios', 'Buscar un libro', 'Pedir un turno'],
+    reason: 'Cada cosa se hace en un sitio distinto.',
   };
+  return question;
 }
 
 function normalize(text: string): string {

@@ -427,6 +427,13 @@ body {
 .sbox input::placeholder {
   color: var(--color-muted);
 }
+.sbox .go {
+  min-height: calc(48px + var(--s1) * 10px);
+  border-radius: var(--radius-pill);
+}
+.sbox .go .ic {
+  color: inherit;
+}
 .sbtns {
   display: flex;
   gap: var(--space-3);
