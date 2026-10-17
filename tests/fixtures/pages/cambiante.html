@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Tienda de prueba</title></head>
+<body>
+  <main>
+    <h1>Tienda de prueba</h1>
+    <p>Página de demostración: cambia después de cargar para probar el reanálisis.</p>
+    <p>
+      <button type="button" id="pagar">Ir a pagar (cambia la ruta)</button>
+      <button type="button" id="clave">Pedir una clave (agrega un formulario)</button>
+    </p>
+    <div id="zona"></div>
+  </main>
+  <script>
+    // Cambio de ruta sin recargar (como una SPA).
+    document.getElementById('pagar').addEventListener('click', () => {
+      history.pushState({}, '', 'cambiante.html?paso=pago');
+      document.querySelector('h1').textContent = 'Pago (página de prueba)';
+    });
+    // Aparece un formulario con contraseña después de cargar.
+    document.getElementById('clave').addEventListener('click', () => {
+      document.getElementById('zona').innerHTML =
+        '<form aria-label="Confirmar compra"><label>Clave <input type="password"></label> <button type="submit">Confirmar</button></form>';
+    });
+  </script>
+</body>
+</html>

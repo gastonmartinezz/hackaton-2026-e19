@@ -4,13 +4,15 @@
  * como `retryable`.
  */
 import { randomUUID } from 'node:crypto';
-import { ApiError, InterpretResponse, NextStepResponse, OptionsResponse } from '@hackaton/contracts';
+import { ApiError, InterpretResponse, NextStepResponse, OptionsResponse, SiteCheckResponse } from '@hackaton/contracts';
 import type { z } from 'zod';
 import { log } from '../log';
 import { ApiFailure, type ApiClient } from './client';
 
 /** Cuerpo máximo que acepta el servidor (docs/api.md). */
 const MAX_BODY_BYTES = 512 * 1024;
+/** Tiempo máximo de /v1/site-check; vencido, el indicador pasa a «No pudimos verificarlo». */
+export const SITE_CHECK_TIMEOUT_MS = 15_000;
 
 export interface HttpClientOptions {
   baseUrl: URL;
@@ -41,17 +43,25 @@ export class HttpApiClient implements ApiClient {
     return this.#parse(NextStepResponse, await this.#post('/v1/next-step', request, signal));
   }
 
+  /**
+   * La revisión del sitio no puede hacer esperar a la persona: tiempo máximo
+   * propio y sin reintentos automáticos (el coordinador decide y ofrece «Intentar de nuevo»).
+   */
+  async siteCheck(request: Parameters<ApiClient['siteCheck']>[0], signal: AbortSignal) {
+    return this.#parse(SiteCheckResponse, await this.#post('/v1/site-check', request, signal, { timeoutMs: SITE_CHECK_TIMEOUT_MS, retries: 0 }));
+  }
+
   #parse<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {
     const parsed = schema.safeParse(body);
     if (!parsed.success) throw new ApiFailure('INVALID_RESPONSE', false);
     return parsed.data;
   }
 
-  async #post(path: string, payload: unknown, signal: AbortSignal): Promise<unknown> {
+  async #post(path: string, payload: unknown, signal: AbortSignal, overrides: { timeoutMs?: number; retries?: number } = {}): Promise<unknown> {
     const body = JSON.stringify(payload);
     if (Buffer.byteLength(body) > MAX_BODY_BYTES) throw new ApiFailure('PAYLOAD_TOO_LARGE', false);
 
-    const retries = this.config.retries ?? 1;
+    const retries = overrides.retries ?? this.config.retries ?? 1;
     for (let attempt = 0; ; attempt++) {
       const started = Date.now();
       try {
@@ -65,7 +75,7 @@ export class HttpApiClient implements ApiClient {
           method: 'POST',
           headers,
           body,
-          signal: AbortSignal.any([signal, AbortSignal.timeout(this.config.timeoutMs ?? 100_000)]),
+          signal: AbortSignal.any([signal, AbortSignal.timeout(overrides.timeoutMs ?? this.config.timeoutMs ?? 100_000)]),
         });
         log('api.response', { status: response.status, ms: Date.now() - started, attempt });
         const json: unknown = await response.json().catch(() => null);
