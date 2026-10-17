@@ -1,0 +1,81 @@
+{
+  "version": "2026-10-17.1",
+  "note": "Semilla inicial de ejemplo. Cada entrada se revisa a mano contra su fuente antes de usarse en producción; un cambio de dominios exige nueva fecha de revisión.",
+  "entries": [
+    {
+      "id": "argentina-gob-ar",
+      "organization": "Gobierno de la República Argentina",
+      "names": ["Argentina.gob.ar", "Mi Argentina", "Gobierno de la República Argentina"],
+      "domains": [{ "domain": "argentina.gob.ar", "scope": "subdomains" }],
+      "watchLabels": ["argentinagob", "gobargentina", "miargentina"],
+      "source": { "name": "Portal oficial del Estado nacional", "url": "https://www.argentina.gob.ar/" },
+      "reviewedAt": "2026-10-17"
+    },
+    {
+      "id": "arca",
+      "organization": "ARCA (Agencia de Recaudación y Control Aduanero, ex AFIP)",
+      "names": ["ARCA", "AFIP", "Agencia de Recaudación y Control Aduanero", "Administración Federal de Ingresos Públicos"],
+      "domains": [
+        { "domain": "arca.gob.ar", "scope": "subdomains" },
+        { "domain": "afip.gob.ar", "scope": "subdomains" }
+      ],
+      "watchLabels": ["afip", "afipgob", "arcagob"],
+      "source": { "name": "Organismos del Estado nacional (argentina.gob.ar)", "url": "https://www.argentina.gob.ar/organismos" },
+      "reviewedAt": "2026-10-17"
+    },
+    {
+      "id": "anses",
+      "organization": "ANSES (Administración Nacional de la Seguridad Social)",
+      "names": ["ANSES", "Administración Nacional de la Seguridad Social"],
+      "domains": [{ "domain": "anses.gob.ar", "scope": "subdomains" }],
+      "watchLabels": ["anses"],
+      "source": { "name": "Organismos del Estado nacional (argentina.gob.ar)", "url": "https://www.argentina.gob.ar/organismos" },
+      "reviewedAt": "2026-10-17"
+    },
+    {
+      "id": "pami",
+      "organization": "PAMI (Instituto Nacional de Servicios Sociales para Jubilados y Pensionados)",
+      "names": ["PAMI", "Instituto Nacional de Servicios Sociales para Jubilados y Pensionados"],
+      "domains": [{ "domain": "pami.org.ar", "scope": "subdomains" }],
+      "watchLabels": ["pami"],
+      "source": { "name": "Organismos del Estado nacional (argentina.gob.ar)", "url": "https://www.argentina.gob.ar/organismos" },
+      "reviewedAt": "2026-10-17"
+    },
+    {
+      "id": "bcra",
+      "organization": "Banco Central de la República Argentina",
+      "names": ["BCRA", "Banco Central de la República Argentina"],
+      "domains": [{ "domain": "bcra.gob.ar", "scope": "subdomains" }],
+      "watchLabels": ["bcra"],
+      "source": { "name": "Organismos del Estado nacional (argentina.gob.ar)", "url": "https://www.argentina.gob.ar/organismos" },
+      "reviewedAt": "2026-10-17"
+    },
+    {
+      "id": "banco-nacion",
+      "organization": "Banco de la Nación Argentina",
+      "names": ["Banco Nación", "Banco de la Nación Argentina", "BNA"],
+      "domains": [{ "domain": "bna.com.ar", "scope": "subdomains" }],
+      "watchLabels": ["bna", "banconacion"],
+      "source": { "name": "BCRA - Entidades financieras", "url": "https://www.bcra.gob.ar/SistemasFinancierosYdePagos/Entidades_financieras.asp" },
+      "reviewedAt": "2026-10-17"
+    },
+    {
+      "id": "banco-provincia",
+      "organization": "Banco de la Provincia de Buenos Aires",
+      "names": ["Banco Provincia", "Banco de la Provincia de Buenos Aires"],
+      "domains": [{ "domain": "bancoprovincia.com.ar", "scope": "subdomains" }],
+      "watchLabels": ["bancoprovincia"],
+      "source": { "name": "BCRA - Entidades financieras", "url": "https://www.bcra.gob.ar/SistemasFinancierosYdePagos/Entidades_financieras.asp" },
+      "reviewedAt": "2026-10-17"
+    },
+    {
+      "id": "banco-ciudad",
+      "organization": "Banco Ciudad de Buenos Aires",
+      "names": ["Banco Ciudad", "Banco Ciudad de Buenos Aires"],
+      "domains": [{ "domain": "bancociudad.com.ar", "scope": "subdomains" }],
+      "watchLabels": ["bancociudad"],
+      "source": { "name": "BCRA - Entidades financieras", "url": "https://www.bcra.gob.ar/SistemasFinancierosYdePagos/Entidades_financieras.asp" },
+      "reviewedAt": "2026-10-17"
+    }
+  ]
+}
