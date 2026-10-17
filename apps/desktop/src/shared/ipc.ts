@@ -4,11 +4,15 @@
  * proceso principal. Todo mensaje entrante se valida acá con Zod.
  */
 import { PageSnapshotSchema } from '@asistente/page-analyzer';
+import { AgeRange, CountryCode } from '@hackaton/contracts';
 import { z } from 'zod';
 
 const Id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
 export const TEXT_SCALES = [1, 1.25, 1.5, 1.75] as const;
+
+/** Cambiarla cuando cambie el texto de las condiciones: se vuelven a pedir. */
+export const TERMS_VERSION = '2026-10-17';
 
 /* ---------------------------- Interfaz propia ---------------------------- */
 
@@ -36,6 +40,15 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('setAiForSite'), enabled: z.boolean() }),
   z.strictObject({ type: z.literal('resolveNotice'), noticeId: Id, action: z.enum(['openHere', 'openExternal', 'dismiss']) }),
   z.strictObject({ type: z.literal('openCurrentExternally') }),
+  /** Pantalla inicial: guardar los datos exige aceptar las condiciones. */
+  z.strictObject({
+    type: z.literal('saveProfile'),
+    acceptTerms: z.literal(true),
+    country: CountryCode.nullable(),
+    region: z.string().trim().max(80),
+    city: z.string().trim().max(80),
+    ageRange: AgeRange.nullable(),
+  }),
 ]);
 export type UiCommand = z.infer<typeof UiCommandSchema>;
 
@@ -77,6 +90,16 @@ export interface AppState {
   guideEnabled: boolean;
   layout: { topBarHeight: number; panelWidth: number };
   prefs: { textScale: number; aiEnabledForSite: boolean };
+  /** Datos de la pantalla inicial. Sin condiciones aceptadas, la app muestra esa pantalla. */
+  profile: {
+    termsAccepted: boolean;
+    country: string | null;
+    /** País de la configuración del sistema, para proponerlo la primera vez. */
+    suggestedCountry: string | null;
+    region: string;
+    city: string;
+    ageRange: AgeRange | null;
+  };
   nav: {
     visible: boolean;
     url: string;

@@ -12,6 +12,31 @@ describe('InterpretRequest', () => {
   });
 });
 
+describe('InterpretRequest.user', () => {
+  const messages = [{ role: 'user', content: 'Quiero sacar un turno' }];
+
+  it('acepta localidad, rango de edad, idioma y zona horaria', () => {
+    const user = {
+      location: { country: 'AR', region: 'Buenos Aires', city: 'La Plata' },
+      ageRange: '75-plus',
+      language: 'es-AR',
+      timeZone: 'America/Argentina/Buenos_Aires',
+    };
+    expect(InterpretRequest.safeParse({ messages, user }).success).toBe(true);
+    expect(InterpretRequest.safeParse({ messages, user: {} }).success).toBe(true);
+  });
+
+  it.each([
+    ['país que no es ISO', { location: { country: 'Argentina' } }],
+    ['edad exacta', { age: 70 }],
+    ['rango inexistente', { ageRange: '70' }],
+    ['campo desconocido', { location: { address: 'Calle 1' } }],
+    ['zona horaria inválida', { timeZone: '../etc' }],
+  ])('rechaza %s', (_, user) => {
+    expect(InterpretRequest.safeParse({ messages, user }).success).toBe(false);
+  });
+});
+
 describe('InterpretResponse', () => {
   it('acepta redirect con URL https', () => {
     const response = { sessionId: 's-abc', type: 'redirect', message: 'Te llevo.', url: 'https://www.argentina.gob.ar' };

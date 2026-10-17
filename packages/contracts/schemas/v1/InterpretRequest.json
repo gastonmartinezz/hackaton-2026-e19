@@ -34,6 +34,51 @@
         ],
         "additionalProperties": false
       }
+    },
+    "user": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "object",
+          "properties": {
+            "country": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$"
+            },
+            "region": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "city": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          "additionalProperties": false
+        },
+        "ageRange": {
+          "type": "string",
+          "enum": [
+            "under-50",
+            "50-64",
+            "65-74",
+            "75-plus"
+          ]
+        },
+        "language": {
+          "type": "string",
+          "maxLength": 35,
+          "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8})*$"
+        },
+        "timeZone": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9_+-]+(?:\\/[A-Za-z0-9_+-]+)*$"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": [

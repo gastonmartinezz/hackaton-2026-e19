@@ -6,10 +6,12 @@
 import { Button, LoadingMessage, Notice, TextField } from '@asistente/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { AppState, OptionView } from '../../shared/ipc';
+import { Setup } from './Setup';
 import { send, useAppState } from './useAppState';
 
 export function App() {
   const state = useAppState();
+  const [editingProfile, setEditingProfile] = useState(false);
 
   useEffect(() => {
     if (state) document.documentElement.style.setProperty('--text-scale', String(state.prefs.textScale));
@@ -17,11 +19,14 @@ export function App() {
 
   if (!state) return <LoadingMessage>Abriendo…</LoadingMessage>;
 
+  if (!state.profile.termsAccepted) return <Setup state={state} />;
+
   if (!state.nav.visible) {
+    if (editingProfile) return <Setup state={state} onDone={() => setEditingProfile(false)} />;
     return (
       <>
         <Notices state={state} />
-        <Home state={state} />
+        <Home state={state} onEditProfile={() => setEditingProfile(true)} />
       </>
     );
   }
@@ -49,7 +54,7 @@ export function App() {
  * Un solo input. Al enviar se espera un `redirect` (abre la página). Si llega
  * una pregunta u opciones, el input baja y la pantalla pasa a ser un chat.
  */
-function Home({ state }: { state: AppState }) {
+function Home({ state, onEditProfile }: { state: AppState; onEditProfile: () => void }) {
   const { chat } = state;
   const [text, setText] = useState('');
   const busy = chat.phase === 'interpreting';
@@ -109,6 +114,11 @@ function Home({ state }: { state: AppState }) {
         </button>
       </form>
       {chat.phase === 'error' && chat.error ? <p role="alert">{chat.error}</p> : null}
+      {isChat ? null : (
+        <p className="home-profile">
+          <Button onClick={onEditProfile}>Mis datos</Button>
+        </p>
+      )}
     </main>
   );
 }
