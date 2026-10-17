@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { encodeWav, WAV_MIN_SAMPLES } from '../shared/wav';
+import { encodeWav, WAV_MAX_SAMPLES, WAV_MIN_SAMPLES } from '../shared/wav';
 import { ApiFailure, type ApiClient } from './api/client';
 import { HttpApiClient } from './api/http';
 import { MOCK_TRANSCRIPT, MockApiClient } from './api/mock';
@@ -88,6 +88,25 @@ describe('HttpApiClient.transcribe', () => {
     const fetch = vi.fn(async () => json(413, { error: { code: 'PAYLOAD_TOO_LARGE', message: 'x', requestId: 'r', retryable: false } }));
     const client = new HttpApiClient({ baseUrl: base, token: null, fetch });
     await expect(client.transcribe(new Uint8Array(tone(0.3)), new AbortController().signal)).rejects.toMatchObject({ code: 'PAYLOAD_TOO_LARGE' });
+  });
+
+  it('un WAV de 30 s justo en el límite (960 044 bytes) se envía: no aplica el límite JSON de 512 KiB', async () => {
+    const fetch = vi.fn(async () => json(200, { text: 'Quiero renovar mi documento' }));
+    const client = new HttpApiClient({ baseUrl: base, token: null, fetch });
+    const wav = new Uint8Array(encodeWav(new Float32Array(WAV_MAX_SAMPLES)));
+    expect(wav.byteLength).toBe(960_044);
+    expect(wav.byteLength).toBeGreaterThan(512 * 1024);
+    await expect(client.transcribe(wav, new AbortController().signal)).resolves.toEqual({ text: 'Quiero renovar mi documento' });
+    const [, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
+    expect((init.body as Uint8Array).byteLength).toBe(960_044);
+  });
+
+  it('un byte de audio más que 30 s no se envía', async () => {
+    const fetch = vi.fn();
+    const client = new HttpApiClient({ baseUrl: base, token: null, fetch });
+    const tooLong = new Uint8Array(encodeWav(new Float32Array(WAV_MAX_SAMPLES + 1)));
+    await expect(client.transcribe(tooLong, new AbortController().signal)).rejects.toBeInstanceOf(ApiFailure);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('no envía audio que no cumple el formato', async () => {

@@ -6,13 +6,19 @@
 import { randomUUID } from 'node:crypto';
 import { ApiError, InterpretResponse, NextStepResponse, OptionsResponse } from '@hackaton/contracts';
 import type { z } from 'zod';
-import { isTranscribableWav } from '../../shared/wav';
+import { isTranscribableWav, WAV_MAX_BYTES } from '../../shared/wav';
 import { log } from '../log';
 import { ApiFailure, type ApiClient } from './client';
 import { TranscribeResponse } from './pending-contract';
 
-/** Cuerpo máximo que acepta el servidor (docs/api.md). */
+/** Cuerpo JSON máximo que acepta el servidor (docs/api.md). */
 const MAX_BODY_BYTES = 512 * 1024;
+/**
+ * /v1/transcribe tiene un límite propio en el servidor (`bodyLimit` =
+ * TRANSCRIBE_MAX_BYTES = 960 044 bytes, un WAV de 30 s): el de 512 KiB no
+ * aplica a ese camino.
+ */
+const MAX_WAV_BODY_BYTES = WAV_MAX_BYTES;
 
 export interface HttpClientOptions {
   baseUrl: URL;
@@ -46,7 +52,7 @@ export class HttpApiClient implements ApiClient {
   /** El audio no se guarda ni se loguea: solo viaja en el cuerpo de esta solicitud. */
   async transcribe(wav: Uint8Array, signal: AbortSignal) {
     if (!isTranscribableWav(wav)) throw new ApiFailure('BAD_REQUEST', false);
-    return this.#parse(TranscribeResponse, await this.#send('/v1/transcribe', new Uint8Array(wav), 'audio/wav', signal));
+    return this.#parse(TranscribeResponse, await this.#send('/v1/transcribe', new Uint8Array(wav), 'audio/wav', MAX_WAV_BODY_BYTES, signal));
   }
 
   #parse<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {
@@ -56,12 +62,13 @@ export class HttpApiClient implements ApiClient {
   }
 
   async #post(path: string, payload: unknown, signal: AbortSignal): Promise<unknown> {
-    const body = JSON.stringify(payload);
-    if (Buffer.byteLength(body) > MAX_BODY_BYTES) throw new ApiFailure('PAYLOAD_TOO_LARGE', false);
-    return this.#send(path, body, 'application/json', signal);
+    return this.#send(path, JSON.stringify(payload), 'application/json', MAX_BODY_BYTES, signal);
   }
 
-  async #send(path: string, body: string | Uint8Array<ArrayBuffer>, contentType: string, signal: AbortSignal): Promise<unknown> {
+  /** Cada camino trae su límite: 512 KiB para JSON y 960 044 bytes para el WAV. */
+  async #send(path: string, body: string | Uint8Array<ArrayBuffer>, contentType: string, maxBytes: number, signal: AbortSignal): Promise<unknown> {
+    const size = typeof body === 'string' ? Buffer.byteLength(body) : body.byteLength;
+    if (size > maxBytes) throw new ApiFailure('PAYLOAD_TOO_LARGE', false);
     const retries = this.config.retries ?? 1;
     for (let attempt = 0; ; attempt++) {
       const started = Date.now();
