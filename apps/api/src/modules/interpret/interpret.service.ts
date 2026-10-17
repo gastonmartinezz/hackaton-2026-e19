@@ -21,7 +21,6 @@ export class InterpretService {
       system: SYSTEM_PROMPTS.interpret,
       input: { messages: request.messages, history: context.history },
       schema: InterpretOutput,
-      maxTokens: 2048,
     });
 
     // goal y reason quedan en la sesión; no se devuelven al front.

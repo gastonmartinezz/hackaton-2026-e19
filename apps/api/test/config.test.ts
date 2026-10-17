@@ -15,4 +15,14 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ API_ACCESS_TOKENS: 'corto' })).toThrow(/24 caracteres/);
     expect(() => loadConfig({ API_ACCESS_TOKENS: 'corto' })).not.toThrow(/corto/);
   });
+
+  it('usa 16000 como tope de tokens de Claude por defecto', () => {
+    expect(loadConfig({ API_ACCESS_TOKENS: TOKEN }).CLAUDE_MAX_TOKENS).toBe(16_000);
+    expect(loadConfig({ API_ACCESS_TOKENS: TOKEN, CLAUDE_MAX_TOKENS: '32000' }).CLAUDE_MAX_TOKENS).toBe(32_000);
+  });
+
+  it('rechaza un CLAUDE_MAX_TOKENS inválido', () => {
+    expect(() => loadConfig({ API_ACCESS_TOKENS: TOKEN, CLAUDE_MAX_TOKENS: '0' })).toThrow(/CLAUDE_MAX_TOKENS/);
+    expect(() => loadConfig({ API_ACCESS_TOKENS: TOKEN, CLAUDE_MAX_TOKENS: 'mucho' })).toThrow(/CLAUDE_MAX_TOKENS/);
+  });
 });

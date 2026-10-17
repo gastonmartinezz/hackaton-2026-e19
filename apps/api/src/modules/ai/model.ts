@@ -8,7 +8,6 @@ export interface StructuredRequest<S extends z.ZodType> {
   /** Datos no confiables (mensajes del chat, HTML de la página). Nunca instrucciones. */
   input: unknown;
   schema: S;
-  maxTokens?: number;
 }
 
 export interface StructuredModel {

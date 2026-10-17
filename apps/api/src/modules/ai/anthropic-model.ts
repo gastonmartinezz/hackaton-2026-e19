@@ -4,6 +4,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { z } from 'zod';
 import type { AppConfig } from '../../config/env.js';
 import { AppError } from '../../lib/errors.js';
+import { buildDataBlock } from './data-block.js';
 import type { StructuredModel, StructuredRequest } from './model.js';
 import { PROMPT_VERSION } from './prompts.js';
 
@@ -27,9 +28,10 @@ export class AnthropicModel implements StructuredModel {
     const response = await this.client.messages
       .parse({
         model: this.config.CLAUDE_MODEL,
-        max_tokens: request.maxTokens ?? 4096,
+        // Incluye los tokens del thinking adaptativo: con poco margen la respuesta se corta.
+        max_tokens: this.config.CLAUDE_MAX_TOKENS,
         system: request.system,
-        messages: [{ role: 'user', content: `<datos>\n${JSON.stringify(request.input)}\n</datos>` }],
+        messages: [{ role: 'user', content: buildDataBlock(request.input) }],
         output_config: { effort: this.config.CLAUDE_EFFORT, format: zodOutputFormat(request.schema) },
       })
       .catch((error: unknown) => {
