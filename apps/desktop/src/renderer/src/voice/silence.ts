@@ -1,0 +1,45 @@
+/**
+ * Cuándo dejar de escuchar: a los 30 s, o después de ~2,5 s de silencio una
+ * vez que la persona habló. Detección simple por energía (RMS); sin habla, no
+ * corta por silencio (la persona puede tardar en empezar).
+ */
+import { WAV_MAX_SECONDS } from '../../../shared/wav';
+
+export interface SilenceOptions {
+  /** RMS desde el que se considera que hay voz. */
+  threshold: number;
+  silenceMs: number;
+  maxMs: number;
+}
+
+export const SILENCE_DEFAULTS: SilenceOptions = {
+  threshold: 0.015,
+  silenceMs: 2_500,
+  // Un poco antes de 30 s: el WAV final nunca supera el máximo del servidor.
+  maxMs: WAV_MAX_SECONDS * 1000 - 300,
+};
+
+export type SilenceVerdict = 'continue' | 'silence' | 'limit';
+
+export class SilenceDetector {
+  #start: number | null = null;
+  #lastVoice: number | null = null;
+
+  constructor(private readonly options: SilenceOptions = SILENCE_DEFAULTS) {}
+
+  get heardVoice(): boolean {
+    return this.#lastVoice !== null;
+  }
+
+  /** Una medición de energía en el instante `now` (ms). */
+  push(level: number, now: number): SilenceVerdict {
+    this.#start ??= now;
+    if (now - this.#start >= this.options.maxMs) return 'limit';
+    if (level >= this.options.threshold) {
+      this.#lastVoice = now;
+      return 'continue';
+    }
+    if (this.#lastVoice !== null && now - this.#lastVoice >= this.options.silenceMs) return 'silence';
+    return 'continue';
+  }
+}

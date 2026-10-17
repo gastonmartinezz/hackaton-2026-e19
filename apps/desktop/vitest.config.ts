@@ -5,6 +5,6 @@ export default defineConfig({
   ssr: { resolve: { conditions: ['source'] } },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
   },
 });
