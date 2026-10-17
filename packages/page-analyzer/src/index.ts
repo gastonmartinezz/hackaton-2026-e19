@@ -123,6 +123,9 @@ const STRUCTURE_SELECTOR = [
   '[role="alert"]',
 ].join(',');
 
+const CANDIDATE_SELECTOR = `${INTERACTIVE_SELECTOR},${STRUCTURE_SELECTOR}`;
+const FRAME_TAGS = new Set(['iframe', 'frame', 'object', 'embed']);
+
 const SECTION_ROLES = new Set([
   'main',
   'navigation',
@@ -173,18 +176,33 @@ export function extractSnapshot(doc: Document, options: ExtractOptions): Extract
   const registry = new ElementRegistry(options.navigationId, options.revision, previous?.counter ?? 0);
   const notes = new Set<UnsupportedNote>();
 
-  const candidates: Array<{ element: Element; role: string; priority: boolean }> = [];
+  // 1) Recorrido sin leer estilos ni geometría: un solo matches() por nodo.
+  const matched: Element[] = [];
+  const frames: Element[] = [];
+  const canvases: Element[] = [];
+  const customs: Element[] = [];
   for (const element of walk(doc)) {
-    if (element.matches('iframe,frame,object,embed') && isVisible(element)) notes.add('frames');
-    if (element.matches('canvas') && isVisible(element) && isLarge(element)) notes.add('canvas');
-    if (isCustomElementWithoutShadow(element)) notes.add('closedShadowSuspected');
+    const tag = element.localName;
+    if (FRAME_TAGS.has(tag)) frames.push(element);
+    else if (tag === 'canvas') canvases.push(element);
+    else if (tag.includes('-') && !element.shadowRoot && element.children.length === 0) customs.push(element);
+    if (element.matches(CANDIDATE_SELECTOR)) matched.push(element);
+  }
 
-    if (!element.matches(INTERACTIVE_SELECTOR) && !element.matches(STRUCTURE_SELECTOR)) continue;
+  // 2) Lecturas de estilo (visibilidad).
+  const candidates: Array<{ element: Element; role: string; priority: boolean }> = [];
+  for (const element of matched) {
     if (!isVisible(element)) continue;
     const role = roleOf(element);
     if (!role) continue;
     candidates.push({ element, role, priority: SECTION_ROLES.has(role) || role === 'heading' || inPriorityRegion(element) });
   }
+  if (frames.some(isVisible)) notes.add('frames');
+  const visibleCanvases = canvases.filter(isVisible);
+
+  // 3) Lecturas de geometría juntas, después de las de estilo.
+  if (visibleCanvases.some(isLarge)) notes.add('canvas');
+  if (customs.some(looksLikeClosedShadow)) notes.add('closedShadowSuspected');
 
   let selected = candidates;
   if (candidates.length > maxElements) {
@@ -265,8 +283,7 @@ function isLarge(element: Element): boolean {
 }
 
 /** Un custom element grande, sin hijos ni shadow root abierto, suele tener shadow DOM cerrado. */
-function isCustomElementWithoutShadow(element: Element): boolean {
-  if (!element.localName.includes('-') || element.shadowRoot || element.children.length > 0) return false;
+function looksLikeClosedShadow(element: Element): boolean {
   const rect = element.getBoundingClientRect();
   return rect.width >= 80 && rect.height >= 24;
 }
