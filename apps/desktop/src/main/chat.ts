@@ -90,9 +90,8 @@ export class Chat {
     } catch (error) {
       // Sesión vencida o servidor reiniciado: el historial va completo, se empieza otra.
       if (!(error instanceof ApiFailure) || error.code !== 'SESSION_NOT_FOUND') throw error;
-      ticket.expire();
-      const retry = this.session.begin();
-      const response = await this.api.interpret({ messages }, signal);
+      const retry = ticket.expire();
+      const response = await this.api.interpret(retry.id ? { sessionId: retry.id, messages } : { messages }, signal);
       retry.commit(response.sessionId);
       return response;
     }

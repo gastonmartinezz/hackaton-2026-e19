@@ -222,9 +222,8 @@ export class Assistant {
       } catch (error) {
         // Sesión vencida o servidor reiniciado: se empieza otra.
         if (!(error instanceof ApiFailure) || error.code !== 'SESSION_NOT_FOUND') throw error;
-        ticket.expire();
-        ticket = session.begin();
-        response = await api.options(request, signal);
+        ticket = ticket.expire();
+        response = await api.options(ticket.id ? { ...request, sessionId: ticket.id } : request, signal);
       }
       if (epoch !== this.#epoch) return;
       ticket.commit(response.sessionId);
@@ -270,6 +269,7 @@ export class Assistant {
         log('guide.session_lost');
         this.#guideSessionId = undefined;
         if (ticket.id === sessionId) ticket.expire();
+        // Se vuelve a analizar con la sesión vigente (la de otra solicitud, si la hay).
         this.#dispatch({ type: 'ANALYZE' });
         return;
       }

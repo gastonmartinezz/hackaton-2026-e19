@@ -53,6 +53,7 @@ export class ApiSession {
       },
       expire: () => {
         if (current()) this.reset();
+        return this.begin();
       },
     };
   }
@@ -69,8 +70,12 @@ export interface SessionTicket {
   readonly id: string | undefined;
   /** Guarda la sesión devuelta; false si la sesión cambió en el medio. */
   commit(id: string): boolean;
-  /** SESSION_NOT_FOUND: descarta la sesión solo si sigue siendo la misma. */
-  expire(): void;
+  /**
+   * SESSION_NOT_FOUND: descarta la sesión solo si sigue siendo la misma, y
+   * devuelve un ticket para reintentar con la vigente (ninguna, o la que otra
+   * solicitud guardó mientras tanto).
+   */
+  expire(): SessionTicket;
 }
 
 export type ClientErrorCode = ErrorCode | 'NETWORK' | 'INVALID_RESPONSE' | 'ABORTED';
