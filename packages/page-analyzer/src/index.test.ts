@@ -110,6 +110,24 @@ describe('IDs estables', () => {
   });
 });
 
+describe('metadatos de la página', () => {
+  it('incluye título depurado e idioma, y omite títulos personalizados', () => {
+    document.documentElement.setAttribute('lang', 'es-AR');
+    document.title = 'Turnos - Hospital 30123456 | Hola, Marta';
+    let { snapshot } = extract();
+    expect(snapshot).toMatchObject({ title: 'Turnos - Hospital [número]', language: 'es-AR' });
+    expect(PageSnapshotSchema.safeParse(snapshot).success).toBe(true);
+
+    document.title = 'Hola, Marta Gómez';
+    document.documentElement.setAttribute('lang', '"><script>');
+    ({ snapshot } = extract());
+    expect(snapshot.title).toBeUndefined();
+    expect(snapshot.language).toBeUndefined();
+    document.documentElement.removeAttribute('lang');
+    document.title = '';
+  });
+});
+
 describe('HTML sintético para /v1/options', () => {
   it('anida por sección, usa los IDs locales y no incluye valores, URL ni datos personales', () => {
     document.body.innerHTML = `

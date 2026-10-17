@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { Limits, type ChatMessage as ApiMessage, type SiteOption } from '@hackaton/contracts';
 import { minimizeIntent } from '@asistente/privacy';
 import type { ChatMessage, ChatPhase } from '../shared/ipc';
-import { isAbort, userMessage, type ApiClient } from './api/client';
+import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession } from './api/client';
 import { log } from './log';
 
 const MAX_MESSAGES = 30;
@@ -30,6 +30,8 @@ export class Chat {
 
   constructor(
     private readonly api: ApiClient,
+    /** El chat inicia la sesión del backend; la guía la reutiliza. */
+    private readonly session: ApiSession,
     private readonly onChange: () => void,
     /** `redirect`: la URL sale de la respuesta validada, nunca del renderer. */
     private readonly onRedirect: (url: string) => void,
@@ -54,7 +56,8 @@ export class Chat {
     this.#controller = controller;
     try {
       this.#set('interpreting');
-      const response = await this.api.interpret({ messages: this.#history.slice(-Limits.maxMessages) }, controller.signal);
+      const response = await this.#interpret(controller.signal);
+      this.session.id = response.sessionId;
       log('chat.response', { type: `kind:${response.type}` });
       this.#push('assistant', response.message);
       this.#history.push({ role: 'assistant', content: response.message });
@@ -78,6 +81,19 @@ export class Chat {
     }
   }
 
+  async #interpret(signal: AbortSignal) {
+    const messages = this.#history.slice(-Limits.maxMessages);
+    if (!this.session.id) return this.api.interpret({ messages }, signal);
+    try {
+      return await this.api.interpret({ sessionId: this.session.id, messages }, signal);
+    } catch (error) {
+      // Sesión vencida o servidor reiniciado: el historial va completo, se empieza otra.
+      if (!(error instanceof ApiFailure) || error.code !== 'SESSION_NOT_FOUND') throw error;
+      this.session.reset();
+      return this.api.interpret({ messages }, signal);
+    }
+  }
+
   candidate(id: string): Candidate | undefined {
     return this.candidates.find((c) => c.id === id);
   }
@@ -90,6 +106,7 @@ export class Chat {
     this.candidates = [];
     this.error = null;
     this.#history = [];
+    this.session.reset();
     this.onChange();
   }
 

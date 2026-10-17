@@ -1,10 +1,13 @@
 import type { InterpretRequest, InterpretResponse } from '@hackaton/contracts';
 import { describe, expect, it, vi } from 'vitest';
-import { ApiFailure, type ApiClient } from './api/client';
+import { ApiFailure, ApiSession, type ApiClient } from './api/client';
 import { interpretMock } from './api/mock';
 import { Chat } from './chat';
 
-function setup(...responses: Array<InterpretResponse | ApiFailure>) {
+type Reply = DistributiveOmit<InterpretResponse, 'sessionId'> | ApiFailure;
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+function setup(...responses: Reply[]) {
   const sent: InterpretRequest[] = [];
   const api: ApiClient = {
     isMock: true,
@@ -12,13 +15,15 @@ function setup(...responses: Array<InterpretResponse | ApiFailure>) {
       sent.push(structuredClone(request));
       const next = responses.shift()!;
       if (next instanceof ApiFailure) throw next;
-      return next;
+      return { ...next, sessionId: request.sessionId ?? `s-${sent.length}` };
     }),
     options: vi.fn(),
+    nextStep: vi.fn(),
   };
   const onRedirect = vi.fn();
-  const chat = new Chat(api, () => {}, onRedirect);
-  return { chat, sent, onRedirect };
+  const session = new ApiSession();
+  const chat = new Chat(api, session, () => {}, onRedirect);
+  return { chat, sent, onRedirect, session };
 }
 
 const sites = [
@@ -27,8 +32,8 @@ const sites = [
 ];
 
 describe('Chat (/v1/interpret)', () => {
-  it('question: muestra la pregunta y reenvía todo el historial con la respuesta', async () => {
-    const { chat, sent } = setup(
+  it('question: muestra la pregunta y reenvía todo el historial y la sesión con la respuesta', async () => {
+    const { chat, sent, session } = setup(
       { type: 'question', message: '¿En qué país?' },
       { type: 'redirect', message: 'Te llevo.', url: 'https://turnos.gob.ar/' },
     );
@@ -39,7 +44,11 @@ describe('Chat (/v1/interpret)', () => {
       ['assistant', '¿En qué país?'],
     ]);
 
+    expect(sent[0]!.sessionId).toBeUndefined();
+    expect(session.id).toBe('s-1');
+
     await chat.submit('Argentina');
+    expect(sent[1]!.sessionId).toBe('s-1');
     expect(sent[1]!.messages).toEqual([
       { role: 'user', content: 'Quiero renovar mi documento' },
       { role: 'assistant', content: '¿En qué país?' },
@@ -81,13 +90,29 @@ describe('Chat (/v1/interpret)', () => {
     expect(chat.phase).toBe('clarifying');
   });
 
-  it('reset borra la conversación', async () => {
-    const { chat, sent } = setup({ type: 'question', message: '¿Qué?' }, { type: 'question', message: '¿Qué?' });
+  it('reset borra la conversación y la sesión', async () => {
+    const { chat, sent, session } = setup({ type: 'question', message: '¿Qué?' }, { type: 'question', message: '¿Qué?' });
     await chat.submit('algo');
     chat.reset();
     expect(chat.messages).toEqual([]);
+    expect(session.id).toBeUndefined();
     await chat.submit('otra cosa');
     expect(sent[1]!.messages).toHaveLength(1);
+    expect(sent[1]!.sessionId).toBeUndefined();
+  });
+
+  it('si la sesión venció, reenvía el historial sin sessionId y guarda la nueva', async () => {
+    const { chat, sent, session } = setup(
+      { type: 'question', message: '¿Qué?' },
+      new ApiFailure('SESSION_NOT_FOUND', false),
+      { type: 'redirect', message: 'Vamos.', url: 'https://turnos.gob.ar/' },
+    );
+    await chat.submit('turno');
+    await chat.submit('para el dni');
+    expect(chat.phase).toBe('redirected');
+    expect(sent.map((r) => r.sessionId)).toEqual([undefined, 's-1', undefined]);
+    expect(sent[2]!.messages).toHaveLength(3);
+    expect(session.id).toBe('s-3');
   });
 });
 

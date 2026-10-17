@@ -3,14 +3,37 @@
  * principal es el único que habla con el servidor; la interfaz propia y la
  * página nunca lo hacen.
  */
-import type { ErrorCode, InterpretRequest, InterpretResponse, OptionsRequest, OptionsResponse } from '@hackaton/contracts';
+import type {
+  ErrorCode,
+  InterpretRequest,
+  InterpretResponse,
+  NextStepRequest,
+  NextStepResponse,
+  OptionsRequest,
+  OptionsResponse,
+} from '@hackaton/contracts';
 
 export interface ApiClient {
   readonly isMock: boolean;
   /** POST /v1/interpret: chat de la home. */
   interpret(request: InterpretRequest, signal: AbortSignal): Promise<InterpretResponse>;
-  /** POST /v1/options: opciones de la página y próximo paso de la guía. */
+  /** POST /v1/options: opciones de la página, cada una con su guía. */
   options(request: OptionsRequest, signal: AbortSignal): Promise<OptionsResponse>;
+  /** POST /v1/next-step: pasos reales cuando la guía llega a un paso teórico. */
+  nextStep(request: NextStepRequest, signal: AbortSignal): Promise<NextStepResponse>;
+}
+
+/**
+ * Sesión del backend: la crea /v1/interpret (o /v1/options si se abrió una
+ * página sin pasar por el chat) y acompaña todo el recorrido. Se comparte
+ * entre el chat y la guía.
+ */
+export class ApiSession {
+  id: string | undefined;
+
+  reset(): void {
+    this.id = undefined;
+  }
 }
 
 export type ClientErrorCode = ErrorCode | 'NETWORK' | 'INVALID_RESPONSE' | 'ABORTED';

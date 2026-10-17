@@ -14,7 +14,7 @@ import {
   type NoticeAction,
   type UiCommand,
 } from '../shared/ipc';
-import type { ApiClient } from './api/client';
+import { ApiSession, type ApiClient } from './api/client';
 import { Assistant } from './assistant';
 import { Chat } from './chat';
 import { log } from './log';
@@ -25,12 +25,9 @@ import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
 
 const BASE_TOP_BAR = 76;
 const BASE_PANEL = 420;
-/**
- * Opciones y guía dentro de la página (POST /v1/options). Apagado en esta
- * etapa: la base es el input de la home y la navegación. Se activa en la rama
- * options-action junto con el contrato nuevo del backend.
- */
-const GUIDE_ENABLED = false;
+/** Opciones y guía dentro de la página (POST /v1/options y /v1/next-step). */
+const GUIDE_ENABLED = true;
+const PRIMARY_OPTIONS = 3;
 const MAX_NOTICES = 3;
 
 const PERMISSION_NAMES: Record<string, string> = {
@@ -86,12 +83,14 @@ export class AppController {
     this.window.contentView.addChildView(this.#site.view);
     this.#site.view.setVisible(false);
     this.#bridge = new PageBridge(this.#site);
+    const session = new ApiSession();
     this.#chat = new Chat(
       options.api,
+      session,
       () => this.#publish(),
       (url) => this.#openDestination(url),
     );
-    this.#assistant = new Assistant({ api: options.api, page: this.#bridge, onChange: () => this.#publish() });
+    this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
     this.#wireSite();
 
     ipcMain.handle(UI_COMMAND_CHANNEL, (event, raw: unknown) => this.#onCommand(event, raw));
@@ -171,8 +170,8 @@ export class AppController {
       guide: {
         phase: guide.phase,
         goal: guide.goal ?? null,
-        primary: guide.primary.map(toView),
-        secondary: guide.secondary.map(toView),
+        primary: guide.options.slice(0, PRIMARY_OPTIONS).map(toView),
+        secondary: guide.options.slice(PRIMARY_OPTIONS).map(toView),
         option: guide.option ? toView(guide.option) : null,
         instruction: guide.phase === 'waitingForUser' ? (guide.step?.instruction ?? null) : null,
         announceKey: this.#assistant.announceKey,
@@ -339,7 +338,7 @@ export class AppController {
       case 'retry':
         this.#assistant.retry();
         return;
-      // TODO(options-action / UI final): la UI de esta etapa no expone setTextScale ni
+      // TODO(UI final): la UI de esta etapa no expone setTextScale ni
       // setAiForSite (la home es solo el input). Se mantienen para la UI final: el
       // tamaño de texto es clave para el público y la IA por sitio va con la guía.
       case 'setTextScale':

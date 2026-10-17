@@ -1,12 +1,23 @@
 /**
  * TEMPORAL — backend simulado para probar el cliente sin el servidor de Agustin
- * (sección 0, regla 4). Respeta el contrato v1.2 de @hackaton/contracts.
+ * (sección 0, regla 4). Respeta el contrato de @hackaton/contracts (sesión
+ * desde /v1/interpret, guía por opción y /v1/next-step).
  * NO es una implementación paralela del servidor: heurísticas mínimas y fijas,
  * sin Claude. Se reemplaza configurando ASISTENTE_API_URL (el backend real
  * también tiene modo mock con AI_PROVIDER=mock).
  */
 import { randomUUID } from 'node:crypto';
-import type { Guide, InterpretRequest, InterpretResponse, OptionsRequest, OptionsResponse, PageOption, SiteOption } from '@hackaton/contracts';
+import type {
+  GuideStep,
+  InterpretRequest,
+  InterpretResponse,
+  NextStepRequest,
+  NextStepResponse,
+  OptionsRequest,
+  OptionsResponse,
+  PageOption,
+  SiteOption,
+} from '@hackaton/contracts';
 import { ApiFailure, type ApiClient } from './client';
 
 export interface MockOptions {
@@ -16,8 +27,8 @@ export interface MockOptions {
 }
 
 interface MockSession {
-  goal?: string | undefined;
-  steps: number;
+  /** Opciones devueltas por /v1/options en esta sesión. */
+  options: Set<string>;
 }
 
 export class MockApiClient implements ApiClient {
@@ -28,27 +39,36 @@ export class MockApiClient implements ApiClient {
 
   async interpret(request: InterpretRequest, signal: AbortSignal): Promise<InterpretResponse> {
     await this.#wait(signal);
-    return interpretMock(request, this.#sites());
+    const sessionId = this.#session(request.sessionId);
+    return { sessionId, ...interpretMock(request, this.#sites()) };
   }
 
   async options(request: OptionsRequest, signal: AbortSignal): Promise<OptionsResponse> {
     await this.#wait(signal);
-    let sessionId = request.sessionId;
-    if (sessionId && !this.#sessions.has(sessionId)) throw new ApiFailure('SESSION_NOT_FOUND', false);
-    if (!sessionId) {
-      sessionId = `s-${randomUUID().slice(0, 8)}`;
-      this.#sessions.set(sessionId, { steps: 0 });
+    const sessionId = this.#session(request.sessionId);
+    const options = buildOptions(parse(request.html));
+    for (const option of options) this.#sessions.get(sessionId)!.options.add(option.id);
+    return { sessionId, options };
+  }
+
+  /** Las guías del simulador terminan después del último paso teórico. */
+  async nextStep(request: NextStepRequest, signal: AbortSignal): Promise<NextStepResponse> {
+    await this.#wait(signal);
+    const session = this.#sessions.get(request.sessionId);
+    if (!session) throw new ApiFailure('SESSION_NOT_FOUND', false);
+    if (!session.options.has(request.optionId)) throw new ApiFailure('BAD_REQUEST', false);
+    return { sessionId: request.sessionId, steps: [], done: true };
+  }
+
+  /** Devuelve la sesión indicada (o una nueva si no se indicó ninguna). */
+  #session(id: string | undefined): string {
+    if (id) {
+      if (!this.#sessions.has(id)) throw new ApiFailure('SESSION_NOT_FOUND', false);
+      return id;
     }
-    const session = this.#sessions.get(sessionId)!;
-    if (request.goal && request.goal !== session.goal) {
-      session.goal = request.goal;
-      session.steps = 0;
-    }
-    const page = parse(request.html);
-    const options = buildOptions(page);
-    const guide = session.goal ? nextStep(page, session.goal, session.steps) : null;
-    if (guide) session.steps++;
-    return { sessionId, options, guide };
+    const created = `s-${randomUUID().slice(0, 8)}`;
+    this.#sessions.set(created, { options: new Set() });
+    return created;
   }
 
   #sites(): SiteOption[] {
@@ -86,7 +106,10 @@ export class MockApiClient implements ApiClient {
  * - coincide con un solo sitio → `redirect`
  * - coincide con varios (o "opciones") → `options`
  */
-export function interpretMock(request: InterpretRequest, sites: SiteOption[]): InterpretResponse {
+type MockInterpretation = DistributiveOmit<InterpretResponse, 'sessionId'>;
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+export function interpretMock(request: InterpretRequest, sites: SiteOption[]): MockInterpretation {
   const users = request.messages.filter((m) => m.role === 'user');
   const text = normalize(users.map((m) => m.content).join(' '));
   const words = keywords(text);
@@ -165,51 +188,43 @@ function decode(text: string): string {
   return text.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 }
 
+const step = (element: MockElement, instruction: string, waitFor: GuideStep['waitFor']): GuideStep => ({
+  element: `#${element.id}`,
+  presentation: 'scrollAndHighlight',
+  instruction: instruction.slice(0, 300),
+  waitFor,
+});
+
+/** Paso teórico final: el resultado aparece después de la última acción. */
+const check = (instruction: string): GuideStep => ({ element: null, presentation: 'highlight', instruction, waitFor: 'userConfirmation' });
+
 function buildOptions(page: MockElement[]): PageOption[] {
   const enabled = page.filter((e) => !e.disabled);
   const options: PageOption[] = [];
 
   const search = enabled.find((e) => e.type === 'search' || (FIELD(e) && /busc|search/i.test(e.label)));
-  if (search) options.push({ id: `search-${search.id}`, title: 'Buscar en este sitio', initialElement: `#${search.id}` });
+  if (search) {
+    const button = enabled.find((e) => CLICKABLE(e) && e.parent === search.parent);
+    const steps = [step(search, `Escribí lo que buscás en «${search.label || 'Buscar'}».`, 'userInteraction')];
+    if (button) steps.push(step(button, `Ahora hacé clic en «${button.label}».`, 'userInteraction'));
+    options.push({ id: `search-${search.id}`, title: 'Buscar en este sitio', steps: [...steps, check('Revisá los resultados.')] });
+  }
 
   for (const form of page.filter((e) => e.tag === 'form')) {
-    if (enabled.filter((e) => e.parent === form.id && FIELD(e)).length >= 2) {
-      options.push({ id: `form-${form.id}`, title: `Completar: ${form.label || 'formulario'}`.slice(0, 120), initialElement: `#${form.id}` });
-    }
+    const fields = enabled.filter((e) => e.parent === form.id && FIELD(e));
+    const submit = enabled.find((e) => e.parent === form.id && CLICKABLE(e));
+    if (fields.length < 2) continue;
+    const steps = fields.map((field) => step(field, `Completá «${field.label || 'este campo'}».`, 'userInteraction'));
+    if (submit) steps.push(step(submit, `Cuando esté todo, hacé clic en «${submit.label}».`, 'navigation'));
+    options.push({ id: `form-${form.id}`, title: `Completar: ${form.label || 'formulario'}`.slice(0, 120), steps: [...steps, check('Revisá el mensaje de confirmación.')].slice(0, 15) });
   }
 
   for (const link of enabled.filter((e) => CLICKABLE(e) && e.label.length >= 3 && e.parent !== search?.parent).slice(0, 6)) {
-    options.push({ id: `go-${link.id}`, title: `Ir a «${link.label}»`.slice(0, 120), initialElement: `#${link.id}` });
+    options.push({
+      id: `go-${link.id}`,
+      title: `Ir a «${link.label}»`.slice(0, 120),
+      steps: [step(link, `Hacé clic en «${link.label}».`, 'navigation'), check('Revisá la página que se abrió.')],
+    });
   }
   return options.slice(0, 10);
-}
-
-function nextStep(page: MockElement[], goal: string, steps: number): Guide | null {
-  const byId = new Map(page.map((e) => [e.id, e]));
-  const [kind, ...rest] = goal.split('-');
-  const target = byId.get(rest.join('-'));
-  const step = (element: MockElement, instruction: string, waitFor: Guide['step']['waitFor']): Guide => ({
-    goal,
-    step: { element: `#${element.id}`, presentation: 'scrollAndHighlight', instruction: instruction.slice(0, 300), waitFor },
-  });
-
-  if (kind === 'go') {
-    return steps === 0 && target ? step(target, `Hacé clic en «${target.label}».`, 'navigation') : null;
-  }
-  if (kind === 'search') {
-    const box = target ?? page.find((e) => e.type === 'search');
-    const button = box && page.find((e) => CLICKABLE(e) && e.parent === box.parent);
-    if (steps === 0 && box) return step(box, `Escribí lo que buscás en «${box.label || 'Buscar'}».`, 'userInteraction');
-    if (steps === 1 && button) return step(button, `Ahora hacé clic en «${button.label}».`, 'userInteraction');
-    return null;
-  }
-  if (kind === 'form') {
-    const fields = page.filter((e) => e.parent === target?.id && FIELD(e) && !e.disabled);
-    const submit = page.find((e) => e.parent === target?.id && CLICKABLE(e));
-    const field = fields[steps];
-    if (field) return step(field, `Completá «${field.label || 'este campo'}».`, 'userInteraction');
-    if (submit && steps === fields.length) return step(submit, `Cuando esté todo, hacé clic en «${submit.label}».`, 'navigation');
-    return null;
-  }
-  return null;
 }

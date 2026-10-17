@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findLeaks, isDoubtfulLabel, minimizeIntent, redactText, sanitizeLabel, sanitizeOrigin } from './index';
+import { findLeaks, isDoubtfulLabel, minimizeIntent, redactText, sanitizeLabel, sanitizeOrigin, sanitizeTitle } from './index';
 
 describe('redactText', () => {
   it('quita correos, teléfonos, documentos, tokens y URLs', () => {
@@ -32,6 +32,15 @@ describe('redactText', () => {
 
   it('trunca al máximo indicado', () => {
     expect(redactText('a'.repeat(200), { maxLength: 10 })).toHaveLength(10);
+  });
+});
+
+describe('sanitizeTitle', () => {
+  it('descarta las partes personalizadas del título y conserva el resto', () => {
+    expect(sanitizeTitle('Horarios - Hola, Marta')).toBe('Horarios');
+    expect(sanitizeTitle('Mi cuenta | Sesión iniciada como marta | Banco')).toBe('Mi cuenta - Banco');
+    expect(sanitizeTitle('Bienvenida Marta')).toBe('');
+    expect(sanitizeTitle('Turnos · Hospital 30123456')).toBe('Turnos - Hospital [número]');
   });
 });
 
