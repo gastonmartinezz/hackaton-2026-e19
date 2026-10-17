@@ -23,10 +23,11 @@ const PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   // Un secreto puede tener espacios, puntos, guiones o venir en otra línea, y no hay forma de
   // saber dónde termina: se oculta todo lo que sigue. Los textos que pasan por acá son de una
   // línea (chat, etiquetas, títulos), así que en la práctica se pierde solo el resto de esa línea.
-  // Un espacio solo no alcanza ("olvidé mi contraseña del banco" es un pedido, no un secreto).
+  // Separadores: ":", "=", "es"/"son", "is"/"are" o un salto de línea. Un espacio solo no
+  // alcanza ("olvidé mi contraseña del banco" es un pedido, no un secreto).
   [
     new RegExp(
-      String.raw`${WORD_START}(${CREDENTIAL})${WORD_END}([^\S\n]*(?::|=|${WORD_START}(?:es|son)${WORD_END})\s*|[^\S\n]*\n\s*)[\s\S]*\S`,
+      String.raw`${WORD_START}(${CREDENTIAL})${WORD_END}([^\S\n]*(?::|=|${WORD_START}(?:es|son|is|are)${WORD_END})\s*|[^\S\n]*\n\s*)[\s\S]*\S`,
       'giu',
     ),
     '$1$2[dato]',
@@ -57,16 +58,22 @@ export interface RedactOptions {
  * Devuelve el texto depurado. Reemplaza correos, números largos, tokens y URLs,
  * normaliza espacios y trunca.
  */
-export function redactText(input: string, { maxLength = 120 }: RedactOptions = {}): string {
-  // Los saltos de línea se conservan hasta después de los patrones: una palabra de
-  // credencial al final de una línea anuncia que el valor viene en la siguiente.
-  let text = input
+/**
+ * Forma canónica antes de buscar patrones. Los saltos de línea se conservan: una
+ * palabra de credencial al final de una línea anuncia que el valor viene en la
+ * siguiente. Los caracteres de formato invisibles se quitan sin dejar espacio:
+ * si no, "contra\u200bseña" quedaría como "contra seña" y escaparía a los patrones.
+ */
+function normalizeText(input: string): string {
+  return input
     .normalize('NFC')
     .replace(/\r\n?|[\u2028\u2029]/g, '\n')
-    // Los caracteres de formato invisibles se quitan sin dejar espacio: si no,
-    // "contra\u200bseña" quedaría como "contra seña" y escaparía a los patrones.
     .replace(/[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, '')
     .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ');
+}
+
+export function redactText(input: string, { maxLength = 120 }: RedactOptions = {}): string {
+  let text = normalizeText(input);
   for (const [pattern, replacement] of PATTERNS) {
     text = text.replace(pattern, replacement);
   }
@@ -104,7 +111,8 @@ export function sanitizeLabel(raw: string, maxLength = 120): string {
 export function sanitizeTitle(raw: string, maxLength = 200): string {
   // Después de una palabra de credencial puede venir el valor con cualquier separador
   // ("Contraseña - x", "clave: a.b - c"), así que el título se corta ahí.
-  const parts = redactText(raw.replace(CREDENTIAL_AND_REST, '$1'), { maxLength: 1000 })
+  // Se normaliza antes de cortar, para que un carácter invisible no parta la palabra.
+  const parts = redactText(normalizeText(raw).replace(CREDENTIAL_AND_REST, '$1'), { maxLength: 1000 })
     .split(TITLE_SEPARATOR)
     .map((part) => sanitizeLabel(part, maxLength))
     .filter(Boolean);

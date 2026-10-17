@@ -38,6 +38,9 @@ describe('redactText', () => {
     expect(redactText('contra\u200bseña: gatito')).toBe('contraseña: [dato]');
     expect(redactText('pass\u00adword=\u2060gatito')).toBe('password=[dato]');
     expect(redactText('cla\ufeffve es gatito')).toBe('clave es [dato]');
+    expect(redactText('my password is gatito')).toBe('my password is [dato]');
+    expect(redactText('the tokens are abc def')).toBe('the tokens are [dato]');
+    expect(sanitizeTitle('Contra\u200bseña - gatito | Banco')).toBe('Contraseña');
     // Plurales y palabras con ñ o tilde.
     expect(redactText('contraseñas: gatito')).toBe('contraseñas: [dato]');
     expect(redactText('mis claves son gatito y perro')).toBe('mis claves son [dato]');
