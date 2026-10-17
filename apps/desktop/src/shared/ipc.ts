@@ -42,10 +42,24 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('setAiForSite'), enabled: z.boolean() }),
   z.strictObject({ type: z.literal('resolveNotice'), noticeId: Id, action: z.enum(['openHere', 'openExternal', 'dismiss']) }),
   z.strictObject({ type: z.literal('openCurrentExternally') }),
+  /** «¿No está lo que buscás?» (pantalla 11): se vuelve a mirar la página con ese pedido. */
+  z.strictObject({ type: z.literal('askOnPage'), text: z.string().trim().min(1).max(500) }),
+  /** Solo desde la tarjeta flotante: qué muestra y cuánto mide. */
+  z.strictObject({ type: z.literal('cardLayout'), mode: z.enum(['none', 'card', 'pill', 'toast']), height: z.number().int().min(0).max(5000) }),
 ]);
 export type UiCommand = z.infer<typeof UiCommandSchema>;
 
 export type NoticeAction = 'openHere' | 'openExternal' | 'dismiss';
+
+/** Qué muestra la tarjeta flotante: nada, la tarjeta, la barra achicada (12) o el aviso al salir (21). */
+export type CardMode = 'none' | 'card' | 'pill' | 'toast';
+
+export interface CardLayout {
+  /** `compact`: la tarjeta taparía el control resaltado arriba y abajo; se achica. */
+  placement: 'top' | 'bottom' | 'compact';
+  /** Alto máximo de la tarjeta en px; el cuerpo se desplaza si no entra. */
+  maxHeight: number;
+}
 
 export interface Notice {
   id: string;
@@ -81,7 +95,7 @@ export interface AppState {
   mockBackend: boolean;
   /** Opciones y guía dentro de la página. */
   guideEnabled: boolean;
-  layout: { topBarHeight: number; panelWidth: number };
+  layout: { topBarHeight: number; card: CardLayout };
   prefs: { textScale: number; aiEnabledForSite: boolean };
   nav: {
     visible: boolean;
@@ -120,6 +134,12 @@ export interface AppState {
     stepCount: number;
     message: string | null;
     targetVisible: boolean | null;
+    /** El control señalado es un campo: la persona escribe ahí (08). */
+    targetField: boolean;
+    /** Cómo avanza el paso actual: `userConfirmation` pide «Listo, ya lo escribí». */
+    waitFor: 'userInteraction' | 'navigation' | 'userConfirmation' | null;
+    /** La persona salió de la ayuda en esta página (21). */
+    exited: boolean;
     partialPage: boolean;
   };
   notices: Notice[];
@@ -172,7 +192,19 @@ export const SnapshotMessageSchema = z.strictObject({
 export const SHOW_RESULTS = ['shown', 'stale', 'notVisible'] as const;
 export type ShowResult = (typeof SHOW_RESULTS)[number];
 
-export const ShownMessageSchema = z.strictObject({ requestId: Id, result: z.enum(SHOW_RESULTS), elementId: Id.optional() });
+const Px = z.number().finite().min(-100_000).max(100_000);
+/** Posición del control en la vista del sitio (después de desplazar), para que la tarjeta no lo tape. */
+export const TargetRectSchema = z.strictObject({ x: Px, y: Px, width: Px.nonnegative(), height: Px.nonnegative() });
+export type TargetRect = z.infer<typeof TargetRectSchema>;
+
+export const ShownMessageSchema = z.strictObject({
+  requestId: Id,
+  result: z.enum(SHOW_RESULTS),
+  elementId: Id.optional(),
+  rect: TargetRectSchema.optional(),
+  /** El control es un campo: la persona escribe ahí (pantalla 08). */
+  field: z.boolean().optional(),
+});
 
 export const ChangedMessageSchema = z.strictObject({ structural: z.boolean(), targetPresent: z.boolean().nullable() });
 

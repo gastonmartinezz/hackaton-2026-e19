@@ -7,7 +7,7 @@
 import { extractSnapshot, resolveSelector, snapshotToHtml, type ElementRegistry } from '@asistente/page-analyzer';
 import { ipcRenderer } from 'electron';
 import { ExtractRequestSchema, PAGE_CHANNELS, ShowRequestSchema, type ShowResult } from '../../shared/ipc';
-import { Highlighter } from './highlighter';
+import { Highlighter, isField } from './highlighter';
 import { isRelevantChange, observePage } from './observer';
 
 let registry: ElementRegistry | undefined;
@@ -27,7 +27,7 @@ ipcRenderer.on(PAGE_CHANNELS.extract, (_event, raw: unknown) => {
   ipcRenderer.send(PAGE_CHANNELS.snapshot, { requestId, snapshot: result.snapshot, notes: result.notes });
 });
 
-ipcRenderer.on(PAGE_CHANNELS.show, (_event, raw: unknown) => {
+ipcRenderer.on(PAGE_CHANNELS.show, async (_event, raw: unknown) => {
   const request = ShowRequestSchema.safeParse(raw);
   if (!request.success) return;
   const { requestId, navigationId, selector, scroll } = request.data;
@@ -42,12 +42,32 @@ ipcRenderer.on(PAGE_CHANNELS.show, (_event, raw: unknown) => {
   } else {
     highlighter?.clear();
   }
-  ipcRenderer.send(PAGE_CHANNELS.shown, element ? { requestId, result, elementId } : { requestId, result });
+  if (!element) {
+    ipcRenderer.send(PAGE_CHANNELS.shown, { requestId, result });
+    return;
+  }
+  if (result === 'shown' && scroll) await scrollSettled();
+  const box = element.getBoundingClientRect();
+  const rect = { x: box.left, y: box.top, width: box.width, height: box.height };
+  ipcRenderer.send(PAGE_CHANNELS.shown, { requestId, result, elementId, rect, field: isField(element) });
 });
 
 ipcRenderer.on(PAGE_CHANNELS.clear, () => {
   highlighter?.clear();
 });
+
+/** Espera a que termine el desplazamiento suave (o un máximo) para medir el control. */
+function scrollSettled(): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      window.removeEventListener('scrollend', done, true);
+      resolve();
+    };
+    const timer = setTimeout(done, 700);
+    window.addEventListener('scrollend', done, { capture: true, once: true });
+  });
+}
 
 function start(): void {
   invalidCount = countInvalid();

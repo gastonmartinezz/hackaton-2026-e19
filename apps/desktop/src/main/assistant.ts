@@ -13,6 +13,7 @@ import { snapshotToHtml, type PageSnapshot } from '@asistente/page-analyzer';
 import { evaluateObservation, expectedStep, initialState, transition, type GuideEvent, type GuideState, type Observation } from '@asistente/guidance';
 import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession } from './api/client';
 import { log } from './log';
+import type { TargetRect } from '../shared/ipc';
 import type { ExtractedPage, ShownTarget } from './page-bridge';
 
 export interface PagePort {
@@ -38,6 +39,8 @@ const MAX_STEPS = 60;
 export class Assistant {
   state: GuideState = initialState;
   targetVisible: boolean | null = null;
+  /** Dónde quedó el control señalado en la vista del sitio, y si es un campo. */
+  target: { rect: TargetRect | undefined; field: boolean } | null = null;
   partialPage = false;
   announceKey = 0;
 
@@ -102,6 +105,7 @@ export class Assistant {
     this.#pageReady = false;
     this.#invalidate();
     this.targetVisible = null;
+    this.target = null;
   }
 
   navigated({ sameDocument, aiEnabled }: { sameDocument: boolean; aiEnabled: boolean }): void {
@@ -163,6 +167,7 @@ export class Assistant {
     const epoch = this.#invalidate();
     if (next.phase !== 'waitingForUser') {
       this.targetVisible = null;
+      this.target = null;
       this.deps.page.clear();
     }
     if (next.phase === 'analyzing' || next.phase === 'idle') this.#unshown = 0;
@@ -298,15 +303,17 @@ export class Assistant {
     if (step.element === null) {
       // Paso teórico: solo la instrucción; se espera la acción de la persona.
       this.targetVisible = null;
+      this.target = null;
       this.deps.page.clear();
       this.deps.onChange();
       return;
     }
-    const { result, elementId } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
+    const { result, elementId, rect, field } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
     if (epoch !== this.#epoch) return;
     // Sin ID local no se puede verificar la interacción: se trata como no señalado.
     const shown = result === 'shown' && elementId !== undefined;
     this.targetVisible = shown;
+    this.target = shown ? { rect, field: field ?? false } : null;
     if (shown) {
       this.#unshown = 0;
       this.#dispatch({ type: 'SHOWN', elementId });

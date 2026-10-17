@@ -716,6 +716,7 @@ body {
   border-top: var(--card-strip) solid var(--color-accent);
 }
 .mm-card-head {
+  min-height: calc(var(--target-min) + 2 * var(--space-3));
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -1123,6 +1124,10 @@ body {
   font-size: var(--fs-xs);
   padding: 0 var(--space-4);
   flex: none;
+}
+.mm-toast .txt {
+  white-space: normal;
+  line-height: 1.3;
 }
 .mm-toast {
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);

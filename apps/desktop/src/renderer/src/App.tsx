@@ -1,9 +1,9 @@
 /**
- * UI de Mostrame (diseño de Emi, v1.5). Solo presenta el estado y envía
- * comandos: toda la lógica vive en el proceso principal.
+ * Ventana de Mostrame (diseño de Emi, v1.5): la barra y el inicio. Con un sitio
+ * abierto, el sitio ocupa el resto y la ayuda flota encima en su propia vista
+ * (card.html). Solo presenta el estado y envía comandos.
  */
 import { LoadingDots } from '@asistente/ui';
-import { GuidePanel } from './GuidePanel';
 import { Home } from './Home';
 import { Notices } from './Notices';
 import { TopBar } from './TopBar';
@@ -23,15 +23,8 @@ export function App() {
   return (
     <div className="app">
       <TopBar state={state} />
-      {state.nav.visible ? (
-        <div className="browse">
-          {/* La vista nativa del sitio ocupa el resto de la ventana. */}
-          <aside className="panel" aria-label="Ayuda de Mostrame" style={{ width: state.layout.panelWidth }}>
-            <Notices state={state} />
-            {state.guideEnabled ? <GuidePanel state={state} /> : null}
-          </aside>
-        </div>
-      ) : (
+      {/* Con un sitio abierto, la vista nativa ocupa el resto y los avisos van en la tarjeta. */}
+      {state.nav.visible ? null : (
         <>
           <Notices state={state} />
           <Home state={state} />

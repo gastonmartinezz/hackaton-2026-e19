@@ -17,6 +17,7 @@ import {
   ValidationMessageSchema,
   type EXTRACT_NOTES,
   type ShowResult,
+  type TargetRect,
 } from '../shared/ipc';
 import type { SiteView } from './site-view';
 
@@ -30,6 +31,8 @@ export interface ShownTarget {
   result: ShowResult;
   /** ID local al que se resolvió el selector. */
   elementId?: string | undefined;
+  rect?: TargetRect | undefined;
+  field?: boolean | undefined;
 }
 
 export interface ExtractedPage {
@@ -57,12 +60,12 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
       }
       pending.resolve({ snapshot: resanitize(snapshot), notes });
     });
-    this.#on(PAGE_CHANNELS.shown, ShownMessageSchema, ({ requestId, result, elementId }) => {
+    this.#on(PAGE_CHANNELS.shown, ShownMessageSchema, ({ requestId, result, elementId, rect, field }) => {
       const pending = this.#shows.get(requestId);
       if (!pending) return;
       this.#shows.delete(requestId);
       clearTimeout(pending.timer);
-      pending.resolve({ result, elementId });
+      pending.resolve({ result, elementId, rect, field });
     });
     this.#on(PAGE_CHANNELS.changed, ChangedMessageSchema, (message) => this.emit('changed', message));
     this.#on(PAGE_CHANNELS.interaction, InteractionMessageSchema, (message) => this.emit('interaction', message));

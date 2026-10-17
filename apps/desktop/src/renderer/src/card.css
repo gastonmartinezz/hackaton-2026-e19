@@ -1,0 +1,17 @@
+/* Vista de la tarjeta flotante: fondo transparente y margen para la sombra (CARD_SHADOW en main/help-card.ts). */
+html,
+body {
+  background: transparent;
+}
+#root {
+  height: auto;
+}
+.card-host {
+  padding: 16px;
+}
+.card-host > * {
+  box-shadow: var(--shadow-raised);
+}
+.card-host .notices {
+  margin-bottom: var(--space-3);
+}

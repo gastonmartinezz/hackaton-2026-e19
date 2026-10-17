@@ -77,7 +77,7 @@ function Omni({ state }: { state: AppState }) {
           {nav.secure ? <Icon name="lock" size="sm" /> : <span className="insecure">Conexión no segura</span>}
           <span className="k-estas">Estás en</span>
           <span className="dom">
-            <span className="sub">{sub}</span>
+            {sub ? <span className="sub">{sub}</span> : null}
             <b>{main}</b>
           </span>
         </button>
