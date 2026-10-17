@@ -25,6 +25,8 @@ const EnvSchema = z
     CLAUDE_EFFORT: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).default('medium'),
     CLAUDE_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     CLAUDE_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
+    // Tope de tokens por respuesta, thinking incluido.
+    CLAUDE_MAX_TOKENS: z.coerce.number().int().positive().default(16_000),
 
     BODY_LIMIT_BYTES: z.coerce.number().int().positive().default(512 * 1024),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
