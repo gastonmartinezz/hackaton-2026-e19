@@ -29,7 +29,7 @@ export class AnthropicModel implements StructuredModel {
       .parse({
         model: this.config.CLAUDE_MODEL,
         // Incluye los tokens del thinking adaptativo: con poco margen la respuesta se corta.
-        max_tokens: request.maxTokens ?? this.config.CLAUDE_MAX_TOKENS,
+        max_tokens: this.config.CLAUDE_MAX_TOKENS,
         system: request.system,
         messages: [{ role: 'user', content: buildDataBlock(request.input) }],
         output_config: { effort: this.config.CLAUDE_EFFORT, format: zodOutputFormat(request.schema) },
