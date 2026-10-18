@@ -379,6 +379,7 @@ describe('Assistant', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(assistant.paused).toBe(true);
     expect(assistant.targetVisible).toBeNull();
+    expect(assistant.target).toBeNull();
     expect(assistant.state.step?.targetElementId).toBeUndefined();
   });
 

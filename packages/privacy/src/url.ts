@@ -22,6 +22,8 @@ export function looksSecret(raw: string, { keywords = true } = {}): boolean {
   if (/[@=]/.test(text)) return true;
   if ((text.match(/\d/g) ?? []).length >= 5) return true;
   if (text.length >= 8 && /\d/.test(text) && /[A-Za-z]/.test(text) && /^[\w.~+/-]+$/.test(text)) return true;
+  // Hex de 8 o más caracteres aunque no tenga dígitos (deadbeefcafebabe): tokens y hashes.
+  if (/^[a-f0-9]{8,}$/i.test(text)) return true;
   // Cadenas opacas largas (base64, hex, JWT) aunque no mezclen letras y números.
   // Un slug de palabras ("como-sacar-turno") no cuenta.
   const slug = text.split(/[-_]/).every((word) => /^\p{L}{0,20}$/u.test(word));

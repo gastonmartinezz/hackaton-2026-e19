@@ -372,6 +372,7 @@ export class Assistant {
     if (this.paused) {
       // No se señala ni se espera la acción: la persona decide desde el panel.
       this.targetVisible = null;
+      this.target = null;
       this.deps.page.clear();
       log('guide.paused_for_risk');
       this.deps.onChange();

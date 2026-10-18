@@ -33,7 +33,9 @@ export interface ConnectionData {
   /** Orígenes recorridos, sin path ni query. */
   hops: Array<{ origin: string; status: number }>;
   finalOrigin: string;
+  /** El destino al que se llegó usa https. */
   https: boolean;
+  /** Certificado del destino al que se llegó. */
   tls: TlsInfo | null;
   crossDomainRedirect: boolean;
 }
@@ -132,9 +134,12 @@ export class ConnectionInspector {
     let current = new URL(start);
     // Último destino realmente consultado: una redirección bloqueada no se visita ni se informa como destino.
     let reached = new URL(start);
+    // Certificado del destino al que se llegó; los no válidos se registran en cualquier salto.
     let tls: TlsInfo | null = null;
+    const badCertificates: string[] = [];
     let finished = false;
     let blocked = false;
+    let unreachable = false;
 
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       let address: ResolvedAddress;
@@ -142,15 +147,25 @@ export class ConnectionInspector {
         assertAllowed(current);
         address = await resolvePublic(current.hostname, resolver);
       } catch (error) {
-        // El primer destino bloqueado invalida todo; una redirección bloqueada deja lo observado hasta ahí.
-        if (hop === 0 || !(error instanceof BlockedHostError)) throw error;
-        blocked = true;
+        // El primer destino que falla invalida todo; una redirección bloqueada o que no resuelve
+        // deja lo observado hasta ahí (certificados y redirecciones de los saltos anteriores).
+        if (hop === 0) throw error;
+        if (error instanceof BlockedHostError) blocked = true;
+        else unreachable = true;
+        break;
+      }
+      let result: HopResult;
+      try {
+        result = await requester(current, address, this.options.timeoutMs, signal);
+      } catch (error) {
+        if (hop === 0 || signal.aborted) throw error;
+        unreachable = true;
         break;
       }
       reached = current;
-      const result = await requester(current, address, this.options.timeoutMs, signal);
       hops.push({ origin: current.origin, status: result.status });
-      if (hop === 0) tls = result.tls;
+      tls = result.tls;
+      if (result.tls && !result.tls.authorized) badCertificates.push(`${current.origin} (${result.tls.error ?? 'sin detalle'})`);
       if (result.status < 300 || result.status >= 400 || !result.location) {
         finished = true;
         break;
@@ -163,7 +178,7 @@ export class ConnectionInspector {
 
     const findings: Finding[] = [];
     const finding = (code: Finding['code'], detail: string) => findings.push({ code, source: SOURCE, checkedAt, observedBy: 'service', detail });
-    if (tls && !tls.authorized) finding('CERTIFICATE_PROBLEM', `Certificado no válido (${tls.error ?? 'sin detalle'})`);
+    if (badCertificates.length > 0) finding('CERTIFICATE_PROBLEM', `Certificado no válido en ${badCertificates.join(', ')}`.slice(0, 300));
     const startDomain = describeHost(start.hostname).registrableDomain;
     const finalDomain = describeHost(reached.hostname).registrableDomain;
     const crossDomainRedirect = startDomain !== finalDomain;
@@ -171,6 +186,7 @@ export class ConnectionInspector {
 
     const limitations = ['Lo observado por este servicio puede diferir de lo que ve la persona (sesión, ubicación o dispositivo).'];
     if (blocked) limitations.push('Una redirección apunta a una dirección interna o no permitida: no se siguió.');
+    else if (unreachable) limitations.push('Una redirección lleva a un destino que no respondió: se informa lo observado hasta ahí.');
     else if (!finished) limitations.push(`Se cortó después de ${MAX_REDIRECTS} redirecciones.`);
     return {
       source: SOURCE,
@@ -178,8 +194,8 @@ export class ConnectionInspector {
       coverage: finished ? 'complete' : 'partial',
       ttlMs: CONNECTION_TTL_MS,
       limitations,
-      errors: blocked ? ['blocked_destination'] : [],
-      data: { hops, finalOrigin: reached.origin, https: start.protocol === 'https:', tls, crossDomainRedirect },
+      errors: blocked ? ['blocked_destination'] : unreachable ? ['redirect_unreachable'] : [],
+      data: { hops, finalOrigin: reached.origin, https: reached.protocol === 'https:', tls, crossDomainRedirect },
       findings,
     };
   }

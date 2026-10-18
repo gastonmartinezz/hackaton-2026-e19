@@ -1,6 +1,12 @@
 import { ReasonCode, SiteCheckResponse, type SiteCheckReason } from '@hackaton/contracts';
 import { describe, expect, it } from 'vitest';
-import { announcementText, governmentSuffix, INDICATOR_LABELS, REASON_TEXT, scamSummary, siteCheckCopy, type SiteIndicatorKind } from './site-check-copy';
+import { announcementText, governmentSuffix, INDICATOR_LABELS, plainDate, REASON_TEXT, scamSummary, siteCheckCopy, type SiteIndicatorKind } from './site-check-copy';
+
+describe('plainDate', () => {
+  it('una fecha de revisión (medianoche UTC) se muestra el mismo día', () => {
+    expect(plainDate('2026-10-17T00:00:00.000Z')).toBe('17 de octubre de 2026');
+  });
+});
 
 const evidence = [{ source: 'test', checkedAt: '2026-10-17T22:00:00Z', observedBy: 'service' as const, detail: 'x' }];
 const reason = (code: ReasonCode, category: SiteCheckReason['category'] = 'fraud'): SiteCheckReason => ({ code, category, evidence });

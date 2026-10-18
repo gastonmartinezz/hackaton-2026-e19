@@ -82,6 +82,9 @@ describe('SiteProtection', () => {
     await flush();
     expect(protection.snapshot.kind).toBe('official');
     expect(protection.snapshot.announcement?.kind).toBe('official');
+    // El anuncio no pasa a la navegación siguiente.
+    protection.navigationStarted('https://otra.com/');
+    expect(protection.snapshot.announcement).toBeNull();
   });
 
   it('limpia el estado al navegar y descarta respuestas de la navegación anterior', async () => {

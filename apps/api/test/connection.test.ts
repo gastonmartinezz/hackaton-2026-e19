@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ConnectionInspector } from '../src/modules/site-check/connection.js';
+import { ConnectionInspector, type HopRequester } from '../src/modules/site-check/connection.js';
 import { isBlockedAddress, type HostResolver } from '../src/modules/site-check/net-guard.js';
 import { okHop, PUBLIC_IP, publicResolver, recordingRequester } from './site-check-helpers.js';
 
@@ -110,6 +110,41 @@ describe('inspect_connection', () => {
     });
     const result = await inspector(requester).inspect(new URL('https://sitio.com.ar/'));
     expect(result.findings.map((f) => f.code)).toEqual(['CERTIFICATE_PROBLEM', 'CROSS_DOMAIN_REDIRECT']);
+  });
+
+  it('revisa el certificado del destino al que lleva la redirección, no solo el del primer salto', async () => {
+    const requester = recordingRequester({
+      'http://sitio.com.ar/': { status: 301, location: 'https://destino.example.net/', tls: null },
+      'https://destino.example.net/': { ...okHop, tls: { ...okHop.tls!, authorized: false, error: 'DEPTH_ZERO_SELF_SIGNED_CERT' } },
+    });
+    const result = await inspector(requester).inspect(new URL('http://sitio.com.ar/'));
+    expect(result.findings.map((f) => f.code)).toEqual(['CERTIFICATE_PROBLEM', 'CROSS_DOMAIN_REDIRECT']);
+    expect(result.findings[0]!.detail).toContain('https://destino.example.net');
+    expect(result.data).toMatchObject({ https: true, finalOrigin: 'https://destino.example.net' });
+  });
+
+  it('una redirección a un destino que no resuelve conserva lo observado en los saltos anteriores', async () => {
+    const requester = recordingRequester({
+      'https://sitio.com.ar/': { status: 302, location: 'https://caido.example.net/', tls: { ...okHop.tls!, authorized: false, error: 'CERT_HAS_EXPIRED' } },
+    });
+    const resolver: HostResolver = async (hostname) => {
+      if (hostname === 'caido.example.net') throw new Error('ENOTFOUND');
+      return [{ address: PUBLIC_IP, family: 4 }];
+    };
+    const result = await inspector(requester, resolver).inspect(new URL('https://sitio.com.ar/'));
+    expect(result).toMatchObject({ coverage: 'partial', errors: ['redirect_unreachable'] });
+    expect(result.findings.map((f) => f.code)).toEqual(['CERTIFICATE_PROBLEM']);
+  });
+
+  it('una redirección cuyo destino no responde conserva lo observado en los saltos anteriores', async () => {
+    const requester: HopRequester = async (url) => {
+      if (url.hostname === 'lento.example.net') throw new Error('ECONNRESET');
+      return { status: 302, location: 'https://lento.example.net/', tls: okHop.tls };
+    };
+    const result = await new ConnectionInspector({ timeoutMs: 1000, maxPerMinute: 100, enabled: true, resolver: publicResolver, requester }).inspect(
+      new URL('https://sitio.com.ar/'),
+    );
+    expect(result).toMatchObject({ coverage: 'partial', errors: ['redirect_unreachable'], data: { finalOrigin: 'https://sitio.com.ar', crossDomainRedirect: false } });
   });
 
   it('una caída devuelve unavailable', async () => {

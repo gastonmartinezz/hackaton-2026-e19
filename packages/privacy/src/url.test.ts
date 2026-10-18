@@ -5,6 +5,12 @@ describe('sanitizeUrl', () => {
   it('solo acepta http(s) y descarta usuario y contraseña', () => {
     expect(sanitizeUrl('javascript:alert(1)')).toBeNull();
     expect(sanitizeUrl('file:///etc/passwd')).toBeNull();
+  });
+
+  it('redacta tokens hexadecimales sin dígitos en el path y en el fragmento', () => {
+    expect(sanitizeUrl('https://banco.com.uy/reset/deadbeefcafebabe')).not.toContain('deadbeef');
+    expect(sanitizeUrl('https://banco.com.uy/#deadbeefcafebabe')).not.toContain('deadbeef');
+    expect(sanitizeUrl('https://banco.com.uy/personas/tarjetas')).toBe('https://banco.com.uy/personas/tarjetas');
     expect(sanitizeUrl('no es una url')).toBeNull();
     expect(sanitizeUrl('https://ana:secreto@banco.com/')).toBe('https://banco.com/');
   });

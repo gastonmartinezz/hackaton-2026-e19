@@ -125,6 +125,8 @@ export class SiteProtection {
   navigationStarted(url: string): void {
     this.#dispose();
     this.#panelOpen = false;
+    // El anuncio de la página anterior no vale para la nueva.
+    this.#announcement = null;
     const eligibility = checkEligibility(url);
     if (eligibility.kind === 'none') {
       this.#nav = null;
@@ -363,6 +365,7 @@ export class SiteProtection {
     nav.response = response;
     if (kind === 'checking' && version > 0 && version === nav.latestRequested) {
       // Contenido «pendiente» sin otra consulta prevista: no quedarse revisando para siempre.
+      if (nav.stuck) clearTimeout(nav.stuck);
       nav.stuck = setTimeout(() => {
         if (this.#nav === nav && nav.kind === 'checking') this.#fail(nav, nav.latestRequested);
       }, this.#opts.stuckMs);

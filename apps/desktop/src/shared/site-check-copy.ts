@@ -112,8 +112,12 @@ function ofOrganization(organization: string): string {
 }
 
 /** Fecha simple para personas: «17 de octubre de 2026». */
+/**
+ * Fecha de revisión de una fuente. Las fuentes guardan solo el día (medianoche UTC), así que se
+ * formatea en UTC: en hora de Uruguay o Argentina «2026-10-17» se vería como el 16.
+ */
 export function plainDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
+  return new Date(iso).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
 /**
