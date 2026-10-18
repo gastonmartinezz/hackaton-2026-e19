@@ -130,6 +130,8 @@ export class ConnectionInspector {
     const requester = this.options.requester ?? nodeHopRequester;
     const hops: ConnectionData['hops'] = [];
     let current = new URL(start);
+    // Último destino realmente consultado: una redirección bloqueada no se visita ni se informa como destino.
+    let reached = new URL(start);
     let tls: TlsInfo | null = null;
     let finished = false;
     let blocked = false;
@@ -145,6 +147,7 @@ export class ConnectionInspector {
         blocked = true;
         break;
       }
+      reached = current;
       const result = await requester(current, address, this.options.timeoutMs, signal);
       hops.push({ origin: current.origin, status: result.status });
       if (hop === 0) tls = result.tls;
@@ -162,9 +165,9 @@ export class ConnectionInspector {
     const finding = (code: Finding['code'], detail: string) => findings.push({ code, source: SOURCE, checkedAt, observedBy: 'service', detail });
     if (tls && !tls.authorized) finding('CERTIFICATE_PROBLEM', `Certificado no válido (${tls.error ?? 'sin detalle'})`);
     const startDomain = describeHost(start.hostname).registrableDomain;
-    const finalDomain = describeHost(current.hostname).registrableDomain;
+    const finalDomain = describeHost(reached.hostname).registrableDomain;
     const crossDomainRedirect = startDomain !== finalDomain;
-    if (crossDomainRedirect) finding('CROSS_DOMAIN_REDIRECT', `Redirige a otro dominio: ${finalDomain ?? current.hostname}`);
+    if (crossDomainRedirect) finding('CROSS_DOMAIN_REDIRECT', `Redirige a otro dominio: ${finalDomain ?? reached.hostname}`);
 
     const limitations = ['Lo observado por este servicio puede diferir de lo que ve la persona (sesión, ubicación o dispositivo).'];
     if (blocked) limitations.push('Una redirección apunta a una dirección interna o no permitida: no se siguió.');
@@ -176,7 +179,7 @@ export class ConnectionInspector {
       ttlMs: CONNECTION_TTL_MS,
       limitations,
       errors: blocked ? ['blocked_destination'] : [],
-      data: { hops, finalOrigin: current.origin, https: start.protocol === 'https:', tls, crossDomainRedirect },
+      data: { hops, finalOrigin: reached.origin, https: start.protocol === 'https:', tls, crossDomainRedirect },
       findings,
     };
   }

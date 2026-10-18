@@ -77,6 +77,7 @@ describe('inspect_connection', () => {
     expect(requester.calls).toEqual(['https://sitio.com.ar/']);
     expect(result.coverage).toBe('partial');
     expect(result.errors).toEqual(['blocked_destination']);
+    expect(result.data?.finalOrigin).toBe('https://sitio.com.ar');
   });
 
   it('no sigue una redirección a un host cuyo DNS apunta a la red interna', async () => {
@@ -85,6 +86,9 @@ describe('inspect_connection', () => {
     const result = await inspector(requester, resolver).inspect(new URL('https://sitio.com.ar/'));
     expect(requester.calls).toEqual(['https://sitio.com.ar/']);
     expect(result.coverage).toBe('partial');
+    // El destino bloqueado nunca se visitó: no se informa como destino final ni como redirección a otro dominio.
+    expect(result.data).toMatchObject({ finalOrigin: 'https://sitio.com.ar', crossDomainRedirect: false });
+    expect(result.findings.map((f) => f.code)).not.toContain('CROSS_DOMAIN_REDIRECT');
   });
 
   it('corta después del tope de redirecciones', async () => {

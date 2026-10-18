@@ -160,6 +160,17 @@ describe('dominios parecidos (sin lista manual)', () => {
     expect(lookalikeSignals(describeHost('www.mercadolibre.com.ar'), popular, [])).toEqual([]);
   });
 
+  it('compara sin guiones las referencias que los tienen (banco-ejemplo.com.uy)', () => {
+    const file = join(tmpdir(), `crux-guiones-${process.pid}.csv`);
+    writeFileSync(file, 'origin,rank\nhttps://www.banco-ejemplo.com.uy,1000\n');
+    const refs = loadPopularDomains(file, 10);
+    const codes = (hostname: string) => lookalikeSignals(describeHost(hostname), refs, []).map((s) => s.code);
+    // Una letra de diferencia y marca + palabra clave, escritas sin el guion.
+    expect(codes('bancoejenplo.com.uy')).toContain('LOOKALIKE_DOMAIN');
+    expect(codes('bancoejemplologin.com')).toContain('LOOKALIKE_DOMAIN');
+    expect(codes('www.banco-ejemplo.com.uy')).toEqual([]);
+  });
+
   it('mezcla de alfabetos y distancia de edición', () => {
     expect(signals('xn--pypal-4ve.com').map(([code]) => code)).toContain('CONFUSABLE_CHARACTERS');
     expect(editDistance('anses', 'asnes')).toBe(1);

@@ -99,6 +99,8 @@ export function lookalikeSignals(
   for (const ref of ordered) {
     const refLabel = ref.label;
     if (refLabel.length < 3 || KEYWORDS.has(refLabel)) continue;
+    // Sin guiones, como `flat`: banco-provincia se compara como bancoprovincia.
+    const refFlat = compact(refLabel);
 
     // Dominio de referencia completo antes del dominio real: bna.com.ar.verificacion.net.
     if (`.${host.subdomain}.`.includes(`.${ref.domain}.`)) {
@@ -115,11 +117,11 @@ export function lookalikeSignals(
     // dominios populares para excluir los sitios globales legítimos (santander.com, bbva.com).
     if (options.tldSwap && label === refLabel && refLabel.length >= 4) add('LOOKALIKE_DOMAIN', ref.organization, `Mismo nombre que ${ref.domain} con otra terminación`);
     // Una letra de diferencia, solo con nombres largos (los cortos chocan con sitios legítimos).
-    if (refLabel.length >= 7 && editDistance(flat, refLabel) === 1) add('LOOKALIKE_DOMAIN', ref.organization, `${domain} difiere en una letra de ${ref.domain}`);
+    if (refFlat.length >= 7 && editDistance(flat, refFlat) === 1) add('LOOKALIKE_DOMAIN', ref.organization, `${domain} difiere en una letra de ${ref.domain}`);
     // Marca + palabra clave: bna-seguro.com, antel-uy.com, macrologin.com.
     const brandKeyword =
       (labelTokens.includes(refLabel) && labelTokens.some((t) => t !== refLabel && KEYWORDS.has(t))) ||
-      [...KEYWORDS].some((kw) => kw.length >= 4 && (flat === refLabel + kw || flat === kw + refLabel));
+      [...KEYWORDS].some((kw) => kw.length >= 4 && (flat === refFlat + kw || flat === kw + refFlat));
     if (brandKeyword) add('LOOKALIKE_DOMAIN', ref.organization, `${domain} combina ${refLabel} con una palabra de acceso o seguridad`);
     // La marca como subdominio de otro dominio: bna.secure-login.com.
     if (subTokens.includes(refLabel) && (refLabel.length >= 5 || hasKeyword)) {

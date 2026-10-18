@@ -212,6 +212,32 @@ describe('SiteProtection', () => {
     expect(calls).toHaveLength(4);
   });
 
+  it('un cambio de ruta con el tope alcanzado no queda «Revisando sitio…» para siempre', async () => {
+    const { protection, calls } = setup();
+    protection.navigationStarted('https://a.com/');
+    protection.pageLoaded('https://a.com/');
+    await vi.advanceTimersByTimeAsync(100);
+    calls[1]!.resolve();
+    await flush();
+    for (const path of ['uno', 'dos']) {
+      protection.routeChanged(`https://a.com/${path}`);
+      await vi.advanceTimersByTimeAsync(3500);
+      calls.at(-1)!.resolve();
+      await flush();
+    }
+    expect(calls).toHaveLength(4);
+    expect(protection.snapshot.kind).toBe('no_alerts');
+    protection.routeChanged('https://a.com/tres');
+    expect(protection.snapshot.kind).toBe('unverified');
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(calls).toHaveLength(4);
+    expect(protection.snapshot.kind).toBe('unverified');
+    // «Intentar de nuevo» sí consulta.
+    protection.retry();
+    await flush();
+    expect(calls).toHaveLength(5);
+  });
+
   it('un cambio de ruta muestra «Revisando sitio…» pero no borra un riesgo', async () => {
     const { protection, calls } = setup();
     protection.navigationStarted('https://a.com/');

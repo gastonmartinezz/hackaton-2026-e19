@@ -173,7 +173,10 @@ export class SiteProtection {
     nav.target = eligibility;
     // Lo favorable de la ruta anterior no vale para la nueva; un riesgo detectado sí se mantiene.
     if (severity(nav.kind) === 0 && nav.kind !== 'checking') {
-      nav.kind = 'checking';
+      // Con el tope de reanálisis alcanzado no habrá consulta que resuelva «Revisando sitio…»:
+      // la ruta nueva queda sin verificar («Intentar de nuevo» no cuenta para el tope).
+      const capped = nav.loaded && nav.reanalyses >= this.#opts.maxReanalyses;
+      nav.kind = capped ? 'unverified' : 'checking';
       nav.response = null;
       this.deps.onChange();
     }
