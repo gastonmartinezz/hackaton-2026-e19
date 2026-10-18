@@ -39,7 +39,7 @@ export const ANSWER_TEXTS = {
   listening: 'Te escucho. Decí cuál querés.',
   retry: 'No te entendí. ¿Cuál querés?',
   chosen: (label: string) => `Elegiste «${label}».`,
-  /** TODO(copy): lo dicho no era ninguna opción y Guíame lo va a buscar en el sitio. */
+  /** Lo dicho no era ninguna opción y Guíame lo va a buscar en el sitio. */
   searching: 'No está entre las opciones. Busco cómo hacer eso acá.',
 } as const;
 

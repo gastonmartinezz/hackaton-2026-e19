@@ -1,6 +1,6 @@
 # Guíame · Reglas para Claude Code (v2.2)
 
-Guíame es un **navegador de escritorio con IA** que acompaña, paso a paso, a personas de 50+ (Uruguay y Argentina) mientras usan sitios web reales: sacar un turno, comprar algo. **Guíame muestra; la persona hace.** Nunca hace clic, escribe ni envía nada por ella.
+Guíame es un **navegador de escritorio con IA** que acompaña, paso a paso, a personas de 50+ (Uruguay y Argentina) mientras usan sitios web reales: sacar un turno, comprar algo. **Guíame muestra; la persona hace.** Nunca hace clic ni envía nada por ella. La única excepción es escribir en un formulario un dato no sensible que la persona le dictó, y lo tiene que confirmar (§2).
 
 Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una sección más; no reemplaces lo que hay. Todo el diseño está en `design/`. Para implementar o revisar pantallas, usá el skill `guiame-ui` (`.claude/skills/guiame-ui/SKILL.md`).
 
@@ -26,7 +26,13 @@ Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una secci
 
 ## 2. Reglas de producto (no negociables)
 
-- **Nunca actúes por la persona.** Los únicos comandos sobre el sitio son visuales: `highlight`, `scrollIntoView`, `showInstruction`, `clearGuidance`. Prohibido implementar clics, escritura, selección o envío de formularios automáticos.
+- **Nunca actúes por la persona.** Los comandos sobre el sitio son visuales (`highlight`, `scrollIntoView`, `showInstruction`, `clearGuidance`) más las dos excepciones de los datos de formularios. Prohibido implementar clics o envío de formularios automáticos.
+- **Datos de formularios dictados** (decisión de Agustín, 18/10/2026):
+  - **Dato no sensible** (nombre, correo, teléfono, dirección, fechas, opción de una lista): Guíame pregunta el dato en voz alta y la persona lo dice. Guíame lo escribe en el lugar señalado (`fill`) y le pide revisarlo con «Está bien, seguir», «Decirlo de nuevo» o «Lo escribo yo». El paso avanza recién con esa confirmación.
+  - **Dato sensible** (contraseña o clave, PIN, códigos de verificación, tarjeta, CVV, vencimiento, datos bancarios, cédula o documento): nunca se pide por voz ni se escribe. Guíame solo pone el cursor en el lugar (`focus`) y muestra «Lo escribís vos. Yo no lo veo ni lo guardo.».
+  - Alcanza con que una de tres fuentes diga que el dato es sensible: el backend (`field.sensitive`), el rótulo (`isSensitiveField`) o los atributos del sitio (`type=password`, `autocomplete=cc-*`/`one-time-code`, nombre).
+  - Guíame nunca hace clic ni envía el formulario: el botón final siempre lo toca la persona.
+- **La guía llega hasta el final.** Al elegir una opción, o al pedir algo que no estaba entre las opciones, el backend investiga en internet el paso a paso de esa tarea en el sitio. Después, `/v1/next-step` avanza hasta que la página confirma que terminó. La guía nunca da la tarea por terminada por su cuenta.
 - **El inicio es un buscador, no un chat** (A-01, B-C01). Si la búsqueda alcanza, se abre el sitio directo; si falta un dato, aparece **una pregunta por vez** debajo del buscador (A-02, A-03, B-C02, B-C03) con respuestas en botones y «No sé bien».
 - **El sitio ocupa todo el ancho.** La ayuda es una **tarjeta flotante** a la derecha (R4), nunca una columna lateral. Nunca tapa el control resaltado.
 - **Un estado de tarjeta por respuesta (R1)** y **una sola acción principal por vista (R2)**.
@@ -39,6 +45,7 @@ Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una secci
 ## 3. Privacidad (requisito duro, con tests)
 
 - Nunca envíes, guardes ni loguees valores de campos que escribe la persona: documento, fecha de nacimiento, contraseña, códigos, dirección, tarjeta. Solo `{campo, completo: true|false}`.
+- **Excepción, el dictado de datos no sensibles (§2):** el audio pasa solo por `/v1/transcribe`, y el texto va del proceso principal directo al campo. Nunca llega a Claude, al estado de la interfaz, a la tarjeta (no se muestra ni se lee en voz alta) ni a los logs.
 - Enmascará los valores de inputs **antes** de mandar DOM o capturas al modelo (incluidos `type=password`, `autocomplete=cc-*`, `one-time-code`).
 - Nada de DOM ni capturas con valores en logs o telemetría.
 - **Cada cambio que toque el lector de página o los eventos lleva un test** que verifique que el valor del campo no sale del cliente.
@@ -72,7 +79,7 @@ Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una secci
 - Controles reales: `<button>`, `<a href>`, `<input>` + `<label>`. Opciones como `ul > li > button`.
 - Áreas táctiles ≥ 48px (barra 54px, botones 58–72px). Contraste de texto ≥ 4.5:1.
 - El nombre accesible incluye el texto visible (2.5.3). El logo lleva `alt="Guíame"`.
-- Foco siempre visible. Una sola región `aria-live="polite"` para la instrucción nueva; errores con `role="alert"`. Mostrar una instrucción nueva **no mueve el foco**.
+- Foco siempre visible. Una sola región `aria-live="polite"` para la instrucción nueva; errores con `role="alert"`. Mostrar una instrucción nueva **no mueve el foco**. La única excepción es un dato sensible: el cursor va a ese lugar del sitio para que la persona lo escriba (§2).
 - «Tamaño de letra» escala toda la capa Guíame; los diseños están a 1.2×.
 - Respetá `prefers-reduced-motion`. Cifras con `font-variant-numeric: tabular-nums`.
 
@@ -86,7 +93,7 @@ Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una secci
 - [ ] Sin colores, radios ni sombras escritos a mano si hay token.
 - [ ] Textos idénticos a la pantalla; ningún texto inventado sin `TODO(copy)`.
 - [ ] Funciona con teclado, con foco visible y anuncios correctos.
-- [ ] No agrega acciones automáticas sobre el sitio.
+- [ ] No agrega acciones automáticas sobre el sitio (salvo escribir un dato dictado y confirmado, §2).
 - [ ] No envía ni registra valores de campos (test incluido si toca datos).
 
 ## Datos de ejemplo (solo fixtures de tests)

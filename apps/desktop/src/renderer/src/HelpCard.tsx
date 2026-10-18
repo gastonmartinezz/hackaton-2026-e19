@@ -14,7 +14,7 @@ import { send, useAppState } from './useAppState';
 import { FieldDictation } from './voice/FieldDictation';
 import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
 
-/** TODO(copy): mientras Guíame investiga el paso a paso de la opción elegida o de lo que pidió la persona (no tiene pantalla). */
+/** Mientras Guíame investiga el paso a paso de la opción elegida o de lo que pidió la persona. */
 const RESEARCH_TEXTS = {
   title: (option: string) => `Estoy buscando cómo se hace «${option}»…`,
   support: 'Busco el paso a paso para guiarte. Puede tardar unos segundos.',
@@ -389,8 +389,8 @@ function CurrentStep({ state }: { state: AppState }) {
 
 /**
  * Un dato del formulario que se dicta: Guíame lee la pregunta, escucha la
- * respuesta y la escribe en la página; la persona la revisa (sin pantalla:
- * TODO(diseño)). Nunca muestra ni lee el valor.
+ * respuesta y la escribe en la página; la persona la revisa. No tiene
+ * pantalla en design/: reusa los componentes de la tarjeta. Nunca muestra ni lee el valor.
  */
 function DictateStep({ state }: { state: AppState }) {
   const { guide } = state;
