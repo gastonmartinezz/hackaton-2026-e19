@@ -27,23 +27,15 @@ export class NextStepService {
     if (!option) throw new AppError('BAD_REQUEST', 'optionId no corresponde a ninguna opción de esta sesión');
 
     this.sessions.mergeMetadata(request.sessionId, owner, request.metadata);
-    const procedure = findProcedure(existing.history, request.optionId) ?? (await this.research(request, owner, option, log));
-
-    const context = this.sessions.context(request.sessionId, owner)!;
-    const output = await this.model.generate({
-      task: 'nextStep',
-      system: SYSTEM_PROMPTS.nextStep,
-      input: {
-        option,
-        expectedStep: request.expectedStep,
-        completedSteps: request.completedSteps,
-        procedure: procedure ? { summary: procedure.summary, steps: procedure.steps, completion: procedure.completion } : null,
-        // El paso a paso ya va en procedure: no se repite en el recorrido.
-        context: { ...context, history: context.history.filter((entry) => entry.type !== 'procedure') },
-        html: request.html,
-      },
-      schema: NextStepOutput,
-    });
+    // El paso a paso se investiga (con búsqueda web) solo si hace falta: primero se
+    // intenta con la página y el recorrido, que suele alcanzar y es mucho más rápido.
+    let procedure = findProcedure(existing.history, request.optionId);
+    let output = await this.ask(request, owner, option, procedure);
+    if (output.needsProcedure && !output.done && !procedure) {
+      procedure = await this.research(request, owner, option, log);
+      if (procedure) output = await this.ask(request, owner, option, procedure);
+    }
+    log.info({ task: 'nextStep', procedure: procedure ? 'used' : 'none', needsProcedure: output.needsProcedure }, 'next-step ready');
 
     // «Listo» solo con evidencia literal de la página: si la cita no está en el HTML, se descarta.
     const evidence = output.done ? verifiedEvidence(output.evidence, request.html) : null;
@@ -65,6 +57,24 @@ export class NextStepService {
       done: parsed.data.done,
     });
     return parsed.data;
+  }
+
+  private ask(request: NextStepRequest, owner: string, option: PageOption, procedure: Procedure | undefined) {
+    const context = this.sessions.context(request.sessionId, owner)!;
+    return this.model.generate({
+      task: 'nextStep',
+      system: SYSTEM_PROMPTS.nextStep,
+      input: {
+        option,
+        expectedStep: request.expectedStep,
+        completedSteps: request.completedSteps,
+        procedure: procedure ? { summary: procedure.summary, steps: procedure.steps, completion: procedure.completion } : null,
+        // El paso a paso ya va en procedure: no se repite en el recorrido.
+        context: { ...context, history: context.history.filter((entry) => entry.type !== 'procedure') },
+        html: request.html,
+      },
+      schema: NextStepOutput,
+    });
   }
 
   /**

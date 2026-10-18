@@ -36,10 +36,13 @@ const EnvSchema = z
     CLAUDE_MODEL_OPTIONS: z.string().min(1).optional(),
     CLAUDE_MODEL_NEXT_STEP: z.string().min(1).optional(),
     CLAUDE_MODEL_PROCEDURE: z.string().min(1).optional(),
+    CLAUDE_MODEL_MATCH: z.string().min(1).optional(),
     CLAUDE_EFFORT_INTERPRET: Effort.optional(),
     CLAUDE_EFFORT_OPTIONS: Effort.optional(),
     CLAUDE_EFFORT_NEXT_STEP: Effort.optional(),
     CLAUDE_EFFORT_PROCEDURE: Effort.optional(),
+    // Interpretar un pedido contra las opciones ya mostradas es corto: por defecto, low (más rápido).
+    CLAUDE_EFFORT_MATCH: Effort.default('low'),
     // default: si el clasificador de seguridad rechaza, la API reintenta en el modelo que Anthropic
     // recomienda para esa categoría (solo modelos que lo admiten). off: sin reintento.
     CLAUDE_FALLBACKS: z.enum(['default', 'off']).default('default'),

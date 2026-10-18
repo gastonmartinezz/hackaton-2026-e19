@@ -39,6 +39,9 @@ describe('transition', () => {
     const unmatched = transition(run({ type: 'ANALYZE', request: 'Pagar una multa' }), { type: 'OPTIONS', options: [buscar, turno] });
     expect(unmatched).toMatchObject({ phase: 'choosing', message: expect.stringMatching(/cómo hacer eso/) });
     expect(unmatched.option).toBeUndefined();
+    // Si no era un pedido (pidió repetir, ruido), se dice que no se entendió.
+    const unclear = transition(run({ type: 'ANALYZE', request: 'eh' }), { type: 'OPTIONS', options: [buscar, turno], unclear: true });
+    expect(unclear).toMatchObject({ phase: 'choosing', message: expect.stringMatching(/No te entendí/) });
     const none = transition(run({ type: 'ANALYZE', request: 'Algo imposible' }), { type: 'OPTIONS', options: [] });
     expect(none).toMatchObject({ phase: 'unsupported', message: expect.stringMatching(/cómo hacer eso/) });
   });

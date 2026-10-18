@@ -32,7 +32,9 @@ pnpm contracts:schemas   # regenera packages/contracts/schemas/v1/*.json
 
 En desarrollo, `AI_PROVIDER=mock` permite trabajar sin clave de Anthropic. Para usar Claude, definir `AI_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`. El modelo se elige con `CLAUDE_MODEL` y el esfuerzo con `CLAUDE_EFFORT`, o por tarea con `CLAUDE_EFFORT_INTERPRET`, `CLAUDE_EFFORT_NEXT_STEP`, etc. Las tareas van con Claude Opus 5.5. Las URLs que devuelve `/v1/interpret` se verifican antes de mostrarse (ver `docs/api.md`).
 
-Al elegir una opción de la guía, `/v1/next-step` investiga primero el paso a paso real de esa tarea con la búsqueda web de Anthropic (`GUIDE_WEB_SEARCH=on`, el valor por defecto; `GUIDE_WEB_SEARCH_MAX_USES` limita las búsquedas). Con `off` lo arma sin buscar. El modelo y el effort de esa tarea se cambian con `CLAUDE_MODEL_PROCEDURE` y `CLAUDE_EFFORT_PROCEDURE`.
+Al elegir una opción de la guía, `/v1/next-step` primero intenta seguir con la página y el recorrido. Solo si Claude no sabe cómo seguir (`needsProcedure`), investiga el paso a paso real con la búsqueda web de Anthropic (`GUIDE_WEB_SEARCH=on`, el valor por defecto; `GUIDE_WEB_SEARCH_MAX_USES` limita las búsquedas; con `off` lo arma sin buscar). El modelo y el effort de esa tarea se cambian con `CLAUDE_MODEL_PROCEDURE` y `CLAUDE_EFFORT_PROCEDURE`.
+
+Cuando la persona pide algo con sus palabras teniendo las opciones a la vista (`/v1/options` con `request`), la tarea `match` lo interpreta primero contra esas opciones, sin buscar en internet. Usa `CLAUDE_MODEL_MATCH` y `CLAUDE_EFFORT_MATCH`, con `low` por defecto. Solo si ninguna opción sirve, se investiga en la web.
 
 La voz también tiene modo simulado: `STT_PROVIDER=mock` y `TTS_PROVIDER=mock` (los de `.env.example`). Para la voz real con OpenAI, definir `OPENAI_API_KEY` y `STT_PROVIDER=openai` / `TTS_PROVIDER=openai`.
 

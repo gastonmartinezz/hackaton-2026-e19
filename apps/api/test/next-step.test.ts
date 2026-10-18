@@ -45,8 +45,8 @@ describe('NextStepService: paso a paso investigado', () => {
     expect(procedure.system).toBe(SYSTEM_PROMPTS.procedureWithSearch);
     expect(procedure.webSearch).toEqual({ maxUses: 2 });
     expect((procedure.input as { site: unknown }).site).toEqual({ title: 'Agenda', urls: ['https://agenda.ejemplo.gub.uy/'] });
-    // Primero se investiga y después se piden los pasos.
-    expect(requests.map((r) => r.task)).toEqual(['procedure', 'nextStep']);
+    // Primero se intenta con la página; el modelo pidió el paso a paso: se investiga y se vuelve a pedir.
+    expect(requests.map((r) => r.task)).toEqual(['nextStep', 'procedure', 'nextStep']);
     sessions.close();
   });
 
@@ -122,6 +122,47 @@ describe('verifiedEvidence', () => {
 
   it('no toma como visible lo que está dentro de las etiquetas (ids)', () => {
     expect(verifiedEvidence('el-1', html)).toBeNull();
+  });
+});
+
+describe('OptionsService: primero las opciones que ya vio la persona', () => {
+  it('si el pedido es una de las opciones mostradas, la devuelve sin buscar en internet ni volver a armar opciones', async () => {
+    const { model, requests } = capturingModel();
+    const sessions = new SessionStore(60_000);
+    const sessionId = sessionWithOption(sessions);
+    const response = await new OptionsService(model, sessions, new ProcedureResearcher(model, { webSearch: true, webSearchMaxUses: 2 })).options(
+      { sessionId, html: '<button id="el-1">Agenda</button>', request: 'quiero sacar un turno' },
+      OWNER,
+    );
+    expect(requests.map((r) => r.task)).toEqual(['match']);
+    expect(requests[0]!.webSearch).toBeUndefined();
+    expect(requests[0]!.input).toMatchObject({ request: 'quiero sacar un turno', options: [{ id: 'turno', title: 'Sacar un turno' }] });
+    expect(response).toMatchObject({ requestedOptionId: 'turno', options: [{ id: 'turno' }] });
+    sessions.close();
+  });
+
+  it('si no es un pedido (pide repetir, ruido), no busca nada y quedan las mismas opciones', async () => {
+    const { model, requests } = capturingModel();
+    const sessions = new SessionStore(60_000);
+    const sessionId = sessionWithOption(sessions);
+    const response = await new OptionsService(model, sessions, new ProcedureResearcher(model)).options({ sessionId, html: '<button id="el-1">Agenda</button>', request: 'eh' }, OWNER);
+    expect(requests.map((r) => r.task)).toEqual(['match']);
+    expect(response).toMatchObject({ requestUnclear: true, options: [{ id: 'turno' }] });
+    expect(response.requestedOptionId).toBeUndefined();
+    sessions.close();
+  });
+
+  it('si ninguna opción mostrada lo hace, recién ahí investiga en internet y arma la tarea', async () => {
+    const { model, requests } = capturingModel();
+    const sessions = new SessionStore(60_000);
+    const sessionId = sessionWithOption(sessions);
+    await new OptionsService(model, sessions, new ProcedureResearcher(model, { webSearch: true, webSearchMaxUses: 2 })).options(
+      { sessionId, html: '<button id="el-1">Agenda</button>', request: 'Cambiar mi dirección' },
+      OWNER,
+    );
+    expect(requests.map((r) => r.task)).toEqual(['match', 'procedure', 'options']);
+    expect(requests[1]!.webSearch).toBeDefined();
+    sessions.close();
   });
 });
 
