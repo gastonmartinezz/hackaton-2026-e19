@@ -40,4 +40,15 @@ describe('prompts', () => {
     expect(SYSTEM_PROMPTS.nextStep).toContain('devolvé un solo paso para que elija');
     for (const prompt of [SYSTEM_PROMPTS.options, SYSTEM_PROMPTS.nextStep]) expect(prompt).toContain('No elijas por la persona');
   });
+
+  it('options, match y nextStep eligen la variante exacta del trámite (renovar ≠ primera vez)', () => {
+    for (const prompt of [SYSTEM_PROMPTS.options, SYSTEM_PROMPTS.optionsForRequest, SYSTEM_PROMPTS.match, SYSTEM_PROMPTS.nextStep]) {
+      expect(prompt).toContain('La acción exacta');
+      expect(prompt).toContain('«Renovación» corresponde a renovar; «Primera vez» no.');
+      expect(prompt).toContain('Nunca elijas uno por aparecer primero');
+      expect(prompt).not.toContain('${');
+    }
+    expect(SYSTEM_PROMPTS.options).toContain('su title conserva lo que la distingue');
+    expect(SYSTEM_PROMPTS.match).toContain('si pide renovar y la opción es sacarlo por primera vez, no corresponde');
+  });
 });
