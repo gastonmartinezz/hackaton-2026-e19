@@ -11,7 +11,15 @@ import { GuidePausedNotice } from './SiteCheck';
 import { SpeakButton } from './speech/SpeakButton';
 import { guideSpeech, optionsReadKey, optionsSpeech, SPEECH_TEXTS, stepSpeechKey } from './speech/speechText';
 import { send, useAppState } from './useAppState';
+import { FieldDictation } from './voice/FieldDictation';
 import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
+
+/** TODO(copy): mientras Guíame investiga el paso a paso de la opción elegida o de lo que pidió la persona (no tiene pantalla). */
+const RESEARCH_TEXTS = {
+  title: (option: string) => `Estoy buscando cómo se hace «${option}»…`,
+  support: 'Busco el paso a paso para guiarte. Puede tardar unos segundos.',
+  request: (asked: string) => `Estoy buscando cómo hacer «${asked}» en este sitio…`,
+} as const;
 
 /** Margen transparente de la vista para el halo (CARD_SHADOW en main/help-card.ts). */
 const SHADOW = 16;
@@ -162,8 +170,8 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
         content: (
           <section className="hc-section" role="status">
             <LoadingDots />
-            <h2 className="instr">Estoy mirando la página…</h2>
-            <p className="support">Esto lleva unos segundos.</p>
+            <h2 className="instr">{guide.request ? withControlNames(RESEARCH_TEXTS.request(guide.request)) : 'Estoy mirando la página…'}</h2>
+            <p className="support">{guide.request ? RESEARCH_TEXTS.support : 'Esto lleva unos segundos.'}</p>
           </section>
         ),
       };
@@ -172,18 +180,21 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
       return { foot: 'exit', content: view.more ? <MoreOptions state={state} onBack={() => view.setMore(false)} /> : <Options state={state} visit={view.optionsVisit} onMore={() => view.setMore(true)} /> };
 
     case 'guiding':
-    case 'verifying':
+    case 'verifying': {
+      // Recién elegida la opción: Guíame investiga el paso a paso antes del primer paso.
+      const researching = guide.phase === 'guiding' && guide.stepCount === 0 && guide.option !== null;
       return {
         foot: 'full',
         content: (
           <section className="hc-section" role="status">
             <LoadingDots />
-            <h2 className="instr">Estoy fijándome si funcionó…</h2>
-            <p className="support">Dame un segundo.</p>
+            <h2 className="instr">{researching ? withControlNames(RESEARCH_TEXTS.title(guide.option!.title)) : 'Estoy fijándome si funcionó…'}</h2>
+            <p className="support">{researching ? RESEARCH_TEXTS.support : 'Dame un segundo.'}</p>
             <Progress count={guide.done.length} />
           </section>
         ),
       };
+    }
 
     case 'waitingForUser':
       if (state.siteCheck.guidePaused) return { foot: 'exit', content: <GuidePausedNotice /> };
@@ -251,7 +262,8 @@ function Options({ state, visit, onMore }: { state: AppState; visit: number; onM
     <>
       <div className="hc-section">
         <h2 className="hc-title">{SPEECH_TEXTS.optionsTitle}</h2>
-        <p className="support">Encontré estas opciones en esta página.</p>
+        {/* Si lo que pidió no se puede hacer acá, se dice antes de mostrar las opciones de la página. */}
+        <p className="support">{state.guide.message ?? 'Encontré estas opciones en esta página.'}</p>
         <SpeakButton
           text={optionsSpeech(
             primary.map((o) => o.title),
@@ -272,7 +284,8 @@ function Options({ state, visit, onMore }: { state: AppState; visit: number; onM
       <Button variant="link" className="back-link" onClick={onMore}>
         Ver otras opciones
       </Button>
-      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} />
+      {/* Si dice algo que no está entre las opciones, Guíame lo busca en el sitio (igual que «¿No está lo que buscás?»). */}
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} onFreeText={(text) => send({ type: 'askOnPage', text })} />
     </>
   );
 }
@@ -331,7 +344,10 @@ function OptionButton({ option, lead }: { option: OptionView; lead?: ReactNode }
 /** 06 y 08: una instrucción por vez, con el nombre del control resaltado. */
 function CurrentStep({ state }: { state: AppState }) {
   const { guide } = state;
+  if (guide.ask?.mode === 'dictate') return <DictateStep state={state} />;
   const field = guide.targetField;
+  // Un dato del formulario se pide en voz alta salvo que la persona haya apagado la voz.
+  const askAloud = guide.ask !== null && state.prefs.voiceMode !== 'off';
   // En un campo no hay clic que observar sin leer lo escrito: la persona avisa.
   const confirm = field || guide.waitFor === 'userConfirmation';
   const support =
@@ -350,7 +366,7 @@ function CurrentStep({ state }: { state: AppState }) {
       </div>
       {support ? <p className="support">{support}</p> : null}
       {/* Leer en voz alta (opcional, S11): solo si la persona lo pide o con el modo voz; se corta al cambiar de instrucción. */}
-      <SpeakButton text={guideSpeech(guide)} auto={state.voice.active} contentKey={stepSpeechKey(guide)} />
+      <SpeakButton text={guideSpeech(guide)} auto={state.voice.active || askAloud} contentKey={stepSpeechKey(guide)} />
       {field ? (
         <p className="soft-box">
           <Icon name="lock" />
@@ -366,6 +382,31 @@ function CurrentStep({ state }: { state: AppState }) {
           Ya lo hice
         </Button>
       )}
+      <Progress count={guide.done.length} />
+    </section>
+  );
+}
+
+/**
+ * Un dato del formulario que se dicta: Guíame lee la pregunta, escucha la
+ * respuesta y la escribe en la página; la persona la revisa (sin pantalla:
+ * TODO(diseño)). Nunca muestra ni lee el valor.
+ */
+function DictateStep({ state }: { state: AppState }) {
+  const { guide } = state;
+  const ask = guide.ask!;
+  const auto = state.prefs.voiceMode !== 'off';
+  const key = stepSpeechKey(guide);
+  /** Terminó (o no se pudo) leer la pregunta: se escucha la respuesta. */
+  const [questionRead, setQuestionRead] = useState(0);
+  return (
+    <section className="hc-section" aria-label="Paso actual">
+      <div aria-live="polite" key={guide.announceKey}>
+        <p className="instr">{withControlNames(guide.instruction ?? '')}</p>
+      </div>
+      <p className="support">{ask.question}</p>
+      <SpeakButton text={ask.question} auto={auto && !ask.filled} contentKey={`pregunta:${key}`} onDone={() => setQuestionRead((n) => n + 1)} />
+      <FieldDictation filled={ask.filled} auto={auto} trigger={questionRead} stepKey={key} />
       <Progress count={guide.done.length} />
     </section>
   );

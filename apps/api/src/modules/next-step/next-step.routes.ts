@@ -8,11 +8,11 @@ export const nextStepRoutes: FastifyPluginAsyncZod<{ service: NextStepService }>
     {
       schema: {
         tags: ['next-step'],
-        summary: 'Resuelve un paso teórico con el HTML posterior a la acción de la persona',
+        summary: 'Informa el avance de la guía y devuelve los pasos que siguen hasta terminar la opción',
         body: NextStepRequest,
         response: { 200: NextStepResponse, '4xx': ApiError, '5xx': ApiError },
       },
     },
-    (request) => service.next(request.body, request.principal!),
+    (request) => service.next(request.body, request.principal!, request.log),
   );
 };

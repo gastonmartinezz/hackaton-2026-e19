@@ -16,6 +16,7 @@ import type { AiTask } from '../src/modules/ai/model.js';
 import { InterpretService } from '../src/modules/interpret/interpret.service.js';
 import { domainOf, UrlGuard } from '../src/modules/interpret/url-guard.js';
 import { NextStepService } from '../src/modules/next-step/next-step.service.js';
+import { ProcedureResearcher } from '../src/modules/procedure/procedure.service.js';
 import { SessionStore } from '../src/modules/sessions/session-store.js';
 import { UrlVerifier } from '../src/modules/urls/url-verifier.js';
 
@@ -243,7 +244,7 @@ async function runNextStep(variant: Variant) {
   const log = metricsLogger(claude, []);
   const model = new AnthropicModel(config, log);
   const sessions = new SessionStore(60 * 60_000);
-  const service = new NextStepService(model, sessions);
+  const service = new NextStepService(model, sessions, new ProcedureResearcher(model));
   const latencies: number[] = [];
   const failures: string[] = [];
   let ok = 0;

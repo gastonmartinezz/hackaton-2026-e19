@@ -64,15 +64,12 @@
 }
 
 /*
- * La píldora «Estás en» suma el sello. El dominio principal nunca se corta.
- * Cuando falta lugar (lo mide useIndicatorFit en SiteCheck.tsx) se compacta en
- * este orden: sin «Estás en» (1), la conexión no segura solo con su ícono (2; el
- * texto sigue para lectores de pantalla y el aviso completo está en la tarjeta) y
- * el texto del sello en dos líneas (3). Si ni así entra, el sello flota debajo
- * de la píldora. Las reglas apuntan a la píldora real, no a su copia invisible.
+ * La píldora «Estás en» suma el sello. El dominio principal se corta solo como
+ * último recurso, por el principio (ver guiame.css). Cuando falta lugar se oculta primero «Estás en», después la conexión no segura
+ * queda solo con su ícono (el texto sigue para lectores de pantalla y el aviso
+ * completo está en la tarjeta) y el texto del sello pasa a dos líneas.
  */
 .omni {
-  /* El ancho de la píldora no depende de su contenido: la medición no oscila. */
   container-type: inline-size;
   /* Píldora de dominio del diseño: relleno de 12px a la derecha (el dominio no toca la curva). */
   padding-right: var(--space-3);
@@ -91,23 +88,19 @@
 .insecure-icon {
   display: none;
 }
-.omni[data-compact='1'] .where .k-estas,
-.omni[data-compact='2'] .where .k-estas,
-.omni[data-compact='3'] .where .k-estas,
-.omni[data-compact='4'] .where .k-estas {
+@container (max-width: 560px) {
+  .omni .k-estas {
+    display: none;
+  }
+}
+/* Si el dominio igual no entra (ver useDomainFit en TopBar.tsx). */
+.omni[data-fit] .k-estas {
   display: none;
 }
-.omni[data-compact='2'] .where .insecure-icon,
-.omni[data-compact='3'] .where .insecure-icon {
+.omni[data-fit='icono'] .insecure-icon {
   display: inline-flex;
 }
-/* Último recurso para no cortar el dominio: tampoco el ícono (el aviso completo está en la tarjeta). */
-.omni[data-compact='4'] .where .insecure {
-  position: absolute;
-}
-.omni[data-compact='2'] .where .insecure-text,
-.omni[data-compact='3'] .where .insecure-text,
-.omni[data-compact='4'] .where .insecure-text {
+.omni[data-fit='icono'] .insecure-text {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -115,35 +108,36 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
-/* Subdominio oculto como último recurso (el nombre accesible lleva el dominio completo). */
-.omni[data-sub='none'] .where .sub {
-  display: none;
+@container (max-width: 480px) {
+  .insecure-icon {
+    display: inline-flex;
+  }
+  .insecure-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }
-/* Ni el dominio principal entra: se recorta con un desvanecido, sin pasar por encima de «Ayuda». */
-.omni[data-overflow='true'] .where {
-  overflow: hidden;
-  mask-image: linear-gradient(to right, var(--g-ink) calc(100% - var(--space-7)), transparent);
-}
-.omni[data-compact='3'] > .site-badge .site-badge-label,
-.site-badge--two-lines .site-badge-label {
-  white-space: normal;
-  max-width: 6.5em;
-  line-height: 1.05;
-  text-align: left;
+@container (max-width: 400px) {
+  .site-badge-label {
+    white-space: normal;
+    max-width: 6.5em;
+    line-height: 1.05;
+    text-align: left;
+  }
 }
 
-/* Copia invisible de las piezas que se compactan, para medirlas (OmniProbe). */
-.omni-probe {
+/* Copia invisible del sello para medir si entra en la píldora (useIndicatorFits). */
+.site-badge-probe {
   position: absolute;
-  left: -10000px;
-  top: 0;
-  display: flex;
-  align-items: flex-start;
   visibility: hidden;
   pointer-events: none;
-}
-.omni-probe > * {
-  flex: none;
+  /* Mide con el texto en una o dos líneas, igual que dentro de la píldora. */
+  margin: 0;
+  left: -10000px;
 }
 
 /* ---------- Panel (vista flotante; lenguaje de la tarjeta, .hc de guiame.css) ---------- */

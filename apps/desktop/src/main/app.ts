@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { Limits } from '@hackaton/contracts';
 import { minimizeIntent, sanitizeOrigin } from '@asistente/privacy';
-import { BrowserWindow, ipcMain, shell, systemPreferences, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
+import { BrowserWindow, ipcMain, shell, systemPreferences, type IpcMainEvent, type IpcMainInvokeEvent, type WebContents } from 'electron';
 import {
   TERMS_VERSION,
   UI_COMMAND_CHANNEL,
@@ -20,12 +20,14 @@ import {
   VoiceDiagnosticSchema,
   UI_STATE_CHANNEL,
   UI_TRANSCRIBE_CHANNEL,
+  UI_DICTATE_FIELD_CHANNEL,
   UiCommandSchema,
   type AppState,
   type CardLayout,
   type Notice,
   type NoticeAction,
   type SpeakResult,
+  type DictateFieldResult,
   type TranscribeResult,
   type SiteCheckLayout,
   type SiteCheckView,
@@ -83,6 +85,8 @@ export interface AppControllerOptions {
 
 export class AppController {
   readonly window: BrowserWindow;
+  /** Contenido de la ventana: se guarda porque `window.webContents` tira error una vez cerrada. */
+  readonly #ui: WebContents;
   readonly #site: SiteView;
   readonly #bridge: PageBridge;
   readonly #assistant: Assistant;
@@ -133,6 +137,7 @@ export class AppController {
         spellcheck: true,
       },
     });
+    this.#ui = this.window.webContents;
     this.#hardenUi();
 
     this.#site = new SiteView(options.pagePreloadPath);
@@ -155,7 +160,7 @@ export class AppController {
     this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
     this.#transcriber = new Transcriber(options.api);
     // Una sola lectura en toda la app: el hub avisa a la ventana y a la tarjeta.
-    this.#speech = new SpeechHub(options.api, () => [this.window.webContents, this.#card.contents]);
+    this.#speech = new SpeechHub(options.api, () => [this.#ui, this.#card.contents]);
     this.#voiceMode = new VoiceModeState(options.prefs.value.voiceMode);
     this.#protection = new SiteProtection({
       api: options.api,
@@ -166,6 +171,7 @@ export class AppController {
 
     ipcMain.handle(UI_COMMAND_CHANNEL, (event, raw: unknown) => this.#onCommand(event, raw));
     ipcMain.handle(UI_TRANSCRIBE_CHANNEL, (event, raw: unknown) => this.#onTranscribe(event, raw));
+    ipcMain.handle(UI_DICTATE_FIELD_CHANNEL, (event, raw: unknown) => this.#onDictateField(event, raw));
     ipcMain.handle(UI_SPEAK_CHANNEL, (event, raw: unknown) => this.#onSpeak(event, raw));
     const stopSpeaking = (event: IpcMainEvent) => {
       if (this.#isOwnUi(event)) this.#speech.stop(event.sender);
@@ -201,6 +207,7 @@ export class AppController {
     this.window.on('closed', () => {
       ipcMain.removeHandler(UI_COMMAND_CHANNEL);
       ipcMain.removeHandler(UI_TRANSCRIBE_CHANNEL);
+      ipcMain.removeHandler(UI_DICTATE_FIELD_CHANNEL);
       ipcMain.removeHandler(UI_SPEAK_CHANNEL);
       ipcMain.removeListener(UI_SPEAK_STOP_CHANNEL, stopSpeaking);
       ipcMain.removeListener(UI_SPEECH_DIAGNOSTIC_CHANNEL, speechDiagnostic);
@@ -208,6 +215,12 @@ export class AppController {
       this.#transcriber.cancel();
       this.#speech.stopAll();
       this.#bridge.dispose();
+      // Lo que esté en curso ya no tiene dónde mostrarse. Las vistas del sitio, de
+      // la tarjeta y del panel de protección no se cierran solas con la ventana.
+      this.#chat.reset();
+      this.#assistant.exit();
+      this.#protection.clear();
+      for (const contents of [this.#card.contents, this.#popover.contents, this.#site.contents]) if (!contents.isDestroyed()) contents.close();
     });
   }
 
@@ -238,6 +251,7 @@ export class AppController {
    * indicador, el panel ni los avisos.
    */
   #layout(): void {
+    if (this.window.isDestroyed()) return;
     const scale = this.options.prefs.value.textScale;
     const [width = 0, height = 0] = this.window.getContentSize();
     const protection = this.#protection.snapshot;
@@ -371,6 +385,7 @@ export class AppController {
     const verdict = url ? classifyUrl(url) : null;
     const parsed = verdict?.kind === 'allow' ? verdict.url : null;
     const guide = this.#assistant.state;
+    const showing = !this.#assistant.settling;
     const history = this.#site.contents.navigationHistory;
     const toView = (o: { id: string; title: string }) => ({ id: o.id, title: o.title, description: '' });
     return {
@@ -412,19 +427,22 @@ export class AppController {
         }),
       },
       guide: {
-        phase: guide.phase,
+        // Después de un clic se espera un instante antes del paso siguiente: se muestra como «fijándome».
+        phase: showing ? guide.phase : 'verifying',
         goal: guide.goal ?? null,
+        request: guide.phase === 'analyzing' ? (guide.request ?? null) : null,
         primary: guide.options.slice(0, PRIMARY_OPTIONS).map(toView),
         secondary: guide.options.slice(PRIMARY_OPTIONS).map(toView),
         option: guide.option ? toView(guide.option) : null,
-        instruction: guide.phase === 'waitingForUser' ? (guide.step?.instruction ?? null) : null,
+        instruction: showing && guide.phase === 'waitingForUser' ? (guide.step?.instruction ?? null) : null,
         announceKey: this.#assistant.announceKey,
         contentKey: this.#assistant.epoch,
         stepCount: guide.stepCount,
         message: guide.message ?? null,
         targetVisible: this.#assistant.targetVisible,
         targetField: this.#assistant.target?.field ?? false,
-        waitFor: guide.phase === 'waitingForUser' ? (guide.step?.waitFor ?? null) : null,
+        waitFor: showing && guide.phase === 'waitingForUser' ? (guide.step?.waitFor ?? null) : null,
+        ask: showing && guide.phase === 'waitingForUser' ? this.#assistant.ask : null,
         exited: this.#helpExited && guide.phase === 'idle',
         done: this.#assistant.done,
         evidence: guide.phase === 'completed' ? this.#assistant.evidence : null,
@@ -451,7 +469,7 @@ export class AppController {
       // El control señalado puede haber cambiado: se reubica la tarjeta.
       this.#layout();
       const state = this.#state();
-      this.window.webContents.send(UI_STATE_CHANNEL, state);
+      this.#ui.send(UI_STATE_CHANNEL, state);
       if (!this.#card.contents.isDestroyed()) this.#card.contents.send(UI_STATE_CHANNEL, state);
       if (!this.#popover.contents.isDestroyed()) this.#popover.contents.send(UI_STATE_CHANNEL, state);
     });
@@ -481,7 +499,10 @@ export class AppController {
       else this.#protection.pageLoaded(url);
       this.#assistant.navigated({ sameDocument, aiEnabled: this.#guideAllowed() });
     });
-    site.on('loadFailed', () => this.#protection.loadFailed());
+    site.on('loadFailed', () => {
+      this.#protection.loadFailed();
+      this.#assistant.loadFailed();
+    });
     site.on('stateChanged', () => this.#publish());
     site.on('popup', ({ url }) => {
       const domain = new URL(url).hostname;
@@ -505,7 +526,7 @@ export class AppController {
     );
 
     this.#bridge.on('changed', (message) => this.#assistant.pageChanged(message));
-    this.#bridge.on('interaction', ({ elementId }) => this.#assistant.interaction(elementId));
+    this.#bridge.on('interaction', ({ elementId, event }) => this.#assistant.interaction(elementId, event));
     this.#bridge.on('validationError', () => this.#assistant.validationError());
     this.#bridge.on('signature', () => this.#protection.contentChanged());
 
@@ -533,7 +554,7 @@ export class AppController {
   /* ------------------------------ Interfaz propia ------------------------------ */
 
   #hardenUi(): void {
-    const wc = this.window.webContents;
+    const wc = this.#ui;
     wc.setWindowOpenHandler(() => ({ action: 'deny' }));
     wc.on('will-navigate', (event) => event.preventDefault());
     wc.on('will-attach-webview', (event) => event.preventDefault());
@@ -565,7 +586,7 @@ export class AppController {
 
   /** La ventana o la tarjeta, desde su documento principal. */
   #isOwnUi(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
-    return (event.sender === this.window.webContents || event.sender === this.#card.contents) && event.senderFrame === event.sender.mainFrame;
+    return (event.sender === this.#ui || event.sender === this.#card.contents) && event.senderFrame === event.sender.mainFrame;
   }
 
   /** Leer en voz alta: desde la ventana o la tarjeta, con condiciones aceptadas. */
@@ -588,8 +609,22 @@ export class AppController {
     return this.#transcriber.transcribe(raw);
   }
 
+  /**
+   * Dictado de un dato del formulario: solo desde la tarjeta. El texto va de la
+   * transcripción directo a la página; nunca vuelve a la interfaz, nunca va a
+   * Claude y nunca se registra.
+   */
+  async #onDictateField(event: IpcMainInvokeEvent, raw: unknown): Promise<DictateFieldResult> {
+    if (event.sender !== this.#card.contents || event.senderFrame !== event.sender.mainFrame || !this.#termsAccepted()) return { status: 'notAllowed' };
+    if (this.#assistant.ask?.mode !== 'dictate') return { status: 'notAllowed' };
+    const heard = await this.#transcriber.transcribe(raw);
+    if (heard.status !== 'ok') return heard;
+    const result = await this.#assistant.fill(heard.text);
+    return { status: result === 'filled' || result === 'noMatch' ? result : 'notAllowed' };
+  }
+
   async #onCommand(event: IpcMainInvokeEvent, raw: unknown): Promise<void> {
-    const fromWindow = event.sender === this.window.webContents;
+    const fromWindow = event.sender === this.#ui;
     const fromCard = event.sender === this.#card.contents;
     const fromPopover = event.sender === this.#popover.contents;
     if ((!fromWindow && !fromCard && !fromPopover) || event.senderFrame !== event.sender.mainFrame) return;
@@ -717,8 +752,9 @@ export class AppController {
         this.#publish();
         return;
       case 'askOnPage': {
+        // Lo que pidió no estaba entre las opciones: el backend investiga cómo se hace acá y la guía empieza sola.
         const goal = minimizeIntent(command.text, Limits.maxMessageLength);
-        if (goal && this.#siteVisible && this.#guideAllowed()) this.#assistant.analyze(goal);
+        if (goal && this.#siteVisible && this.#guideAllowed()) this.#assistant.analyze(goal, goal);
         return;
       }
       case 'cardLayout':
@@ -742,6 +778,9 @@ export class AppController {
         return;
       case 'confirmDone':
         this.#assistant.confirmDone();
+        return;
+      case 'typeMyself':
+        this.#assistant.typeMyself();
         return;
       case 'resumeGuide':
         this.#assistant.resume();
@@ -806,7 +845,7 @@ export class AppController {
           // Escape, «Cerrar» o «Entendido»: el foco vuelve al indicador, en la barra o en la vista flotante.
           this.#focusPopover = false;
           this.#focusIndicator += 1;
-          (this.#anchor.inline ? this.window.webContents : this.#popover.contents).focus();
+          (this.#anchor.inline ? this.#ui : this.#popover.contents).focus();
           this.#publish();
         }
         return;

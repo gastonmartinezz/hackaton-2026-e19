@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
+import { AppError } from '../src/lib/errors.js';
 import { defaultMockHandlers, MockModel } from '../src/modules/ai/mock-model.js';
 import type { AiTask } from '../src/modules/ai/model.js';
 import type { InterpretOutput } from '../src/modules/ai/schemas.js';
@@ -15,7 +16,7 @@ const interpretReturning = (output: InterpretOutput) =>
 
 /** Mock que registra lo que recibe Claude en cada tarea. */
 function recordingModel() {
-  const inputs: Record<AiTask, any[]> = { interpret: [], options: [], nextStep: [], siteCheck: [] };
+  const inputs: Record<AiTask, any[]> = { interpret: [], options: [], nextStep: [], procedure: [], siteCheck: [] };
   const record =
     (task: AiTask) =>
     (input: any): unknown => {
@@ -26,6 +27,7 @@ function recordingModel() {
     interpret: record('interpret'),
     options: record('options'),
     nextStep: record('nextStep'),
+    procedure: record('procedure'),
     siteCheck: record('siteCheck'),
   });
   return { model, inputs };
@@ -193,6 +195,27 @@ describe('POST /v1/options', () => {
     });
   });
 
+  it('pasa a Claude el objetivo escrito en la página y lo guarda en la sesión', async () => {
+    const { model, inputs } = recordingModel();
+    app = await testApp({ model });
+    const { sessionId } = (await post('/v1/options', { html })).json();
+    expect(inputs.options[0].goal).toBeNull();
+
+    const res = await post('/v1/options', { sessionId, html, goal: 'quiero iniciar sesion' });
+    expect(res.statusCode).toBe(200);
+    expect(inputs.options[1].goal).toBe('quiero iniciar sesion');
+
+    await post('/v1/options', { sessionId, html });
+    expect(inputs.options[2].context.history[1]).toMatchObject({ type: 'options', goal: 'quiero iniciar sesion' });
+    expect(inputs.options[2].context.history[0]).not.toHaveProperty('goal');
+  });
+
+  it('rechaza un objetivo vacío', async () => {
+    app = await testApp();
+    const res = await post('/v1/options', { html, goal: '   ' });
+    expect(res.statusCode).toBe(400);
+  });
+
   it('acumula el metadato: lo nuevo pisa lo anterior', async () => {
     const { model, inputs } = recordingModel();
     app = await testApp({ model });
@@ -218,7 +241,7 @@ describe('POST /v1/options', () => {
   it('rechaza una opción sin pasos', async () => {
     const model = new MockModel({
       ...defaultMockHandlers,
-      options: () => ({ options: [{ id: 'x', title: 'Sin pasos', steps: [] }] }),
+      options: () => ({ options: [{ id: 'x', title: 'Sin pasos', steps: [] }], requestedOptionId: null }),
     });
     app = await testApp({ model });
     const res = await post('/v1/options', { html });
@@ -288,6 +311,134 @@ describe('POST /v1/next-step', () => {
     await post('/v1/next-step', { ...request, completedSteps: [] });
 
     expect(inputs.nextStep[1].context.history[1]).toMatchObject({ type: 'nextStep', completedSteps: [option.steps[0]] });
+  });
+
+  it('investiga el paso a paso una sola vez por opción y se lo pasa a nextStep', async () => {
+    const { model, inputs } = recordingModel();
+    app = await testApp({ model });
+    const { sessionId, option } = await startSession();
+    const request = { sessionId, optionId: option.id, expectedStep: option.steps[0], completedSteps: [], html };
+    await post('/v1/next-step', request);
+    await post('/v1/next-step', request);
+
+    expect(inputs.procedure).toHaveLength(1);
+    expect(inputs.procedure[0].option).toEqual({ title: option.title, steps: option.steps.map((s: { instruction: string }) => s.instruction) });
+    expect(inputs.nextStep[0].procedure).toMatchObject({ summary: expect.any(String), completion: expect.any(String) });
+    expect(inputs.nextStep[1].procedure).toEqual(inputs.nextStep[0].procedure);
+    // No se repite dentro del recorrido.
+    expect(inputs.nextStep[1].context.history.some((entry: { type: string }) => entry.type === 'procedure')).toBe(false);
+  });
+
+  it('vuelve a investigar si /v1/options devolvió de nuevo esa opción (otra página)', async () => {
+    const { model, inputs } = recordingModel();
+    app = await testApp({ model });
+    const { sessionId, option } = await startSession();
+    const request = { sessionId, optionId: option.id, expectedStep: option.steps[0], completedSteps: [], html };
+    await post('/v1/next-step', request);
+    await post('/v1/options', { sessionId, html });
+    await post('/v1/next-step', request);
+    expect(inputs.procedure).toHaveLength(2);
+  });
+
+  it('si el paso a paso falla, guía igual sin él y no lo vuelve a buscar en cada llamada', async () => {
+    let calls = 0;
+    const nextInputs: any[] = [];
+    const model = new MockModel({
+      ...defaultMockHandlers,
+      procedure: (input) => {
+        if (++calls === 1) throw new AppError('TIMEOUT', 'Claude no respondió a tiempo');
+        return defaultMockHandlers.procedure(input);
+      },
+      nextStep: (input) => {
+        nextInputs.push(input);
+        return defaultMockHandlers.nextStep(input);
+      },
+    });
+    app = await testApp({ model });
+    const { sessionId, option } = await startSession();
+    const request = { sessionId, optionId: option.id, expectedStep: option.steps[0], completedSteps: [], html };
+    const first = await post('/v1/next-step', request);
+    expect(first.statusCode).toBe(200);
+    expect(nextInputs[0].procedure).toBeNull();
+    await post('/v1/next-step', request);
+    // Después de un fallo se espera un rato antes de volver a investigar (no se paga la demora en cada paso).
+    expect(calls).toBe(1);
+    expect(nextInputs[1].procedure).toBeNull();
+  });
+
+  it('un error de configuración del paso a paso no se tapa', async () => {
+    const model = new MockModel({
+      ...defaultMockHandlers,
+      procedure: () => {
+        throw new AppError('INTERNAL', 'Error al invocar a Claude');
+      },
+    });
+    app = await testApp({ model });
+    const { sessionId, option } = await startSession();
+    const res = await post('/v1/next-step', { sessionId, optionId: option.id, expectedStep: option.steps[0], completedSteps: [], html });
+    expect(res.json().error.code).toBe('INTERNAL');
+  });
+
+  it('pide los datos del formulario con field y no lo manda cuando es null', async () => {
+    app = await testApp();
+    const { sessionId, option } = await startSession();
+    const res = await post('/v1/next-step', {
+      sessionId,
+      optionId: option.id,
+      expectedStep: option.steps[1],
+      completedSteps: [],
+      html: '<form><input id="el-4" type="email" aria-label="Correo"><input id="el-5" type="password" aria-label="Clave"><button id="el-6">Seguir</button></form>',
+    });
+    expect(res.json().steps).toEqual([
+      {
+        element: '#el-4',
+        instruction: 'Escribí el dato en «Correo».',
+        presentation: 'scrollAndHighlight',
+        waitFor: 'userConfirmation',
+        field: { question: '¿Qué escribo en «Correo»?', sensitive: false },
+      },
+    ]);
+    // Las opciones no traen field cuando el modelo devuelve null.
+    expect(option.steps[0]).not.toHaveProperty('field');
+  });
+
+  it('descarta el field de un paso teórico (no hay lugar donde escribir)', async () => {
+    const model = new MockModel({
+      ...defaultMockHandlers,
+      nextStep: () => ({
+        steps: [{ element: null, instruction: 'Escribí tu correo en «Correo».', presentation: 'highlight', waitFor: 'userConfirmation', field: { question: '¿Cuál es tu correo?', sensitive: false } }],
+        done: false,
+        evidence: null,
+      }),
+    });
+    app = await testApp({ model });
+    const { sessionId, option } = await startSession();
+    const res = await post('/v1/next-step', { sessionId, optionId: option.id, expectedStep: option.steps[1], completedSteps: [], html });
+    expect(res.json().steps[0]).not.toHaveProperty('field');
+  });
+
+  it('devuelve la evidencia solo si está tal cual en la página', async () => {
+    const done = (evidence: string) =>
+      new MockModel({ ...defaultMockHandlers, nextStep: () => ({ steps: [], done: true, evidence }) });
+    const finalHtml = '<main><h2 id="el-1">Su reserva fue  confirmada</h2><div role="alert" id="el-2">Número de reserva: A&amp;B-123</div></main>';
+
+    app = await testApp({ model: done('«su reserva fue confirmada»') });
+    let { sessionId, option } = await startSession();
+    let res = await post('/v1/next-step', { sessionId, optionId: option.id, expectedStep: option.steps[1], completedSteps: [], html: finalHtml });
+    expect(res.json()).toEqual({ sessionId, steps: [], done: true, evidence: 'su reserva fue confirmada' });
+    await app.close();
+
+    app = await testApp({ model: done('Número de reserva: A&B-123') });
+    ({ sessionId, option } = await startSession());
+    res = await post('/v1/next-step', { sessionId, optionId: option.id, expectedStep: option.steps[1], completedSteps: [], html: finalHtml });
+    expect(res.json().evidence).toBe('Número de reserva: A&B-123');
+    await app.close();
+
+    // Inventada: queda done sin evidencia (el front pregunta «¿Pudiste terminar?»).
+    app = await testApp({ model: done('Tu turno quedó confirmado') });
+    ({ sessionId, option } = await startSession());
+    res = await post('/v1/next-step', { sessionId, optionId: option.id, expectedStep: option.steps[1], completedSteps: [], html: finalHtml });
+    expect(res.json()).toEqual({ sessionId, steps: [], done: true });
   });
 
   it('rechaza un optionId que no está en la sesión', async () => {

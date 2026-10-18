@@ -62,9 +62,11 @@ const EnvSchema = z
     CLAUDE_MODEL_INTERPRET: z.string().min(1).optional(),
     CLAUDE_MODEL_OPTIONS: z.string().min(1).optional(),
     CLAUDE_MODEL_NEXT_STEP: z.string().min(1).optional(),
+    CLAUDE_MODEL_PROCEDURE: z.string().min(1).optional(),
     CLAUDE_EFFORT_INTERPRET: Effort.optional(),
     CLAUDE_EFFORT_OPTIONS: Effort.optional(),
     CLAUDE_EFFORT_NEXT_STEP: Effort.optional(),
+    CLAUDE_EFFORT_PROCEDURE: Effort.optional(),
     // default: si el clasificador de seguridad rechaza, la API reintenta en el modelo que Anthropic
     // recomienda para esa categoría (solo modelos que lo admiten). off: sin reintento.
     CLAUDE_FALLBACKS: z.enum(['default', 'off']).default('default'),
@@ -76,6 +78,10 @@ const EnvSchema = z
     // on: Claude usa la búsqueda web del servidor de Anthropic para elegir entre resultados reales.
     INTERPRET_WEB_SEARCH: z.enum(['off', 'on']).default('off'),
     INTERPRET_WEB_SEARCH_MAX_USES: z.coerce.number().int().min(1).max(10).default(3),
+    // on: al empezar una opción de la guía, Claude busca en la web el paso a paso real (tarea procedure).
+    // off: arma el paso a paso con lo que ya sabe, sin buscar.
+    GUIDE_WEB_SEARCH: z.enum(['off', 'on']).default('on'),
+    GUIDE_WEB_SEARCH_MAX_USES: z.coerce.number().int().min(1).max(10).default(3),
     CLAUDE_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     CLAUDE_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
     // Tope de tokens por respuesta, thinking incluido.

@@ -21,7 +21,7 @@ Responsable: Agustin. Los contratos (Zod) están en `packages/contracts/src` y e
 | GET | `/health` | Saber si el servidor está vivo y si la voz está activa. Sin token |
 | POST | `/v1/interpret` | Chat de la home: interpreta lo que pide la persona |
 | POST | `/v1/options` | Opciones de la página actual, cada una con su guía |
-| POST | `/v1/next-step` | Pasos reales cuando la guía llega a un paso teórico |
+| POST | `/v1/next-step` | Informa el avance de la guía y devuelve los pasos que siguen, hasta terminar la opción |
 | POST | `/v1/site-check` | Protección de sitios: revisa la dirección y el contenido de la página actual |
 | POST | `/v1/transcribe` | Voz a texto: el texto se usa después en `/v1/interpret` |
 | POST | `/v1/speak` | Texto a voz: MP3 en streaming para leer en voz alta |
@@ -34,7 +34,7 @@ En la sesión, el backend acumula:
 
 - **De `interpret`:** el chat y la decisión de Claude (objetivo entendido y motivo). La decisión **no vuelve al front**.
 - **De `options`:** el metadato de la página y las opciones devueltas.
-- **De `next-step`:** los pasos que completó la persona y los pasos nuevos.
+- **De `next-step`:** el paso a paso investigado de cada opción elegida, los pasos que completó la persona y los pasos nuevos.
 
 En cada llamada, Claude recibe **todo** ese recorrido como contexto. El HTML no se guarda.
 
@@ -42,7 +42,8 @@ En cada llamada, Claude recibe **todo** ese recorrido como contexto. El HTML no 
 interpret (sin sessionId) → crea s-abc
 interpret (s-abc)         → mismo chat, hasta redirect u options
 options   (s-abc)         → opciones con sus pasos
-next-step (s-abc)         → pasos reales y done
+next-step (s-abc)         → investiga el paso a paso (1.ª vez por opción), pasos reales
+next-step (s-abc)         → … hasta done (con evidence si la página lo confirma)
 ```
 
 ### POST /v1/interpret
@@ -132,7 +133,7 @@ Cada paso tiene un `element`:
 - **`"#el-3"`**: el id de un elemento del HTML enviado. El front lo ubica y dibuja la indicación (cuadrado, flecha, etc.).
 - **`null`**: **paso teórico**. El elemento todavía no existe porque aparece después de una acción de la persona. Los pasos siguientes a uno teórico también lo son.
 
-Si todos los pasos de una opción son reales (por ejemplo, botones que no cargan HTML nuevo), el front guía de punta a punta sin volver a llamar.
+Los `steps` de cada opción son el comienzo de la tarea en esta página. Al elegir una, el front llama a `/v1/next-step`, que investiga el paso a paso completo y guía hasta terminar.
 
 ```json
 {
@@ -162,11 +163,26 @@ Respuesta:
 
 - **Sin `sessionId`** (página abierta sin pasar por el chat), el backend crea una sesión nueva.
 - **`metadata`** se acumula en la sesión: los campos nuevos pisan a los anteriores y los que no se mandan se conservan. Hoy acepta `page.title` y `page.language`.
+- **`goal`** (opcional, hasta 1.000 caracteres): lo que la persona quiere hacer en esta página, por ejemplo lo que escribió en «¿No está lo que buscás?». Claude pone primero la opción que lo resuelve, si la página lo permite. Se guarda en el historial de la sesión.
 - Se puede volver a llamar con el mismo `sessionId`, por ejemplo en una página nueva de la misma tarea.
+- **`request`** (opcional, hasta 1000 caracteres) es lo que la persona pidió con sus palabras, escrito en «¿No está lo que buscás?» o dicho al responder las opciones con la voz, cuando no estaba entre las opciones. En ese caso:
+  - El backend primero investiga cómo se hace eso en este sitio, con la tarea `procedure` y búsqueda web (`GUIDE_WEB_SEARCH`). Tarda entre 10 y 20 s más.
+  - Si se puede hacer, devuelve esa tarea como **primera opción**, con el camino desde esta página (el menú, la sección o el buscador que lleva ahí), y su id en **`requestedOptionId`**.
+  - El paso a paso queda guardado solo para esa opción, así que `/v1/next-step` no lo vuelve a buscar.
+  - Si ninguna opción hace lo pedido, `requestedOptionId` no viene y las opciones son las de la página.
+  - El front empieza la guía sola solo con `requestedOptionId`. Sin él, muestra las opciones y avisa que no encontró cómo hacerlo.
+  - Una investigación en curso con la misma sesión y el mismo pedido u opción no se repite. Si falla, se guía sin ella y no se vuelve a buscar durante 10 minutos.
 
 ### POST /v1/next-step
 
-Se llama cuando la guía llega a un **paso teórico** (`element: null`), después de que la persona realizó la acción anterior y la página mostró el HTML nuevo.
+Lleva a la persona hasta **completar** la opción que eligió, no solo hasta el botón de la opción. El front lo llama para informar el avance y pedir lo que sigue:
+
+- **Al elegir la opción**, con `expectedStep` = el primer paso de la opción y `completedSteps: []`.
+- **Al llegar a un paso teórico** (`element: null`), después de que la persona hizo la acción anterior.
+- **Al terminar los pasos recibidos**, aunque la página no haya cambiado.
+- **Después de un cambio de página**, porque los `#el-N` de los pasos anteriores ya no sirven.
+
+Se sigue llamando hasta que devuelve `done: true`.
 
 ```json
 {
@@ -174,10 +190,10 @@ Se llama cuando la guía llega a un **paso teórico** (`element: null`), despué
   "optionId": "turno",
   "expectedStep": { "element": null, "instruction": "Elegí la especialidad.", "presentation": "highlight", "waitFor": "userInteraction" },
   "completedSteps": [
-    { "element": "#el-3", "instruction": "Hacé clic en Turnos.", "presentation": "highlight", "waitFor": "userInteraction" }
+    { "element": "#el-3", "instruction": "Hacé clic en «Turnos».", "presentation": "highlight", "waitFor": "userInteraction" }
   ],
-  "html": "<select id=\"el-9\" aria-label=\"Especialidad\">...</select>",
-  "metadata": { "page": { "title": "Hospital X - Especialidades" } }
+  "html": "<form id=\"el-8\"><input id=\"el-9\" type=\"email\" aria-label=\"Correo electrónico\" required>...</form>",
+  "metadata": { "page": { "title": "Hospital X - Datos" } }
 }
 ```
 
@@ -187,17 +203,41 @@ Respuesta:
 {
   "sessionId": "s-abc",
   "steps": [
-    { "element": "#el-9", "instruction": "Elegí la especialidad.", "presentation": "highlight", "waitFor": "userInteraction" }
+    {
+      "element": "#el-9",
+      "instruction": "Escribí tu correo en «Correo electrónico».",
+      "presentation": "scrollAndHighlight",
+      "waitFor": "userConfirmation",
+      "field": { "question": "¿Cuál es tu correo electrónico?", "sensitive": false }
+    },
+    { "element": "#el-12", "instruction": "Hacé clic en «Continuar».", "presentation": "highlight", "waitFor": "navigation" }
   ],
   "done": false
 }
 ```
 
+Al terminar:
+
+```json
+{ "sessionId": "s-abc", "steps": [], "done": true, "evidence": "Su reserva fue confirmada" }
+```
+
+- **Paso a paso investigado:** la primera llamada de cada opción elegida corre antes la tarea interna `procedure`. Claude entiende qué es la opción y, con `GUIDE_WEB_SEARCH=on` (el valor por defecto), busca en la web el paso a paso real, priorizando el sitio oficial y las fuentes uruguayas. El resultado se guarda en la sesión: tiene qué es la tarea, sus etapas, cómo confirma el sitio que terminó y las fuentes. `nextStep` lo usa en cada llamada para saber en qué etapa está la persona y qué falta. No vuelve al front.
+  - **Latencia:** esa primera llamada suma una llamada a Claude con búsqueda web, que puede tardar 10 a 20 s más. Las siguientes no la repiten. Si `/v1/options` vuelve a devolver la misma opción (otra página), se investiga de nuevo.
+  - Con `GUIDE_WEB_SEARCH=off`, el paso a paso se arma con lo que Claude ya sabe, sin buscar.
+  - Si la investigación falla por un motivo pasajero o del modelo (`AI_UNAVAILABLE`, `TIMEOUT`, `RATE_LIMITED`, `AI_INVALID_RESPONSE`, `AI_REFUSED`), se guía igual sin ella y se vuelve a intentar en la llamada siguiente.
+- **`field`** (opcional) aparece solo en los pasos que piden un dato de un formulario. `element` apunta a ese lugar. No aparece en pasos teóricos.
+  - **`question`:** la pregunta para decir en voz alta («¿Cuál es tu correo electrónico?»).
+  - **`sensitive: false`:** la persona puede dictar el dato. El front lo escribe en el campo y le pide que lo revise.
+  - **`sensitive: true`:** contraseña o clave, PIN, códigos de verificación, tarjeta, datos bancarios, cédula o documento. El front no pregunta el valor: pone el cursor en el lugar y la persona lo escribe. En este caso `question` dice que lo escribe la persona.
+  - El backend nunca recibe el valor. Los pasos de datos vuelven en `completedSteps` igual que los demás, con su `field` y sin valor. El front puede tratar además como sensible cualquier campo que localmente lo parezca (`type=password`, `autocomplete=cc-*`, etc.).
+- **`evidence`** (opcional, solo con `done: true`) es el texto de la página que prueba que la tarea terminó, citado tal cual. El backend la descarta si no aparece en el texto visible del `html` recibido (sin distinguir mayúsculas y con espacios normalizados). Sin `evidence`, el front pregunta «¿Pudiste terminar?» en vez de decir «Listo». Elegir la opción o tocar su botón nunca cuenta como terminar.
 - **`completedSteps`** (obligatorio, puede ser `[]`): los pasos que completó la persona desde la última llamada. Quedan guardados en la sesión.
 - **`metadata`** es opcional y se acumula igual que en `/v1/options`.
-- **`steps`** son los pasos que siguen, con el mismo formato. Si vuelve a aparecer un paso teórico, se llama otra vez a `/v1/next-step`.
+- **`steps`** son los pasos que siguen en esta página, con el mismo formato. Si vuelve a aparecer un paso teórico, se llama otra vez a `/v1/next-step`.
 - **`done: true`** significa que la tarea terminó; en ese caso `steps` viene vacío.
 - **`optionId`** tiene que ser el id de una opción que `/v1/options` devolvió en esa sesión. Si no, responde `400 BAD_REQUEST`.
+- **HTML:** conviene marcar los datos obligatorios con `required` o `aria-required="true"` en los controles; Claude los usa para no saltear ninguno.
 
 ### Valores y vencimiento de la sesión
 
@@ -205,6 +245,7 @@ Respuesta:
 |---|---|
 | `presentation` | `highlight`, `scrollAndHighlight` |
 | `waitFor` | `userInteraction`, `navigation`, `userConfirmation` |
+| `field` | `{ question, sensitive }` solo en pasos de datos de un formulario |
 
 - Las sesiones viven en memoria del servidor y vencen a los **30 minutos sin uso**; cada llamada renueva el plazo. Un reinicio del servidor las borra.
 - Un `sessionId` inexistente, vencido o creado con otro token devuelve `404 SESSION_NOT_FOUND`. En ese caso el recorrido anterior se perdió: el front empieza una sesión nueva llamando sin `sessionId`.
@@ -610,7 +651,7 @@ Todas exponen la URL, y con ella datos del recorrido de la persona. No se public
 2. **Chat:** guardar el historial y enviarlo completo en cada `/v1/interpret`. Según `type`: redirigir, mostrar la pregunta o mostrar las opciones de sitios.
 3. **Fragmentos de HTML:** armar el HTML que se envía, con un id por elemento y sin datos sensibles.
 4. **Metadato:** enviar en `metadata.page` los datos de la página que tenga (título, idioma) al cargarla.
-5. **Guía:** recorrer los `steps` de la opción elegida. Ante un paso con `element: null`, esperar la acción de la persona y llamar a `/v1/next-step` con el HTML nuevo y los `completedSteps`.
+5. **Guía:** al elegir una opción, llamar a `/v1/next-step` y recorrer los `steps` que devuelve. Volver a llamar ante un paso con `element: null`, al terminar los pasos o después de un cambio de página, con el HTML nuevo y los `completedSteps`, hasta `done: true`. En los pasos con `field`, preguntar el dato en voz alta (o, si es sensible, poner el cursor en el lugar). Decir «Listo» solo con `evidence`.
 6. **Elementos:** ubicar `element` en la página (si hace falta, subiendo al elemento padre) y manejar el caso en que no se encuentra. El backend no verifica que el id exista en el HTML.
 7. **Representación visual:** dibujar la indicación según `presentation`, mostrar `instruction` y esperar según `waitFor`.
 8. **Voz:** grabar en WAV PCM 16 bits mono a 16 kHz, mandar a `/v1/transcribe` y usar el `text` como el mensaje de la persona en `/v1/interpret`. Con `text: ""`, pedir que repita. Con `AI_UNAVAILABLE` no reintentable, ocultar el micrófono. Para leer en voz alta, pedir `/v1/speak` y reproducir el MP3 a medida que llega; con `AI_UNAVAILABLE` no reintentable, ocultar el botón de escuchar.
@@ -646,7 +687,7 @@ Con `AI_PROVIDER=mock` (el valor por defecto en desarrollo), el servidor respond
 
 - `/v1/interpret`: con un solo mensaje devuelve `question`; con más de uno devuelve `redirect` a `https://www.example.com/`.
 - `/v1/options`: devuelve una opción `start` con dos pasos: el primero sobre el primer `id="..."` del HTML y el segundo teórico (`element: null`). Si el HTML no tiene ids, devuelve `options: []`.
-- `/v1/next-step`: si el HTML tiene un `id="..."`, devuelve un paso sobre ese elemento con `done: false`. Si no tiene ninguno, devuelve `steps: []` y `done: true`.
+- `/v1/next-step`: el paso a paso investigado es fijo y sin búsqueda. Si el HTML tiene un lugar para escribir que todavía no se completó (`<input>` de texto o `<textarea>`), devuelve un paso de datos con `field` (`sensitive: true` si es `type="password"`). Si no, devuelve un clic sobre el primer `id="..."` pendiente. Sin ids pendientes devuelve `steps: []` y `done: true`, con el primer título del HTML como `evidence` si lo hay.
 - `/v1/site-check`: la explicación es un texto fijo según el riesgo y la IA nunca agrega motivos. Con `REPUTATION_PROVIDER=mock` (el valor de `.env.example`), los hosts con la etiqueta `phishing-demo` o `malware-demo` figuran como amenaza conocida. RDAP y la inspección de conexión son reales salvo que se deshabiliten con `SITE_CHECK_RDAP=false` y `SITE_CHECK_CONNECTION=false`.
 - `/v1/transcribe` con `STT_PROVIDER=mock`: devuelve siempre `{ "text": "Quiero renovar la cédula de identidad" }` para cualquier WAV válido (con silencio devuelve `""`). Las validaciones del WAV y los errores son los reales.
 - `/v1/speak` con `TTS_PROVIDER=mock`: devuelve siempre el mismo MP3 válido de ~0,5 s de silencio, en dos partes. Las validaciones y los errores son los reales.

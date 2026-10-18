@@ -45,6 +45,8 @@ export function MicButton({ status, onToggle, blocked = false }: { status: Voice
       type="button"
       className="mic"
       aria-pressed={pressed}
+      // Con aria-label: un texto oculto aparte suma un espacio antes de «:» en el nombre que arma Chromium.
+      aria-label={pressed ? undefined : `${VOICE_TEXTS.speak}${VOICE_TEXTS.speakDescription}`}
       aria-disabled={working || undefined}
       aria-describedby="voice-msg"
       onClick={() => {
@@ -55,10 +57,7 @@ export function MicButton({ status, onToggle, blocked = false }: { status: Voice
       {pressed ? (
         <span className="mic-label">{VOICE_TEXTS.stop}</span>
       ) : (
-        <span className="mic-label">
-          {VOICE_TEXTS.speak}
-          <span className="sr-only">{VOICE_TEXTS.speakDescription}</span>
-        </span>
+        <span className="mic-label">{VOICE_TEXTS.speak}</span>
       )}
     </button>
   );

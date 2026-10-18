@@ -167,176 +167,54 @@ function Details({ panel }: { panel: SiteCheckPanelCopy }) {
 /* --------------------------- ¿Entra el indicador? --------------------------- */
 
 /**
- * Cuánto se compacta la píldora «Estás en» para que el sello quepa al lado del
- * dominio: 0 nada; 1 sin «Estás en»; 2 además la conexión no segura queda solo
- * con su ícono (el texto sigue para lectores de pantalla y el aviso completo está
- * en la tarjeta); 3 además el texto del sello pasa a dos líneas (solo si en dos
- * líneas entra en el alto de la píldora). Recién después se acorta el subdominio
- * (`sub`: «t…» y, si hace falta, oculto; el nombre accesible lleva siempre el
- * dominio completo). `inline: false`: ni así entra y el sello flota debajo de la
- * píldora; como último recurso para no cortar el dominio principal se oculta
- * también el ícono de conexión no segura (4). `overflow`: ni el dominio
- * principal solo entra (dominio muy largo a 1,75× en ventanas angostas): se
- * recorta con un desvanecido dentro de la píldora, sin dibujarse encima de «Ayuda».
+ * ¿Entra el indicador en la píldora «Estás en» sin cortar el dominio principal?
+ * Mide el dominio completo (aunque esté recortado), el resto de la píldora y un indicador
+ * de prueba invisible; el ancho de la píldora no depende de su contenido, así
+ * que la decisión no oscila.
  */
-export interface IndicatorFit {
-  compact: CompactLevel;
-  inline: boolean;
-  sub: SubdomainFit;
-  overflow: boolean;
-}
-export type CompactLevel = 0 | 1 | 2 | 3 | 4;
-export type SubdomainFit = 'full' | 'short' | 'none';
-
-/** Medidas en px de la píldora y de cada pieza en su tamaño natural (0 si no está). */
-export interface OmniMeasure {
-  /** Ancho interior de la píldora, con su relleno. */
-  available: number;
-  padding: number;
-  /** Separación entre la zona del dominio y el sello, y entre piezas de esa zona. */
-  omniGap: number;
-  whereGap: number;
-  estas: number;
-  insecureText: number;
-  insecureIcon: number;
-  sub: number;
-  /** Lo mínimo que ocupa el subdominio acortado («t…»). */
-  subMin: number;
-  main: number;
-  badge: number;
-  badgeTwoLines: number;
-  /** El sello en dos líneas entra en el alto de la píldora (a 1,75× no entra). */
-  twoLinesFit: boolean;
-}
-
-/** Sin compactar: todo a la vista y el sello en la píldora. */
-export const FIT_ALL: IndicatorFit = { compact: 0, inline: true, sub: 'full', overflow: false };
-
-const SUB_LEVELS: readonly SubdomainFit[] = ['full', 'short', 'none'];
-
-export function chooseIndicatorFit(m: OmniMeasure): IndicatorFit {
-  const subWidth = { full: m.sub, short: Math.min(m.sub, m.subMin), none: 0 };
-  const fits = (compact: CompactLevel, inline: boolean, sub: SubdomainFit) => {
-    const items: number[] = [];
-    if (m.insecureText > 0 && compact < 4) items.push(compact >= 2 ? m.insecureIcon : m.insecureText);
-    if (compact < 1 && m.estas > 0) items.push(m.estas);
-    items.push(m.main + subWidth[sub]);
-    let need = m.padding + items.reduce((a, b) => a + b, 0) + m.whereGap * (items.length - 1);
-    if (inline && m.badge > 0) need += m.omniGap + (compact >= 3 ? m.badgeTwoLines : m.badge);
-    return need <= m.available + 0.5;
-  };
-  // Si no hay subdominio, acortarlo no cambia nada: se prueba una sola vez.
-  const subs = m.sub > 0 ? SUB_LEVELS : SUB_LEVELS.slice(0, 1);
-  const inlineLevels: CompactLevel[] = m.twoLinesFit ? [0, 1, 2, 3] : [0, 1, 2];
-  for (const sub of subs) {
-    for (const compact of inlineLevels) if (fits(compact, true, sub)) return { compact, inline: true, sub, overflow: false };
-  }
-  for (const sub of subs) {
-    for (const compact of [0, 1, 2] as const) if (fits(compact, false, sub)) return { compact, inline: false, sub, overflow: false };
-  }
-  if (m.insecureText > 0) {
-    for (const sub of subs) if (fits(4, false, sub)) return { compact: 4, inline: false, sub, overflow: false };
-  }
-  return { compact: m.insecureText > 0 ? 4 : 2, inline: false, sub: subs.at(-1)!, overflow: true };
-}
-
-const sameFit = (a: IndicatorFit, b: IndicatorFit) => a.compact === b.compact && a.inline === b.inline && a.sub === b.sub && a.overflow === b.overflow;
-
-const width = (element: Element | null | undefined) => element?.getBoundingClientRect().width ?? 0;
-
-/** Lee las medidas de la píldora real y de su copia invisible (OmniProbe). Null si no hay dominio a la vista. */
-function measureOmni(): OmniMeasure | null {
-  const omni = document.querySelector<HTMLElement>('.omni');
-  const main = omni?.querySelector('.where .dom b');
-  const probe = omni?.querySelector('.omni-probe');
-  if (!omni || !main || !probe) return null;
-  const style = getComputedStyle(omni);
-  const where = omni.querySelector('.where');
-  const sub = probe.querySelector<HTMLElement>('[data-probe="sub"]');
-  const twoLines = probe.querySelector('[data-probe="badge-two-lines"]');
-  return {
-    available: omni.clientWidth,
-    padding: parseFloat(style.paddingLeft) + parseFloat(style.paddingRight),
-    omniGap: parseFloat(style.columnGap) || 0,
-    whereGap: where ? parseFloat(getComputedStyle(where).columnGap) || 0 : 0,
-    estas: width(probe.querySelector('[data-probe="estas"]')),
-    insecureText: width(probe.querySelector('[data-probe="insecure-text"]')),
-    insecureIcon: width(probe.querySelector('[data-probe="insecure-icon"]')),
-    sub: width(sub),
-    subMin: sub ? parseFloat(getComputedStyle(sub).minWidth) || 0 : 0,
-    main: width(main),
-    badge: width(probe.querySelector('[data-probe="badge"]')),
-    badgeTwoLines: width(twoLines),
-    twoLinesFit: (twoLines?.getBoundingClientRect().height ?? Infinity) <= omni.clientHeight - 4,
-  };
-}
-
-/**
- * Decide la compactación de la píldora y si el sello entra en ella. El ancho de
- * la píldora no depende de su contenido (container-type) y las medidas salen de
- * una copia invisible que no se compacta: la decisión no oscila.
- */
-export function useIndicatorFit(view: SiteCheckView, domain: string, scale: number): IndicatorFit {
-  const [fit, setFit] = useState<IndicatorFit>(FIT_ALL);
+export function useIndicatorFits(view: SiteCheckView, domain: string, scale: number): boolean {
+  const [fits, setFits] = useState(true);
   useLayoutEffect(() => {
     const check = () => {
-      const m = measureOmni();
-      if (!m) return;
-      const next = chooseIndicatorFit(m);
-      setFit((prev) => (sameFit(prev, next) ? prev : next));
+      const omni = document.querySelector<HTMLElement>('.omni');
+      const main = omni?.querySelector<HTMLElement>('.dom b');
+      const probe = document.querySelector('.site-badge-probe');
+      if (!omni || !main || !probe) return;
+      const style = getComputedStyle(omni);
+      const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const gap = parseFloat(style.columnGap) || 0;
+      const where = omni.querySelector('.where');
+      const others = where
+        ? [...where.children]
+            .filter((child) => !child.classList.contains('dom') && !child.classList.contains('k-estas'))
+            .reduce((sum, child) => sum + child.getBoundingClientRect().width + gap, 0)
+        : 0;
+      const sub = omni.querySelector('.dom .sub') ? 32 : 0;
+      // Ancho completo del dominio aunque esté achicado con «…»: así la decisión no oscila.
+      const need = main.scrollWidth + sub + others + probe.getBoundingClientRect().width + gap + padding;
+      setFits(need <= omni.clientWidth);
     };
     check();
     const omni = document.querySelector('.omni');
-    const observer = omni && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null;
-    if (omni) observer?.observe(omni);
+    if (!omni || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(check);
+    observer.observe(omni);
     window.addEventListener('resize', check);
     return () => {
-      observer?.disconnect();
+      observer.disconnect();
       window.removeEventListener('resize', check);
     };
-  }, [view.label, view.indicator, domain, scale]);
-  return fit;
+  }, [view.label, domain, scale]);
+  return fits;
 }
 
-/**
- * Copia invisible de las piezas que se compactan, en su tamaño natural: «Estás
- * en», el subdominio, la conexión no segura (texto e ícono) y el sello en una y
- * dos líneas.
- */
-export function OmniProbe({ view, insecure, sub }: { view: SiteCheckView; insecure: boolean; sub: string }) {
-  const badge = view.indicator !== 'none' && view.label ? view.indicator : null;
+/** Copia invisible del indicador para medir cuánto ocupa. */
+export function SiteCheckProbe({ view }: { view: SiteCheckView }) {
+  if (view.indicator === 'none' || !view.label) return null;
   return (
-    <span className="omni-probe" aria-hidden="true">
-      <span className="k-estas" data-probe="estas">
-        Estás en
-      </span>
-      {sub ? (
-        <span className="sub" data-probe="sub">
-          {sub}
-        </span>
-      ) : null}
-      {insecure ? (
-        <>
-          <span className="insecure" data-probe="insecure-text">
-            Conexión no segura
-          </span>
-          <span className="insecure" data-probe="insecure-icon">
-            <Icon name="triangle-alert" size="sm" />
-          </span>
-        </>
-      ) : null}
-      {badge ? (
-        <>
-          <span className="site-badge" data-probe="badge">
-            <Icon name={SITE_CHECK_ICONS[badge]} size="sm" />
-            <span className="site-badge-label">{view.label}</span>
-          </span>
-          <span className="site-badge site-badge--two-lines" data-probe="badge-two-lines">
-            <Icon name={SITE_CHECK_ICONS[badge]} size="sm" />
-            <span className="site-badge-label">{view.label}</span>
-          </span>
-        </>
-      ) : null}
+    <span className="site-badge site-badge-probe" aria-hidden="true">
+      <Icon name={SITE_CHECK_ICONS[view.indicator]} size="sm" />
+      <span className="site-badge-label">{view.label}</span>
     </span>
   );
 }
