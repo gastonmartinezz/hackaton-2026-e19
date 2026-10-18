@@ -345,9 +345,7 @@ Cada respuesta devuelve **exactamente** el `navigationId` y el `contentVersion` 
     "text": "Texto visible acotado y redactado…",
     "declaredBrand": "BPS",
     "forms": [{ "method": "post", "action": null, "fields": [{ "type": "password", "label": "Contraseña de BPS" }] }],
-    "links": [{ "text": "Servicios en línea", "href": "https://scp.bps.gub.uy/" }],
-    "scriptHosts": ["www.googletagmanager.com"],
-    "iframeHosts": []
+    "links": [{ "text": "Servicios en línea", "href": "https://scp.bps.gub.uy/" }]
   }
 }
 ```
@@ -627,7 +625,7 @@ curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'conte
   -d '{"navigationId":"nav-1","contentVersion":0,"url":"https://www.bps.gub.uy/","hostname":"www.bps.gub.uy","registrableDomain":"bps.gub.uy"}'
 # Página que dice ser el BPS en otro dominio y pide la clave → risk high, BRAND_IMPERSONATION
 curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
-  -d '{"navigationId":"nav-2","contentVersion":1,"url":"https://tramites-online.com.uy/","hostname":"tramites-online.com.uy","registrableDomain":"tramites-online.com.uy","page":{"title":"BPS","declaredBrand":"BPS","text":"Su prestación será suspendida. Ingrese su contraseña.","forms":[{"method":"post","action":null,"fields":[{"type":"password","label":"Contraseña"}]}],"links":[],"scriptHosts":[],"iframeHosts":[]}}'
+  -d '{"navigationId":"nav-2","contentVersion":1,"url":"https://tramites-online.com.uy/","hostname":"tramites-online.com.uy","registrableDomain":"tramites-online.com.uy","page":{"title":"BPS","declaredBrand":"BPS","text":"Su prestación será suspendida. Ingrese su contraseña.","forms":[{"method":"post","action":null,"fields":[{"type":"password","label":"Contraseña"}]}],"links":[]}}'
 # Dominio parecido al de un banco del BCU → risk high, LOOKALIKE_DOMAIN, ya en la fase de dirección
 curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -d '{"navigationId":"nav-3","contentVersion":0,"url":"https://itau-login.com/","hostname":"itau-login.com","registrableDomain":"itau-login.com"}'

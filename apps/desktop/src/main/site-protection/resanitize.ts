@@ -31,8 +31,6 @@ export function resanitizeSummary(input: PageSummary): PageSummary {
       const linkText = sanitizeLinkText(link.text, 200);
       return href && linkText ? [{ text: linkText, href }] : [];
     }),
-    scriptHosts: input.scriptHosts,
-    iframeHosts: input.iframeHosts,
   };
   const title = input.title ? sanitizeTitle(input.title, 200) : '';
   if (title) summary.title = title;

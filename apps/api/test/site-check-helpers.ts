@@ -103,7 +103,7 @@ export function fakeProviders(over: Partial<SiteCheckOverrides> = {}): SiteCheck
   };
 }
 
-export const emptyPage = { text: 'Bienvenido al sitio.', forms: [], links: [], scriptHosts: [], iframeHosts: [] };
+export const emptyPage = { text: 'Bienvenido al sitio.', forms: [], links: [] };
 
 export const addressRequest = (url: string, over: Record<string, unknown> = {}) => {
   const parsed = new URL(url);

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiFailure } from '../api/client';
 import { SiteProtection, type SiteProtectionDeps } from './coordinator';
 
-const PAGE: PageSummary = { text: 'Hola', forms: [], links: [], scriptHosts: [], iframeHosts: [] };
+const PAGE: PageSummary = { text: 'Hola', forms: [], links: [] };
 
 const evidence = [{ source: 'test', checkedAt: '2026-10-17T22:00:00Z', observedBy: 'service' as const, detail: 'x' }];
 const reason = (code: SiteCheckReason['code'], category: SiteCheckReason['category'] = 'fraud'): SiteCheckReason => ({ code, category, evidence });

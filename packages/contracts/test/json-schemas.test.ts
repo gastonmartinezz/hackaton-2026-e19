@@ -21,7 +21,7 @@ function agree(name: string, zod: z.ZodType, cases: Array<[string, unknown, bool
 }
 
 const address = { navigationId: 'nav-1', contentVersion: 0, url: 'https://www.gub.uy/', hostname: 'www.gub.uy', registrableDomain: 'gub.uy' };
-const page = { text: 'Hola', forms: [], links: [], scriptHosts: [], iframeHosts: [] };
+const page = { text: 'Hola', forms: [], links: [] };
 
 describe('SiteCheckRequest.json', () => {
   agree('SiteCheckRequest', SiteCheckRequest, [

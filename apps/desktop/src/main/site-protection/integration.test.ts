@@ -134,7 +134,7 @@ describe('protección de sitios con el backend simulado', () => {
     const base = { navigationId: 'nav-1', url: 'https://x.example/', registrableDomain: 'x.example' };
     for (const hostname of ['banco-demo.example', 'tramites.mostrame-demo.gub.uy', 'usina-uy.example', 'atencion.example', 'bancodemo-acceso.example', 'premio-gratis.example', 'parcial.example', 'otro.example']) {
       for (const contentVersion of [0, 1]) {
-        const page = { text: '', forms: [], links: [], scriptHosts: [], iframeHosts: [] };
+        const page = { text: '', forms: [], links: [] };
         const response = mockSiteCheck({ ...base, hostname, contentVersion, ...(contentVersion ? { page } : {}) });
         expect(SiteCheckResponse.safeParse(response).success).toBe(true);
       }

@@ -72,8 +72,6 @@ export function extractPageSummary(doc: Document): SummaryResult {
     text: joinBlocks(blocks),
     forms: summarizeForms(doc, fields),
     links: summarizeLinks(doc, anchors),
-    scriptHosts: hostsOf(doc, Array.from(doc.querySelectorAll('script[src]')), 'src'),
-    iframeHosts: hostsOf(doc, [...new Set([...doc.querySelectorAll('iframe[src],frame[src]'), ...frames])], 'src'),
   };
   const title = sanitizeTitle(doc.title ?? '', 200);
   if (title) summary.title = title;
@@ -284,16 +282,6 @@ function declaredBrand(doc: Document): string | undefined {
     '';
   const brand = sanitizeLabel(raw, 120);
   return brand || undefined;
-}
-
-function hostsOf(doc: Document, elements: Element[], attribute: string): string[] {
-  const hosts = new Set<string>();
-  for (const element of elements) {
-    const host = hostOf(element.getAttribute(attribute) ?? '', doc.baseURI);
-    if (host && /^[a-z0-9.-]+$/.test(host)) hosts.add(host);
-    if (hosts.size >= SiteCheckLimits.maxOrigins) break;
-  }
-  return [...hosts];
 }
 
 function hostOf(raw: string, base: string): string | null {

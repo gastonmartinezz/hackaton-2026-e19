@@ -9,7 +9,7 @@ const base = {
   registrableDomain: 'gub.uy',
 };
 
-const page = { text: 'Hola', forms: [], links: [], scriptHosts: [], iframeHosts: [] };
+const page = { text: 'Hola', forms: [], links: [] };
 
 describe('SiteCheckRequest', () => {
   it('la fase de dirección no lleva page y la de contenido sí', () => {

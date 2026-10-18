@@ -55,8 +55,8 @@ describe('extractPageSummary', () => {
     expect(summary.links[0]).toEqual({ text: 'www.banco-demo.example', href: 'https://otro.example/login' });
     expect(summary.links).toContainEqual({ text: 'Ayuda', href: 'https://banco-demo.example/ayuda' });
     expect(summary.links.some((l) => l.href.startsWith('mailto'))).toBe(false);
-    expect(summary.scriptHosts).toEqual(['cdn.example']);
-    expect(summary.iframeHosts).toEqual(['tracker.example']);
+    expect(summary).not.toHaveProperty('scriptHosts');
+    expect(summary).not.toHaveProperty('iframeHosts');
     expect(notes).toContain('frames');
   });
 

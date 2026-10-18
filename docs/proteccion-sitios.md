@@ -24,7 +24,7 @@ Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que
 
 ### Qué sale del equipo
 
-- **Sí:** la dirección sin datos personales (se ocultan los secretos del path, la query y el fragmento), el título, el texto visible (hasta 4.000 caracteres y ya depurado), los tipos de campo de los formularios, los enlaces (texto y destino) y los dominios de scripts e iframes.
+- **Sí:** la dirección sin datos personales (se ocultan los secretos del path, la query y el fragmento), el título, el texto visible (hasta 4.000 caracteres y ya depurado), los tipos de campo de los formularios y los enlaces (texto y destino).
 - **Nunca:** cookies, valores de formularios, contraseñas, tokens ni historial.
 - **El backend vuelve a depurar todo** antes de usarlo.
 

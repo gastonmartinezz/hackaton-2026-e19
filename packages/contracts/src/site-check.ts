@@ -17,7 +17,6 @@ export const SiteCheckLimits = {
   maxForms: 10,
   maxFieldsPerForm: 30,
   maxLinks: 50,
-  maxOrigins: 30,
   maxReasons: 20,
 } as const;
 
@@ -81,9 +80,6 @@ export const PageSummary = z.strictObject({
   declaredBrand: ShortText(120).optional(),
   forms: z.array(PageForm).max(SiteCheckLimits.maxForms),
   links: z.array(PageLink).max(SiteCheckLimits.maxLinks),
-  /** Hostnames de origen de scripts e iframes, sin código. */
-  scriptHosts: z.array(Hostname).max(SiteCheckLimits.maxOrigins),
-  iframeHosts: z.array(Hostname).max(SiteCheckLimits.maxOrigins),
 });
 export type PageSummary = z.infer<typeof PageSummary>;
 

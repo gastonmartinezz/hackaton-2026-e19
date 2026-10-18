@@ -10,8 +10,6 @@ describe('resanitizeSummary', () => {
       declaredBrand: 'Banco',
       forms: [{ method: 'post', action: 'https://x.com/a?cedula=30123456', fields: [{ type: 'text', label: 'Cédula 30123456' }] }],
       links: [{ text: 'www.banco.com/x?token=abc', href: 'https://evil.com/r/tok_9f8e7d6c5b4a3210zz#ana@correo.com' }],
-      scriptHosts: ['cdn.example'],
-      iframeHosts: [],
     });
     expect(findLeaks(out, ['Marta', 'Secreto123', 'marta@correo.com', '30123456', 'tok_9f8e7d6c5b4a3210zz', 'ana@correo.com', 'token=abc'])).toEqual([]);
     expect(out.title).toBe('Banco');
