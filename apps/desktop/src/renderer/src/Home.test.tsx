@@ -29,8 +29,8 @@ describe('Opciones rápidas del inicio', () => {
 
   it('cada sitio es un nav «Lo que hiciste antes» > ul > li > button con su nombre y lo abre por su origen', () => {
     const sites = [
-      { origin: 'https://agenda.ejemplo.gub.uy', domain: 'agenda.ejemplo.gub.uy' },
-      { origin: 'https://www.tiendamac.ejemplo.com.uy', domain: 'tiendamac.ejemplo.com.uy' },
+      { origin: 'https://agenda.ejemplo.gub.uy', domain: 'agenda.ejemplo.gub.uy', task: null },
+      { origin: 'https://www.tiendamac.ejemplo.com.uy', domain: 'tiendamac.ejemplo.com.uy', task: null },
     ];
     act(() => root.render(<FrequentSites sites={sites} />));
     const buttons = [...container.querySelectorAll<HTMLButtonElement>('nav[aria-label="Lo que hiciste antes"] > ul > li > button')];
@@ -39,5 +39,12 @@ describe('Opciones rápidas del inicio', () => {
     expect(buttons.map((b) => b.textContent?.trim())).toEqual(['agenda.ejemplo.gub.uy', 'tiendamac.ejemplo.com.uy']);
     act(() => buttons[1]!.click());
     expect(command).toHaveBeenLastCalledWith({ type: 'openFrequentSite', origin: 'https://www.tiendamac.ejemplo.com.uy' });
+  });
+
+  it('con tarea guardada muestra qué se hizo y deja el dominio en el título', () => {
+    act(() => root.render(<FrequentSites sites={[{ origin: 'https://agenda.ejemplo.gub.uy', domain: 'agenda.ejemplo.gub.uy', task: 'Renovar la cédula' }]} />));
+    const button = container.querySelector<HTMLButtonElement>('nav[aria-label="Lo que hiciste antes"] ul > li > button')!;
+    expect(button.textContent?.trim()).toBe('Renovar la cédula');
+    expect(button.title).toBe('agenda.ejemplo.gub.uy');
   });
 });

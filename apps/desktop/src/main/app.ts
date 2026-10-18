@@ -117,6 +117,8 @@ export class AppController {
   readonly #riskyHosts = new Set<string>();
   /** Último sitio contado como visita: andar por sus páginas no suma; volver a entrar desde el inicio, sí. */
   #visitedOrigin: string | null = null;
+  /** Tarea del destino que se está abriendo desde una búsqueda con ayuda, hasta contar la visita. */
+  #pendingTask: { origin: string; task: string } | null = null;
   #notices: Array<Notice & { url?: string | undefined }> = [];
   #publishScheduled = false;
 
@@ -157,7 +159,7 @@ export class AppController {
       options.api,
       session,
       () => this.#publish(),
-      (url) => this.#openDestination(url),
+      (url) => this.#openDestination(url, this.#wantGuide, this.#chat.goal),
       () => buildUserContext(options.prefs.value.profile, options.system),
     );
     this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
@@ -457,9 +459,10 @@ export class AppController {
       },
       notices: this.#notices.map(({ url: _url, ...notice }) => notice),
       siteCheck: this.#siteCheckView(),
-      frequentSites: topSites(this.options.prefs.value.frequentSites).map(({ origin }) => ({
+      frequentSites: topSites(this.options.prefs.value.frequentSites).map(({ origin, task }) => ({
         origin,
         domain: new URL(origin).hostname.replace(/^www\./, ''),
+        task: task ?? null,
       })),
     };
   }
@@ -558,7 +561,10 @@ export class AppController {
     const origin = target.kind === 'eligible' ? sanitizeOrigin(target.url) : null;
     if (!origin || origin === this.#visitedOrigin || this.#riskyHosts.has(new URL(origin).hostname)) return;
     this.#visitedOrigin = origin;
-    this.options.prefs.update((current) => ({ frequentSites: recordVisit(current.frequentSites, origin, Date.now()) })).then(
+    // La tarea vale solo para el sitio que se abrió desde la búsqueda (no para uno al que se llegue después).
+    const task = this.#pendingTask?.origin === origin ? this.#pendingTask.task : null;
+    this.#pendingTask = null;
+    this.options.prefs.update((current) => ({ frequentSites: recordVisit(current.frequentSites, origin, Date.now(), task) })).then(
       () => this.#publish(),
       () => log('prefs.error', { kind: 'kind:frequentSites' }),
     );
@@ -573,8 +579,16 @@ export class AppController {
   }
 
   /** Destino elegido en el chat: al cargar, la guía analiza la página con ese objetivo. */
-  #openDestination(url: string, guide = this.#wantGuide): void {
+  /**
+   * `task`: lo que se va a hacer en ese sitio, para el acceso del historial. Solo
+   * se pasa al abrir un destino de una búsqueda con ayuda; un acceso del
+   * historial conserva el que tenía.
+   */
+  #openDestination(url: string, guide = this.#wantGuide, task: string | null = null): void {
     if (guide) this.#assistant.expectDestination(this.#chat.goal ?? '');
+    const target = checkEligibility(url);
+    const origin = target.kind === 'eligible' ? sanitizeOrigin(target.url) : null;
+    this.#pendingTask = guide && task && origin ? { origin, task } : null;
     this.#showSite(url);
   }
 
@@ -733,7 +747,7 @@ export class AppController {
         // La URL sale del resultado recibido, nunca del renderer.
         const candidate = this.#chat.candidate(command.candidateId);
         if (!candidate) return;
-        this.#openDestination(candidate.url, command.guide ?? this.#wantGuide);
+        this.#openDestination(candidate.url, command.guide ?? this.#wantGuide, this.#chat.goal);
         return;
       }
       case 'openFrequentSite': {

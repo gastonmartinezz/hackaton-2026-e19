@@ -325,8 +325,10 @@ export interface AppState {
 export interface FrequentSiteView {
   /** Lo que se manda en `openFrequentSite`. */
   origin: string;
-  /** Host sin «www.», para mostrar. */
+  /** Host sin «www.», para mostrar cuando no hay tarea. */
   domain: string;
+  /** Lo que se hizo ahí con ayuda («Renovar la cédula»), si se sabe: el texto del acceso del historial (v2.4). */
+  task: string | null;
 }
 
 /** Protección de sitios: estado del indicador, panel y advertencia (textos ya resueltos). */

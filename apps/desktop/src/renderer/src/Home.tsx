@@ -134,13 +134,13 @@ export function FrequentSites({ sites }: { sites: FrequentSiteView[] }) {
       <ul>
         {sites.map((site) => (
           <li key={site.origin}>
-            <button type="button" onClick={() => send({ type: 'openFrequentSite', origin: site.origin })}>
-              {/* TODO(contrato): el diseño espera `historial[] { texto, url, icono }`: qué se hace ahí
-                  («Pagar tarjeta Santander») y un ícono por acceso. Mientras tanto, el dominio y un ícono fijo. */}
+            {/* Con tarea, el texto dice qué se hace ahí y el dominio queda en el título (como el diseño). */}
+            <button type="button" title={site.task ? site.domain : undefined} onClick={() => send({ type: 'openFrequentSite', origin: site.origin })}>
+              {/* TODO(diseño): un ícono por acceso (`historial[].icono`); por ahora, uno fijo. */}
               <span className="home-recent-icon">
                 <Icon name="globe" />
               </span>
-              {site.domain}
+              {site.task ?? site.domain}
             </button>
           </li>
         ))}
