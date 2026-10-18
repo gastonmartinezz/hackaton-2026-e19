@@ -4,9 +4,9 @@
  * escucha comandos autorizados del proceso principal (extraer, mostrar, limpiar)
  * y le informa cambios e interacciones sin valores.
  */
-import { extractSnapshot, resolveSelector, snapshotToHtml, type ElementRegistry } from '@asistente/page-analyzer';
+import { extractPageSummary, extractSnapshot, pageSignature, resolveSelector, snapshotToHtml, type ElementRegistry } from '@asistente/page-analyzer';
 import { ipcRenderer } from 'electron';
-import { ExtractRequestSchema, PAGE_CHANNELS, ShowRequestSchema, type ShowResult } from '../../shared/ipc';
+import { ExtractRequestSchema, PAGE_CHANNELS, ShowRequestSchema, SummarizeRequestSchema, type ShowResult } from '../../shared/ipc';
 import { Highlighter, isField } from './highlighter';
 import { isRelevantChange, observePage } from './observer';
 
@@ -16,6 +16,8 @@ let lastHtml = '';
 let highlighter: Highlighter | undefined;
 let invalidCount = 0;
 let lastInteraction = { id: '', at: 0 };
+/** Huella de formularios e identidad para la protección de sitios. */
+let signature = '';
 
 ipcRenderer.on(PAGE_CHANNELS.extract, (_event, raw: unknown) => {
   const request = ExtractRequestSchema.safeParse(raw);
@@ -52,6 +54,16 @@ ipcRenderer.on(PAGE_CHANNELS.show, async (_event, raw: unknown) => {
   ipcRenderer.send(PAGE_CHANNELS.shown, { requestId, result, elementId, rect, field: isField(element) });
 });
 
+// Protección de sitios: resumen sanitizado (sin valores, cookies ni almacenamiento).
+ipcRenderer.on(PAGE_CHANNELS.summarize, (_event, raw: unknown) => {
+  const request = SummarizeRequestSchema.safeParse(raw);
+  if (!request.success) return;
+  const { requestId, navigationId, contentVersion } = request.data;
+  const { summary, notes } = extractPageSummary(document);
+  signature = pageSignature(document);
+  ipcRenderer.send(PAGE_CHANNELS.summary, { requestId, navigationId, contentVersion, summary, notes });
+});
+
 ipcRenderer.on(PAGE_CHANNELS.clear, () => {
   highlighter?.clear();
 });
@@ -71,8 +83,14 @@ function scrollSettled(): Promise<void> {
 
 function start(): void {
   invalidCount = countInvalid();
+  signature = pageSignature(document);
   observePage(document, {
     onChange(structural) {
+      const next = pageSignature(document);
+      if (next !== signature) {
+        signature = next;
+        ipcRenderer.send(PAGE_CHANNELS.signature, { signature: next });
+      }
       const invalid = countInvalid();
       if (invalid > invalidCount) ipcRenderer.send(PAGE_CHANNELS.validation, {});
       invalidCount = invalid;

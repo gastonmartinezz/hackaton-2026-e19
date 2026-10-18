@@ -68,10 +68,17 @@ export interface ReadAloudOptions {
   auto?: boolean;
   /** Distingue el mismo texto mostrado de nuevo (por ejemplo «Repetir»). */
   contentKey?: string | number;
+  /**
+   * Terminó una lectura: `ended` si sonó completa, `failed` si no se pudo leer.
+   * No se llama si se cortó (otra lectura, «Detener», otra vista, se cerró).
+   */
+  onDone?: (outcome: 'ended' | 'failed') => void;
 }
 
-export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { auto = false, contentKey = '' }: ReadAloudOptions = {}) {
+export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { auto = false, contentKey = '', onDone }: ReadAloudOptions = {}) {
   const [state, setState] = useState<ReadAloudState>({ kind: 'idle' });
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
   const [, setSourceVersion] = useState(0);
   const playback = useRef<Playback | null>(null);
   const attempt = useRef(0);
@@ -127,6 +134,7 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
       // Terminó de sonar: no queda nada por descargar ni por cortar.
       pending.current = false;
       setState(result === 'failed' ? { kind: 'error', reason: 'failed' } : { kind: 'idle' });
+      if (result !== 'stopped') onDoneRef.current?.(result === 'failed' ? 'failed' : 'ended');
     });
   }, []);
 
@@ -144,10 +152,14 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
         // Hay voces pero ninguna en español: no va a haber forma de leer en esta ejecución.
         speechSource.mode = 'none';
         setSourceVersion((v) => v + 1);
-        return setState({ kind: 'unavailable' });
+        setState({ kind: 'unavailable' });
+        return onDoneRef.current?.('failed');
       }
       // Las voces no llegaron a tiempo: puede ser momentáneo, el botón queda.
-      if (started === 'noVoices') return setState({ kind: 'error', reason: 'failed' });
+      if (started === 'noVoices') {
+        setState({ kind: 'error', reason: 'failed' });
+        return onDoneRef.current?.('failed');
+      }
       play(id, started);
     },
     [deps, play],
@@ -186,7 +198,8 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
       case 'stopped':
         return setState({ kind: 'idle' });
       default:
-        return setState({ kind: 'error', reason: result.reason });
+        setState({ kind: 'error', reason: result.reason });
+        return onDoneRef.current?.('failed');
     }
   }, [text, deps, play, readWithSystem, cutFromOutside]);
 

@@ -34,6 +34,7 @@ Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una secci
 - **«Listo» solo con evidencia literal** de la página (`evidencia.texto_literal`). Sin evidencia → «¿Pudiste terminar?» (A-16).
 - **Pago:** verificá `dominio_actual == sitio_elegido.dominio` antes de cualquier paso de pago; si no coincide → C15. Antes de un botón irreversible, el aviso de C10 con el total citado.
 - **Sellos de la barra** solo desde el backend (`oficial`, `tienda_elegida`, `no_verificado`); nunca por HTTPS. Sin candado. Nunca «conexión cifrada».
+  - Hoy los da Protección de sitios (`AppState.siteCheck`, ver `docs/proteccion-sitios.md`): «Sitio oficial» solo cuando `siteIndicatorState()` del contrato devuelve `official` (identidad verificada por una fuente de autoridad), nunca por la IA.
 
 ## 3. Privacidad (requisito duro, con tests)
 

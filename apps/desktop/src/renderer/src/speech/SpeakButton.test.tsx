@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SpeakResult, SpeechAudioEvent } from '../../../shared/ipc';
 import { pickSpanishVoice, systemSpeak, systemVoices, type Mp3Stream, type Playback, type SystemSpeechProblem } from './playback';
 import { SpeakButton } from './SpeakButton';
-import { SPEECH_TEXTS } from './speechText';
+import { SPEECH_TEXTS, optionsReadKey } from './speechText';
 import { autoRead, speechSource, type ReadAloudDeps } from './useReadAloud';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -650,6 +650,62 @@ describe('systemSpeak: una lectura vieja nunca corta a una más nueva', () => {
     const cancels = synth.cancel.mock.calls.length;
     playback.stop();
     expect(synth.cancel.mock.calls.length).toBe(cancels);
+  });
+});
+
+describe('volver de «Ver otras opciones»: una aparición nueva de las opciones', () => {
+  it('con otra vuelta (optionsReadKey) las opciones se vuelven a leer y avisan de nuevo para escuchar', async () => {
+    const { deps, mp3 } = fakeDeps();
+    const onDone = vi.fn();
+    const text = '¿Qué querés hacer acá? Encontré estas opciones en esta página: A o B.';
+    render(<SpeakButton text={text} deps={deps} auto contentKey={optionsReadKey(7, 0)} onDone={onDone} />);
+    await flush();
+    await act(async () => mp3.end());
+    expect(onDone).toHaveBeenCalledTimes(1);
+    // «Ver otras opciones» desmonta la lista; «Volver» la monta con otra vuelta.
+    act(() => root.render(null));
+    const again = fakePlayback();
+    deps.openMp3Stream.mockReturnValueOnce({ mode: 'progressive', playback: again.playback, push: vi.fn(), end: vi.fn(), fail: vi.fn() });
+    render(<SpeakButton text={text} deps={deps} auto contentKey={optionsReadKey(7, 1)} onDone={onDone} />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledTimes(2);
+    await act(async () => again.end());
+    expect(onDone).toHaveBeenCalledTimes(2);
+  });
+
+  it('sin vuelta nueva (misma clave) no se vuelve a leer', () => {
+    expect(optionsReadKey(7, 0)).not.toBe(optionsReadKey(7, 1));
+    expect(optionsReadKey(7, 1)).toBe(optionsReadKey(7, 1));
+  });
+});
+
+describe('onDone: para escuchar la respuesta después de leer', () => {
+  it('avisa `ended` cuando la lectura sonó completa', async () => {
+    const { deps, mp3 } = fakeDeps();
+    const onDone = vi.fn();
+    render(<SpeakButton text="Hola" deps={deps} auto onDone={onDone} />);
+    await flush();
+    expect(onDone).not.toHaveBeenCalled();
+    await act(async () => mp3.end());
+    expect(onDone).toHaveBeenCalledExactlyOnceWith('ended');
+  });
+
+  it('avisa `failed` si no se pudo leer (ocupado)', async () => {
+    const { deps } = fakeDeps({ status: 'error', reason: 'busy' });
+    const onDone = vi.fn();
+    render(<SpeakButton text="Hola" deps={deps} auto onDone={onDone} />);
+    await flush();
+    expect(onDone).toHaveBeenCalledExactlyOnceWith('failed');
+  });
+
+  it('no avisa si se cortó («Detener»): no se abre el micrófono', async () => {
+    const { deps } = fakeDeps();
+    const onDone = vi.fn();
+    render(<SpeakButton text="Hola" deps={deps} auto onDone={onDone} />);
+    await flush();
+    await click();
+    await flush();
+    expect(onDone).not.toHaveBeenCalled();
   });
 });
 

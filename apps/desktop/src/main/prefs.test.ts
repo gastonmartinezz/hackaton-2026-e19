@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -68,6 +68,25 @@ describe('PrefsStore · escala de letra', () => {
     expect((await store.load()).textScale).toBe(1.45);
     await writeFile(join(dir, 'preferences.json'), JSON.stringify({ version: 1, textScale: 1, aiDisabledOrigins: [] }));
     expect((await store.load()).textScale).toBe(1.2);
+    await rm(dir, { recursive: true });
+  });
+
+  it('si el archivo no se pudo leer al arrancar, no lo pisa con los valores por defecto', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'prefs-'));
+    const file = join(dir, 'preferences.json');
+    // Un directorio en lugar del archivo hace fallar la lectura sin que sea ENOENT.
+    await mkdir(file);
+    const store = new PrefsStore(dir);
+    expect((await store.load()).termsAccepted).toBeNull();
+    await expect(store.update({ textScale: 1.75 })).rejects.toThrow();
+
+    // El archivo vuelve a poder leerse: la escritura siguiente conserva lo guardado.
+    await rm(file, { recursive: true });
+    await writeFile(file, JSON.stringify({ version: 1, termsAccepted: '2026-10-17', profile: { city: 'Salto' } }));
+    await store.setAiEnabled('https://a.gob.ar', false);
+    const saved = JSON.parse(await readFile(file, 'utf8'));
+    expect(saved).toMatchObject({ termsAccepted: '2026-10-17', profile: { city: 'Salto' }, textScale: 1.75, aiDisabledOrigins: ['https://a.gob.ar'] });
+    expect(store.value.termsAccepted).toBe('2026-10-17');
     await rm(dir, { recursive: true });
   });
 });

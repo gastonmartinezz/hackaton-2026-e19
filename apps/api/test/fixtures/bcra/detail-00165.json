@@ -1,0 +1,57 @@
+{
+ "success": true,
+ "fecha_actualizacion": {
+  "mes": "julio",
+  "anio": "2026",
+  "texto": "julio de 2026"
+ },
+ "entidad": {
+  "codigo": "00165",
+  "nombre": "JPMORGAN CHASE BANK, NATIONAL ASSOC",
+  "cuit": "30-58313794-3",
+  "mes_cierre_balance": "diciembre",
+  "tipo": "Casa Central",
+  "direccion": "AV. EDUARDO MADERO 900 Y PISOS 22,2 - CABA ZONA NORTE - CABA",
+  "telefono": "001143258046",
+  "fax": "",
+  "sitio_web": "www.jpmorgan.com/country/ar/es/jpmorgan",
+  "email": "jpmsucursalargentina.contacto@jpmorgan.com",
+  "asociado_1": "ABA",
+  "asociado_2": "",
+  "grupo_institucional": "Bancos Sucursales de Entidades Financieras del Exterior",
+  "logo_url": "https://www.bcra.gob.ar/archivos/Imagenes/logosbancos/00165.png",
+  "calificaciones": [
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   }
+  ],
+  "fecha_evaluacion": "",
+  "enlaces": {
+   "responsables": "/entidades-financieras-responsables?entidad=00165&nom=JPMORGAN+CHASE+BANK%2C+NATIONAL+ASSOC",
+   "directivos": "/entidades-financieras-directivos?bco=00165&nom=JPMORGAN+CHASE+BANK%2C+NATIONAL+ASSOC",
+   "accionistas": "/entidades-financieras-accionistas?bco=00165&nom=JPMORGAN+CHASE+BANK%2C+NATIONAL+ASSOC",
+   "auditores": "/entidades-financieras-auditores?bco=00165&nom=JPMORGAN+CHASE+BANK%2C+NATIONAL+ASSOC",
+   "estados_contables": "/entidades-financieras-estados-contables?bco=00165&nom=JPMORGAN+CHASE+BANK%2C+NATIONAL+ASSOC",
+   "situacion_deudores": "/entidades-financieras-situacion-deudores?bco=00165&nom=JPMORGAN+CHASE+BANK%2C+NATIONAL+ASSOC",
+   "indicadores": "/entidades-financieras-indicadores-economicos?bco=00165&nom=JPMORGAN+CHASE+BANK%2C+NATIONAL+ASSOC",
+   "informacion_estructura": "/entidades-financieras-informacion-estructura?bco=00165&nom=JPMORGAN+CHASE+BANK%2C+NATIONAL+ASSOC&Tit=0",
+   "filiales_cajeros": "/entidades-financieras-filiales-y-cajeros?bco=00165&nom=JPMORGAN+CHASE+BANK%2C+NATIONAL+ASSOC&Tit=7",
+   "info_trimestral_2017": "/entidades-financieras-informacion-trimestral?bco=00165&nom=JPMORGAN+CHASE+BANK%2C+NATIONAL+ASSOC",
+   "info_trimestral_2018": "/entidades-financieras-informacion-trimestral-2018?bco=00165"
+  }
+ },
+ "lang": "es"
+}

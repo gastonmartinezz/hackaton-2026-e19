@@ -7,9 +7,11 @@ import { BrandIcon, Button, Icon, LoadingDots } from '@asistente/ui';
 import { Fragment, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { AppState, CardMode, OptionView } from '../../shared/ipc';
 import { Notices } from './Notices';
+import { GuidePausedNotice } from './SiteCheck';
 import { SpeakButton } from './speech/SpeakButton';
-import { guideSpeech, optionsSpeech, SPEECH_TEXTS, stepSpeechKey } from './speech/speechText';
+import { guideSpeech, optionsReadKey, optionsSpeech, SPEECH_TEXTS, stepSpeechKey } from './speech/speechText';
 import { send, useAppState } from './useAppState';
+import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
 
 /** Margen transparente de la vista para el halo (CARD_SHADOW en main/help-card.ts). */
 const SHADOW = 16;
@@ -20,6 +22,8 @@ export function HelpCard() {
   /** Instrucción para la que la persona abrió la tarjeta aunque tapara el control. */
   const [expandedFor, setExpandedFor] = useState<number | null>(null);
   const [more, setMore] = useState(false);
+  /** Cuántas veces se volvió de «Ver otras opciones»: cada vuelta es una aparición nueva para el modo voz. */
+  const [optionsVisit, setOptionsVisit] = useState(0);
   const hostRef = useRef<HTMLDivElement>(null);
 
   const mode: CardMode = state ? cardMode(state, minimized, expandedFor) : 'none';
@@ -80,7 +84,14 @@ export function HelpCard() {
     );
   }
 
-  const body = cardBody(state, { more, setMore });
+  const body = cardBody(state, {
+    more,
+    setMore: (value) => {
+      if (more && !value) setOptionsVisit((n) => n + 1);
+      setMore(value);
+    },
+    optionsVisit,
+  });
   return (
     <div className="card-host" ref={hostRef}>
       <aside className="hc" aria-label="Ayuda de Guíame" style={{ maxHeight: state.layout.card.maxHeight || undefined }}>
@@ -88,7 +99,7 @@ export function HelpCard() {
           <BrandIcon />
           {/* El objetivo va en el encabezado, sin «Tu objetivo» (R3, R4). */}
           <span className="hc-goal">{guide.goal && guide.phase !== 'idle' ? guide.goal : 'Guíame'}</span>
-          {guide.phase === 'waitingForUser' ? (
+          {guide.phase === 'waitingForUser' && !state.siteCheck.guidePaused ? (
             <Button variant="quiet" icon="minus" onClick={() => setMinimized(true)}>
               Achicar
             </Button>
@@ -125,6 +136,8 @@ function cardMode(state: AppState, minimized: boolean, expandedFor: number | nul
   }
   if (!prefs.aiEnabledForSite) return 'none';
   if (guide.phase === 'waitingForUser') {
+    // Indicación pausada por riesgo alto: la tarjeta completa explica por qué (nunca la píldora con la instrucción).
+    if (state.siteCheck.guidePaused) return 'card';
     const forced = state.layout.card.placement === 'compact' && expandedFor !== guide.announceKey;
     if (minimized || forced) return 'pill';
   }
@@ -137,7 +150,7 @@ interface Body {
   foot: 'full' | 'exit' | 'none';
 }
 
-function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) => void }): Body {
+function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) => void; optionsVisit: number }): Body {
   const { guide, nav } = state;
   switch (guide.phase) {
     case 'idle':
@@ -156,7 +169,7 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
       };
 
     case 'choosing':
-      return { foot: 'exit', content: view.more ? <MoreOptions state={state} onBack={() => view.setMore(false)} /> : <Options state={state} onMore={() => view.setMore(true)} /> };
+      return { foot: 'exit', content: view.more ? <MoreOptions state={state} onBack={() => view.setMore(false)} /> : <Options state={state} visit={view.optionsVisit} onMore={() => view.setMore(true)} /> };
 
     case 'guiding':
     case 'verifying':
@@ -173,6 +186,7 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
       };
 
     case 'waitingForUser':
+      if (state.siteCheck.guidePaused) return { foot: 'exit', content: <GuidePausedNotice /> };
       return { foot: 'full', content: <CurrentStep state={state} /> };
 
     case 'completed':
@@ -224,14 +238,29 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
 }
 
 /** 05: hasta 3 opciones de la página, sin descripciones (R3). */
-function Options({ state, onMore }: { state: AppState; onMore: () => void }) {
-  const { primary } = state.guide;
+function Options({ state, visit, onMore }: { state: AppState; visit: number; onMore: () => void }) {
+  const { primary, secondary } = state.guide;
+  // Modo voz: al terminar de leer las opciones, se puede contestar hablando.
+  const [readDone, setReadDone] = useState(0);
+  const choices: VoiceChoice[] = [
+    ...primary.map((o) => ({ label: o.title, run: () => send({ type: 'selectOption', optionId: o.id }) })),
+    // Se nombra al leer solo si hay secundarias; si no, se puede elegir por su nombre pero no por número.
+    { label: 'Ver otras opciones', kind: 'more', unnumbered: secondary.length === 0, run: onMore },
+  ];
   return (
     <>
       <div className="hc-section">
         <h2 className="hc-title">{SPEECH_TEXTS.optionsTitle}</h2>
         <p className="support">Encontré estas opciones en esta página.</p>
-        <SpeakButton text={optionsSpeech(primary.map((o) => o.title))} auto={state.voice.active} contentKey={`opciones:${state.guide.contentKey}`} />
+        <SpeakButton
+          text={optionsSpeech(
+            primary.map((o) => o.title),
+            secondary.length > 0,
+          )}
+          auto={state.voice.active}
+          contentKey={optionsReadKey(state.guide.contentKey, visit)}
+          onDone={(outcome) => outcome === 'ended' && setReadDone((n) => n + 1)}
+        />
       </div>
       <ul className="option-list" aria-label="Opciones de esta página">
         {primary.map((o, i) => (
@@ -243,6 +272,7 @@ function Options({ state, onMore }: { state: AppState; onMore: () => void }) {
       <Button variant="link" className="back-link" onClick={onMore}>
         Ver otras opciones
       </Button>
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} />
     </>
   );
 }

@@ -33,7 +33,7 @@ async function* hanging(signal: AbortSignal): AsyncGenerator<Uint8Array> {
 }
 
 function fakeApi(speak: ApiClient['speak']): ApiClient {
-  return { isMock: true, interpret: vi.fn(), options: vi.fn(), nextStep: vi.fn(), transcribe: vi.fn(), speak };
+  return { isMock: true, interpret: vi.fn(), options: vi.fn(), nextStep: vi.fn(), transcribe: vi.fn(), speak, siteCheck: vi.fn() };
 }
 
 /** Junta lo que la vista recibiría y espera el cierre (end o error). */

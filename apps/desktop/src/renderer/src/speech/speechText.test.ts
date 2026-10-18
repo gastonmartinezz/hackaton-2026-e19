@@ -65,7 +65,9 @@ describe('qué se lee', () => {
 
   it('la recomendación (10): título, sitio y motivo, sin la dirección', () => {
     const text = recommendationSpeech(SPEECH_TEXTS.recommendTitle, { title: 'Agenda de Identificación Civil', reason: 'Ahí se sacan los turnos.' });
-    expect(text).toBe('Te recomiendo este sitio. Agenda de Identificación Civil. Ahí se sacan los turnos.');
+    expect(text).toBe('Te recomiendo este sitio. Agenda de Identificación Civil. Ahí se sacan los turnos. Podés elegir «Ir con ayuda» o «Solo abrir el sitio».');
+    const withOthers = recommendationSpeech(SPEECH_TEXTS.recommendTitle, { title: 'A', reason: 'R.' }, ['Sitio B', 'Sitio C']);
+    expect(withOthers.endsWith('Otras opciones: Sitio B o Sitio C.')).toBe(true);
   });
 
   it('las opciones de la página (05)', () => {
@@ -73,6 +75,12 @@ describe('qué se lee', () => {
       '¿Qué querés hacer acá? Encontré estas opciones en esta página: Completar: Pedir turno o Ir a «Confirmar turno».',
     );
     expect(optionsSpeech([])).toBe('');
+  });
+
+  it('si hay opciones secundarias, nombra «ver otras opciones» como una opción más', () => {
+    expect(optionsSpeech(['Buscar en este sitio', 'Ir a «Horarios»'], true)).toBe(
+      '¿Qué querés hacer acá? Encontré estas opciones en esta página: Buscar en este sitio, Ir a «Horarios» o ver otras opciones.',
+    );
   });
 
   it('modo voz: cada paso nuevo es contenido nuevo aunque repita el texto; «Repetir» también', () => {

@@ -1,17 +1,18 @@
 /**
  * Permisos de la interfaz propia de Guíame. Todo se rechaza salvo el
- * micrófono para el dictado del buscador: solo audio (nunca cámara ni
- * pantalla), solo desde el documento principal de la ventana de Guíame y
- * solo con su propio origen. La vista del sitio tiene su propia sesión y
- * sigue rechazando todo (site-view.ts); la tarjeta flotante tampoco lo pide.
+ * micrófono: el dictado del buscador (ventana) y responder con la voz qué
+ * opción se quiere (ventana o tarjeta flotante). Solo audio (nunca cámara ni
+ * pantalla), solo desde el documento principal de la interfaz propia y solo
+ * con su propio origen. La vista del sitio tiene su propia sesión y sigue
+ * rechazando todo (site-view.ts).
  */
 
 export interface OwnUiPermissionRequest {
   permission: string;
   /** `details.mediaTypes` de Electron (solo para `media`). */
   mediaTypes?: readonly string[] | undefined;
-  /** La solicitud viene del webContents de la ventana (no de la tarjeta ni del sitio). */
-  fromWindow: boolean;
+  /** La solicitud viene de la interfaz propia: la ventana o la tarjeta (nunca la vista del sitio). */
+  fromOwnUi: boolean;
   isMainFrame: boolean;
   requestingUrl: string | undefined;
 }
@@ -20,7 +21,7 @@ export interface OwnUiPermissionCheck {
   permission: string;
   /** `details.mediaType` de Electron. */
   mediaType?: string | undefined;
-  fromWindow: boolean;
+  fromOwnUi: boolean;
   isMainFrame: boolean;
   requestingUrl: string | undefined;
 }
@@ -31,7 +32,7 @@ export function allowMicrophoneRequest(request: OwnUiPermissionRequest, renderer
     request.permission === 'media' &&
     request.mediaTypes?.length === 1 &&
     request.mediaTypes[0] === 'audio' &&
-    request.fromWindow &&
+    request.fromOwnUi &&
     request.isMainFrame &&
     isOwnUiUrl(request.requestingUrl, rendererUrl)
   );
@@ -39,7 +40,7 @@ export function allowMicrophoneRequest(request: OwnUiPermissionRequest, renderer
 
 /** Consulta de permiso (la que hace Chromium antes de pedirlo): mismas reglas. */
 export function allowMicrophoneCheck(check: OwnUiPermissionCheck, rendererUrl: string | null): boolean {
-  return check.permission === 'media' && check.mediaType === 'audio' && check.fromWindow && check.isMainFrame && isOwnUiUrl(check.requestingUrl, rendererUrl);
+  return check.permission === 'media' && check.mediaType === 'audio' && check.fromOwnUi && check.isMainFrame && isOwnUiUrl(check.requestingUrl, rendererUrl);
 }
 
 /**

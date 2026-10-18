@@ -31,6 +31,8 @@ export function taskSettings(config: AppConfig, task: AiTask): TaskSettings {
     interpret: [config.CLAUDE_MODEL_INTERPRET, config.CLAUDE_EFFORT_INTERPRET],
     options: [config.CLAUDE_MODEL_OPTIONS, config.CLAUDE_EFFORT_OPTIONS],
     nextStep: [config.CLAUDE_MODEL_NEXT_STEP, config.CLAUDE_EFFORT_NEXT_STEP],
+    // Protección de sitios no tiene variables propias: usa las generales.
+    siteCheck: [undefined, undefined],
   } as const;
   const [model, effort] = byTask[task];
   return { model: model ?? config.CLAUDE_MODEL, effort: effort ?? config.CLAUDE_EFFORT };
@@ -86,7 +88,7 @@ export class AnthropicModel implements StructuredModel {
               }
             : {}),
           ...(fallbacks ? { betas: [FALLBACK_BETA], fallbacks: 'default' as const } : {}),
-        })
+        }, request.signal ? { signal: request.signal } : undefined)
         .catch((error: unknown) => {
           this.log.warn(
             { task: request.task, model, effort, latencyMs: Math.round(performance.now() - startedAt), errorName: errorName(error) },

@@ -41,7 +41,7 @@ export interface VoiceDeps {
 export const voiceAvailability = { off: false };
 
 const defaultDeps: VoiceDeps = {
-  open: (onAutoStop) => VoiceCapture.open(onAutoStop),
+  open: (onAutoStop) => VoiceCapture.open(onAutoStop, (data) => window.asistente.voiceDiagnostic(data)),
   transcribe: (wav) => window.asistente.transcribe(wav),
 };
 

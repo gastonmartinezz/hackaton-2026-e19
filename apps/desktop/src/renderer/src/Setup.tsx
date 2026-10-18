@@ -8,7 +8,7 @@ import { Button, TextField } from '@asistente/ui';
 import type { AgeRange } from '@hackaton/contracts';
 import { useMemo, useState, type FormEvent } from 'react';
 import type { AppState } from '../../shared/ipc';
-import { send } from './useAppState';
+import { request } from './useAppState';
 
 const COUNTRIES = ['AR', 'BO', 'BR', 'CL', 'CO', 'CR', 'CU', 'DO', 'EC', 'ES', 'GT', 'HN', 'MX', 'NI', 'PA', 'PE', 'PR', 'PY', 'SV', 'US', 'UY', 'VE'];
 
@@ -26,6 +26,8 @@ export function Setup({ state, onDone }: { state: AppState; onDone?: () => void 
   const [city, setCity] = useState(profile.city);
   const [ageRange, setAgeRange] = useState<AgeRange | ''>(profile.ageRange ?? '');
   const [accepted, setAccepted] = useState(profile.termsAccepted);
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const countries = useMemo(() => {
     const names = new Intl.DisplayNames(['es'], { type: 'region' });
@@ -35,11 +37,19 @@ export function Setup({ state, onDone }: { state: AppState; onDone?: () => void 
     return [...codes].map((code) => ({ code, name: names.of(code) ?? code })).sort((a, b) => a.name.localeCompare(b.name, 'es'));
   }, [profile.suggestedCountry, profile.country]);
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!accepted) return;
-    send({ type: 'saveProfile', acceptTerms: true, country: country || null, region, city, ageRange: ageRange || null });
-    onDone?.();
+    if (!accepted || saving) return;
+    setSaving(true);
+    setFailed(false);
+    try {
+      await request({ type: 'saveProfile', acceptTerms: true, country: country || null, region, city, ageRange: ageRange || null });
+      onDone?.();
+    } catch {
+      setFailed(true);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -66,7 +76,7 @@ export function Setup({ state, onDone }: { state: AppState; onDone?: () => void 
           <TextField label="Provincia o estado" value={region} onChange={(e) => setRegion(e.target.value)} maxLength={80} autoComplete="off" />
           <TextField
             label="Ciudad o localidad"
-            hint="Solo la ciudad o el barrio. No escribas tu dirección."
+            hint="Solo la ciudad o el barrio. No escribas tu nombre ni tu dirección."
             value={city}
             onChange={(e) => setCity(e.target.value)}
             maxLength={80}
@@ -97,9 +107,13 @@ export function Setup({ state, onDone }: { state: AppState; onDone?: () => void 
           Leí y acepto las condiciones de uso
         </label>
 
+        {failed ? (
+          <p role="alert">No pudimos guardar tus datos en esta computadora. Intentá de nuevo en un momento.</p>
+        ) : null}
+
         <div className="row">
-          <Button type="submit" variant="primary" disabled={!accepted}>
-            {profile.termsAccepted ? 'Guardar' : 'Guardar y empezar'}
+          <Button type="submit" variant="primary" disabled={!accepted || saving}>
+            {saving ? 'Guardando…' : profile.termsAccepted ? 'Guardar' : 'Guardar y empezar'}
           </Button>
           {onDone ? (
             <Button variant="link" onClick={onDone}>

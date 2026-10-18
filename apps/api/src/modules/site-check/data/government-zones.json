@@ -1,0 +1,73 @@
+{
+  "version": "2026-10-17.1",
+  "note": "Zonas de dominio reservadas al Estado por la autoridad del registro. Es una regla de zona, no una lista de sitios: cualquier dominio bajo estas zonas es oficial por quién puede registrarlo. Un sitio de gobierno comprometido sigue siendo oficial, por eso el riesgo siempre tiene prioridad.",
+  "zones": [
+    {
+      "suffix": "gob.ar",
+      "organization": "Estado argentino",
+      "country": "AR",
+      "source": { "name": "NIC Argentina, Disposición 153/2016 (zonas especiales)", "url": "https://www.argentina.gob.ar/normativa/nacional/norma-270431/texto" },
+      "reviewedAt": "2026-10-17",
+      "notes": "Riesgo: el aviso del Boletín Oficial del 07/05/2025 (https://www.boletinoficial.gob.ar/pdf/aviso/primera/313726/20250507) anuncia la desregulación de zonas especiales. Revisar si cambia quién puede registrar en gob.ar."
+    },
+    {
+      "suffix": "mil.ar",
+      "organization": "Estado argentino",
+      "country": "AR",
+      "source": { "name": "NIC Argentina, Disposición 153/2016 (zonas especiales)", "url": "https://www.argentina.gob.ar/normativa/nacional/norma-270431/texto" },
+      "reviewedAt": "2026-10-17",
+      "notes": "Fuerzas Armadas. Mismo riesgo de desregulación que gob.ar."
+    },
+    {
+      "suffix": "gov.ar",
+      "organization": "Estado argentino",
+      "country": "AR",
+      "source": { "name": "NIC Argentina, Disposición 153/2016 (zonas especiales)", "url": "https://www.argentina.gob.ar/normativa/nacional/norma-270431/texto" },
+      "reviewedAt": "2026-10-17",
+      "notes": "Mismo riesgo de desregulación que gob.ar."
+    },
+    {
+      "suffix": "gov",
+      "organization": "Gobierno de Estados Unidos",
+      "country": "US",
+      "source": { "name": "CISA .gov registrar, requisitos de elegibilidad", "url": "https://get.gov/domains/eligibility" },
+      "reviewedAt": "2026-10-17"
+    },
+    {
+      "suffix": "mil",
+      "organization": "Gobierno de Estados Unidos",
+      "country": "US",
+      "source": { "name": "IANA Root Zone Database: .mil (Departamento de Defensa)", "url": "https://www.iana.org/domains/root/db/mil.html" },
+      "reviewedAt": "2026-10-17"
+    }
+  ],
+  "claims": [
+    {
+      "country": "AR",
+      "organization": "Estado argentino",
+      "note": "Nombres con los que una página se presenta como organismo del Estado argentino. Solo sirven para detectar suplantación fuera de las zonas de gobierno; nunca otorgan oficialidad.",
+      "names": [
+        "ANSES",
+        "Administración Nacional de la Seguridad Social",
+        "ARCA",
+        "Agencia de Recaudación y Control Aduanero",
+        "AFIP",
+        "Administración Federal de Ingresos Públicos",
+        "PAMI",
+        "RENAPER",
+        "Registro Nacional de las Personas",
+        "Mi Argentina",
+        "Argentina.gob.ar",
+        "Gobierno Nacional",
+        "Gobierno de la República Argentina",
+        "Banco Central de la República Argentina",
+        "BCRA",
+        "Ministerio de Economía",
+        "Ministerio de Salud",
+        "Ministerio de Capital Humano",
+        "Superintendencia de Servicios de Salud",
+        "Policía Federal Argentina"
+      ]
+    }
+  ]
+}

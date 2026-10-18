@@ -13,6 +13,8 @@ import type {
   OptionsResponse,
   SpeakRequest,
   TranscribeResponse,
+  SiteCheckRequest,
+  SiteCheckResponse,
 } from '@hackaton/contracts';
 
 export interface ApiClient {
@@ -32,6 +34,8 @@ export interface ApiClient {
    * errores previos rechazan la promesa; los del medio los tira el iterador.
    */
   speak(request: SpeakRequest, signal: AbortSignal): Promise<AsyncIterable<Uint8Array>>;
+  /** POST /v1/site-check: protección de sitios (fase dirección o contenido). */
+  siteCheck(request: SiteCheckRequest, signal: AbortSignal): Promise<SiteCheckResponse>;
 }
 
 /**

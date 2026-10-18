@@ -24,6 +24,17 @@ describe('buildUserContext', () => {
     expect(buildUserContext({ ...profile, city: '25 de Mayo' }, system)?.location).toEqual({ city: '25 de Mayo' });
   });
 
+  it.each(['Mitre 74, piso 2', 'int. 4304', 'Rivadavia y Alem', 'Av. San Martín', 'calle Sarmiento', 'Villa 31', 'Mz B lote 4'])(
+    'descarta lo que parece una dirección: %s',
+    (city) => {
+      expect(buildUserContext({ ...DEFAULT_PREFS.profile, city }, system)?.location).toBeUndefined();
+    },
+  );
+
+  it.each(['Partido de 9 de Julio', 'Entre Ríos', 'Florencio Varela', 'Montevideo', 'José C. Paz'])('conserva la localidad %s', (city) => {
+    expect(buildUserContext({ ...DEFAULT_PREFS.profile, city }, system)?.location).toEqual({ city });
+  });
+
   it('descarta lo que el sistema entrega fuera del contrato y no envía nada si no hay datos', () => {
     expect(buildUserContext(DEFAULT_PREFS.profile, { language: 'es_AR.UTF-8', timeZone: '../x', country: null })).toBeUndefined();
   });

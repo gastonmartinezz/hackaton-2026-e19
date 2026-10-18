@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta property="og:site_name" content="Banco de Demostración">
+  <title>Banco de Demostración - Inicio</title>
+</head>
+<body>
+  <header>
+    <img class="logo" alt="Banco de Demostración logo" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
+    <nav aria-label="Principal">
+      <a href="banco.html">Inicio</a>
+      <a href="#sucursales">Sucursales</a>
+      <a href="#ayuda">Ayuda</a>
+    </nav>
+  </header>
+  <main>
+    <h1>Banco de Demostración (página de prueba)</h1>
+    <p>Página de demostración del simulador. Representa el sitio oficial que figura en el catálogo de prueba.</p>
+    <form aria-label="Ingresar a home banking" method="post" action="banco.html">
+      <p><label for="usuario">Usuario</label> <input id="usuario" autocomplete="username"></p>
+      <p><label for="clave">Clave</label> <input id="clave" type="password" autocomplete="current-password"></p>
+      <p><button type="submit">Ingresar</button></p>
+    </form>
+    <section id="sucursales" aria-label="Sucursales"><h2>Sucursales</h2><p>Atención de lunes a viernes de 10 a 15 h.</p></section>
+    <section id="ayuda" aria-label="Ayuda"><h2>Ayuda</h2><p>El banco nunca te va a pedir tu clave por teléfono ni por correo.</p></section>
+  </main>
+</body>
+</html>

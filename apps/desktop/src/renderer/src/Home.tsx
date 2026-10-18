@@ -6,6 +6,8 @@
  * - 10: con varios sitios (o «No sé bien»), el más afín y alternativas.
  * - «Hablar» (01, 02, 03, 10): dictar. Lo entendido queda en el buscador y se
  *   busca solo, como «Guíame».
+ * - Modo voz (02, 03, 10): al terminar de leer, se puede contestar hablando
+ *   («Responder con la voz»).
  */
 import { BrandIcon, Button, Icon, LoadingDots } from '@asistente/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -13,13 +15,14 @@ import type { AppState, CandidateView } from '../../shared/ipc';
 import { SpeakButton } from './speech/SpeakButton';
 import { questionSpeech, recommendationSpeech, SPEECH_TEXTS } from './speech/speechText';
 import { send } from './useAppState';
+import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
 import { MicButton, VoiceMessages } from './voice/VoiceSearch';
 import { useVoiceInput } from './voice/useVoiceInput';
 
 /** Igual que el máximo de `submitIntent`. */
 const MAX_QUERY = 500;
 
-export function Home({ state }: { state: AppState }) {
+export function Home({ state, onEditProfile }: { state: AppState; onEditProfile: () => void }) {
   const { chat } = state;
   const busy = chat.phase === 'interpreting';
   // Mientras responde, la pantalla no salta al buscador vacío: queda como estaba.
@@ -77,8 +80,11 @@ export function Home({ state }: { state: AppState }) {
           readOnly={busy || voiceBusy}
           autoComplete="off"
         />
-        {/* Voz apagada en el servidor: «Hablar» no se ofrece más en esta ejecución. */}
-        {voice.available ? <MicButton status={voice.status} onToggle={voice.toggle} blocked={busy} /> : null}
+        {/*
+          Voz apagada en el servidor: «Hablar» no se ofrece más en esta ejecución. Con el modo voz
+          prendido, en una pregunta o recomendación se contesta hablando (VoiceAnswer): un solo micrófono.
+        */}
+        {voice.available && (mode === 'search' || !state.voice.active) ? <MicButton status={voice.status} onToggle={voice.toggle} blocked={busy} /> : null}
       </form>
       {mode === 'search' ? (
         <Button variant="primary" icon="navigation" className="home-go" disabled={busy} onClick={() => submit()}>
@@ -100,6 +106,11 @@ export function Home({ state }: { state: AppState }) {
           <p>{chat.error}</p>
         </div>
       ) : null}
+      {mode === 'search' ? (
+        <Button variant="link" className="home-profile" onClick={onEditProfile}>
+          {placeName(state)}
+        </Button>
+      ) : null}
     </main>
   );
 }
@@ -109,19 +120,34 @@ function Question({ state }: { state: AppState }) {
   const { question, answered } = state.chat;
   const firstRef = useRef<HTMLButtonElement>(null);
   useEffect(() => firstRef.current?.focus(), [question?.text]);
+  // Modo voz: al terminar de leer la pregunta, se puede contestar hablando.
+  const [readDone, setReadDone] = useState(0);
+  // Lo que dice la respuesta por voz se anuncia en la región de esta vista (una sola).
+  const [voiceMessage, setVoiceMessage] = useState('');
   if (!question) return null;
   const answer = (text: string) => send({ type: 'submitIntent', text });
+  const choices: VoiceChoice[] = [
+    ...question.answers.map((a) => ({ label: a, run: () => answer(a) })),
+    { label: SPEECH_TEXTS.unsure, kind: 'unsure', run: () => answer(SPEECH_TEXTS.unsure) },
+  ];
 
   return (
     <section className="ask-card" aria-labelledby="ask-q">
       <div className="ask-top">
         <Answered answered={answered} />
         {/* Cada respuesta de Guíame es contenido nuevo para el modo voz, aunque repita la pregunta. */}
-        <SpeakButton text={questionSpeech(question)} auto={state.voice.active} contentKey={state.chat.messages.length} />
+        <SpeakButton
+          text={questionSpeech(question)}
+          auto={state.voice.active}
+          contentKey={state.chat.messages.length}
+          onDone={(outcome) => outcome === 'ended' && setReadDone((n) => n + 1)}
+        />
       </div>
-      <h2 id="ask-q" aria-live="polite">
-        {question.text}
-      </h2>
+      {/* Única región que anuncia en esta vista: la pregunta y lo que dice la respuesta por voz. */}
+      <div aria-live="polite">
+        <h2 id="ask-q">{question.text}</h2>
+        <span className="sr-only">{voiceMessage}</span>
+      </div>
       {question.reason ? <p className="ask-sub">{question.reason}</p> : null}
       <ul className="ask-opts" aria-label="Elegí una respuesta">
         {question.answers.map((a, i) => (
@@ -139,6 +165,7 @@ function Question({ state }: { state: AppState }) {
           </button>
         </li>
       </ul>
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} onMessage={setVoiceMessage} />
     </section>
   );
 }
@@ -162,19 +189,39 @@ function Answered({ answered }: { answered: string[] }) {
 function Recommendation({ state }: { state: AppState }) {
   const { candidates, answered, messages } = state.chat;
   const [first, ...others] = candidates;
+  // Modo voz: al terminar de leer la recomendación, se puede contestar hablando.
+  const [readDone, setReadDone] = useState(0);
+  const [voiceMessage, setVoiceMessage] = useState('');
   if (!first) return null;
   const open = (candidate: CandidateView, guide: boolean) => send({ type: 'openCandidate', candidateId: candidate.id, guide });
+  // Lo mismo que los botones: «Ir con ayuda», «Solo abrir el sitio» y «Abrir» de cada alternativa.
+  const choices: VoiceChoice[] = [
+    { label: 'Ir con ayuda', aliases: [first.title], run: () => open(first, true) },
+    { label: 'Solo abrir el sitio', run: () => open(first, false) },
+    ...others.map((c) => ({ label: c.title, run: () => open(c, true) })),
+  ];
 
   // TODO(contrato): sello «Sitio oficial» o «La tienda que elegiste» cuando el backend lo mande. Nunca por HTTPS.
   return (
     <section className="ask-card" aria-labelledby="reco-title">
       <div className="ask-top">
         <Answered answered={answered} />
-        <SpeakButton text={recommendationSpeech(SPEECH_TEXTS.recommendTitle, first)} auto={state.voice.active} contentKey={messages.length} />
+        <SpeakButton
+          text={recommendationSpeech(
+            SPEECH_TEXTS.recommendTitle,
+            first,
+            others.map((c) => c.title),
+          )}
+          auto={state.voice.active}
+          contentKey={messages.length}
+          onDone={(outcome) => outcome === 'ended' && setReadDone((n) => n + 1)}
+        />
       </div>
-      <h2 id="reco-title" aria-live="polite">
-        {SPEECH_TEXTS.recommendTitle}
-      </h2>
+      {/* Única región que anuncia en esta vista: el título y lo que dice la respuesta por voz. */}
+      <div aria-live="polite">
+        <h2 id="reco-title">{SPEECH_TEXTS.recommendTitle}</h2>
+        <span className="sr-only">{voiceMessage}</span>
+      </div>
       <div className="site-line">
         <h3 className="site-name">{first.title}</h3>
         <span className="site-domain">{first.domain}</span>
@@ -207,6 +254,14 @@ function Recommendation({ state }: { state: AppState }) {
           </ul>
         </div>
       ) : null}
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} onMessage={setVoiceMessage} />
     </section>
   );
+}
+
+/** País (y ciudad) de «Mis datos»; abre la pantalla para cambiarlos. */
+function placeName({ profile }: AppState): string {
+  const country = profile.country ? new Intl.DisplayNames(['es'], { type: 'region' }).of(profile.country) : null;
+  const place = [profile.city, country].filter(Boolean).join(', ');
+  return place ? `${place} · Mis datos` : 'Mis datos';
 }
