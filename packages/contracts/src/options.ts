@@ -79,5 +79,10 @@ export const OptionsResponse = z.strictObject({
    * no empieza ninguna sola.
    */
   requestedOptionId: ShortText(60).optional(),
+  /**
+   * Solo con `request`: lo que dijo la persona no era un pedido (pidió repetir,
+   * ruido, no se entiende). No se buscó nada: vienen las mismas opciones.
+   */
+  requestUnclear: z.literal(true).optional(),
 });
 export type OptionsResponse = z.infer<typeof OptionsResponse>;

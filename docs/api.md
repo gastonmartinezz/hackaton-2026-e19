@@ -42,7 +42,7 @@ En cada llamada, Claude recibe **todo** ese recorrido como contexto. El HTML no 
 interpret (sin sessionId) → crea s-abc
 interpret (s-abc)         → mismo chat, hasta redirect u options
 options   (s-abc)         → opciones con sus pasos
-next-step (s-abc)         → investiga el paso a paso (1.ª vez por opción), pasos reales
+next-step (s-abc)         → pasos reales (investiga el paso a paso en la web solo si hace falta)
 next-step (s-abc)         → … hasta done (con evidence si la página lo confirma)
 ```
 
@@ -131,7 +131,7 @@ Cada paso tiene un `element`:
 - **`"#el-3"`**: el id de un elemento del HTML enviado. El front lo ubica y dibuja la indicación (cuadrado, flecha, etc.).
 - **`null`**: **paso teórico**. El elemento todavía no existe porque aparece después de una acción de la persona. Los pasos siguientes a uno teórico también lo son.
 
-Los `steps` de cada opción son el comienzo de la tarea en esta página. Al elegir una, el front llama a `/v1/next-step`, que investiga el paso a paso completo y guía hasta terminar.
+Los `steps` de cada opción son el comienzo de la tarea en esta página. Al elegir una, el front llama a `/v1/next-step`, que guía hasta terminar. Si con la página no alcanza, investiga el paso a paso en la web.
 
 ```json
 {
@@ -164,7 +164,10 @@ Respuesta:
 - **`goal`** (opcional, hasta 1.000 caracteres): lo que la persona quiere hacer en esta página, por ejemplo lo que escribió en «¿No está lo que buscás?». Claude pone primero la opción que lo resuelve, si la página lo permite. Se guarda en el historial de la sesión.
 - Se puede volver a llamar con el mismo `sessionId`, por ejemplo en una página nueva de la misma tarea.
 - **`request`** (opcional, hasta 1000 caracteres) es lo que la persona pidió con sus palabras, escrito en «¿No está lo que buscás?» o dicho al responder las opciones con la voz, cuando no estaba entre las opciones. En ese caso:
-  - El backend primero investiga cómo se hace eso en este sitio, con la tarea `procedure` y búsqueda web (`GUIDE_WEB_SEARCH`). Tarda entre 10 y 20 s más.
+  - **Primero, sin buscar en internet:** la tarea `match` interpreta el pedido contra las últimas opciones que se le mostraron a la persona. Entiende sinónimos, otra forma de decirlo, «la segunda» y errores de dictado.
+    - Si una opción lo hace, la devuelve primera con su id en `requestedOptionId`, sin armar opciones nuevas.
+    - Si no era un pedido (pidió repetir, ruido), vuelven las mismas opciones con **`requestUnclear: true`** y no se busca nada.
+  - **Solo si ninguna opción lo hace:** investiga cómo se hace en este sitio, con la tarea `procedure` y búsqueda web (`GUIDE_WEB_SEARCH`). Esto tarda entre 10 y 20 s más.
   - Si se puede hacer, devuelve esa tarea como **primera opción**, con el camino desde esta página (el menú, la sección o el buscador que lleva ahí), y su id en **`requestedOptionId`**.
   - El paso a paso queda guardado solo para esa opción, así que `/v1/next-step` no lo vuelve a buscar.
   - Si ninguna opción hace lo pedido, `requestedOptionId` no viene y las opciones son las de la página.
@@ -220,10 +223,12 @@ Al terminar:
 { "sessionId": "s-abc", "steps": [], "done": true, "evidence": "Su reserva fue confirmada" }
 ```
 
-- **Paso a paso investigado:** la primera llamada de cada opción elegida corre antes la tarea interna `procedure`. Claude entiende qué es la opción y, con `GUIDE_WEB_SEARCH=on` (el valor por defecto), busca en la web el paso a paso real, priorizando el sitio oficial y las fuentes uruguayas. El resultado se guarda en la sesión: tiene qué es la tarea, sus etapas, cómo confirma el sitio que terminó y las fuentes. `nextStep` lo usa en cada llamada para saber en qué etapa está la persona y qué falta. No vuelve al front.
-  - **Latencia:** esa primera llamada suma una llamada a Claude con búsqueda web, que puede tardar 10 a 20 s más. Las siguientes no la repiten. Si `/v1/options` vuelve a devolver la misma opción (otra página), se investiga de nuevo.
+- **Paso a paso investigado:** `nextStep` primero intenta seguir solo con el HTML y el recorrido, que es lo más rápido. Si responde `needsProcedure` porque no sabe cómo seguir, se corre la tarea interna `procedure` y se vuelve a pedir el paso.
+  - Si la opción vino de un pedido propio (`request`), el paso a paso ya se investigó en `/v1/options` y se reusa.
+  - Al investigar, Claude entiende qué es la opción y, con `GUIDE_WEB_SEARCH=on` (el valor por defecto), busca en la web el paso a paso real, priorizando el sitio oficial y las fuentes uruguayas. El resultado se guarda en la sesión: tiene qué es la tarea, sus etapas, cómo confirma el sitio que terminó y las fuentes. `nextStep` lo usa en cada llamada para saber en qué etapa está la persona y qué falta. No vuelve al front.
+  - **Latencia:** solo cuando hace falta investigar, esa llamada suma una llamada a Claude con búsqueda web y otra a `nextStep`, entre 10 y 20 s más. Las siguientes no la repiten. Si `/v1/options` vuelve a devolver la misma opción (otra página), se investiga de nuevo.
   - Con `GUIDE_WEB_SEARCH=off`, el paso a paso se arma con lo que Claude ya sabe, sin buscar.
-  - Si la investigación falla por un motivo pasajero o del modelo (`AI_UNAVAILABLE`, `TIMEOUT`, `RATE_LIMITED`, `AI_INVALID_RESPONSE`, `AI_REFUSED`), se guía igual sin ella y se vuelve a intentar en la llamada siguiente.
+  - Si la investigación falla por un motivo pasajero o del modelo (`AI_UNAVAILABLE`, `TIMEOUT`, `RATE_LIMITED`, `AI_INVALID_RESPONSE`, `AI_REFUSED`), se guía igual sin ella y no se vuelve a intentar durante 10 minutos.
 - **`field`** (opcional) aparece solo en los pasos que piden un dato de un formulario. `element` apunta a ese lugar. No aparece en pasos teóricos.
 - **`safeToClick: true`** (opcional) marca un botón o enlace seguro para que Guíame lo toque por la persona cuando ella lo confirma: seguir, continuar, confirmar un paso intermedio, abrir una sección.
   - Nunca aparece en pagos, compras, transferencias, firmas, bajas, borrados, inicio de sesión, aceptar condiciones ni en pasos de datos o teóricos.

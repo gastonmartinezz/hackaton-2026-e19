@@ -16,7 +16,7 @@ const interpretReturning = (output: InterpretOutput) =>
 
 /** Mock que registra lo que recibe Claude en cada tarea. */
 function recordingModel() {
-  const inputs: Record<AiTask, any[]> = { interpret: [], options: [], nextStep: [], procedure: [], siteCheck: [] };
+  const inputs: Record<AiTask, any[]> = { interpret: [], options: [], match: [], nextStep: [], procedure: [], siteCheck: [] };
   const record =
     (task: AiTask) =>
     (input: any): unknown => {
@@ -26,6 +26,7 @@ function recordingModel() {
   const model = new MockModel({
     interpret: record('interpret'),
     options: record('options'),
+    match: record('match'),
     nextStep: record('nextStep'),
     procedure: record('procedure'),
     siteCheck: record('siteCheck'),
@@ -323,10 +324,31 @@ describe('POST /v1/next-step', () => {
 
     expect(inputs.procedure).toHaveLength(1);
     expect(inputs.procedure[0].option).toEqual({ title: option.title, steps: option.steps.map((s: { instruction: string }) => s.instruction) });
-    expect(inputs.nextStep[0].procedure).toMatchObject({ summary: expect.any(String), completion: expect.any(String) });
-    expect(inputs.nextStep[1].procedure).toEqual(inputs.nextStep[0].procedure);
+    // Primero se intenta sin investigar; como el modelo pidió el paso a paso, se busca y se vuelve a pedir.
+    expect(inputs.nextStep[0].procedure).toBeNull();
+    expect(inputs.nextStep[1].procedure).toMatchObject({ summary: expect.any(String), completion: expect.any(String) });
+    // La segunda llamada ya lo tiene guardado: no se busca de nuevo.
+    expect(inputs.nextStep).toHaveLength(3);
+    expect(inputs.nextStep[2].procedure).toEqual(inputs.nextStep[1].procedure);
     // No se repite dentro del recorrido.
-    expect(inputs.nextStep[1].context.history.some((entry: { type: string }) => entry.type === 'procedure')).toBe(false);
+    expect(inputs.nextStep[2].context.history.some((entry: { type: string }) => entry.type === 'procedure')).toBe(false);
+  });
+
+  it('si la página alcanza para seguir, no busca en internet', async () => {
+    const nextInputs: any[] = [];
+    let researched = 0;
+    const model = new MockModel({
+      ...defaultMockHandlers,
+      procedure: (input) => (researched++, defaultMockHandlers.procedure(input)),
+      nextStep: (input) => (nextInputs.push(input), { ...(defaultMockHandlers.nextStep(input) as object), needsProcedure: false }),
+    });
+    app = await testApp({ model });
+    const { sessionId, option } = await startSession();
+    const res = await post('/v1/next-step', { sessionId, optionId: option.id, expectedStep: option.steps[0], completedSteps: [], html });
+    expect(res.statusCode).toBe(200);
+    expect(researched).toBe(0);
+    expect(nextInputs).toHaveLength(1);
+    expect(nextInputs[0].procedure).toBeNull();
   });
 
   it('vuelve a investigar si /v1/options devolvió de nuevo esa opción (otra página)', async () => {
@@ -409,6 +431,7 @@ describe('POST /v1/next-step', () => {
         steps: [{ element: null, instruction: 'Escribí tu correo en «Correo».', presentation: 'highlight', waitFor: 'userConfirmation', field: { question: '¿Cuál es tu correo?', sensitive: false }, safeToClick: false }],
         done: false,
         evidence: null,
+        needsProcedure: false,
       }),
     });
     app = await testApp({ model });
@@ -419,7 +442,7 @@ describe('POST /v1/next-step', () => {
 
   it('devuelve la evidencia solo si está tal cual en la página', async () => {
     const done = (evidence: string) =>
-      new MockModel({ ...defaultMockHandlers, nextStep: () => ({ steps: [], done: true, evidence }) });
+      new MockModel({ ...defaultMockHandlers, nextStep: () => ({ steps: [], done: true, evidence, needsProcedure: false }) });
     const finalHtml = '<main><h2 id="el-1">Su reserva fue  confirmada</h2><div role="alert" id="el-2">Número de reserva: A&amp;B-123</div></main>';
 
     app = await testApp({ model: done('«su reserva fue confirmada»') });

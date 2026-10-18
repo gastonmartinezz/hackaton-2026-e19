@@ -437,7 +437,7 @@ export class Assistant {
       // Las opciones existen en esta sesión: /v1/next-step usa la misma, aunque
       // la compartida haya cambiado mientras tanto.
       this.#guideSessionId = response.sessionId;
-      this.#dispatch({ type: 'OPTIONS', options: response.options, requested: response.requestedOptionId });
+      this.#dispatch({ type: 'OPTIONS', options: response.options, requested: response.requestedOptionId, unclear: response.requestUnclear });
     } catch (error) {
       this.#fail(epoch, error);
     }

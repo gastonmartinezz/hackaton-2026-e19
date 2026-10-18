@@ -35,11 +35,21 @@ export const OptionsOutput = z.object({
 });
 export type OptionsOutput = z.infer<typeof OptionsOutput>;
 
+/** Qué opción de las que ya se mostraron hace lo que pidió la persona, o null si ninguna. */
+export const MatchOutput = z.object({
+  optionId: z.string().nullable(),
+  /** false si no es un pedido de algo para hacer (pide repetir, saluda, ruido, no se entiende). */
+  isRequest: z.boolean(),
+});
+export type MatchOutput = z.infer<typeof MatchOutput>;
+
 export const NextStepOutput = z.object({
   steps: z.array(StepOutput),
   done: z.boolean(),
   /** Solo con done: texto visible del HTML, citado tal cual, que prueba que terminó; si no, null. */
   evidence: z.string().nullable(),
+  /** true si sin el paso a paso investigado no se sabe cómo seguir desde esta página (se busca y se vuelve a pedir). */
+  needsProcedure: z.boolean(),
 });
 export type NextStepOutput = z.infer<typeof NextStepOutput>;
 

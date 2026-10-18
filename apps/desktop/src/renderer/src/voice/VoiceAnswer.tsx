@@ -12,10 +12,11 @@
  * - Si no hay coincidencia clara o hay empate, pregunta una vez «No te
  *   entendí. ¿Cuál querés?» y vuelve a escuchar; si vuelve a fallar, deja de
  *   escuchar y quedan los botones.
- * - Con `onFreeText`, si después de «No te entendí» lo dicho sigue sin
- *   parecerse a ninguna opción (y no es un empate), se toma como un pedido
- *   propio: dice «Busco cómo hacer eso acá.» y se lo pasa a `onFreeText`
- *   (Guíame lo investiga en el sitio). La primera vez siempre se repregunta.
+ * - Con `onFreeText`, si lo dicho no coincide palabra por palabra con
+ *   ninguna opción (y no es un empate), se lo pasa a `onFreeText`: la IA lo
+ *   interpreta primero contra las mismas opciones y solo si ninguna sirve
+ *   busca cómo hacerlo en el sitio. Si no era un pedido (ruido, «repetí»),
+ *   vuelven las opciones con «No te entendí».
  * - Ni el audio ni lo transcripto se guardan ni se registran.
  */
 import { Button, Icon, LoadingDots } from '@asistente/ui';
@@ -39,8 +40,8 @@ export const ANSWER_TEXTS = {
   listening: 'Te escucho. Decí cuál querés.',
   retry: 'No te entendí. ¿Cuál querés?',
   chosen: (label: string) => `Elegiste «${label}».`,
-  /** Lo dicho no era ninguna opción y Guíame lo va a buscar en el sitio. */
-  searching: 'No está entre las opciones. Busco cómo hacer eso acá.',
+  /** Lo dicho no coincide tal cual con una opción: Guíame lo interpreta (y, si hace falta, lo busca en el sitio). */
+  searching: 'Dame un momento, me fijo cómo hacer eso.',
 } as const;
 
 export interface VoiceAnswerDeps {
@@ -118,8 +119,8 @@ export function useVoiceAnswer(
     const said = result.status === 'ok' ? result.text.trim() : '';
     const match = matchChoice(said, choicesRef.current);
     if (match.kind === 'match') return say(ANSWER_TEXTS.chosen(choicesRef.current[match.index]!.label), { run: match.index });
-    // Ya se repreguntó y sigue sin ser ninguna opción: se toma como un pedido propio y se busca en el sitio.
-    if (retried.current && match.kind === 'none' && onFreeTextRef.current && normalizeSpoken(said).length >= MIN_FREE_TEXT) return say(ANSWER_TEXTS.searching, { free: said });
+    // No coincide palabra por palabra: lo interpreta la IA (primero contra estas opciones).
+    if (match.kind === 'none' && onFreeTextRef.current && normalizeSpoken(said).length >= MIN_FREE_TEXT) return say(ANSWER_TEXTS.searching, { free: said });
     if (!retried.current) {
       retried.current = true;
       return say(ANSWER_TEXTS.retry, { listen: true });

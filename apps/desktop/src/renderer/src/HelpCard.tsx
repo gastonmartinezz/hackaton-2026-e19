@@ -16,9 +16,9 @@ import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
 
 /** Mientras Guíame investiga el paso a paso de la opción elegida o de lo que pidió la persona. */
 const RESEARCH_TEXTS = {
-  title: (option: string) => `Estoy buscando cómo se hace «${option}»…`,
-  support: 'Busco el paso a paso para guiarte. Puede tardar unos segundos.',
-  request: (asked: string) => `Estoy buscando cómo hacer «${asked}» en este sitio…`,
+  title: (option: string) => `Estoy preparando cómo hacer «${option}»…`,
+  support: 'Dame unos segundos.',
+  request: (asked: string) => `Me fijo cómo hacer «${asked}»…`,
 } as const;
 
 /** Margen transparente de la vista para el halo (CARD_SHADOW en main/help-card.ts). */

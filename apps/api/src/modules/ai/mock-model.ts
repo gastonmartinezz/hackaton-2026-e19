@@ -4,7 +4,7 @@
 import type { InterpretRequest } from '@hackaton/contracts';
 import type { z } from 'zod';
 import type { AiTask, StructuredModel, StructuredRequest } from './model.js';
-import type { InterpretOutput, NextStepOutput, OptionsOutput, ProcedureOutput, SiteCheckOutput } from './schemas.js';
+import type { InterpretOutput, MatchOutput, NextStepOutput, OptionsOutput, ProcedureOutput, SiteCheckOutput } from './schemas.js';
 
 type Handler = (input: any) => unknown;
 
@@ -12,6 +12,7 @@ const firstId = (html: string) => /\sid="([A-Za-z][\w-]*)"/.exec(html)?.[1];
 
 interface NextStepInput {
   html: string;
+  procedure?: unknown;
   completedSteps?: Array<{ element: string | null; field?: unknown }>;
   context?: { history: Array<{ type: string; completedSteps?: Array<{ element: string | null; field?: unknown }> }> };
 }
@@ -95,7 +96,9 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
 
   // Con un lugar para escribir que falta: un paso de datos (sensible si es una contraseña). Con otro id: un
   // clic. Sin ids pendientes: la tarea terminó, con el primer título como evidencia. Lo ya completado no se repite.
+  // Al empezar una opción sin paso a paso investigado, pide investigarlo (needsProcedure).
   nextStep: (input: NextStepInput): NextStepOutput => {
+    const needsProcedure = input.procedure == null && (input.completedSteps?.length ?? 0) === 0;
     const filled = completedFields(input);
     const textbox = firstTextbox(input.html, filled);
     if (textbox) {
@@ -114,18 +117,31 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
         ],
         done: false,
         evidence: null,
+        needsProcedure,
       };
     }
     const id = [...input.html.matchAll(/\sid="([A-Za-z][\w-]*)"/g)].map((match) => match[1]).find((candidate) => !filled.has(`#${candidate}`));
-    if (!id) return { steps: [], done: true, evidence: firstHeading(input.html) };
+    if (!id) return { steps: [], done: true, evidence: firstHeading(input.html), needsProcedure };
     return {
       steps: [{ element: `#${id}`, instruction: 'Ahora hacé clic acá.', presentation: 'highlight', waitFor: 'userInteraction', field: null, safeToClick: true }],
       done: false,
       evidence: null,
+      needsProcedure,
     };
   },
 
   // Paso a paso fijo, sin búsqueda.
+  // Una opción cuyo título comparte al menos la mitad de sus palabras con el pedido; si no, ninguna.
+  match: (input: { request: string; options: Array<{ id: string; title: string }> }): MatchOutput => {
+    const words = (text: string) => text.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').split(/[^a-z0-9]+/).filter((w) => w.length > 2);
+    const said = new Set(words(input.request));
+    const found = input.options.find((o) => {
+      const title = words(o.title);
+      return title.length > 0 && title.filter((w) => said.has(w)).length / title.length >= 0.5;
+    });
+    return { optionId: found?.id ?? null, isRequest: said.size >= 2 };
+  },
+
   procedure: (input: { option?: { title: string }; request?: string }): ProcedureOutput => ({
     summary: `Simulación del paso a paso de «${input.option?.title ?? input.request ?? ''}».`,
     steps: [

@@ -149,8 +149,8 @@ describe('VoiceAnswer: responder con la voz', () => {
     expect(status()).toBe('');
   });
 
-  it('con `onFreeText`, si después de repreguntar sigue sin ser ninguna opción, se toma como un pedido propio', async () => {
-    const { deps, stopBy, read } = fakeDeps({ status: 'ok', text: 'no entendí, repetí' }, { status: 'ok', text: 'Quiero cambiar mi dirección.' });
+  it('con `onFreeText`, lo que no coincide tal cual con una opción se lo pasa a la IA sin repreguntar', async () => {
+    const { deps, stopBy, read } = fakeDeps({ status: 'ok', text: 'Quiero cambiar mi dirección.' });
     const { list, run } = choices();
     const onFreeText = vi.fn();
     render(<VoiceAnswer choices={list} active trigger={1} deps={deps} onFreeText={onFreeText} />);
@@ -158,15 +158,10 @@ describe('VoiceAnswer: responder con la voz', () => {
     await stopBy();
     await flush();
     await flush();
-    // La primera vez siempre se repregunta.
-    expect(read.spoken).toEqual([ANSWER_TEXTS.retry]);
-    expect(onFreeText).not.toHaveBeenCalled();
-    await stopBy();
-    await flush();
-    await flush();
-    expect(read.spoken).toEqual([ANSWER_TEXTS.retry, ANSWER_TEXTS.searching]);
+    expect(read.spoken).toEqual([ANSWER_TEXTS.searching]);
     expect(onFreeText).toHaveBeenCalledWith('Quiero cambiar mi dirección.');
     expect(Object.values(run).every((fn) => fn.mock.calls.length === 0)).toBe(true);
+    expect(deps.open).toHaveBeenCalledTimes(1);
   });
 
   it('con `onFreeText`, algo muy corto o un empate no se busca: se vuelve a preguntar', async () => {
