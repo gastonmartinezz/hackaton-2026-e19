@@ -47,6 +47,22 @@ export const UI_SPEAK_STOP_CHANNEL = 'ui:speak-stop';
  * el log técnico del proceso principal.
  */
 export const UI_SPEECH_DIAGNOSTIC_CHANNEL = 'ui:speech-diagnostic';
+
+/**
+ * Diagnóstico del micrófono (dictado o respuesta por voz): solo números del
+ * detector de silencio y por qué cortó. Nunca audio ni texto.
+ */
+export const UI_VOICE_DIAGNOSTIC_CHANNEL = 'ui:voice-diagnostic';
+const Level = z.number().finite().min(0).max(10);
+export const VoiceDiagnosticSchema = z.strictObject({
+  floor: Level,
+  threshold: Level,
+  peak: Level,
+  durationMs: z.number().int().min(0).max(120_000),
+  /** silence: 5 s sin hablar; noSpeech: nunca habló; limit: 30 s; manual: «Terminar»; cancel: se cortó sin transcribir. */
+  reason: z.enum(['silence', 'noSpeech', 'limit', 'manual', 'cancel']),
+});
+export type VoiceDiagnostic = z.infer<typeof VoiceDiagnosticSchema>;
 export const SpeechDiagnosticSchema = z.strictObject({
   voices: z.number().int().min(0).max(10_000),
   spanishVoices: z.number().int().min(0).max(10_000),
@@ -255,6 +271,8 @@ export interface AsistenteBridge {
   onSpeechCut(listener: () => void): () => void;
   /** Diagnóstico sin contenido de la voz del sistema (va al log técnico). */
   speechDiagnostic(data: SpeechDiagnostic): void;
+  /** Diagnóstico sin contenido del micrófono (va al log técnico). */
+  voiceDiagnostic(data: VoiceDiagnostic): void;
 }
 
 /* ---------------------------- Página externa ---------------------------- */

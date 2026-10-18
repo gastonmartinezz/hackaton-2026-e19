@@ -12,6 +12,7 @@ import {
   UI_SPEAK_STOP_CHANNEL,
   UI_SPEECH_CUT_CHANNEL,
   UI_SPEECH_DIAGNOSTIC_CHANNEL,
+  UI_VOICE_DIAGNOSTIC_CHANNEL,
   UI_STATE_CHANNEL,
   UI_TRANSCRIBE_CHANNEL,
   type AppState,
@@ -49,6 +50,7 @@ const bridge: AsistenteBridge = {
     return () => ipcRenderer.removeListener(UI_SPEECH_CUT_CHANNEL, handler);
   },
   speechDiagnostic: (data) => ipcRenderer.send(UI_SPEECH_DIAGNOSTIC_CHANNEL, data),
+  voiceDiagnostic: (data) => ipcRenderer.send(UI_VOICE_DIAGNOSTIC_CHANNEL, data),
 };
 
 contextBridge.exposeInMainWorld('asistente', bridge);

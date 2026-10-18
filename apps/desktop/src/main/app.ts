@@ -16,6 +16,8 @@ import {
   UI_SPEAK_STOP_CHANNEL,
   UI_SPEECH_DIAGNOSTIC_CHANNEL,
   SpeechDiagnosticSchema,
+  UI_VOICE_DIAGNOSTIC_CHANNEL,
+  VoiceDiagnosticSchema,
   UI_STATE_CHANNEL,
   UI_TRANSCRIBE_CHANNEL,
   UiCommandSchema,
@@ -157,6 +159,15 @@ export class AppController {
       });
     };
     ipcMain.on(UI_SPEECH_DIAGNOSTIC_CHANNEL, speechDiagnostic);
+    // Diagnóstico del micrófono: piso de ruido, umbral, pico de voz, duración y por qué cortó.
+    const voiceDiagnostic = (event: IpcMainEvent, raw: unknown) => {
+      const data = VoiceDiagnosticSchema.safeParse(raw);
+      if (!this.#isOwnUi(event) || !data.success) return;
+      const round = (n: number) => Math.round(n * 10_000) / 10_000;
+      const d = data.data;
+      log('voice.capture', { floor: round(d.floor), threshold: round(d.threshold), peak: round(d.peak), durationMs: d.durationMs, reason: `code:${d.reason}` });
+    };
+    ipcMain.on(UI_VOICE_DIAGNOSTIC_CHANNEL, voiceDiagnostic);
     this.window.on('resize', () => this.#layout());
     this.window.once('ready-to-show', () => this.window.show());
     this.window.on('closed', () => {
@@ -165,6 +176,7 @@ export class AppController {
       ipcMain.removeHandler(UI_SPEAK_CHANNEL);
       ipcMain.removeListener(UI_SPEAK_STOP_CHANNEL, stopSpeaking);
       ipcMain.removeListener(UI_SPEECH_DIAGNOSTIC_CHANNEL, speechDiagnostic);
+      ipcMain.removeListener(UI_VOICE_DIAGNOSTIC_CHANNEL, voiceDiagnostic);
       this.#transcriber.cancel();
       this.#speech.stopAll();
       this.#bridge.dispose();
