@@ -66,6 +66,15 @@ export function stepSpeechKey(guide: Pick<AppState['guide'], 'stepCount' | 'anno
   return `${guide.contentKey}:${guide.stepCount}:${guide.announceKey}`;
 }
 
+/**
+ * Modo voz: clave de lectura de las opciones (05). Cambia con cada aparición
+ * de la lista de opciones y con cada vuelta de «Ver otras opciones» (`visit`),
+ * así volver a las opciones las lee de nuevo y vuelve a escuchar.
+ */
+export function optionsReadKey(contentKey: AppState['guide']['contentKey'], visit: number): string {
+  return `opciones:${contentKey}:${visit}`;
+}
+
 /** Tarjeta (05): la pregunta y las opciones de la página; si hay más, «… o ver otras opciones». */
 export function optionsSpeech(titles: string[], hasMore = false): string {
   if (titles.length === 0) return '';

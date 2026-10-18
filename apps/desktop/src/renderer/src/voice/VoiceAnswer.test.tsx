@@ -171,6 +171,37 @@ describe('VoiceAnswer: responder con la voz', () => {
     expect(captures[0]!.close).toHaveBeenCalled();
   });
 
+  it('dos disparos seguidos dejan una sola captura abierta: la primera se libera', async () => {
+    const { deps, captures } = fakeDeps();
+    const { list } = choices();
+    render(<VoiceAnswer choices={list} active trigger={1} deps={deps} />);
+    await flush();
+    render(<VoiceAnswer choices={list} active trigger={2} deps={deps} />);
+    await flush();
+    expect(deps.open).toHaveBeenCalledTimes(2);
+    expect(captures[0]!.close).toHaveBeenCalled();
+    expect(captures[1]!.close).not.toHaveBeenCalled();
+  });
+
+  it('con `onMessage` no agrega otra región aria-live: el estado se anuncia en la de la vista', async () => {
+    const { deps } = fakeDeps();
+    const { list } = choices();
+    const onMessage = vi.fn();
+    render(<VoiceAnswer choices={list} active trigger={1} deps={deps} onMessage={onMessage} />);
+    await flush();
+    expect(container.querySelectorAll('[aria-live]')).toHaveLength(0);
+    expect(onMessage).toHaveBeenLastCalledWith(ANSWER_TEXTS.listening);
+    expect(container.querySelector('.voice-status')?.textContent?.trim()).toBe(ANSWER_TEXTS.listening);
+  });
+
+  it('sin `onMessage` (opciones de la tarjeta) usa su propia región: una sola', async () => {
+    const { deps } = fakeDeps();
+    const { list } = choices();
+    render(<VoiceAnswer choices={list} active trigger={1} deps={deps} />);
+    await flush();
+    expect(container.querySelectorAll('[aria-live]')).toHaveLength(1);
+  });
+
   it('al salir de la vista se cierra el micrófono', async () => {
     const { deps, captures } = fakeDeps();
     const { list } = choices();

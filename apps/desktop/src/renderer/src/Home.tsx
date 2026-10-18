@@ -136,6 +136,8 @@ function Question({ state }: { state: AppState }) {
   useEffect(() => firstRef.current?.focus(), [question?.text]);
   // Modo voz: al terminar de leer la pregunta, se puede contestar hablando.
   const [readDone, setReadDone] = useState(0);
+  // Lo que dice la respuesta por voz se anuncia en la región de esta vista (una sola).
+  const [voiceMessage, setVoiceMessage] = useState('');
   if (!question) return null;
   const answer = (text: string) => send({ type: 'submitIntent', text });
   const choices: VoiceChoice[] = [
@@ -168,9 +170,11 @@ function Question({ state }: { state: AppState }) {
           ))}
         </ul>
       ) : null}
-      <h2 id="ask-q" aria-live="polite">
-        {question.text}
-      </h2>
+      {/* Única región que anuncia en esta vista: la pregunta y lo que dice la respuesta por voz. */}
+      <div aria-live="polite">
+        <h2 id="ask-q">{question.text}</h2>
+        <span className="sr-only">{voiceMessage}</span>
+      </div>
       <ul className="ask-opts" aria-label="Elegí una respuesta">
         {question.answers.map((a, i) => (
           <li key={a}>
@@ -196,7 +200,7 @@ function Question({ state }: { state: AppState }) {
         ) : null}
         <span className="muted">¿Otra respuesta? Escribila en el buscador.</span>
       </div>
-      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} />
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} onMessage={setVoiceMessage} />
     </section>
   );
 }
@@ -207,6 +211,7 @@ function Recommendation({ state }: { state: AppState }) {
   const [first, ...others] = candidates;
   // Modo voz: al terminar de leer la recomendación, se puede contestar hablando.
   const [readDone, setReadDone] = useState(0);
+  const [voiceMessage, setVoiceMessage] = useState('');
   const intro = unsure
     ? 'No pasa nada si no estás seguro. Por lo que buscaste, este es el sitio que mejor se ajusta. Si no es, contame un poco más en el buscador.'
     : (messages.findLast((m) => m.from === 'assistant')?.text ?? '');
@@ -222,9 +227,11 @@ function Recommendation({ state }: { state: AppState }) {
   return (
     <div className="reco-main">
       <div className="speak-row">
+        {/* Única región que anuncia en esta vista: el motivo y lo que dice la respuesta por voz. */}
         <p className="reco-why" aria-live="polite">
           <BrandSymbol />
           <span>{intro}</span>
+          <span className="sr-only">{voiceMessage}</span>
         </p>
         <SpeakButton
           text={recommendationSpeech(
@@ -250,7 +257,7 @@ function Recommendation({ state }: { state: AppState }) {
           </ul>
         </>
       ) : null}
-      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} />
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} onMessage={setVoiceMessage} />
       <p className="why">
         <Icon name="search" size="sm" />
         <span>¿No es esto? Contame un poco más en el buscador y te llevo directo.</span>

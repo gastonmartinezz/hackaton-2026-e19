@@ -111,6 +111,9 @@ export function useVoiceAnswer(choices: VoiceChoice[], { active, trigger, deps =
     // Nunca se abre el micrófono sin modo voz.
     if (!activeRef.current || choicesRef.current.length === 0) return;
     const id = ++attempt.current;
+    // Una ronda nueva corta la anterior: nunca queda un micrófono grabando sin dueño.
+    capture.current?.close();
+    capture.current = null;
     setPhase({ kind: 'listening' });
     try {
       const opened = await deps.open((reason) => {
@@ -165,7 +168,25 @@ export function useVoiceAnswer(choices: VoiceChoice[], { active, trigger, deps =
 }
 
 /** Estado de la escucha y el botón «Terminar». Se monta en cada lista de opciones. */
-export function VoiceAnswer({ choices, active, trigger, deps }: { choices: VoiceChoice[]; active: boolean; trigger: number; deps?: VoiceAnswerDeps }) {
+/**
+ * `onMessage`: la vista ya tiene su región `aria-live` (pregunta,
+ * recomendación) y anuncia ahí el estado; este componente lo muestra sin otra
+ * región. Sin `onMessage` (las opciones de la tarjeta, que no tienen otra), la
+ * región es la de acá. Siempre una sola por vista.
+ */
+export function VoiceAnswer({
+  choices,
+  active,
+  trigger,
+  deps,
+  onMessage,
+}: {
+  choices: VoiceChoice[];
+  active: boolean;
+  trigger: number;
+  deps?: VoiceAnswerDeps;
+  onMessage?: (text: string) => void;
+}) {
   const { phase, finish, promptDone } = useVoiceAnswer(choices, { active, trigger, deps });
   const prompt = phase.kind === 'prompt' ? phase : null;
   // Los avisos se dicen en voz alta (modo voz) y, al terminar, se sigue.
@@ -174,12 +195,15 @@ export function VoiceAnswer({ choices, active, trigger, deps }: { choices: Voice
   useEffect(() => {
     if (prompt && !reader.available) promptDone();
   }, [prompt, reader.available, promptDone]);
-  if (!active) return null;
   const message =
-    phase.kind === 'listening' ? ANSWER_TEXTS.listening : phase.kind === 'transcribing' ? VOICE_TEXTS.transcribing : prompt ? prompt.text : '';
+    !active ? '' : phase.kind === 'listening' ? ANSWER_TEXTS.listening : phase.kind === 'transcribing' ? VOICE_TEXTS.transcribing : prompt ? prompt.text : '';
+  const onMessageRef = useRef(onMessage);
+  onMessageRef.current = onMessage;
+  useEffect(() => onMessageRef.current?.(message), [message]);
+  if (!active) return null;
   return (
     <div className="voice-answer">
-      <p className="voice-status" aria-live="polite">
+      <p className="voice-status" aria-live={onMessage ? undefined : 'polite'}>
         {phase.kind === 'listening' ? <Icon name="mic" size="sm" /> : null}
         {phase.kind === 'transcribing' ? <LoadingDots /> : null}
         {message}

@@ -29,9 +29,23 @@ describe('matchChoice', () => {
     expect(index('La 2.', page)).toBe(1);
     expect(index('opción dos', page)).toBe(1);
     expect(index('la tercera por favor', page)).toBe(2);
-    // «la última» es la última opción numerada, no «Ver otras opciones».
-    expect(index('la última', page)).toBe(2);
+    // En el orden en que se leyeron: «la última» y «la cuarta» son «Ver otras opciones».
+    expect(index('la última', page)).toBe(3);
+    expect(index('la cuarta', page)).toBe(3);
     expect(index('la quinta', page)).toBe('none');
+  });
+
+  it('dos respuestas más «No estoy seguro»: «la tercera» y «la última» eligen «No estoy seguro»', () => {
+    expect(index('la tercera', question)).toBe(2);
+    expect(index('la última', question)).toBe(2);
+    expect(index('la segunda', question)).toBe(1);
+  });
+
+  it('una opción que no se leyó (unnumbered) no cuenta para los números, pero se elige por su nombre', () => {
+    const notRead: ChoiceSpec[] = [{ label: 'Buscar' }, { label: 'Horarios' }, { label: 'Ver otras opciones', kind: 'more', unnumbered: true }];
+    expect(index('la última', notRead)).toBe(1);
+    expect(index('la tercera', notRead)).toBe('none');
+    expect(index('ver otras', notRead)).toBe(2);
   });
 
   it('«otras» / «ver otras» → «Ver otras opciones»', () => {

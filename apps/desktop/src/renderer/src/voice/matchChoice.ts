@@ -5,7 +5,10 @@
  * Reconoce, en este orden:
  * 1. «otras» / «ver otras» / «más opciones» → la opción `more`;
  *    «no sé» / «no estoy seguro» → la opción `unsure`.
- * 2. Números y ordinales: «la primera», «la 2», «opción dos», «la última».
+ * 2. Números y ordinales: «la primera», «la 2», «opción dos», «la última»,
+ *    en el mismo orden en que se leyeron las opciones (incluidas «No estoy
+ *    seguro» y «Ver otras opciones» si se leyeron; las que no se leyeron
+ *    llevan `unnumbered`).
  * 3. El título completo de una opción dentro de lo dicho.
  * 4. Palabras en común con el título (o sus alias); gana la de mayor
  *    proporción si es clara. Si hay empate → `tie`; si nada alcanza → `none`.
@@ -18,6 +21,8 @@ export interface ChoiceSpec {
   aliases?: string[];
   /** `more`: «Ver otras opciones»; `unsure`: «No estoy seguro». */
   kind?: 'more' | 'unsure';
+  /** No se nombró al leer la lista: se puede elegir por su nombre, pero no cuenta para «la tercera». */
+  unnumbered?: boolean;
 }
 
 export type ChoiceMatch = { kind: 'match'; index: number } | { kind: 'tie' } | { kind: 'none' };
@@ -62,9 +67,9 @@ const SPOKEN_NUMBERS: Array<[RegExp, number]> = [
 const MORE = /\b(otras|otra opcion|otras opciones|mas opciones|ver otras|ver mas)\b/;
 const UNSURE = /\b(no se|no estoy segur[oa]|ni idea|no sabria)\b/;
 
-/** Índice por ordinal o número dicho, contando solo las opciones numerables (sin `more`/`unsure`). */
+/** Índice por ordinal o número dicho, en el orden en que se leyeron («la última» es la última que se escuchó). */
 function ordinalIndex(spoken: string, choices: ChoiceSpec[]): number | null {
-  const numbered = choices.map((c, i) => ({ c, i })).filter(({ c }) => !c.kind);
+  const numbered = choices.map((c, i) => ({ c, i })).filter(({ c }) => !c.unnumbered);
   if (numbered.length === 0) return null;
   if (/\b(ultima|ultimo)\b/.test(spoken)) return numbered.at(-1)!.i;
   const tokens = spoken.split(' ').length;
