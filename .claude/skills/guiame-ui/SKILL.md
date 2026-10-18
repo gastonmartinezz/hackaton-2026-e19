@@ -95,7 +95,7 @@ Seguí siempre `CLAUDE.md` (raíz). Este skill dice **cómo** trabajar una panta
 
 - Convertir el inicio en un chat. Es un buscador con una pregunta por vez.
 - Poner la ayuda en una columna lateral. Es una tarjeta flotante sobre el sitio.
-- Hacer clic, escribir o enviar por la persona. Solo se resalta, se desplaza y se instruye.
+- Hacer clic o enviar por la persona. Solo se resalta, se desplaza y se instruye. La única escritura permitida es la de un dato no sensible que la persona dictó y confirma (ver `CLAUDE.md` §2).
 - Usar el logo con ojos o con contenedor celeste en la barra.
 - Achicar el micrófono a un ícono suelto: lleva el texto visible «Hablar».
 - Mostrar «Listo» o verde sin evidencia literal de la página.

@@ -20,10 +20,7 @@ import { VoiceCapture, type AutoStopReason } from './capture';
 import { VoiceAnswer, type VoiceAnswerDeps, type VoiceChoice } from './VoiceAnswer';
 import { VOICE_TEXTS } from './VoiceSearch';
 
-/**
- * TODO(copy): textos del dictado de datos. No están en design/ (el dictado de
- * datos no tiene pantalla). Pendientes de aprobación de diseño.
- */
+/** Textos del dictado de datos (definidos el 18/10/2026; el dictado no tiene pantalla en design/). */
 export const DICTATE_TEXTS = {
   listening: 'Te escucho. Decime el dato.',
   retry: 'No te entendí. ¿Me lo decís de nuevo?',
