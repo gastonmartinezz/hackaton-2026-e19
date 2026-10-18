@@ -54,6 +54,8 @@ const ZonesFile = z.strictObject({
       note: z.string().optional(),
       // containsName ignora los nombres de menos de 3 caracteres: se rechazan para que no queden inertes.
       names: z.array(z.string().min(3)).min(1),
+      /** Siglas que alcanzan solas si son toda la marca o una parte separada; dentro de un nombre más largo piden contexto. */
+      acronyms: z.array(z.string().min(3)).default([]),
       /** Nombres ambiguos: solo cuentan con una palabra de `context` en el texto o con la pista de la IA. */
       contextNames: z.array(z.string().min(3)).default([]),
       context: z.array(z.string().min(3)).default([]),
@@ -123,8 +125,14 @@ export interface CatalogEntry {
 export interface ClaimGroup {
   country: string;
   organization: string;
-  /** Alcanzan solos («BPS», «Dirección General Impositiva»). */
+  /** Alcanzan solos («Banco de Previsión Social», «Dirección General Impositiva»). */
   names: string[];
+  /**
+   * Siglas («BPS», «DGI») que alcanzan solas cuando son toda la marca declarada o una parte separada por
+   * guion, barra o dos puntos («BPS - Mi cuenta»). Dentro de un nombre más largo («BPS Logistics»,
+   * «DGI Consultores») piden contexto, como `contextNames`.
+   */
+  acronyms: string[];
   /** Ambiguos («MEF», «MSP»): necesitan una palabra de `context` o la pista de la IA. */
   contextNames: string[];
   context: string[];
@@ -180,7 +188,9 @@ export function loadOfficialSources(
     const origin = `government-zones ${zones.version}`;
     sources.versions.push(origin);
     sources.zones.push(...zones.zones.map((zone) => ({ ...zone, origin })));
-    sources.claims.push(...zones.claims.map(({ country, organization, names, contextNames, context }) => ({ country, organization, names, contextNames, context })));
+    sources.claims.push(
+      ...zones.claims.map(({ country, organization, names, acronyms, contextNames, context }) => ({ country, organization, names, acronyms, contextNames, context })),
+    );
   } catch (error) {
     throw describeError(zonesPath, error);
   }

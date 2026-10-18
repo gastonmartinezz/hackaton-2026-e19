@@ -173,7 +173,7 @@ describe('POST /v1/site-check: identidad oficial por fuentes de autoridad', () =
     expect(siteIndicatorState(scam)).toBe('possible_scam');
   });
 
-  it.each(['BPS', 'DGI'])('«%s» declarado en un dominio comercial con formulario de clave: riesgo alto', async (brand) => {
+  it.each(['BPS', 'DGI', 'Banco de Previsión Social'])('«%s» declarado en un dominio comercial con formulario de clave: riesgo alto', async (brand) => {
     app = await testApp({ siteCheck: fakeProviders() });
     const page = { ...emptyPage, declaredBrand: brand, forms: [{ method: 'post', action: null, fields: [{ type: 'password', label: 'Clave' }] }] };
     const r = await check(contentRequest('https://www.tramites-online.com.uy/', page));
@@ -217,6 +217,15 @@ describe('POST /v1/site-check: dominios parecidos y palabras comunes', () => {
   ])('%s: sin señales de dominio parecido', async (hostname) => {
     app = await testApp({ siteCheck: fakeProviders() });
     const r = await check(contentRequest(`https://${hostname}/`));
+    expect(codes(r)).toEqual([]);
+    expect(r.risk).toBe('no_signals');
+  });
+
+  it('una empresa llamada «BPS Logistics» con formulario de clave no se toma como el BPS', async () => {
+    const login = { method: 'post', action: null, fields: [{ type: 'password', label: 'Contraseña' }] };
+    const company = { declaredOrganization: 'BPS Logistics', organizationKind: 'company', country: 'UY', requests: { credentials: true, payment: false, verificationCodes: false } } as const;
+    app = await testApp({ model: siteCheckModel(() => ({ ...company, explanation: 'Portal de clientes.' })).model, siteCheck: fakeProviders() });
+    const r = await check(contentRequest('https://www.bpslogistics.com/', { ...emptyPage, declaredBrand: 'BPS Logistics', forms: [login] }));
     expect(codes(r)).toEqual([]);
     expect(r.risk).toBe('no_signals');
   });

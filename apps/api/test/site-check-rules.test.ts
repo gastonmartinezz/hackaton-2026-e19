@@ -150,7 +150,9 @@ describe('fuentes de autoridad', () => {
     expect(view.claims('BPS - Mi cuenta').map((c) => [c.via, c.keys])).toEqual([['government_domain', ['gov:UY']]]);
     expect(gov('BPS')).toEqual(['BPS']);
     expect(gov('DGI')).toEqual(['DGI']);
-    expect(gov('Servicios en línea DGI')).toEqual(['DGI']);
+    expect(gov('Servicios en línea - DGI')).toEqual(['DGI']);
+    expect(gov('Mi cuenta | BPS')).toEqual(['BPS']);
+    expect(gov('BCU')).toEqual(['BCU']);
     expect(gov('Dirección General Impositiva')).toEqual(['Dirección General Impositiva']);
     expect(gov('Banco de Previsión Social')).toEqual(['Banco de Previsión Social']);
     expect(gov('Intendencia de Montevideo')).toEqual(['Intendencia de Montevideo']);
@@ -187,6 +189,24 @@ describe('fuentes de autoridad', () => {
     expect(view.claims('Montevideo')).toEqual([]);
     expect(view.claims('Pago de impuestos')).toEqual([]);
     expect(view.claims('Organismo X', { kind: 'government', country: 'UY' })[0]?.keys).toEqual(['gov:UY']);
+  });
+
+  it('BPS, DGI y BCU dentro del nombre de una empresa piden contexto; solos siguen alcanzando', () => {
+    const gov = (text: string, hint?: Parameters<AuthorityView['claims']>[1]) => view.claims(text, hint).filter((c) => c.via === 'government_domain').map((c) => c.organization);
+    expect(view.claims('BPS Logistics')).toEqual([]);
+    expect(view.claims('DGI Consultores')).toEqual([]);
+    expect(view.claims('BCU Consultores')).toEqual([]);
+    expect(gov('Servicios en línea DGI')).toEqual([]);
+    // La IA dice que es una empresa: tampoco.
+    expect(gov('BPS Logistics', { kind: 'company', country: 'UY' })).toEqual([]);
+    // Con el país, el nombre completo o la pista de la IA, sí.
+    expect(gov('BPS Uruguay')).toEqual(['BPS']);
+    expect(gov('BPS - Banco de Previsión Social')).toEqual(['Banco de Previsión Social']);
+    expect(gov('Servicios en línea DGI', { kind: 'government', country: 'UY' })).toEqual(['DGI']);
+    // Solas o separadas del resto por un guion, una barra o dos puntos.
+    expect(gov('BPS')).toEqual(['BPS']);
+    expect(gov('Banco de Previsión Social')).toEqual(['Banco de Previsión Social']);
+    expect(gov('DGI: Servicios en línea')).toEqual(['DGI']);
   });
 
   it('alias del catálogo que son palabras comunes: solo con una palabra financiera o la pista de la IA', () => {

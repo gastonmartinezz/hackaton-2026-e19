@@ -57,6 +57,9 @@ const GENERIC = new Set(
 );
 const FINANCIAL_WORDS = /\b(banco|bank|financiera|tarjeta|home ?banking|billetera|cooperativa|creditos?|prestamos?|cambio|cobranzas?|dinero electronico|red de pagos)\b/;
 const coreTokens = (text: string) => normalizeName(text).replace(/\./g, ' ').split(' ').filter((t) => t && !GENERIC.has(t));
+// Partes de una marca declarada: «BPS - Mi cuenta», «Mi cuenta | BPS», «Servicios en línea: DGI».
+const SEPARATORS = /\s-\s|[–—|:·•()[\],;/]/;
+const standsAlone = (text: string, name: string) => text.split(SEPARATORS).some((part) => normalizeName(part) === normalizeName(name));
 // El sitio publicado es la dirección raíz («https://scanntech.com/»), no una sección de otro sitio.
 const atRoot = (website: string) => /^(https?:\/\/)?[^/\s,;]+\/?$/i.test(website.trim());
 
@@ -186,10 +189,15 @@ export class AuthorityView {
   claims(text: string, hint?: ClaimHint): Claim[] {
     const found: Claim[] = [];
     // Organismos del Estado. Los nombres ambiguos («MEF», «MSP») piden una palabra del país o la pista de la IA.
+    // Las siglas («BPS», «DGI») alcanzan solas si son toda la marca o una parte separada («BPS - Mi cuenta»);
+    // dentro de un nombre más largo («BPS Logistics», «DGI Consultores») también piden contexto.
     for (const group of this.sources.claims) {
       const governmentHint = hint?.kind === 'government' && (!hint.country || hint.country.toUpperCase() === group.country);
       const withContext = governmentHint || group.context.some((word) => containsName(text, word));
-      const name = group.names.find((n) => containsName(text, n)) ?? (withContext ? group.contextNames.find((n) => containsName(text, n)) : undefined);
+      const name =
+        group.names.find((n) => containsName(text, n)) ??
+        group.acronyms.find((n) => (withContext ? containsName(text, n) : standsAlone(text, n))) ??
+        (withContext ? group.contextNames.find((n) => containsName(text, n)) : undefined);
       if (name) found.push({ organization: name, keys: [`gov:${group.country}`], via: 'government_domain' });
     }
     if (hint?.kind === 'government' && hint.country && !found.some((c) => c.via === 'government_domain')) {

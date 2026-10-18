@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.1",
+  "version": "2026-10-18.2",
   "note": "Zonas de dominio reservadas al Estado por la autoridad del registro. Es una regla de zona, no una lista de sitios: cualquier dominio bajo estas zonas es oficial por quién puede registrarlo. Un sitio de gobierno comprometido sigue siendo oficial, por eso el riesgo siempre tiene prioridad. Las zonas de Uruguay (gub.uy, mil.uy) están en official-sites.uy.json.",
   "zones": [
     {
@@ -21,11 +21,9 @@
     {
       "country": "UY",
       "organization": "Estado uruguayo",
-      "note": "Nombres con los que una página se presenta como organismo del Estado uruguayo (casi todos bajo gub.uy; ver la nota de la zona en official-sites.uy.json). Solo sirven para detectar suplantación fuera de las zonas de gobierno; nunca otorgan oficialidad. Los entes fuera de gub.uy (BSE, BHU, BROU, Antel, UTE, OSE, ASSE, Correo…) se detectan por el catálogo y el registro del BCU. `names` alcanzan solos: siglas y nombres que en la práctica solo usa el Estado uruguayo (BPS, DGI, DNIC, SUCIVE, intendencias…). `contextNames` son siglas cortas que también usan otros países o el lenguaje técnico (MSP, MEF, MTSS, INE…) y nombres de organismos que existen con el mismo nombre en otros países (Ministerio del Interior en Argentina, Paraguay o España; Ministerio de Salud Pública en Ecuador o Paraguay; Registro Civil en casi todos): solo cuentan si el mismo texto nombra a Uruguay (`context`) o si la IA indica un organismo de gobierno de Uruguay o sin país. Revisado el 2026-10-18.",
+      "note": "Nombres con los que una página se presenta como organismo del Estado uruguayo (casi todos bajo gub.uy; ver la nota de la zona en official-sites.uy.json). Solo sirven para detectar suplantación fuera de las zonas de gobierno; nunca otorgan oficialidad. Los entes fuera de gub.uy (BSE, BHU, BROU, Antel, UTE, OSE, ASSE, Correo…) se detectan por el catálogo y el registro del BCU. `names` alcanzan solos: nombres y siglas que en la práctica solo usa el Estado uruguayo (Banco de Previsión Social, DNIC, SUCIVE, intendencias…). `acronyms` son siglas de tres letras del Estado uruguayo que también forman parte del nombre de empresas («BPS Logistics», «DGI Consultores»): alcanzan solas cuando son toda la marca declarada o una parte separada por guion, barra o dos puntos («BPS», «BPS - Mi cuenta»); dentro de un nombre más largo piden lo mismo que `contextNames`. `contextNames` son siglas cortas que también usan otros países o el lenguaje técnico (MSP, MEF, MTSS, INE…) y nombres de organismos que existen con el mismo nombre en otros países (Ministerio del Interior en Argentina, Paraguay o España; Ministerio de Salud Pública en Ecuador o Paraguay; Registro Civil en casi todos): solo cuentan si el mismo texto nombra a Uruguay (`context`) o si la IA indica un organismo de gobierno de Uruguay o sin país. Revisado el 2026-10-18.",
       "names": [
-        "BPS",
         "Banco de Previsión Social",
-        "DGI",
         "Dirección General Impositiva",
         "DNIC",
         "Dirección Nacional de Identificación Civil",
@@ -66,7 +64,6 @@
         "Agesic",
         "Agencia de Gobierno Electrónico y Sociedad de la Información",
         "Banco Central del Uruguay",
-        "BCU",
         "URSEC",
         "INAU",
         "Corte Electoral",
@@ -78,6 +75,7 @@
         "Gobierno del Uruguay",
         "Presidencia del Uruguay"
       ],
+      "acronyms": ["BPS", "DGI", "BCU"],
       "contextNames": [
         "MSP",
         "Ministerio de Salud Pública",
