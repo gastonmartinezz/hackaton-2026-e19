@@ -1,6 +1,6 @@
 # Guíame · Reglas para Claude Code (v2.4)
 
-Guíame es un **navegador de escritorio con IA** que acompaña, paso a paso, a personas de 50+ (Uruguay y Argentina) mientras usan sitios web reales: sacar un turno, comprar algo. **Guíame muestra; la persona hace.** Nunca hace clic ni envía nada por ella. La única excepción es escribir en un formulario un dato no sensible que la persona le dictó, y lo tiene que confirmar (§2).
+Guíame es un **navegador de escritorio con IA** que acompaña, paso a paso, a personas de 50+ (Uruguay y Argentina) mientras usan sitios web reales: sacar un turno, comprar algo. **Guíame muestra; la persona hace.** Solo actúa por ella cuando ella lo confirma: escribe un dato no sensible que le dictó o toca un botón que la IA marcó como seguro (§2). Nunca paga, compra ni borra nada por ella.
 
 Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una sección más; no reemplaces lo que hay. Todo el diseño está en `design/`. Para implementar o revisar pantallas, usá el skill `guiame-ui` (`.claude/skills/guiame-ui/SKILL.md`).
 
@@ -26,12 +26,20 @@ Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una secci
 
 ## 2. Reglas de producto (no negociables)
 
-- **Nunca actúes por la persona.** Los comandos sobre el sitio son visuales (`highlight`, `scrollIntoView`, `showInstruction`, `clearGuidance`) más las dos excepciones de los datos de formularios. Prohibido implementar clics o envío de formularios automáticos.
+- **Nunca actúes por la persona sin que lo confirme.** Los comandos sobre el sitio son visuales (`highlight`, `scrollIntoView`, `showInstruction`, `clearGuidance`) más tres excepciones: escribir un dato dictado, poner el cursor en un dato sensible y tocar un botón seguro. Prohibido cualquier acción automática sin confirmación.
+- **Tocar un botón por la persona** (decisión de Agustín, 18/10/2026):
+  - La tarjeta ofrece «Tocá «{control}» por mí» (o se responde «sí» con el modo voz) solo si se cumplen todas estas condiciones:
+    - la IA marcó el paso con `safeToClick` (avanzar sin consecuencias: «Continuar», «Siguiente», «Confirmar» un paso intermedio, abrir una sección);
+    - el control es un botón o enlace habilitado;
+    - el paso no pide un dato;
+    - la página no tiene riesgo alto.
+  - Barrera local (`isIrreversibleAction`): aunque la IA lo marque, Guíame nunca toca un control que hable de pagar, comprar, transferir, firmar, dar de baja, eliminar, cancelar, suscribirse o donar. Esos los toca siempre la persona.
+  - El clic llega al sitio como uno de la persona y la guía avanza por el camino de siempre.
 - **Datos de formularios dictados** (decisión de Agustín, 18/10/2026):
   - **Dato no sensible** (nombre, correo, teléfono, dirección, fechas, opción de una lista): Guíame pregunta el dato en voz alta y la persona lo dice. Guíame lo escribe en el lugar señalado (`fill`) y le pide revisarlo con «Está bien, seguir», «Decirlo de nuevo» o «Lo escribo yo». El paso avanza recién con esa confirmación.
   - **Dato sensible** (contraseña o clave, PIN, códigos de verificación, tarjeta, CVV, vencimiento, datos bancarios, cédula o documento): nunca se pide por voz ni se escribe. Guíame solo pone el cursor en el lugar (`focus`) y muestra «Lo escribís vos. Yo no lo veo ni lo guardo.».
   - Alcanza con que una de tres fuentes diga que el dato es sensible: el backend (`field.sensitive`), el rótulo (`isSensitiveField`) o los atributos del sitio (`type=password`, `autocomplete=cc-*`/`one-time-code`, nombre).
-  - Guíame nunca hace clic ni envía el formulario: el botón final siempre lo toca la persona.
+  - Escribir un dato nunca envía el formulario. El botón final lo toca la persona, o Guíame si es seguro y ella lo confirma (ver «Tocar un botón»).
 - **La guía llega hasta el final.** Al elegir una opción, o al pedir algo que no estaba entre las opciones, el backend investiga en internet el paso a paso de esa tarea en el sitio. Después, `/v1/next-step` avanza hasta que la página confirma que terminó. La guía nunca da la tarea por terminada por su cuenta.
 - **El inicio es un buscador, no un chat** (A-01, B-C01). Si la búsqueda alcanza, se abre el sitio directo; si falta un dato, aparece **una pregunta por vez** debajo del buscador (A-02, A-03, B-C02, B-C03) con respuestas en botones y «No sé bien».
 - **Inicio v2.4:** sin botón «Guíame». La búsqueda se envía con Enter o con la píldora del buscador, que dice «Hablar» y pasa a «Enviar» cuando la persona escribe (decisión de Agustín). Debajo van hasta tres accesos del historial («Lo que hiciste antes»), nombrados por lo que se hace. El texto sale de la tarea que se hizo con ayuda en ese sitio, guardada solo en el equipo junto al origen; sin tarea, el dominio. Falta un ícono por acceso y queda [DECIDIR] cuánto tiempo se guarda.
@@ -95,7 +103,7 @@ Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una secci
 - [ ] Sin colores, radios ni sombras escritos a mano si hay token.
 - [ ] Textos idénticos a la pantalla; ningún texto inventado sin `TODO(copy)`.
 - [ ] Funciona con teclado, con foco visible y anuncios correctos.
-- [ ] No agrega acciones automáticas sobre el sitio (salvo escribir un dato dictado y confirmado, §2).
+- [ ] No agrega acciones sobre el sitio sin confirmación de la persona (solo las de §2: dato dictado, cursor en dato sensible, botón seguro).
 - [ ] No envía ni registra valores de campos (test incluido si toca datos).
 
 ## Datos de ejemplo (solo fixtures de tests)

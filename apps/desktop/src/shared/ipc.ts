@@ -138,6 +138,8 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('confirmDone') }),
   /** «Lo escribo yo»: el dato se deja de dictar y el cursor queda en el lugar. */
   z.strictObject({ type: z.literal('typeMyself') }),
+  /** La persona confirma que Guíame toque por ella el botón señalado (solo si `offerClick`). */
+  z.strictObject({ type: z.literal('clickForMe') }),
   /** «Todavía no» → «Creo que me falta un paso» (17): se vuelve a mirar la página. */
   z.strictObject({ type: z.literal('resumeGuide') }),
   /** Termina la ayuda sin el aviso «Saliste de la ayuda» (tarea terminada). */
@@ -308,6 +310,12 @@ export interface AppState {
      * escribe la persona. Nunca trae el valor.
      */
     ask: { question: string; mode: 'dictate' | 'type'; filled: boolean } | null;
+    /**
+     * Guíame puede tocar por la persona el botón señalado si ella lo confirma:
+     * la IA lo marcó seguro (`safeToClick`), no es una acción irreversible y la
+     * página no tiene riesgo alto.
+     */
+    offerClick: boolean;
     /** «Ya hiciste»: solo pasos pasados, en pasado. Nunca valores. */
     done: string[];
     /** Texto visible de la página que prueba que terminó (09). Sin él no se dice «Listo». */
@@ -392,6 +400,8 @@ export const PAGE_CHANNELS = {
   focus: 'page:focus',
   /** Velo del sitio (R9): `true` con la tarjeta de ayuda abierta o achicada. */
   veil: 'page:veil',
+  click: 'page:click',
+  clicked: 'page:clicked',
 } as const;
 
 export const ExtractRequestSchema = z.strictObject({
@@ -438,6 +448,8 @@ export const ShownMessageSchema = z.strictObject({
   fillable: z.boolean().optional(),
   /** Según los atributos del sitio, pide un dato sensible (clave, código, tarjeta, documento). */
   sensitive: z.boolean().optional(),
+  /** Es un botón o enlace habilitado que Guíame podría tocar si la persona lo confirma. */
+  clickable: z.boolean().optional(),
 });
 
 export const ChangedMessageSchema = z.strictObject({ structural: z.boolean(), targetPresent: z.boolean().nullable() });
@@ -455,6 +467,12 @@ export const FillRequestSchema = z.strictObject({
 export const FILL_RESULTS = ['filled', 'noMatch', 'refused', 'stale'] as const;
 export type FillResult = (typeof FILL_RESULTS)[number];
 export const FilledMessageSchema = z.strictObject({ requestId: Id, result: z.enum(FILL_RESULTS) });
+
+/** Tocar el botón o enlace señalado, después de que la persona lo confirmó. */
+export const ClickRequestSchema = z.strictObject({ requestId: Id, navigationId: Id, elementId: Id });
+export const CLICK_RESULTS = ['clicked', 'refused', 'stale'] as const;
+export type ClickResult = (typeof CLICK_RESULTS)[number];
+export const ClickedMessageSchema = z.strictObject({ requestId: Id, result: z.enum(CLICK_RESULTS) });
 
 /** Poner el cursor en un lugar para que la persona escriba un dato sensible. */
 export const FocusRequestSchema = z.strictObject({ navigationId: Id, elementId: Id });

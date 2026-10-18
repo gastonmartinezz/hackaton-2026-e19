@@ -23,6 +23,8 @@ const StepOutput = z.object({
   waitFor: z.enum(['userInteraction', 'navigation', 'userConfirmation']),
   /** Solo en pasos que piden un dato de un formulario; si no, null. */
   field: z.object({ question: z.string(), sensitive: z.boolean() }).nullable(),
+  /** true si Guíame puede tocar este botón o enlace por la persona cuando ella lo confirma. */
+  safeToClick: z.boolean(),
 });
 export type StepOutput = z.infer<typeof StepOutput>;
 

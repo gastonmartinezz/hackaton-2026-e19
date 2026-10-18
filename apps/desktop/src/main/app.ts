@@ -455,6 +455,7 @@ export class AppController {
         targetField: this.#assistant.target?.field ?? false,
         waitFor: showing && guide.phase === 'waitingForUser' ? (guide.step?.waitFor ?? null) : null,
         ask: showing && guide.phase === 'waitingForUser' ? this.#assistant.ask : null,
+        offerClick: showing && guide.phase === 'waitingForUser' && this.#assistant.offerClick && !this.#assistant.paused,
         exited: this.#helpExited && guide.phase === 'idle',
         done: this.#assistant.done,
         evidence: guide.phase === 'completed' ? this.#assistant.evidence : null,
@@ -858,6 +859,9 @@ export class AppController {
         return;
       case 'typeMyself':
         this.#assistant.typeMyself();
+        return;
+      case 'clickForMe':
+        await this.#assistant.clickForMe();
         return;
       case 'resumeGuide':
         this.#assistant.resume();

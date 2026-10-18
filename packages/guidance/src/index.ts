@@ -316,6 +316,22 @@ export function isSensitiveField(field: FieldTraits): boolean {
 }
 
 /**
+ * Acciones que no se deshacen: pagar, comprar, transferir, firmar, dar de
+ * baja, eliminar o cancelar, suscribirse, donar. Sin tildes, en minúsculas.
+ */
+const IRREVERSIBLE_ACTION =
+  /\b(pag(?:ar|a|as|o|os|ue|ues|uen|alo)?|abon\w*|compr\w*|transfer\w*|firm\w*|dar de baja|darme de baja|baja de|elimin\w*|borr\w*|cancel\w*|anul\w*|suscrib\w*|don(?:ar|a|acion)|checkout|pay|buy|purchase|delete|remove|unsubscribe|sign up)\b/;
+
+/**
+ * Barrera local para tocar un botón por la persona: aunque la IA lo haya
+ * marcado como seguro (`safeToClick`), nunca se toca uno cuya instrucción o
+ * rótulo hable de pagar, comprar, transferir, firmar, dar de baja o borrar.
+ */
+export function isIrreversibleAction(...texts: Array<string | undefined>): boolean {
+  return texts.some((text) => text !== undefined && IRREVERSIBLE_ACTION.test(plainWords(text)));
+}
+
+/**
  * Indica si un paso invita a ingresar datos o confirmar una operación. Ante un
  * posible sitio de estafa estas indicaciones se pausan; las de navegación
  * («Hacé clic en Inicio») siguen. Conservador: ante la duda, pausa.

@@ -11,6 +11,7 @@ import { ipcMain, type IpcMainEvent } from 'electron';
 import type { z } from 'zod';
 import {
   ChangedMessageSchema,
+  ClickedMessageSchema,
   FilledMessageSchema,
   InteractionMessageSchema,
   PAGE_CHANNELS,
@@ -20,6 +21,7 @@ import {
   SummaryMessageSchema,
   ValidationMessageSchema,
   type EXTRACT_NOTES,
+  type ClickResult,
   type FillResult,
   type ShowResult,
   type TargetRect,
@@ -45,6 +47,8 @@ export interface ShownTarget {
   fillable?: boolean | undefined;
   /** Los atributos del sitio indican un dato sensible. */
   sensitive?: boolean | undefined;
+  /** Botón o enlace habilitado que Guíame podría tocar si la persona lo confirma. */
+  clickable?: boolean | undefined;
 }
 
 export interface ExtractedPage {
@@ -58,6 +62,7 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
   readonly #snapshots = new Map<string, Pending<ExtractedPage> & { navigationId: string; revision: number }>();
   readonly #shows = new Map<string, Pending<ShownTarget>>();
   readonly #fills = new Map<string, Pending<FillResult>>();
+  readonly #clicks = new Map<string, Pending<ClickResult>>();
   readonly #summaries = new Map<string, Pending<PageSummary> & { navigationId: string; contentVersion: number }>();
   readonly #disposers: Array<() => void> = [];
 
@@ -74,12 +79,19 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
       }
       pending.resolve({ snapshot: resanitize(snapshot), notes });
     });
-    this.#on(PAGE_CHANNELS.shown, ShownMessageSchema, ({ requestId, result, elementId, rect, field, fillable, sensitive }) => {
+    this.#on(PAGE_CHANNELS.shown, ShownMessageSchema, ({ requestId, result, elementId, rect, field, fillable, sensitive, clickable }) => {
       const pending = this.#shows.get(requestId);
       if (!pending) return;
       this.#shows.delete(requestId);
       clearTimeout(pending.timer);
-      pending.resolve({ result, elementId, rect, field, fillable, sensitive });
+      pending.resolve({ result, elementId, rect, field, fillable, sensitive, clickable });
+    });
+    this.#on(PAGE_CHANNELS.clicked, ClickedMessageSchema, ({ requestId, result }) => {
+      const pending = this.#clicks.get(requestId);
+      if (!pending) return;
+      this.#clicks.delete(requestId);
+      clearTimeout(pending.timer);
+      pending.resolve(result);
     });
     this.#on(PAGE_CHANNELS.filled, FilledMessageSchema, ({ requestId, result }) => {
       const pending = this.#fills.get(requestId);
@@ -169,6 +181,20 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
     });
   }
 
+  /** Toca el botón señalado: solo después de que la persona lo confirmó. */
+  click(navigationId: string, elementId: string): Promise<ClickResult> {
+    if (this.site.contents.isDestroyed()) return Promise.resolve('stale');
+    const requestId = shortId();
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.#clicks.delete(requestId);
+        resolve('stale');
+      }, 3000);
+      this.#clicks.set(requestId, { resolve, reject: () => resolve('stale'), timer });
+      this.site.contents.send(PAGE_CHANNELS.click, { requestId, navigationId, elementId });
+    });
+  }
+
   /** Pone el cursor en el lugar para que la persona escriba (datos sensibles). */
   focus(navigationId: string, elementId: string): void {
     if (this.site.contents.isDestroyed()) return;
@@ -201,6 +227,11 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
       clearTimeout(pending.timer);
       pending.resolve('stale');
       this.#fills.delete(id);
+    }
+    for (const [id, pending] of this.#clicks) {
+      clearTimeout(pending.timer);
+      pending.resolve('stale');
+      this.#clicks.delete(id);
     }
   }
 

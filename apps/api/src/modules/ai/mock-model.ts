@@ -77,6 +77,7 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
               presentation: 'highlight',
               waitFor: 'userInteraction',
               field: null,
+              safeToClick: false,
             },
             {
               element: null,
@@ -84,6 +85,7 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
               presentation: 'highlight',
               waitFor: 'userInteraction',
               field: null,
+              safeToClick: false,
             },
           ],
         },
@@ -107,6 +109,7 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
             field: textbox.sensitive
               ? { question: `Ese dato lo escribís vos en «${textbox.label}».`, sensitive: true }
               : { question: `¿Qué escribo en «${textbox.label}»?`, sensitive: false },
+            safeToClick: false,
           },
         ],
         done: false,
@@ -116,7 +119,7 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
     const id = [...input.html.matchAll(/\sid="([A-Za-z][\w-]*)"/g)].map((match) => match[1]).find((candidate) => !filled.has(`#${candidate}`));
     if (!id) return { steps: [], done: true, evidence: firstHeading(input.html) };
     return {
-      steps: [{ element: `#${id}`, instruction: 'Ahora hacé clic acá.', presentation: 'highlight', waitFor: 'userInteraction', field: null }],
+      steps: [{ element: `#${id}`, instruction: 'Ahora hacé clic acá.', presentation: 'highlight', waitFor: 'userInteraction', field: null, safeToClick: true }],
       done: false,
       evidence: null,
     };

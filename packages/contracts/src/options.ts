@@ -25,6 +25,13 @@ export const GuideStep = z.strictObject({
   waitFor: z.enum(['userInteraction', 'navigation', 'userConfirmation']),
   /** Solo en pasos que piden un dato de un formulario (element apunta a ese lugar). */
   field: FieldAsk.optional(),
+  /**
+   * true si es un botón o enlace seguro para que Guíame lo toque por la
+   * persona cuando ella lo confirma (seguir, continuar, confirmar un paso
+   * intermedio, abrir una sección). Nunca en pagos, compras, transferencias,
+   * bajas ni otras acciones irreversibles. Ausente = lo toca la persona.
+   */
+  safeToClick: z.literal(true).optional(),
 });
 export type GuideStep = z.infer<typeof GuideStep>;
 
