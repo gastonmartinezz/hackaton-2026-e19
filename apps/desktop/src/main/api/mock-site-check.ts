@@ -34,10 +34,10 @@ import {
 } from '@hackaton/contracts';
 import { ApiFailure } from './client';
 
-export const MOCK_ORGANIZATION = 'Banco de Demostración';
+const MOCK_ORGANIZATION = 'Banco de Demostración';
 
 /** Fuentes simuladas de «Sitio oficial» (`identity.source`). Las fechas son de revisión de la fuente. */
-export const MOCK_SOURCES = {
+const MOCK_SOURCES = {
   bcu: {
     name: 'Registro de instituciones del BCU, simulado',
     url: 'https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/Default.aspx',
