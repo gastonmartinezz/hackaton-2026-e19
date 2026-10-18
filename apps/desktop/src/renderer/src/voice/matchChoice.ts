@@ -3,16 +3,18 @@
  * en el cliente y sin llamar a Claude. Función pura.
  *
  * Reconoce, en este orden:
- * 1. «otras» / «ver otras» / «más opciones» → la opción `more`;
- *    «no sé» / «no estoy seguro» → la opción `unsure`;
- *    «sí» / «dale» / «está bien» al principio → la opción `yes`.
+ * 1. El título completo de una opción dentro de lo dicho.
  * 2. Números y ordinales: «la primera», «la 2», «opción dos», «la última»,
  *    en el mismo orden en que se leyeron las opciones (incluidas «No estoy
  *    seguro» y «Ver otras opciones» si se leyeron; las que no se leyeron
  *    llevan `unnumbered`).
- * 3. El título completo de una opción dentro de lo dicho.
- * 4. Palabras en común con el título (o sus alias); gana la de mayor
- *    proporción si es clara. Si hay empate → `tie`; si nada alcanza → `none`.
+ * 3. «sí» / «dale» / «está bien» al principio → la opción `yes`;
+ *    «otras» / «ver otras» / «más opciones» → la opción `more`;
+ *    «no sé» / «no estoy seguro» → la opción `unsure`, solo si no dijo nada
+ *    más («no sé cómo renovar» nombra una tarea, no es «No sé bien»).
+ * 4. Palabras en común con el título (o sus alias) de las opciones comunes;
+ *    gana la de mayor proporción si es clara. Si hay empate → `tie`; si nada
+ *    alcanza → `none` (con `onFreeText`, lo dicho va a la IA).
  */
 
 export interface ChoiceSpec {
@@ -67,10 +69,14 @@ const SPOKEN_NUMBERS: Array<[RegExp, number]> = [
 
 const MORE = /\b(otras|otra opcion|otras opciones|mas opciones|ver otras|ver mas)\b/;
 const UNSURE = /\b(no se|no estoy segur[oa]|ni idea|no sabria)\b/;
+/** Palabras que acompañan a «no sé» sin decir qué quiere. */
+const UNSURE_FILLER = new Set(['no', 'se', 'bien', 'estoy', 'seguro', 'segura', 'ni', 'idea', 'sabria', 'cual', 'que', 'decirte', 'eh', 'mmm']);
 const YES = /^(si|claro|dale|correcto|esta bien|ok|okey|bien|listo)\b/;
 
 /** Índice por ordinal o número dicho, en el orden en que se leyeron («la última» es la última que se escuchó). */
-function ordinalIndex(spoken: string, choices: ChoiceSpec[]): number | null {
+function ordinalIndex(said: string, choices: ChoiceSpec[]): number | null {
+  // «primera vez», «segunda vez» hablan de un trámite, no de la opción número uno o dos.
+  const spoken = said.replace(/\b(primera|primer|segunda|tercera) vez\b/g, ' ').replace(/\s+/g, ' ').trim();
   const numbered = choices.map((c, i) => ({ c, i })).filter(({ c }) => !c.unnumbered);
   if (numbered.length === 0) return null;
   if (/\b(ultima|ultimo)\b/.test(spoken)) return numbered.at(-1)!.i;
@@ -86,13 +92,9 @@ export function matchChoice(said: string, choices: ChoiceSpec[]): ChoiceMatch {
   const spoken = normalizeSpoken(said);
   if (!spoken || choices.length === 0) return { kind: 'none' };
 
-  // 1. Las opciones especiales.
   const special = (kind: 'more' | 'unsure' | 'yes') => choices.findIndex((c) => c.kind === kind);
-  if (UNSURE.test(spoken) && special('unsure') >= 0) return { kind: 'match', index: special('unsure') };
-  if (YES.test(spoken) && special('yes') >= 0) return { kind: 'match', index: special('yes') };
-  if (MORE.test(spoken) && special('more') >= 0) return { kind: 'match', index: special('more') };
 
-  // 2. Título completo dicho tal cual (el más largo gana: «Solo abrir el sitio» antes que «abrir»).
+  // 1. Título completo dicho tal cual (el más largo gana: «Solo abrir el sitio» antes que «abrir»).
   const full = choices
     .map((c, index) => ({ index, names: [c.label, ...(c.aliases ?? [])].map(normalizeSpoken).filter((n) => n.length > 2) }))
     .flatMap(({ index, names }) => names.filter((n) => ` ${spoken} `.includes(` ${n} `)).map((n) => ({ index, length: n.length })))
@@ -101,15 +103,22 @@ export function matchChoice(said: string, choices: ChoiceSpec[]): ChoiceMatch {
     return { kind: 'match', index: full[0]!.index };
   }
 
-  // 3. Ordinales y números.
+  // 2. Ordinales y números.
   const ordinal = ordinalIndex(spoken, choices);
   if (ordinal !== null) return { kind: 'match', index: ordinal };
+
+  // 3. Las opciones especiales. «No sé» solo si no dijo nada más que eso.
+  if (YES.test(spoken) && special('yes') >= 0) return { kind: 'match', index: special('yes') };
+  if (MORE.test(spoken) && special('more') >= 0) return { kind: 'match', index: special('more') };
+  const onlyUnsure = UNSURE.test(spoken) && spoken.split(' ').every((w) => UNSURE_FILLER.has(w) || STOPWORDS.has(w));
+  if (onlyUnsure && special('unsure') >= 0) return { kind: 'match', index: special('unsure') };
 
   // 4. Palabras en común con el título o sus alias.
   const saidWords = new Set(words(spoken));
   if (saidWords.size === 0) return { kind: 'none' };
+  // Las especiales se reconocen por sus frases (arriba), no por palabras sueltas como «no».
   const scores = choices.map((c) =>
-    Math.max(
+    c.kind ? 0 : Math.max(
       ...[c.label, ...(c.aliases ?? [])].map((name) => {
         const titleWords = words(name);
         if (titleWords.length === 0) return 0;

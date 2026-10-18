@@ -93,12 +93,16 @@ La respuesta tiene siempre `sessionId`, `type` y `message`:
 { "sessionId": "s-abc", "type": "redirect", "message": "Te llevo al sitio de turnos.", "url": "https://..." }
 
 // Falta información: el front muestra la pregunta en el chat
-{ "sessionId": "s-abc", "type": "question", "message": "¿En qué país querés hacer el trámite?" }
+{ "sessionId": "s-abc", "type": "question", "message": "¿Querés renovar la cédula, sacarla por primera vez o pedir un duplicado?",
+  "answers": ["Renovarla", "Sacarla por primera vez", "Pedir un duplicado"], "reason": "Cada trámite está en una página distinta." }
 
 // Varios sitios posibles (2 a 5): el front muestra las opciones para elegir
 { "sessionId": "s-abc", "type": "options", "message": "Encontré estas opciones:",
   "options": [ { "title": "...", "url": "https://...", "reason": "..." } ] }
 ```
+
+- **`answers`** (opcional, en `question`) trae de 2 a 4 respuestas cortas para mostrar como botones o reconocer por voz. Nunca incluye «No sé»: el front lo agrega. Si la persona contesta con sus palabras otra cosa, el front manda eso como respuesta y Claude lo interpreta.
+- **`reason`** (opcional, en `question`) dice por qué se pregunta, en una frase que ve la persona.
 
 - **Toda URL está verificada:** el backend comprueba que exista antes de devolverla (ver abajo). Siempre es `https`.
 - El backend comprueba que la página exista, no que sea la correcta: eso sigue siendo decisión de Claude.

@@ -91,4 +91,15 @@ describe('matchChoice', () => {
     expect(matchChoice('no, lo escribo yo', confirm)).toEqual({ kind: 'match', index: 2 });
     expect(matchChoice('sí', page)).toEqual({ kind: 'none' });
   });
+
+  it('«No sé bien» solo si no dijo nada más: si nombra una respuesta o pide otra cosa, no es «No sé»', () => {
+    const question = [{ label: 'Renovarla' }, { label: 'Sacarla por primera vez' }, { label: 'No sé bien', kind: 'unsure' as const }];
+    expect(matchChoice('no sé', question)).toEqual({ kind: 'match', index: 2 });
+    expect(matchChoice('no estoy segura', question)).toEqual({ kind: 'match', index: 2 });
+    expect(matchChoice('no sé, renovarla', question)).toEqual({ kind: 'match', index: 0 });
+    expect(matchChoice('no sé si es la primera vez', question)).toEqual({ kind: 'match', index: 1 });
+    // Otra cosa con sus palabras: ninguna (con onFreeText, va al buscador como respuesta).
+    expect(matchChoice('no se cómo pedir un duplicado', question)).toEqual({ kind: 'none' });
+  });
 });
+

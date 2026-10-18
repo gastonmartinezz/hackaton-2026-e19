@@ -9,7 +9,7 @@ import { auth, html, OTHER_TOKEN, testApp } from './helpers.js';
 let app: FastifyInstance;
 afterEach(() => app?.close());
 
-const internal = { goal: 'Sacar un turno', reason: 'Es el sitio oficial.' };
+const internal = { goal: 'Sacar un turno', reason: 'Es el sitio oficial.', answers: [] as string[], why: null };
 
 const interpretReturning = (output: InterpretOutput) =>
   new MockModel({ ...defaultMockHandlers, interpret: () => output });
