@@ -8,7 +8,7 @@ export function useAppState(): AppState | null {
     void window.asistente.command({ type: 'ready' });
     return unsubscribe;
   }, []);
-  // Los tamaños de design/tokens.css dependen de este atributo.
+  // Los tamaños de @asistente/ui/tokens.css dependen de este atributo.
   useEffect(() => {
     if (state) document.documentElement.dataset.textScale = String(state.prefs.textScale);
   }, [state?.prefs.textScale]);
@@ -17,4 +17,9 @@ export function useAppState(): AppState | null {
 
 export function send(command: UiCommand): void {
   void window.asistente.command(command);
+}
+
+/** Como `send`, pero espera al proceso principal: rechaza si el comando falló. */
+export function request(command: UiCommand): Promise<void> {
+  return window.asistente.command(command);
 }

@@ -3,7 +3,8 @@
  * página): indicador en la barra «Estás en», junto al dominio; panel anclado a
  * la barra; advertencia de riesgo alto y anuncios accesibles. Solo presenta
  * `AppState.siteCheck` (textos ya resueltos en el proceso principal) y envía
- * comandos. Estilos con los tokens de design/tokens.css (site-check.css).
+ * comandos. Es el sello de la barra del diseño v2.2 (R6). Estilos con los
+ * tokens de @asistente/ui/tokens.css (site-check.css).
  */
 import { Button, Icon, type IconName } from '@asistente/ui';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -11,7 +12,7 @@ import type { SiteCheckView } from '../../shared/ipc';
 import type { SiteCheckAction, SiteCheckPanelCopy, SiteIndicatorKind } from '../../shared/site-check-copy';
 import { send } from './useAppState';
 
-/** Íconos Lucide de design/icons. El texto acompaña siempre. */
+/** Íconos Lucide de @asistente/ui. El texto acompaña siempre. */
 export const SITE_CHECK_ICONS: Record<Exclude<SiteIndicatorKind, 'none'>, IconName> = {
   checking: 'clock',
   official: 'shield-check',
@@ -218,7 +219,7 @@ export function SiteCheckPanel({ view }: { view: SiteCheckView }) {
     >
       <div className="site-check-head">
         <Icon name={SITE_CHECK_ICONS[view.indicator]} />
-        <h2 id="site-check-panel-title" className="title" tabIndex={-1}>
+        <h2 id="site-check-panel-title" className="hc-title" tabIndex={-1}>
           {panel.title}
         </h2>
         <Button variant="quiet" className="icon-only" aria-label="Cerrar" onClick={() => runAction(CLOSE)}>
@@ -259,7 +260,7 @@ export function SiteCheckWarning({ view }: { view: SiteCheckView }) {
       <div className="site-check-dialog">
         <div className="site-check-head">
           <Icon name="shield-alert" size="lg" />
-          <h2 id="site-check-warning-title" className="title">
+          <h2 id="site-check-warning-title" className="hc-title">
             {warning.title}
           </h2>
         </div>
@@ -273,7 +274,7 @@ export function SiteCheckWarning({ view }: { view: SiteCheckView }) {
         </Button>
         <Details panel={warning} />
         <p className="muted">Si ya leíste la advertencia y querés seguir igual:</p>
-        <Button variant="quiet" block onClick={() => runAction(warning.continueAction)}>
+        <Button variant="link" onClick={() => runAction(warning.continueAction)}>
           {warning.continueAction.label}
         </Button>
       </div>
@@ -302,17 +303,15 @@ export function SiteCheckAnnouncer({ view }: { view: SiteCheckView }) {
 /** Aviso en la tarjeta de ayuda cuando la guía pausa una indicación por riesgo alto. */
 export function GuidePausedNotice() {
   return (
-    <section className="status error" role="status">
-      <div className="head">
+    <>
+      <section className="status error" role="status">
         <Icon name="shield-alert" size="lg" />
-        <h2 className="title">Pausé esta indicación</h2>
-      </div>
-      <p>Te pedía escribir datos o confirmar algo, y este sitio podría ser una estafa. No ingreses contraseñas ni códigos.</p>
-      <div className="actions">
-        <Button variant="primary" block icon="arrow-left" onClick={() => send({ type: 'siteCheckLeave' })}>
-          Salir de este sitio
-        </Button>
-      </div>
-    </section>
+        <h2 className="hc-title">Pausé esta indicación</h2>
+        <p>Te pedía escribir datos o confirmar algo, y este sitio podría ser una estafa. No ingreses contraseñas ni códigos.</p>
+      </section>
+      <Button variant="primary" block icon="arrow-left" onClick={() => send({ type: 'siteCheckLeave' })}>
+        Salir de este sitio
+      </Button>
+    </>
   );
 }

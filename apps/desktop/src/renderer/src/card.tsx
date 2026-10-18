@@ -1,5 +1,5 @@
 import '@asistente/ui/tokens.css';
-import '@asistente/ui/mostrame.css';
+import '@asistente/ui/guiame.css';
 import './card.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

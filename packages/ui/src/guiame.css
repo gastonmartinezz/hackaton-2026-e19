@@ -1,0 +1,1171 @@
+/*
+ * Guíame · componentes (diseño v2.2). Traducidos de design/preview y
+ * design/docs/02-sistema-visual.md. Los valores salen de
+ * design/tokens/tokens.css y de ./tokens.css: no se escriben colores, tamaños
+ * ni radios a mano.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+body {
+  font-family: var(--g-font);
+  font-size: var(--fs-support);
+  line-height: var(--lh-body);
+  color: var(--g-ink);
+  background: var(--g-surface);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+#root {
+  height: 100vh;
+}
+button,
+input,
+select {
+  font-family: inherit;
+}
+:focus-visible {
+  outline: 3px solid transparent;
+  outline-offset: 3px;
+  box-shadow: var(--focus-ring);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.muted {
+  color: var(--g-ink-secondary);
+}
+
+/* ---------- Íconos (Lucide, trazo 2) ---------- */
+.ic {
+  display: inline-flex;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  flex: none;
+}
+.ic svg {
+  width: 100%;
+  height: 100%;
+}
+.ic[data-size='sm'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+.ic[data-size='lg'] {
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+}
+
+/* ---------- Botones (docs/02 › Botones) ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--h-secondary);
+  padding: 0 var(--space-5);
+  border: var(--border-w-strong) solid transparent;
+  border-radius: var(--g-radius-control);
+  font: inherit;
+  font-size: var(--fs-secondary);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-title);
+  color: var(--g-ink);
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+/* Principal: una por vista (R2). */
+.btn-primary {
+  min-height: var(--h-primary);
+  padding: 0 var(--space-6);
+  border: 0;
+  background: var(--g-gradient-action);
+  color: var(--g-on-brand);
+  font-size: var(--fs-support);
+  box-shadow: var(--g-shadow-primary);
+}
+.btn-primary:hover {
+  background: var(--g-brand-dark);
+}
+.btn-primary:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+.btn-secondary {
+  background: var(--g-surface);
+  border-color: var(--g-border-control);
+}
+.btn-secondary:hover {
+  background: var(--g-surface-soft);
+}
+.btn-secondary .ic {
+  color: var(--g-ink);
+}
+/* Sin borde, como «Achicar». */
+.btn-quiet {
+  min-height: var(--target-min);
+  padding: 0 var(--space-3);
+  font-size: var(--fs-min);
+}
+.btn-quiet:hover {
+  background: var(--g-surface-soft);
+}
+.btn-quiet .ic {
+  color: var(--g-brand);
+}
+/* Enlace discreto: 21px, azul, subrayado. */
+.btn-link {
+  min-height: var(--target-min);
+  padding: 0;
+  border: 0;
+  color: var(--g-brand);
+  font-weight: var(--fw-regular);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.btn-link:hover {
+  color: var(--g-brand-dark);
+}
+.btn:disabled {
+  background: var(--g-surface-soft);
+  color: var(--g-ink-secondary);
+  border-color: var(--g-line);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.btn.icon-only {
+  padding: 0;
+  width: var(--h-bar-control);
+}
+.btn.block {
+  width: 100%;
+  white-space: normal;
+  text-align: center;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* ---------- Campos ---------- */
+.field {
+  width: 100%;
+  min-height: var(--h-secondary);
+  padding: 0 var(--space-4);
+  border-radius: var(--g-radius-control);
+  border: var(--border-w-strong) solid var(--g-border-control);
+  background: var(--g-surface);
+  font: inherit;
+  font-size: var(--fs-support);
+  color: var(--g-ink);
+}
+.field::placeholder {
+  color: var(--g-ink-secondary);
+}
+.field:focus-visible {
+  border-color: var(--g-brand);
+}
+
+/* ---------- Espera ---------- */
+.dots {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+.dots i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--g-brand);
+  opacity: 0.25;
+  animation: g-dots calc(var(--dur-breathe) * 1.5) var(--ease-in-out) infinite;
+}
+.dots i:nth-child(2) {
+  animation-delay: calc(var(--dur-breathe) / 4);
+}
+.dots i:nth-child(3) {
+  animation-delay: calc(var(--dur-breathe) / 2);
+}
+@keyframes g-dots {
+  30% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dots i {
+    animation: none;
+  }
+  .dots i:nth-child(1) {
+    opacity: 1;
+  }
+  .dots i:nth-child(2) {
+    opacity: 0.55;
+  }
+}
+
+/* ---------- Sellos y píldoras ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-height: var(--h-badge);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-badge);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-title);
+  white-space: nowrap;
+}
+.badge .ic {
+  width: var(--fs-support);
+  height: var(--fs-support);
+}
+.badge.ok {
+  background: var(--g-success-soft);
+  color: var(--g-success);
+}
+.badge.warn {
+  background: var(--g-warning-soft);
+  color: var(--g-warning);
+}
+
+/* ---------- Barra del navegador (R6, R7) ---------- */
+.chrome {
+  position: relative;
+  z-index: 3;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-5);
+  background: var(--g-gradient-bar);
+  color: var(--g-on-brand);
+  box-shadow: var(--g-shadow-bar);
+  font-size: var(--fs-support);
+}
+.chrome :focus-visible {
+  box-shadow: var(--focus-ring-bar);
+}
+.chrome .brand {
+  display: flex;
+  align-items: center;
+  height: var(--h-bar-control);
+  margin-right: var(--space-1);
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--g-radius-control);
+  background: none;
+  cursor: pointer;
+}
+.chrome .brand img {
+  height: var(--logo-bar);
+  width: auto;
+}
+.chrome .nav {
+  display: flex;
+  gap: var(--space-1);
+}
+.chrome .spacer {
+  flex: 1;
+}
+.btn-chrome {
+  min-height: var(--h-bar-control);
+  padding: 0 14px;
+  border: var(--border-w-strong) solid transparent;
+  color: var(--g-on-brand);
+  font-size: var(--fs-support);
+}
+.btn-chrome:hover {
+  background: var(--g-bar-pressed);
+}
+.btn-chrome:disabled {
+  background: transparent;
+  border-color: transparent;
+  color: var(--g-on-brand);
+  opacity: 0.45;
+}
+/* «AA» de «Tamaño de letra»: la primera A más chica. */
+.aa {
+  font-size: calc(var(--fs-support) * 0.73);
+}
+.aa span {
+  font-size: var(--fs-support);
+}
+/* «Ayuda» (R7): cerrada es un botón blanco; abierta, borde blanco y fondo al 20%. */
+.btn-help {
+  min-height: var(--h-bar-control);
+  padding: 0 18px;
+  background: var(--g-surface);
+  color: var(--g-brand);
+  font-size: var(--fs-support);
+}
+.btn-help .ic {
+  color: var(--g-brand);
+}
+.btn-help[aria-pressed='true'] {
+  background: var(--g-bar-pressed);
+  border-color: var(--g-on-brand);
+  color: var(--g-on-brand);
+}
+.btn-help[aria-pressed='true'] .ic {
+  color: var(--g-on-brand);
+}
+/* «Voz» prendida: igual que «Ayuda» abierta (estado fijo, sin animación). */
+.btn-chrome.voice-toggle[aria-pressed='true'] {
+  background: var(--g-bar-pressed);
+  border-color: var(--g-on-brand);
+}
+/* Píldora «Estás en» con el dominio: el dominio principal nunca se corta. */
+.omni {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--h-bar-control);
+  padding: 0 var(--space-2) 0 22px;
+  border-radius: var(--radius-pill);
+  background: var(--g-surface);
+  color: var(--g-ink);
+  font-size: var(--fs-support);
+}
+.omni :focus-visible,
+.omni:focus-within {
+  box-shadow: var(--focus-ring-bar);
+}
+.omni .ic {
+  color: var(--g-ink-secondary);
+}
+.omni input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+.omni input:focus-visible {
+  box-shadow: none;
+}
+.omni input::placeholder {
+  color: var(--g-ink-secondary);
+}
+.omni .where {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  cursor: text;
+  text-align: left;
+}
+.omni .where:focus-visible {
+  box-shadow: none;
+}
+.omni .k-estas {
+  color: var(--g-ink-secondary);
+  white-space: nowrap;
+}
+.omni .dom {
+  display: flex;
+  min-width: 0;
+}
+.omni .sub {
+  color: var(--g-ink-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 2ch;
+}
+.omni b {
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  flex: none;
+}
+.omni .badge {
+  margin-left: auto;
+}
+.lbl-short {
+  display: none;
+}
+:root[data-text-scale='1.45'] .lbl-long,
+:root[data-text-scale='1.75'] .lbl-long,
+:root[data-text-scale='1.45'] .omni .k-estas,
+:root[data-text-scale='1.75'] .omni .k-estas {
+  display: none;
+}
+:root[data-text-scale='1.45'] .lbl-short,
+:root[data-text-scale='1.75'] .lbl-short {
+  display: inline;
+}
+
+/* ---------- Pantallas propias: inicio, pregunta y recomendación ---------- */
+.home {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-5);
+}
+.home[data-mode='search'] {
+  justify-content: center;
+  gap: 32px;
+}
+.home-icon {
+  width: var(--logo-home);
+  height: var(--logo-home);
+  flex: none;
+}
+.home h1 {
+  margin: 0;
+  font-size: var(--fs-title-home);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-title);
+  text-align: center;
+}
+/* Buscador: en el inicio (01) lleva borde azul y halo; arriba de una pregunta, borde neutro. */
+.sbox {
+  width: min(var(--home-w), 100%);
+  min-height: var(--h-search);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-6);
+  border: var(--border-w-strong) solid var(--g-border-control);
+  border-radius: var(--g-radius-control);
+  background: var(--g-surface);
+  font-size: var(--fs-input);
+}
+.home[data-mode='search'] .sbox {
+  width: min(var(--home-search-w), 100%);
+  min-height: var(--h-search-home);
+  border-color: var(--g-brand);
+  box-shadow: 0 0 0 4px var(--g-action-soft);
+  font-size: var(--fs-input-home);
+}
+.sbox:focus-within {
+  border-color: var(--g-brand);
+  box-shadow: 0 0 0 4px var(--g-action-soft);
+}
+.sbox > .ic {
+  color: var(--g-ink-secondary);
+}
+.sbox input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--target-min);
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: var(--g-ink);
+}
+.sbox input:focus-visible {
+  box-shadow: none;
+}
+.sbox input::placeholder {
+  color: var(--g-ink-secondary);
+}
+.home-go.btn-primary {
+  padding: 0 36px;
+  font-size: var(--fs-answer);
+}
+/*
+ * «Hablar» (docs/02 › Botón de voz): píldora azul con gradiente, ícono blanco y
+ * texto visible. Acción secundaria fuerte: no reemplaza a «Guíame».
+ */
+.mic {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--h-voice);
+  padding: 0 22px 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--g-gradient-action);
+  color: var(--g-on-brand);
+  box-shadow: var(--g-shadow-voice);
+  font: inherit;
+  font-size: var(--fs-badge);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  cursor: pointer;
+}
+.home[data-mode='search'] .mic {
+  min-height: var(--h-voice-home);
+  font-size: var(--fs-min);
+}
+.mic .ic svg {
+  stroke-width: 2.25;
+}
+.mic:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+/* TODO(diseño): «escuchando» (pantalla 33) no está diseñado. Solo cambia el texto a «Terminar». */
+.mic[aria-disabled='true'] {
+  cursor: progress;
+  opacity: 0.6;
+}
+.voice-status {
+  width: min(var(--home-w), 100%);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-support);
+  text-align: center;
+}
+/* Responder con la voz (modo voz): «Te escucho» y «Terminar» debajo de las opciones. */
+.voice-answer {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+.voice-answer .voice-status {
+  width: auto;
+  justify-content: flex-start;
+  text-align: start;
+}
+.voice-answer .voice-status .ic {
+  color: var(--g-brand);
+}
+/* Vacía sigue montada (región aria-live), pero sin ocupar lugar. */
+.voice-status:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.home-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-support);
+}
+/* «Mis datos»: enlace discreto debajo de «Guíame». */
+.home-profile.btn-link {
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-min);
+}
+/* Errores propios: bloque blanco con borde rojo (docs/02 › Bloques de estado). */
+.home-error {
+  width: min(var(--home-w), 100%);
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4) 20px;
+  border-radius: var(--g-radius-control);
+  border: var(--border-w-strong) solid var(--g-error);
+  background: var(--g-surface);
+}
+.home-error .ic {
+  color: var(--g-error);
+}
+.home-error p {
+  margin: 0;
+}
+
+/* Tarjeta de pregunta (02, 03) y de recomendación (10): 880px centrada, halo azul. */
+.ask-card {
+  width: min(var(--home-w), 100%);
+  flex: none;
+  display: grid;
+  gap: var(--space-3);
+  padding: 36px var(--space-7) var(--space-7);
+  border-radius: var(--g-radius-card);
+  background: var(--g-surface);
+  box-shadow: var(--g-shadow-card);
+}
+.ask-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.ask-top:empty {
+  display: none;
+}
+.ask-top .speak {
+  margin-left: auto;
+  justify-items: end;
+}
+.ask-card h2 {
+  margin: 0;
+  font-size: var(--fs-title-question);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-title);
+  letter-spacing: var(--tracking-title);
+}
+.ask-sub {
+  margin: 0;
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-secondary);
+}
+.ask-done {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ask-done li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-chip);
+  background: var(--g-action-soft);
+  color: var(--g-brand);
+  font-size: var(--fs-badge);
+  font-weight: var(--fw-semibold);
+}
+.ask-done .ic {
+  width: 1em;
+  height: 1em;
+}
+.ask-opts {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14em, 100%), 1fr));
+  gap: var(--space-4);
+}
+.ask-opts button {
+  width: 100%;
+  min-height: var(--h-answer);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-w-strong) solid var(--g-border-control);
+  border-radius: var(--g-radius-control);
+  background: var(--g-surface);
+  font: inherit;
+  font-size: var(--fs-answer);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-title);
+  color: var(--g-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.ask-opts button:hover {
+  background: var(--g-surface-soft);
+}
+.ask-opts button .ic {
+  color: var(--g-brand);
+}
+/* «No sé bien»: como una respuesta, con borde punteado. */
+.ask-opts button.unsure {
+  border-style: dashed;
+  color: var(--g-ink-secondary);
+}
+.ask-opts button.unsure .ic {
+  color: var(--g-ink-secondary);
+}
+
+/* Recomendación (10, C04) */
+.site-line {
+  margin-top: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.site-name {
+  margin: 0;
+  font-size: var(--fs-site);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-title);
+}
+.site-domain {
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-secondary);
+}
+.site-domain b {
+  font-weight: var(--fw-semibold);
+}
+.site-reason {
+  margin: 0;
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-secondary);
+}
+.site-actions {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+.reco-others {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: var(--border-w) solid var(--g-line);
+  display: grid;
+  gap: var(--space-3);
+}
+.reco-others h3 {
+  margin: 0;
+  font-size: var(--fs-support);
+  font-weight: var(--fw-semibold);
+}
+.reco-others ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.other-site {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-3) var(--space-3) 20px;
+  border: var(--border-w-strong) solid var(--g-line);
+  border-radius: var(--g-radius-control);
+}
+.other-site > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.other-site .site-name {
+  font-size: var(--fs-support);
+}
+
+/* ---------- Tarjeta flotante de ayuda (R4) ---------- */
+.hc {
+  width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--g-surface);
+  color: var(--g-ink);
+  border-radius: var(--g-radius-card);
+}
+.hc-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5);
+  background: var(--g-gradient-card-head);
+  border-bottom: var(--border-w) solid var(--g-line);
+}
+.hc-head img {
+  width: var(--logo-card);
+  height: var(--logo-card);
+  flex: none;
+}
+.hc-goal {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-support);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  line-height: var(--lh-title);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.hc-head .btn {
+  flex: none;
+}
+.hc-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-6) var(--space-5);
+}
+.hc-body > * {
+  flex: none;
+}
+.hc-foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) 20px;
+  background: var(--g-surface-soft);
+  border-top: var(--border-w) solid var(--g-line);
+}
+.hc-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.hc-title {
+  margin: 0;
+  font-size: var(--fs-title-card);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-title);
+  overflow-wrap: anywhere;
+}
+.instr {
+  margin: 0;
+  font-size: var(--fs-instruction);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-instruction);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+/* Nombre del control entre « » en un chip azul suave (R8). */
+.ctl-name {
+  padding: 0 6px;
+  border-radius: var(--radius-chip);
+  background: var(--g-action-soft);
+  color: var(--g-brand);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.support {
+  margin: 0;
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-support);
+  line-height: var(--lh-body);
+}
+/* Caja de espera o de privacidad. */
+.soft-box {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) 20px;
+  border-radius: var(--radius-box);
+  background: var(--g-surface-soft);
+  font-size: var(--fs-support);
+  line-height: var(--lh-body);
+}
+.soft-box .ic {
+  color: var(--g-ink-secondary);
+  margin-top: 0.2em;
+}
+/* «Vas bien: ya hiciste N pasos.» (R5) */
+.progress {
+  margin: var(--space-2) 0 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-min);
+  font-variant-numeric: tabular-nums;
+}
+.progress .ic {
+  color: var(--g-brand);
+}
+/* Volver a las 3 opciones: enlace con flecha, alineado al texto. */
+.back-link.btn {
+  align-self: flex-start;
+  margin-left: calc(-1 * var(--space-2));
+  padding: 0 var(--space-2);
+  color: var(--g-brand);
+  font-size: var(--fs-secondary);
+}
+.option-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+/* Opción en la tarjeta: 64px, insignia numerada y chevron. */
+.option {
+  width: 100%;
+  min-height: var(--h-option);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: var(--space-2) var(--space-4) var(--space-2) 20px;
+  border: var(--border-w-strong) solid var(--g-border-control);
+  border-radius: var(--g-radius-control);
+  background: var(--g-surface);
+  font: inherit;
+  font-size: var(--fs-support);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-title);
+  color: var(--g-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.option:hover {
+  background: var(--g-surface-soft);
+}
+.option .t {
+  flex: 1;
+  min-width: 0;
+}
+.option .num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.45em;
+  height: 1.45em;
+  border-radius: var(--radius-chip);
+  background: var(--g-action-soft);
+  color: var(--g-brand);
+  font-variant-numeric: tabular-nums;
+}
+.option.unsure {
+  border-style: dashed;
+  color: var(--g-ink-secondary);
+}
+.ask-row {
+  display: flex;
+  gap: var(--space-2);
+}
+.ask-row .field {
+  flex: 1;
+  min-width: 0;
+}
+.panel-note {
+  margin: 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-min);
+  line-height: 1.4;
+}
+.panel-note .ic {
+  width: 1em;
+  height: 1em;
+  margin-top: 0.2em;
+}
+
+/* Bloques de estado (docs/02): éxito, aviso, error de Guíame y «¿Pudiste terminar?». */
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 18px 20px;
+  border-radius: var(--g-radius-control);
+}
+.status .head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.status p {
+  margin: 0;
+}
+.status.success {
+  background: var(--g-success-soft);
+}
+.status.success .ic,
+.status.success .hc-title {
+  color: var(--g-success);
+}
+.status.warn {
+  background: var(--g-warning-soft);
+}
+.status.warn .ic,
+.status.warn .hc-title {
+  color: var(--g-warning);
+}
+.status.error {
+  background: var(--g-surface);
+  border: var(--border-w-strong) solid var(--g-error);
+}
+.status.error .ic {
+  color: var(--g-error);
+}
+/* Neutro, borde punteado, sin verde (R10). */
+.status.ask {
+  background: var(--g-surface);
+  border: var(--border-w-strong) dashed var(--g-border-control);
+}
+/* Cita «La página dice» */
+.quote {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 14px 18px;
+  border: var(--border-w-strong) solid var(--g-line);
+  border-radius: var(--g-radius-control);
+  background: var(--g-surface);
+}
+.quote figcaption {
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-min);
+}
+.quote blockquote {
+  margin: 0;
+  font-size: var(--fs-support);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.callout {
+  margin: 0;
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--g-radius-control);
+  background: var(--g-warning-soft);
+  font-size: var(--fs-min);
+  line-height: 1.4;
+}
+.callout .ic {
+  color: var(--g-warning);
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+/* «Escuchar» / «Detener»: píldora secundaria con parlante. */
+.speak {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+.speak-btn.btn {
+  min-height: var(--target-min);
+  padding: 0 var(--space-4) 0 14px;
+  border-color: var(--g-border-control);
+  border-radius: var(--radius-pill);
+  background: var(--g-surface);
+  font-size: var(--fs-min);
+}
+.speak-btn.btn .ic {
+  color: var(--g-brand);
+}
+/* Sonando: estado fijo (sin animación), también con «reducir movimiento». */
+.speak-btn.btn[data-active] {
+  background: var(--g-action-soft);
+  border-color: var(--g-brand);
+  color: var(--g-brand);
+}
+.speak-error {
+  margin: 0;
+  max-width: 22em;
+  font-size: var(--fs-min);
+  color: var(--g-error);
+}
+
+/* Tarjeta achicada (12): franja con el ícono, instrucción y «Ver la ayuda». */
+.hc-pill,
+.hc-toast {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  border-radius: var(--g-radius-card);
+  overflow: hidden;
+}
+.hc-pill {
+  padding: 0 11px 0 0;
+  background: var(--g-gradient-pill);
+}
+.hc-pill .strip {
+  flex: none;
+  align-self: stretch;
+  width: var(--pill-strip);
+  display: grid;
+  place-items: center;
+  background: var(--g-action-soft);
+  border-right: var(--border-w) solid var(--g-line);
+}
+.hc-pill .strip img {
+  width: var(--logo-pill);
+  height: var(--logo-pill);
+}
+.hc-pill .txt,
+.hc-toast .txt {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--fs-support);
+  line-height: var(--lh-instruction);
+}
+.hc-pill .txt {
+  font-weight: var(--fw-semibold);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.hc-pill .ctl-name {
+  padding: 0;
+  background: none;
+}
+.hc-pill .btn,
+.hc-toast .btn {
+  flex: none;
+}
+/* Aviso al salir (21). */
+.hc-toast {
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5);
+  background: var(--g-surface);
+}
+
+/* Avisos de la app (ventanas nuevas, permisos, descargas) */
+.notice {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--g-radius-control);
+  background: var(--g-surface-soft);
+  border: var(--border-w) solid var(--g-line);
+  font-size: var(--fs-min);
+}
+.notice[data-tone='error'] {
+  background: var(--g-surface);
+  border: var(--border-w-strong) solid var(--g-error);
+}
+.notice p {
+  margin: 0;
+}
+.notice .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.notice .btn {
+  min-height: var(--target-min);
+  font-size: var(--fs-min);
+  padding: 0 var(--space-4);
+}

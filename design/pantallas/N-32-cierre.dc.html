@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>32 Cierre sin evidencia</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Light.ttf') format('truetype');font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-SemiBold.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:swap}
+body{margin:0}
+a{color:#1D4ED8}a:hover{color:#1738A8}
+button{font-family:inherit;color:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #FFFFFF; color: #0B1B3F; font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif">
+
+  <!-- BARRA DEL NAVEGADOR: logo · Inicio · Atrás · dónde estás + sello · Ayuda · Tamaño de letra -->
+  <header style="height: 76px; box-sizing: border-box; padding: 0 24px; background: linear-gradient(90deg, #3A9BFF 0%, #2B86FF 50%, #1F74F0 100%); border-bottom: 0; color: #FFFFFF; box-shadow: 0 10px 30px -12px rgba(22,56,184,0.55); position: relative; z-index: 3; display: flex; align-items: center; gap: 12px">
+    <img src="../assets/logo/guiame-blanco.png" alt="Guíame" style="height: 38px; width: auto; margin-right: 4px; flex-shrink: 0">
+    <nav aria-label="Navegación" style="display: flex; gap: 4px">
+      <button aria-label="Inicio" style="width: 52px; height: 52px; border: 0; background: transparent; border-radius: 18px; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+      <button aria-label="Atrás" style="width: 52px; height: 52px; border: 0; background: transparent; border-radius: 18px; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
+    </nav>
+    <div style="flex: 1; min-width: 0; height: 54px; box-sizing: border-box; border: 0; border-radius: 999px; background: #FFFFFF; color: #0B1B3F; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6); display: flex; align-items: center; gap: 10px; padding: 0 8px 0 22px; font-size: 22px">
+      <span style="color: #47557A; white-space: nowrap">Estás en</span>
+      <span style="white-space: nowrap"><span style="color: #47557A">agenda.</span><strong style="font-weight: 600">ejemplo.gub.uy</strong></span>
+      <span style="margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px; border-radius: 999px; background: #E0F2E7; color: #13693D; font-size: 19px; font-weight: 600; white-space: nowrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#13693D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>Sitio oficial</span>
+    </div>
+    <button aria-pressed="true" style="height: 54px; box-sizing: border-box; padding: 0 18px; border: 2px solid #FFFFFF; background: rgba(255,255,255,0.20); color: #FFFFFF; border-radius: 18px; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 10px"><svg width="24" height="24" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 30 L54 12 L36 52 L30 34 Z" stroke-linejoin="round"/></g></svg>Ayuda</button>
+    <button style="height: 54px; box-sizing: border-box; padding: 0 14px; border: 0; background: transparent; border-radius: 18px; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 8px"><span aria-hidden="true" style="font-size: 16px; font-weight: 600">A<span style="font-size: 22px">A</span></span>Tamaño de letra</button>
+  </header>
+
+  <!-- SITIO EXTERNO DE EJEMPLO (ficticio): «Revise su reserva» arriba de todo; «Confirmar reserva» queda abajo, fuera de la vista -->
+  <div style="position: absolute; top: 76px; left: 0; right: 0; bottom: 0; overflow: hidden; font-family: Arial, Helvetica, sans-serif"><div aria-hidden="true" style="position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(11,27,63,0.08) 0%, rgba(11,27,63,0.16) 55%, rgba(22,56,184,0.30) 100%)"></div>
+    <div style="padding-right: 12px">
+      <div style="height: 64px; background: #1D3F66; color: #FFFFFF; display: flex; align-items: center; gap: 14px; padding: 0 28px">
+        <div style="width: 40px; height: 40px; border-radius: 50%; background: #FFFFFF; color: #1D3F66; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center">IC</div>
+        <div style="display: flex; flex-direction: column; gap: 2px"><strong style="font-size: 17px">Identificación Civil</strong><span style="font-size: 13px">Sitio de ejemplo · no es un organismo real</span></div>
+      </div>
+      <div style="height: 40px; background: #E8EDF3; border-bottom: 1px solid #CBD5E1; display: flex; align-items: center; gap: 28px; padding: 0 28px; font-size: 15px; color: #1D3F66"><span>Inicio</span><span>Trámites</span><span>Agenda</span><span>Oficinas</span><span>Preguntas frecuentes</span><span>Contacto</span></div>
+      <div style="padding: 28px 44px; width: 760px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; color: #222222">
+        <div style="font-size: 13px; color: #555555">Inicio › Agenda › Revise su reserva</div>
+        <h1 style="margin: 0; font-size: 28px; color: #1D3F66">Revise su reserva</h1>
+        <div style="font-size: 14px; color: #555555">Paso 3 de 3 · Revisar</div>
+        <p style="margin: 0; font-size: 15px; line-height: 1.55">Verifique que los datos sean correctos antes de confirmar.</p>
+        <div style="width: 520px; box-sizing: border-box; background: #F4F6F8; border: 1px solid #D5DBE2; padding: 16px 20px; font-size: 15px; line-height: 1.9; display: grid; grid-template-columns: 140px 1fr">
+          <span style="color: #555555">Trámite</span><strong>Cédula de identidad</strong>
+          <span style="color: #555555">Oficina</span><strong>Oficina Centro</strong>
+          <span style="color: #555555">Fecha</span><strong>Miércoles 4 de noviembre de 2026</strong>
+          <span style="color: #555555">Hora</span><strong>10:30</strong>
+          <span style="color: #555555">Documento</span><strong>•••••••8</strong>
+        </div>
+        <div style="border: 1px solid #D5DBE2; padding: 16px 20px; font-size: 15px; line-height: 1.6"><strong>Antes de confirmar</strong><br>Al confirmar, el turno queda a su nombre y recibirá un correo con el comprobante.<br>Si no puede concurrir, cancele el turno con al menos 24 horas de anticipación.<br>La no concurrencia sin aviso puede impedir reservar un nuevo turno por 30 días.</div>
+        <div style="border: 1px solid #D5DBE2; padding: 16px 20px; font-size: 15px; line-height: 1.6"><strong>Qué debe llevar</strong><br>• Cédula anterior<br>• Comprobante de pago<br>• Partida de nacimiento (si corresponde)</div>
+        <div style="border: 1px solid #D5DBE2; padding: 16px 20px; font-size: 15px; line-height: 1.6"><strong>Oficina Centro</strong><br>Dirección de ejemplo 1234 · Lunes a viernes de 8 a 17 h.<br>Teléfono de ejemplo 0000 0000.</div>
+        <div style="display: flex; margin-top: 10px">
+          <button style="height: 40px; padding: 0 22px; border: 0; border-radius: 4px; background: #2563A8; color: #FFFFFF; font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 700">Confirmar reserva</button>
+        </div>
+      </div>
+      <div style="margin-top: 90px; height: 120px; background: #E8EDF3; border-top: 1px solid #CBD5E1; padding: 20px 44px; box-sizing: border-box; font-size: 13px; color: #1D3F66">Identificación Civil · Sitio de ejemplo</div>
+    </div>
+    <div aria-hidden="true" style="position: absolute; top: 0; right: 0; bottom: 0; width: 12px; background: #F1F1F1; border-left: 1px solid #E0E0E0"><div style="position: absolute; top: 2px; left: 2px; right: 2px; height: 440px; border-radius: 6px; background: #B8B8B8"></div></div>
+    <div style="position: absolute; left: 10px; bottom: 6px; padding: 4px 6px; border-radius: 4px; background: #FFFFFF; font-size: 13px; color: #555555">Sitio externo de ejemplo</div>
+  </div>
+
+  <!-- TARJETA FLOTANTE SIMPLE: bloque neutro + una acción -->
+  <aside aria-label="Ayuda de Guíame" style="position: absolute; z-index: 5; top: 100px; right: 24px; width: 520px; box-sizing: border-box; display: flex; flex-direction: column; background: #FFFFFF; border: 0; border-radius: 28px; box-shadow: 0 0 0 1px rgba(29,78,216,0.16), 0 0 0 10px rgba(59,116,255,0.16), 0 48px 90px -24px rgba(22,56,184,0.60); overflow: hidden">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 16px 16px 16px 24px; background: linear-gradient(180deg, #EAF3FF 0%, #FFFFFF 100%); color: #0B1B3F; border-bottom: 1px solid #DCE4FA">
+      <img src="../assets/logo/guiame-icono.png" alt="" style="width: 38px; height: 38px; flex-shrink: 0">
+      <span style="font-size: 22px; font-weight: 600; letter-spacing: -0.01em">Renovar la cédula</span>
+      <button style="margin-left: auto; height: 48px; padding: 0 12px; border: 0; background: transparent; border-radius: 18px; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>Achicar</button>
+    </div>
+    <div style="padding: 28px 28px 24px; display: flex; flex-direction: column; gap: 16px">
+      <div role="status" style="background: #FFFFFF; border: 2px dashed #7A8CC9; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+        <h2 style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 31px; line-height: 1.15; color: #0B1B3F">Bien. Gracias por avisarme.</h2>
+        <p style="margin: 0; font-size: 22px; line-height: 1.45; color: #0B1B3F">La página todavía muestra «Confirmar reserva». Si no lo tocaste, el turno no quedó.</p>
+      </div>
+      <button style="height: 64px; border: 0; background: linear-gradient(135deg, #3B74FF 0%, #1D4ED8 55%, #1638B8 100%); color: #FFFFFF; box-shadow: 0 14px 28px -12px rgba(22,56,184,0.75); border-radius: 18px; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>Mostrarme dónde está</button>
+      <button style="height: 58px; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 21px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B1B3F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>Buscar otra cosa</button>
+    </div>
+    <div style="background: #F2F5FF; border-top: 1px solid #DCE4FA; padding: 16px 24px 20px; display: flex; flex-direction: column; gap: 12px">
+      <button style="height: 58px; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 21px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B1B3F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>Salir de la ayuda</button>
+    </div>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

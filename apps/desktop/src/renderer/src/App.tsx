@@ -1,6 +1,6 @@
 /**
- * Ventana de Mostrame (diseño de Emi, v1.5): la barra y el inicio. Con un sitio
- * abierto, el sitio ocupa el resto y la ayuda flota encima en su propia vista
+ * Ventana de Guíame (diseño v2.2): la barra y el inicio. Con un sitio abierto,
+ * el sitio ocupa el resto y la ayuda flota encima en su propia vista
  * (card.html). Solo presenta el estado y envía comandos.
  */
 import { LoadingDots } from '@asistente/ui';

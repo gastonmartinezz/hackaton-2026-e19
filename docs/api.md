@@ -12,18 +12,19 @@ Responsable: Agustin. Los contratos (Zod) están en `packages/contracts/src` y e
 - **Autenticación:** header `Authorization: Bearer <token>` en todo salvo `/health`. Agustin entrega el token.
 - **Documentación interactiva** (fuera de producción): `GET /docs`.
 - **`X-Request-Id`** (opcional): si se envía (`[A-Za-z0-9_-]{1,64}`), el servidor lo devuelve; si no, genera uno. Sirve para reportar errores.
-- **Límites:** cuerpo de hasta 512 KB, HTML de hasta 200.000 caracteres y 60 solicitudes por minuto por token. `/v1/site-check` (120 por minuto por token) y `/v1/transcribe` tienen los suyos (ver abajo).
+- **Límites:** cuerpo de hasta 512 KB, HTML de hasta 200.000 caracteres y 60 solicitudes por minuto por token. `/v1/site-check` (120 por minuto por token), `/v1/transcribe` y `/v1/speak` tienen los suyos (ver abajo).
 
 ## Endpoints
 
 | Método | Ruta | Uso |
 |---|---|---|
-| GET | `/health` | Saber si el servidor está vivo y el estado del modelo de voz. Sin token |
+| GET | `/health` | Saber si el servidor está vivo y si la voz está activa. Sin token |
 | POST | `/v1/interpret` | Chat de la home: interpreta lo que pide la persona |
 | POST | `/v1/options` | Opciones de la página actual, cada una con su guía |
 | POST | `/v1/next-step` | Pasos reales cuando la guía llega a un paso teórico |
 | POST | `/v1/site-check` | Protección de sitios: revisa la dirección y el contenido de la página actual |
 | POST | `/v1/transcribe` | Voz a texto: el texto se usa después en `/v1/interpret` |
+| POST | `/v1/speak` | Texto a voz: MP3 en streaming para leer en voz alta |
 
 ## La sesión: un solo recorrido de punta a punta
 
@@ -58,28 +59,28 @@ El front envía **todo el historial** del chat en cada llamada, para que Claude 
 {
   "sessionId": "s-abc",
   "messages": [
-    { "role": "user", "content": "Quiero renovar mi documento" },
-    { "role": "assistant", "content": "¿En qué país querés hacer el trámite?" },
-    { "role": "user", "content": "Argentina" }
+    { "role": "user", "content": "Quiero renovar la cédula" },
+    { "role": "assistant", "content": "¿Es la primera vez que la sacás o la tenés que renovar?" },
+    { "role": "user", "content": "Renovarla, se me vence el mes que viene" }
   ]
 }
 ```
 
-Opcionalmente, el front manda en `user` datos de la persona para que Claude priorice sitios de **su localidad** (por ejemplo, el municipio o la provincia donde vive). Todos los campos son opcionales y se envían en cada llamada:
+Opcionalmente, el front manda en `user` datos de la persona para que Claude priorice sitios de **su localidad** (por ejemplo, el departamento o la ciudad donde vive). Todos los campos son opcionales y se envían en cada llamada:
 
 ```json
 {
-  "messages": [{ "role": "user", "content": "Quiero pagar la tasa municipal" }],
+  "messages": [{ "role": "user", "content": "Quiero pagar la contribución inmobiliaria" }],
   "user": {
-    "location": { "country": "AR", "region": "Córdoba", "city": "Villa María" },
+    "location": { "country": "UY", "region": "Canelones", "city": "Las Piedras" },
     "ageRange": "65-74",
-    "language": "es-AR",
-    "timeZone": "America/Argentina/Cordoba"
+    "language": "es-UY",
+    "timeZone": "America/Montevideo"
   }
 }
 ```
 
-- `location.country`: código ISO 3166-1 alfa-2. `region` (provincia o estado) y `city` (ciudad o localidad, nunca la dirección): hasta 80 caracteres.
+- `location.country`: código ISO 3166-1 alfa-2. `region` (departamento, provincia o estado) y `city` (ciudad o localidad, nunca la dirección): hasta 80 caracteres.
 - `ageRange`: `under-50`, `50-64`, `65-74` o `75-plus`. Nunca la edad exacta.
 - `language` (BCP 47) y `timeZone` (IANA) salen del sistema; sin `location`, Claude los usa como pista del país.
 - `user` no se guarda en la sesión ni aparece en los logs.
@@ -98,8 +99,29 @@ La respuesta tiene siempre `sessionId`, `type` y `message`:
   "options": [ { "title": "...", "url": "https://...", "reason": "..." } ] }
 ```
 
-- Las URLs siempre son `http` o `https`. Si Claude devuelve otra cosa, el servidor responde con el error `AI_INVALID_RESPONSE`.
-- Las URLs las propone Claude: el backend no comprueba que el sitio exista ni que sea el correcto.
+- **Toda URL está verificada:** el backend comprueba que exista antes de devolverla (ver abajo). Siempre es `https`.
+- El backend comprueba que la página exista, no que sea la correcta: eso sigue siendo decisión de Claude.
+
+#### Verificación de URLs
+
+Claude puede recordar mal una dirección (por ejemplo, devolver `https://www.bps.gub.uy/agendarse`, que da 404, o `https://agenda.bps.gub.uy`, un dominio que no existe). Por eso ninguna URL de `redirect` ni de `options` llega al front sin comprobar (S03):
+
+1. **Reglas, en cada salto de redirección:**
+   - Solo `https:`: `http:` queda bloqueado hasta que la UI muestre una razón visible.
+   - Sin credenciales en la URL y sin puertos fuera del estándar.
+   - Sin IPs literales ni nombres locales (`localhost`, `.local`, sin dominio).
+   - Sin nombres que resuelvan a redes privadas, loopback, link-local o reservadas. La IP se vuelve a comprobar al conectarse, contra DNS rebinding.
+2. **Pedido:** `HEAD` y, si el sitio no lo acepta, `GET` sin leer el cuerpo. Sigue hasta 3 redirecciones con un timeout de 5 s (`URL_CHECK_*`) y se identifica con un `User-Agent` honesto (`Mostrame-LinkCheck/1.0`). Es válida si la respuesta final es 2xx.
+3. **Si una URL falla:** un reintento con Claude, al que se le dice qué URL falló y por qué, sin datos de la persona. Si el reintento también falla:
+   - Se usa la raíz del dominio, si existe.
+   - Si no existe, se saca esa URL.
+   - En `options`, si queda un solo sitio, la respuesta pasa a `redirect`. Si no queda ninguno, pasa a `question` con «¿No está lo que buscás? Contame qué querés hacer.».
+4. **Caché:** los resultados se recuerdan 10 minutos; los negativos, menos.
+5. **Logs:** solo números, motivos y dominios. Nunca la URL completa con su ruta o parámetros.
+
+Para el front no cambia el contrato. Puede llegar `question` donde antes llegaba una URL inventada, y la latencia de `/v1/interpret` sube lo que tarde la comprobación (en general, menos de 1 s) o un reintento cuando Claude se equivoca.
+
+**Búsqueda web (opcional, `INTERPRET_WEB_SEARCH=on`):** Claude elige entre resultados reales de la búsqueda web de Anthropic en lugar de recordar URLs. El verificador sigue activo igual. Está apagada por defecto: ver el benchmark en `docs/railway.md`.
 
 ### POST /v1/options
 
@@ -190,7 +212,13 @@ Respuesta:
 
 ### POST /v1/transcribe
 
-Convierte lo que la persona dice en texto, con **Whisper corriendo en nuestro propio servidor** (sin proveedores externos). El front manda el texto después a `/v1/interpret` como un mensaje más, igual que si lo hubiera escrito. `/v1/interpret` no cambia.
+Convierte lo que la persona dice en texto. El front manda el texto después a `/v1/interpret` como un mensaje más, igual que si lo hubiera escrito. `/v1/interpret` no cambia.
+
+Quién transcribe lo decide el servidor con `STT_PROVIDER`, sin cambios para el front:
+
+- **`openai`** (recomendado en Railway): la API de transcripción de OpenAI (`OPENAI_STT_MODEL`, por defecto `gpt-transcribe`). El servidor manda el WAV tal cual, en español. No corre ningún modelo en el servidor.
+- **`local`**: Whisper (`onnx-community/whisper-small`) en la CPU del servidor. Necesita ~1,1 GB de RAM y 2 vCPU.
+- **`mock`** (desarrollo) y **`off`** (apagado, el valor por defecto).
 
 Contrato en `packages/contracts/src/transcribe.ts` (`TRANSCRIBE_*` y `TranscribeResponse`).
 
@@ -209,7 +237,7 @@ curl -X POST "$API/v1/transcribe" \
 **Respuesta 200:**
 
 ```json
-{ "text": "Quiero renovar mi documento" }
+{ "text": "Quiero renovar la cédula de identidad" }
 ```
 
 - `text` viene recortado y con hasta 1000 caracteres.
@@ -222,20 +250,74 @@ curl -X POST "$API/v1/transcribe" \
 | No es WAV, otro formato (estéreo, 44,1 kHz, 8 bits, float), truncado o menos de 0,3 s | `BAD_REQUEST` | 400 | no |
 | Más de 30 s o más de `TRANSCRIBE_MAX_BYTES` + `TRANSCRIBE_HEADER_HEADROOM_BYTES` | `PAYLOAD_TOO_LARGE` | 413 | no |
 | Voz a texto apagada en este servidor (`STT_PROVIDER=off`) | `AI_UNAVAILABLE` | 503 | **no**: ocultar el micrófono |
-| El modelo se está cargando (primeros segundos tras un arranque), se reinició o la cola está llena | `AI_UNAVAILABLE` | 503 | sí, salvo `/v1/transcribe` apagado (`retryable: false`) |
-| La transcripción tardó más que `STT_TIMEOUT_MS` (30 s por defecto) | `TIMEOUT` | 504 | sí |
+| El modelo local se está cargando o se reinició, la cola está llena, u OpenAI está caído o saturado | `AI_UNAVAILABLE` | 503 | sí |
+| La transcripción tardó más que `STT_TIMEOUT_MS` (30 s por defecto) u OpenAI no respondió a tiempo | `TIMEOUT` | 504 | sí |
 | Más de 20 solicitudes por minuto por token | `RATE_LIMITED` | 429 | sí |
 
-- **Privacidad:** el audio y el texto solo viven en memoria durante la solicitud. No se guardan ni se registran, tampoco en errores: los logs tienen solo la duración del audio, la latencia y el resultado.
-- **Estado del modelo:** `GET /health` responde siempre 200 y agrega `stt`: `off`, `loading`, `ready` o `failed`. Sirve para decidir si mostrar el micrófono, no para reintentar en bucle.
+- **Privacidad:** nuestro servidor no guarda ni registra el audio ni el texto, tampoco en errores: los logs tienen solo la duración del audio, la latencia y el resultado. Con `STT_PROVIDER=openai`, el audio viaja a OpenAI para transcribirse y queda sujeto a sus condiciones de tratamiento y retención (revisarlas antes de producción, como pide S05).
+- **Estado:** `GET /health` responde siempre 200 y agrega `stt` (`off`, `loading`, `ready` o `failed`) y `tts` (`off` o `ready`). Sirve para decidir si mostrar el micrófono y el botón de escuchar, no para reintentar en bucle.
 
 ```json
-{ "status": "ok", "stt": "ready" }
+{ "status": "ok", "stt": "ready", "tts": "ready" }
 ```
 
-**Latencia de referencia** (whisper-small q8 en CPU): ~1 a 2 s para una frase corta y ~4 s para 23 s de audio con 2 vCPU. En el primer arranque el modelo tarda unos segundos en estar listo.
+**Latencia de referencia de Whisper local** (whisper-small q8 en CPU): ~1 a 2 s para una frase corta y ~4 s para 23 s de audio con 2 vCPU. En el primer arranque el modelo tarda unos segundos en estar listo.
+
+#### Vocabulario para OpenAI (`OPENAI_STT_PROMPT` y `OPENAI_STT_KEYWORDS`)
+
+Los dos están **vacíos por defecto**: el servidor no trae una lista fija. `gpt-transcribe` acepta `keywords` (palabras o frases que guían la transcripción) y `prompt` (contexto libre); los modelos `gpt-4o-*-transcribe` solo usan `prompt`.
+
+Valor propuesto, armado solo con nombres y siglas tal como aparecen en gub.uy (consultado el 17/10/2026):
+
+```sh
+OPENAI_STT_KEYWORDS=gub.uy,cédula de identidad,Dirección Nacional de Identificación Civil,Ministerio del Interior,DGI,Dirección General Impositiva,BPS,Banco de Previsión Social,BROU,Banco República,BSE,BHU,ANV,UTE,Antel,OSE,Ancap,ASSE,ANEP,INAU
+OPENAI_STT_PROMPT=Pedidos de personas en Uruguay sobre trámites y servicios en gub.uy.
+```
+
+| Término | Fuente |
+|---|---|
+| BPS, BROU (Banco República), BSE, BHU, UTE, Ancap, ANEP | Entes autónomos en [gub.uy/otros-organismos](https://www.gub.uy/otros-organismos) |
+| Antel, OSE, ASSE, INAU, ANV | Servicios descentralizados en la misma página |
+| DGI, Dirección General Impositiva | [gub.uy/direccion-general-impositiva](https://www.gub.uy/direccion-general-impositiva) |
+| cédula de identidad, Dirección Nacional de Identificación Civil, Ministerio del Interior | Trámite y organismo en [gub.uy/tramites/cedula-identidad](https://www.gub.uy/tramites/cedula-identidad) |
+
+- No incluye intendencias, ministerios ni el correo: no se verificaron sus nombres de uso en gub.uy (el correo figura solo como «ANC: Administrador Nacional de Correos»). Agregarlos solo desde esa fuente.
+- El `prompt` es una frase de contexto, no una lista; los nombres van en `keywords`.
+- Medir antes de fijarlo: transcribir los mismos WAV con y sin estas variables y comparar.
 
 **Whisper en local:** con `STT_PROVIDER=local` en `apps/api/.env`, el primer arranque descarga el modelo (~250 MB) a `apps/api/.models` y después lo reutiliza. Para bajarlo antes: `pnpm --filter @hackaton/api build && pnpm --filter @hackaton/api stt:prefetch`. Para integrar el front alcanza con `STT_PROVIDER=mock`.
+
+### POST /v1/speak
+
+Texto a voz: devuelve un **MP3 en streaming** para leer en voz alta una instrucción o un mensaje. Contrato en `packages/contracts/src/speak.ts` (`SPEAK_CONTENT_TYPE`, `SPEAK_MAX_CHARS` y `SpeakRequest`).
+
+**Solicitud:** JSON con el Bearer de siempre.
+
+```bash
+curl -X POST "$API/v1/speak" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"text":"Tocá «Iniciar trámite» para renovar la cédula."}' --output voz.mp3
+```
+
+- `text`: de 1 a 600 caracteres (`SPEAK_MAX_CHARS`) después de quitar espacios al principio y al final. Sin otros campos: la voz y el tono los fija el servidor.
+
+**Respuesta 200:** cuerpo binario `Content-Type: audio/mpeg` y `Cache-Control: no-store`. Llega por partes: el cliente puede empezar a reproducir antes de que termine (por ejemplo, con `MediaSource` o un `<audio>` que apunte a la respuesta).
+
+- El servidor espera el primer pedazo de audio antes de responder: si el proveedor falla antes, la respuesta es un `ApiError` normal. Si se corta **después** de empezar (muy raro), la conexión se cierra antes de tiempo; el cliente lo trata como un error reintentable.
+- Si la persona cierra o cambia de pantalla, cortar la descarga: el servidor corta también la generación.
+
+**Errores** (solo códigos que ya existían):
+
+| Caso | Código | HTTP | `retryable` |
+|---|---|---|---|
+| `text` vacío, de más de 600 caracteres o con campos de más | `BAD_REQUEST` | 400 | no |
+| Texto a voz apagado en este servidor (`TTS_PROVIDER=off`, el valor por defecto) | `AI_UNAVAILABLE` | 503 | **no**: ocultar el botón de escuchar |
+| OpenAI caído, saturado o sin audio | `AI_UNAVAILABLE` | 503 | sí |
+| OpenAI no empezó a responder a tiempo (`OPENAI_TIMEOUT_MS`, 30 s) | `TIMEOUT` | 504 | sí |
+| Más de 30 solicitudes por minuto por token (`TTS_RATE_LIMIT_MAX`) | `RATE_LIMITED` | 429 | sí |
+
+- **Voz:** `gpt-4o-mini-tts` (`OPENAI_TTS_MODEL`) con la voz `marin` (`OPENAI_TTS_VOICE`, una de las dos que OpenAI recomienda por calidad) y estas instrucciones fijas en el servidor: «Hablá en español rioplatense, con voseo, pausado, claro y cálido, como alguien que acompaña sin apuro.»
+- **Privacidad:** nuestro servidor no guarda ni registra el texto ni el audio; los logs tienen solo la cantidad de caracteres, el tiempo al primer byte, la latencia total, los bytes y el resultado. El texto viaja a OpenAI para generar la voz. No mandar datos que la persona escribió en formularios.
 
 ## Protección de sitios: POST /v1/site-check
 
@@ -517,7 +599,7 @@ Todas exponen la URL, y con ella datos del recorrido de la persona. No se public
 5. **Guía:** recorrer los `steps` de la opción elegida. Ante un paso con `element: null`, esperar la acción de la persona y llamar a `/v1/next-step` con el HTML nuevo y los `completedSteps`.
 6. **Elementos:** ubicar `element` en la página (si hace falta, subiendo al elemento padre) y manejar el caso en que no se encuentra. El backend no verifica que el id exista en el HTML.
 7. **Representación visual:** dibujar la indicación según `presentation`, mostrar `instruction` y esperar según `waitFor`.
-8. **Voz:** grabar en WAV PCM 16 bits mono a 16 kHz, mandar a `/v1/transcribe` y usar el `text` como el mensaje de la persona en `/v1/interpret`. Con `text: ""`, pedir que repita. Con `AI_UNAVAILABLE` no reintentable, ocultar el micrófono.
+8. **Voz:** grabar en WAV PCM 16 bits mono a 16 kHz, mandar a `/v1/transcribe` y usar el `text` como el mensaje de la persona en `/v1/interpret`. Con `text: ""`, pedir que repita. Con `AI_UNAVAILABLE` no reintentable, ocultar el micrófono. Para leer en voz alta, pedir `/v1/speak` y reproducir el MP3 a medida que llega; con `AI_UNAVAILABLE` no reintentable, ocultar el botón de escuchar.
 9. **Errores:** mostrar un mensaje según `code` y reintentar solo si `retryable` es `true`. El backend puede tardar hasta ~90 segundos en el peor caso (30 s por intento con hasta 2 reintentos).
 
 ## Errores
@@ -552,7 +634,8 @@ Con `AI_PROVIDER=mock` (el valor por defecto en desarrollo), el servidor respond
 - `/v1/options`: devuelve una opción `start` con dos pasos: el primero sobre el primer `id="..."` del HTML y el segundo teórico (`element: null`). Si el HTML no tiene ids, devuelve `options: []`.
 - `/v1/next-step`: si el HTML tiene un `id="..."`, devuelve un paso sobre ese elemento con `done: false`. Si no tiene ninguno, devuelve `steps: []` y `done: true`.
 - `/v1/site-check`: la explicación es un texto fijo según el riesgo y la IA nunca agrega motivos. Con `REPUTATION_PROVIDER=mock` (el valor de `.env.example`), los hosts con la etiqueta `phishing-demo` o `malware-demo` figuran como amenaza conocida. RDAP y la inspección de conexión son reales salvo que se deshabiliten con `SITE_CHECK_RDAP=false` y `SITE_CHECK_CONNECTION=false`.
-- `/v1/transcribe` con `STT_PROVIDER=mock`: devuelve siempre `{ "text": "Quiero renovar mi documento" }` para cualquier WAV válido (con silencio devuelve `""`). Las validaciones del WAV y los errores son los reales.
+- `/v1/transcribe` con `STT_PROVIDER=mock`: devuelve siempre `{ "text": "Quiero renovar la cédula de identidad" }` para cualquier WAV válido (con silencio devuelve `""`). Las validaciones del WAV y los errores son los reales.
+- `/v1/speak` con `TTS_PROVIDER=mock`: devuelve siempre el mismo MP3 válido de ~0,5 s de silencio, en dos partes. Las validaciones y los errores son los reales.
 
 ### Probar /v1/site-check a mano
 

@@ -1,12 +1,12 @@
 /// <reference path="./assets.d.ts" />
 /**
- * Componentes de presentación de Mostrame (diseño de Emi, v1.5). Reciben datos
- * y callbacks, nada más: no conocen el estado de la app ni llaman al backend.
- * Estilos en mostrame.css; valores en design/tokens.css.
+ * Componentes de presentación de Guíame (diseño v2.2). Reciben datos y
+ * callbacks, nada más: no conocen el estado de la app ni llaman al backend.
+ * Estilos en guiame.css; valores en design/tokens/tokens.css.
  */
 import { useId, type ButtonHTMLAttributes, type ComponentPropsWithRef, type ReactNode } from 'react';
-import logoUrl from '../../../design/brand/mostrame-logo.svg?url';
-import symbolUrl from '../../../design/brand/mostrame-simbolo.svg?url';
+import logoUrl from '../../../design/assets/logo/guiame-blanco.png';
+import iconUrl from '../../../design/assets/logo/guiame-icono.png';
 import { ICONS, type IconName } from './icons';
 
 export { ICONS, type IconName } from './icons';
@@ -16,17 +16,29 @@ export function Icon({ name, size = 'md' }: { name: IconName; size?: 'sm' | 'md'
   return <span className="ic" data-size={size} aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS[name] }} />;
 }
 
-/** Logo horizontal. Solo los SVG de design/brand, sin recolorear ni deformar. */
+/**
+ * Logo de la barra (R6, R12): «Guíame» en blanco, sin ojos ni contenedor. Solo
+ * va sobre el azul de la barra. Sin recolorear ni deformar.
+ */
 export function Logo({ className }: { className?: string }) {
-  return <img className={className} src={logoUrl} alt="Mostrame" />;
+  return <img className={className} src={logoUrl} alt="Guíame" />;
 }
 
-/** Símbolo decorativo (el nombre ya figura en el texto de al lado). */
-export function BrandSymbol({ className }: { className?: string }) {
-  return <img className={className} src={symbolUrl} alt="" />;
+/**
+ * Ícono de Guíame con contenedor celeste: solo sobre fondo claro (inicio,
+ * encabezado de la tarjeta, tarjeta achicada). Decorativo: el nombre ya está
+ * en el texto o en el nombre accesible de la región.
+ */
+export function BrandIcon({ className }: { className?: string }) {
+  return <img className={className} src={iconUrl} alt="" />;
 }
 
-export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'chrome' | 'help';
+/**
+ * primary: gradiente azul, una por vista (R2). secondary: blanco con borde.
+ * quiet: sin borde (Achicar). link: enlace discreto subrayado. chrome y help:
+ * controles de la barra azul.
+ */
+export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'link' | 'chrome' | 'help';
 
 export function Button({
   variant = 'quiet',

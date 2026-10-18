@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Auditoría de diseño Guíame</title>
+
+<style>
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Light.ttf') format('truetype');font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-SemiBold.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:swap}
+body{margin:0}
+a{color:#1D4ED8}a:hover{color:#1738A8}
+</style>
+<meta name="viewport" content="width=1440">
+</head>
+<body>
+
+<div style="width: 1440px; height: 1400px; box-sizing: border-box; padding: 36px 72px; background-color: #FFFFFF; background-image: radial-gradient(circle, rgba(29,78,216,0.08) 1.3px, transparent 1.6px), linear-gradient(180deg, #FFFFFF 0%, #F4F7FF 45%, #E6EDFF 100%); background-size: 32px 32px, 100% 100%; background-position: 16px 16px, 0 0; color: #0B1B3F; font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif; display: flex; flex-direction: column; gap: 18px">
+  <div style="display: flex; align-items: center; gap: 20px">
+    <img src="../assets/logo/guiame-icono.png" alt="" style="width: 62px; height: 62px; flex-shrink: 0">
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <h1 style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 43px; line-height: 1.15">Auditoría de diseño · v1.5 → v1.6</h1>
+      <p style="margin: 0; font-size: 21px; color: #47557A">Cuatro agentes: UX/UI y accesibilidad · Marca y voz · Producto y journey · Front-end y sistema. 17 de octubre de 2026.</p>
+    </div>
+  </div>
+
+  <div style="background: #FFFFFF; border: 1px solid #DCE4FA; border-radius: 28px; box-shadow: 0 0 0 8px rgba(59,116,255,0.10), 0 40px 80px -28px rgba(22,56,184,0.45); padding: 24px 32px 26px; display: flex; flex-direction: column; gap: 10px">
+    <div style="align-self: flex-start; height: 30px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 999px; background: linear-gradient(135deg, #3B74FF 0%, #1D4ED8 55%, #1638B8 100%); color: #FFFFFF; font-size: 16px; font-weight: 600; letter-spacing: 0.06em">VEREDICTO</div>
+    <p style="margin: 0; font-size: 24px; line-height: 1.38; font-weight: 600; text-wrap: pretty">La base es sólida: contraste AAA, voz rioplatense lograda, una instrucción por vez y «Listo» solo con evidencia. Fallan tres cosas: la consistencia de la tarjeta, el antiestafa casi invisible al navegar y los huecos del journey justo donde más se traba el público (iniciar sesión, códigos, pagos).</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; flex: 1">
+    <div style="display: flex; flex-direction: column; gap: 16px">
+      <h2 style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 28px; line-height: 1.2">P1 · Aplicado en este lienzo</h2>
+      <ol style="margin: 0; padding-left: 28px; color: #0B1B3F; display: flex; flex-direction: column; gap: 8px; font-size: 20px; line-height: 1.4">
+        <li><strong>Sello fijo en la barra.</strong> «Sitio oficial» acompaña toda la navegación, no solo la recomendación. Dominio sin «www.». (todas)</li>
+        <li><strong>Una sola primaria por vista.</strong> Con la tarjeta abierta, «Ayuda» pasa a estado activo secundario. En 22 la primaria es «Quedarme acá». (06–C11, 22)</li>
+        <li><strong>Una sola tarjeta.</strong> Franja siempre terracota; el estado vive en un bloque interno. Pie fijo: «Salir de la ayuda» siempre; Repetir y Volver solo con paso guiado. Botones de 58 px con 12 px de separación.</li>
+        <li><strong>Una sola cita «La página dice».</strong> Mismo componente en éxito, error y confirmación.</li>
+        <li><strong>El resaltado no tapa texto.</strong> Rodea etiqueta + campo y, con error, también el mensaje. Rótulo «Acá» a 20 px. (08, 13, C06, C09)</li>
+        <li><strong>Jerarquía de sellos.</strong> Verde con escudo solo para «Sitio oficial». «Revendedor autorizado» y «Tienda conocida» van neutros, con su riesgo. (C04, 10)</li>
+        <li><strong>Promesa de privacidad que no se contradice.</strong> «Lo que escribís va directo al sitio. Yo no lo veo ni lo guardo.» (01, 05, 08, C08, C09)</li>
+        <li><strong>Pago honesto.</strong> Sin «conexión cifrada»; una instrucción por campo; «Ninguna tienda me paga por aparecer acá» visible sin desplazar. (C04, C09)</li>
+        <li><strong>Inicio con propuesta de valor.</strong> Bajada, ejemplos en chips, «Cómo funciona» en 3 pasos y un solo buscador. (01)</li>
+        <li><strong>Error de Guíame sereno.</strong> Fondo neutro; el rojo solo en ícono y borde. (19)</li>
+      </ol>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 20px">
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 28px; line-height: 1.2">Pantallas nuevas</h2>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 19px; line-height: 1.35">
+          <div style="display: grid; grid-template-columns: 72px 1fr; gap: 12px"><strong style="color: #1D4ED8">25</strong><span>Iniciar sesión: hoy cae en «Página no soportada» y bloquea casi todo trámite.</span></div>
+          <div style="display: grid; grid-template-columns: 72px 1fr; gap: 12px"><strong style="color: #1D4ED8">26</strong><span>Código de verificación por SMS o correo.</span></div>
+          <div style="display: grid; grid-template-columns: 72px 1fr; gap: 12px"><strong style="color: #1D4ED8">32</strong><span>Cierre tras «Sí, terminé» sin evidencia: hoy no tiene destino.</span></div>
+          <div style="display: grid; grid-template-columns: 72px 1fr; gap: 12px"><strong style="color: #1D4ED8">C12</strong><span>Pago rechazado: el momento de más miedo de la compra.</span></div>
+          <div style="display: grid; grid-template-columns: 72px 1fr; gap: 12px"><strong style="color: #1D4ED8">C15</strong><span>Sitio no verificado o parecido a otro: el antiestafa en acción.</span></div>
+          <p style="margin: 2px 0 0; font-size: 18px; line-height: 1.35; color: #47557A">Siguen en la lista: 23 Primera vez · 24 Sin sitio · 27 Venció el ingreso · 28 Algo tapa la página · 29 Comprobante · 30 Retomar · 31 Pedir ayuda a alguien · 33 Micrófono · C13 Banco · C14 Cambio a página de cobro.</p>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 28px; line-height: 1.2">Decisiones para Emi</h2>
+        <ul style="margin: 0; padding-left: 28px; display: flex; flex-direction: column; gap: 6px; font-size: 19px; line-height: 1.35">
+          <li>«No estoy seguro» → «No sé bien» (neutro en género). Aplicado; confirmar.</li>
+          <li>Ancho de tarjeta: el documento dice 400 px, los tokens y las pantallas 440 px. Usé 440.</li>
+          <li>Inferir el país (03) y saltar 05 cuando la intención ya se sabe: ahorra dos pasos.</li>
+          <li>Reemplazar el ícono de brillitos de «Ayuda» y «Guíame» por el símbolo propio. Aplicado.</li>
+        </ul>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 28px; line-height: 1.2">Para Gaston</h2>
+        <ul style="margin: 0; padding-left: 28px; display: flex; flex-direction: column; gap: 6px; font-size: 19px; line-height: 1.35">
+          <li>Una sola fuente de tokens con valores resueltos a 1.2 / 1.45 / 1.75.</li>
+          <li>A 1.45× o más, modo «acoplado»: la página se achica y la tarjeta nunca tapa.</li>
+          <li>Los valores de los campos nunca llegan al modelo: solo «vacío / lleno».</li>
+          <li>Resaltado en la capa superior, shadow root cerrado, sin interceptar clics.</li>
+          <li>F6 recorre barra → tarjeta → página; la tarjeta nunca roba el foco.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
