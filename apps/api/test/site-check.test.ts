@@ -232,13 +232,16 @@ describe('POST /v1/site-check: dominios parecidos y palabras comunes', () => {
 });
 
 describe('POST /v1/site-check: fallas externas', () => {
-  it('sin proveedor de reputación la cobertura es unavailable y nunca favorable', async () => {
+  it('sin proveedor de reputación: un sitio oficial se ve oficial, uno sin autoridad no es favorable', async () => {
     app = await testApp({ siteCheck: fakeProviders({ reputationProvider: null }) });
-    const r = await check(contentRequest('https://www.bps.gub.uy/'));
-    expect(r.coverage.reputation).toBe('unavailable');
-    expect(r.status).toBe('partial');
-    expect(r.risk).toBe('unknown');
-    expect(siteIndicatorState(r)).toBe('unverified');
+    const official = await check(contentRequest('https://www.gub.uy/'));
+    expect(official.coverage.reputation).toBe('unavailable');
+    expect(official.status).toBe('partial');
+    expect(official.identity).toMatchObject({ status: 'verified_official', basis: 'government_domain' });
+    expect(siteIndicatorState(official)).toBe('official');
+    const other = await check(contentRequest('https://www.ejemplo-comercio.com.uy/'));
+    expect(other).toMatchObject({ status: 'partial', risk: 'unknown' });
+    expect(siteIndicatorState(other)).toBe('unverified');
   });
 
   it('un error del proveedor produce un resultado parcial', async () => {

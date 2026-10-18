@@ -507,9 +507,9 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 | Posible estafa | `risk: high` (siempre primero, aunque sea oficial o parcial) |
 | Atención | `risk: medium` |
 | Revisando sitio… | `status: pending` |
-| No pudimos verificarlo | `status` distinto de `complete`, `risk` distinto de `no_signals`, o reputación, identidad o contenido sin `complete`/`not_applicable` |
-| Sitio oficial | Lo anterior completo, `identity.status: verified_official`, `coverage.identity: complete` y ningún motivo `fraud` |
-| Sin alertas detectadas | Lo anterior completo sin identidad oficial |
+| Sitio oficial | `identity.status: verified_official`, `coverage.identity: complete`, contenido `complete`/`not_applicable`, ningún motivo `fraud` y `status` distinto de `unavailable`. **La reputación no es obligatoria**: la oficialidad la prueba la autoridad (zona, BCU o catálogo) |
+| No pudimos verificarlo | Sin identidad oficial: `status` distinto de `complete`, `risk` distinto de `no_signals`, o reputación, identidad o contenido sin `complete`/`not_applicable` |
+| Sin alertas detectadas | Sin identidad oficial, con todo lo anterior completo |
 
 `registration` (RDAP) y `connection` (TLS/redirecciones) **no son obligatorias**: su ausencia nunca aprueba ni reprueba; se informan para transparencia y vencen pronto (`expiresAt`) para reintentar.
 
@@ -567,7 +567,7 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 | `SITE_CHECK_RATE_LIMIT_MAX` | número | Solicitudes por ventana y token en `/v1/site-check` |
 | `SITE_CHECK_PROVIDER_TIMEOUT_MS`, `SITE_CHECK_CONNECTION_TIMEOUT_MS`, `SITE_CHECK_AI_TIMEOUT_MS`, `SITE_CHECK_PROVIDER_MAX_PER_MINUTE` | número | Tiempos máximos y topes |
 
-Las claves viven solo en el servidor. Sin proveedor de reputación (`none`), la cobertura de reputación es `unavailable` y el indicador **nunca** muestra un estado favorable.
+Las claves viven solo en el servidor. Sin proveedor de reputación (`none`), la cobertura de reputación es `unavailable`: el indicador nunca muestra «Sin alertas detectadas», pero los sitios oficiales siguen viéndose como «Sitio oficial».
 
 **Consultar reportes vs. enviar a escanear.** Todas las implementaciones solo **consultan** listas de reportes existentes. Se evitan a propósito:
 

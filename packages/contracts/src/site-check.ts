@@ -237,19 +237,23 @@ export type SiteIndicatorState =
 const enough = (level: CoverageLevel) => level === 'complete' || level === 'not_applicable';
 
 /**
- * Cobertura mínima acordada. Prioridad: riesgo alto, riesgo medio, pendiente, insuficiente, favorables.
- * - Un estado favorable exige `status: complete` y reputación, contenido e identidad completos
- *   (o no aplicables). Registro y conexión no son obligatorios: su ausencia nunca aprueba ni reprueba.
- * - «Sitio oficial» exige además identidad verificada por catálogo y ningún motivo de fraude.
+ * Cobertura mínima acordada. Prioridad: riesgo alto, riesgo medio, pendiente, oficial, insuficiente, sin alertas.
+ * - «Sitio oficial» exige identidad verificada por una autoridad (zona del Estado, registro del BCU o catálogo),
+ *   identidad y contenido completos y ningún motivo de fraude. La reputación **no** es obligatoria: la oficialidad
+ *   la prueba la autoridad, y sin proveedor de reputación configurado `gub.uy` igual tiene que verse oficial. Una
+ *   amenaza reportada sigue ganando (riesgo alto, arriba).
+ * - «Sin alertas detectadas» exige `status: complete` y reputación, contenido e identidad completos (o no
+ *   aplicables): sin autoridad que respalde el sitio, no ver señales no alcanza si no se consultaron reportes.
+ * - Registro y conexión no son obligatorios: su ausencia nunca aprueba ni reprueba.
  */
 export function siteIndicatorState(r: SiteCheckResponse): SiteIndicatorState {
   if (r.risk === 'high') return 'possible_scam';
   if (r.risk === 'medium') return 'attention';
   if (r.status === 'pending') return 'checking';
-  if (r.status !== 'complete' || r.risk !== 'no_signals') return 'unverified';
   const c = r.coverage;
-  if (!enough(c.reputation) || !enough(c.content) || !enough(c.identity)) return 'unverified';
   const hasFraud = r.reasons.some((reason) => reason.category === 'fraud');
-  if (r.identity.status === 'verified_official' && c.identity === 'complete' && !hasFraud) return 'official';
+  if (r.status !== 'unavailable' && r.identity.status === 'verified_official' && c.identity === 'complete' && enough(c.content) && !hasFraud) return 'official';
+  if (r.status !== 'complete' || r.risk !== 'no_signals') return 'unverified';
+  if (!enough(c.reputation) || !enough(c.content) || !enough(c.identity)) return 'unverified';
   return 'no_alerts';
 }

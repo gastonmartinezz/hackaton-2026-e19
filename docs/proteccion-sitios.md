@@ -7,7 +7,7 @@ Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que
 - El navegador revisa cada sitio que se abre y muestra el resultado junto al dominio, en la barra «Estás en…»: «Revisando sitio…», «Sitio oficial», «Sin alertas detectadas», «Atención», «Posible estafa» o «No pudimos verificarlo».
 - Las verificaciones las hace el backend (`POST /v1/site-check`), con reglas propias, fuentes de Uruguay (zonas `gub.uy` y `mil.uy`, el registro del Banco Central del Uruguay y un catálogo verificado) y algunas fuentes externas.
 - La IA (Claude) solo complementa el análisis: nunca decide «Sitio oficial» ni baja el riesgo.
-- **Sin una clave de reputación configurada, ningún sitio puede quedar como «Sin alertas detectadas».** Los sitios que no son oficiales muestran «No pudimos verificarlo». Ver [Limitaciones](#limitaciones-conocidas).
+- **Sin una clave de reputación configurada, ningún sitio puede quedar como «Sin alertas detectadas».** Los sitios oficiales (`gub.uy`, bancos del BCU, catálogo) igual se ven como «Sitio oficial»; los demás muestran «No pudimos verificarlo». Ver [Limitaciones](#limitaciones-conocidas).
 
 ## Cuándo se ejecuta
 
@@ -48,7 +48,9 @@ Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que
 - **Si un dominio está en el BCU y en el catálogo**, se muestra el nombre corto del catálogo («Banco República (BROU)») con el BCU como fuente.
 - **Un dominio que el catálogo descartó** (no responde, redirige a otro o no se pudo verificar) no se aprueba aunque el BCU lo publique.
 - **El riesgo tiene prioridad sobre lo oficial.** Un sitio `.gub.uy` comprometido igual muestra «Posible estafa».
-- **Para «Sitio oficial» o «Sin alertas detectadas»** tienen que estar completas la reputación, la identidad y el contenido. Si alguna falta o falla, el resultado es «No pudimos verificarlo», nunca una aprobación (regla `siteIndicatorState()` del contrato).
+- **Para «Sitio oficial»** tienen que estar completos la identidad (probada por la autoridad) y el contenido, sin ningún motivo de estafa. La reputación **no** es obligatoria para lo oficial: la oficialidad la prueba la autoridad, no una lista de reportes. Si no se pudo consultar, «Ver por qué» lo avisa («Algunas comprobaciones no estuvieron disponibles…»). Una amenaza reportada igual da «Posible estafa».
+- **Para «Sin alertas detectadas»** (sitios sin autoridad que los respalde) tienen que estar completas la reputación, la identidad y el contenido. Si alguna falta o falla, el resultado es «No pudimos verificarlo», nunca una aprobación.
+- Las dos reglas están en `siteIndicatorState()` del contrato, que usan el navegador y el backend.
 - **El registro y la conexión no son obligatorios:** si faltan, no aprueban ni reprueban.
 
 ### Registro del BCU
@@ -85,7 +87,7 @@ Detalle en [`mcp.md`](mcp.md).
 
 ## Limitaciones conocidas
 
-1. **Sin reputación activa.** Sin clave de Google Safe Browsing o Web Risk no se consulta ninguna lista de phishing, y ningún sitio no oficial puede quedar como «Sin alertas detectadas».
+1. **Sin reputación activa.** Sin clave de Google Safe Browsing o Web Risk no se consulta ninguna lista de phishing: ningún sitio no oficial puede quedar como «Sin alertas detectadas», y un sitio oficial comprometido y ya denunciado no se detectaría como amenaza.
    - **Safe Browsing:** gratis y sin tarjeta, pero solo para uso no comercial.
    - **Web Risk:** comercial, gratis hasta 100.000 consultas por mes, y exige activar la facturación.
    - Se configuran con `REPUTATION_PROVIDER` y la clave correspondiente.

@@ -63,6 +63,18 @@ describe('siteIndicatorState', () => {
     expect(siteIndicatorState(response({ status: 'unavailable', risk: 'unknown' }))).toBe('unverified');
   });
 
+  it('lo oficial no depende de la reputación, pero sí de identidad y contenido completos y sin fraude', () => {
+    const official = { status: 'verified_official', basis: 'government_domain', organization: 'Estado uruguayo', source: SOURCE } as const;
+    const noReputation = { status: 'partial', risk: 'unknown', identity: official, coverage: { ...complete, reputation: 'unavailable' } } as const;
+    expect(siteIndicatorState(response(noReputation))).toBe('official');
+    expect(siteIndicatorState(response({ ...noReputation, coverage: { ...complete, reputation: 'unavailable', content: 'partial' } }))).toBe('unverified');
+    expect(siteIndicatorState(response({ ...noReputation, coverage: { ...complete, reputation: 'unavailable', identity: 'partial' } }))).toBe('unverified');
+    expect(siteIndicatorState(response({ ...noReputation, reasons: [phishing], risk: 'unknown' }))).toBe('unverified');
+    expect(siteIndicatorState(response({ ...noReputation, risk: 'high', reasons: [phishing] }))).toBe('possible_scam');
+    // Sin autoridad, sin reputación no hay «Sin alertas detectadas».
+    expect(siteIndicatorState(response({ status: 'partial', risk: 'unknown', coverage: { ...complete, reputation: 'unavailable' } }))).toBe('unverified');
+  });
+
   it('pending muestra revisando salvo que ya haya riesgo', () => {
     expect(siteIndicatorState(response({ status: 'pending', coverage: { ...complete, content: 'pending' } }))).toBe('checking');
     expect(siteIndicatorState(response({ status: 'pending', risk: 'medium' }))).toBe('attention');

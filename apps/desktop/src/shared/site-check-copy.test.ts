@@ -145,6 +145,18 @@ describe('sitio oficial según la fuente de autoridad (identity.basis)', () => {
     expect(announcementText('official', r)).toBe('Sitio oficial del Estado uruguayo.');
   });
 
+  it('sin reputación consultada sigue siendo oficial, con el aviso de revisión incompleta en los detalles', () => {
+    const r = response({
+      status: 'partial',
+      risk: 'unknown',
+      identity: { status: 'verified_official', basis: 'government_domain', organization: 'Estado uruguayo', source: SOURCE },
+      coverage: { ...COMPLETE, reputation: 'unavailable' },
+    });
+    const copy = siteCheckCopy('official', r, 'www.gub.uy');
+    expect(copy.label).toBe('Sitio oficial');
+    expect(copy.panel.coverageNote).toBe('Algunas comprobaciones no estuvieron disponibles, así que la revisión no está completa.');
+  });
+
   it('dominio del Gobierno de Estados Unidos', () => {
     const r = official('government_domain', 'Gobierno de Estados Unidos');
     expect(siteCheckCopy('official', r, 'www.usa.gov').panel.body).toEqual([
