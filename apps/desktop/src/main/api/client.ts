@@ -11,6 +11,7 @@ import type {
   NextStepResponse,
   OptionsRequest,
   OptionsResponse,
+  TranscribeResponse,
 } from '@hackaton/contracts';
 
 export interface ApiClient {
@@ -21,6 +22,8 @@ export interface ApiClient {
   options(request: OptionsRequest, signal: AbortSignal): Promise<OptionsResponse>;
   /** POST /v1/next-step: pasos reales cuando la guía llega a un paso teórico. */
   nextStep(request: NextStepRequest, signal: AbortSignal): Promise<NextStepResponse>;
+  /** POST /v1/transcribe: dictado del buscador, con `wav` ya revisado (shared/wav.ts). */
+  transcribe(wav: Uint8Array, signal: AbortSignal): Promise<TranscribeResponse>;
 }
 
 /**

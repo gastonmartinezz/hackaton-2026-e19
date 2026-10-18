@@ -4,11 +4,18 @@
  *   alcanza, el proceso principal abre el sitio directo.
  * - 02/03: si falta un dato, una pregunta por vez debajo del buscador.
  * - 10: con varios sitios (o «No estoy seguro»), el más afín y alternativas.
+ * - Micrófono (01): dictar la búsqueda. El texto vuelve al buscador para que
+ *   la persona lo revise; nunca se envía solo.
  */
 import { BrandSymbol, Button, Icon, LoadingDots, Logo } from '@asistente/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { AppState, CandidateView } from '../../shared/ipc';
 import { send } from './useAppState';
+import { MicButton, VoiceMessages } from './voice/VoiceSearch';
+import { useVoiceInput } from './voice/useVoiceInput';
+
+/** Igual que el máximo de `submitIntent`. */
+const MAX_QUERY = 500;
 
 const UNSURE = 'No estoy seguro';
 
@@ -21,17 +28,27 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
   lastMode.current = mode;
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  // El texto dictado reemplaza lo escrito; el foco queda donde estaba. Con una
+  // búsqueda en curso no se puede escuchar y se corta lo que hubiera.
+  const voice = useVoiceInput((heard) => setText(heard.slice(0, MAX_QUERY)), { blocked: busy });
+  const voiceBusy = voice.status.kind === 'transcribing';
 
   // Con pregunta o recomendación, el buscador conserva lo que la persona buscó.
   useEffect(() => setText(mode === 'search' ? '' : (chat.query ?? '')), [mode, chat.query]);
   useEffect(() => {
     if (!busy && mode === 'search') inputRef.current?.focus();
   }, [busy, mode]);
+  // El micrófono es del buscador de inicio: fuera de 01 se deja de escuchar.
+  const { cancel: cancelVoice } = voice;
+  useEffect(() => {
+    if (mode !== 'search') cancelVoice();
+  }, [mode, cancelVoice]);
 
   const submit = (guide: boolean, event?: FormEvent) => {
     event?.preventDefault();
     const value = text.trim();
-    if (!value || busy || (mode !== 'search' && value === chat.query)) return;
+    if (!value || busy || voiceBusy || (mode !== 'search' && value === chat.query)) return;
+    cancelVoice();
     send({ type: 'submitIntent', text: value, guide });
   };
 
@@ -48,10 +65,12 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
             placeholder="Buscá un sitio o contá qué querés hacer"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            maxLength={500}
-            readOnly={busy}
+            maxLength={MAX_QUERY}
+            readOnly={busy || voiceBusy}
             autoComplete="off"
           />
+          {/* Voz apagada en el servidor: el micrófono no se ofrece más en esta ejecución. */}
+          {mode === 'search' && voice.available ? <MicButton status={voice.status} onToggle={voice.toggle} blocked={busy} /> : null}
           {mode === 'reco' ? (
             <Button variant="primary" icon="sparkles" type="submit" className="go">
               Mostrame cómo
@@ -68,6 +87,7 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
             </Button>
           </div>
         ) : null}
+        {mode === 'search' ? <VoiceMessages status={voice.status} /> : null}
         {busy ? (
           <p className="home-status" role="status">
             <LoadingDots />

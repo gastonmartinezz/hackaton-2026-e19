@@ -21,6 +21,18 @@ export const TERMS_VERSION = '2026-10-17';
 
 export const UI_COMMAND_CHANNEL = 'ui:command';
 export const UI_STATE_CHANNEL = 'ui:state';
+/** Dictado del buscador: WAV (shared/wav.ts) → texto para revisar. Solo desde la ventana. */
+export const UI_TRANSCRIBE_CHANNEL = 'ui:transcribe';
+
+/**
+ * Resultado del dictado. `empty`: no se entendió nada; `busy`: el servidor pide
+ * esperar (RATE_LIMITED o AI_UNAVAILABLE con `retryable: true`); `off`: el
+ * servidor tiene la voz apagada (AI_UNAVAILABLE con `retryable: false`), no
+ * se vuelve a ofrecer en esta ejecución; `failed`: cualquier otro problema
+ * (la interfaz lo dice sin culpa).
+ */
+export type TranscribeErrorReason = 'busy' | 'off' | 'failed';
+export type TranscribeResult = { status: 'ok'; text: string } | { status: 'empty' } | { status: 'error'; reason: TranscribeErrorReason };
 
 export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ready') }),
@@ -180,6 +192,8 @@ export interface AppState {
 export interface AsistenteBridge {
   command(command: UiCommand): Promise<void>;
   onState(listener: (state: AppState) => void): () => void;
+  /** Pasa a texto un WAV PCM16 mono de 16 kHz. Nunca envía la búsqueda. */
+  transcribe(wav: ArrayBuffer): Promise<TranscribeResult>;
 }
 
 /* ---------------------------- Página externa ---------------------------- */

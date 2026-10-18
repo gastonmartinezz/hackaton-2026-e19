@@ -17,8 +17,14 @@ import type {
   OptionsResponse,
   PageOption,
   SiteOption,
+  TranscribeResponse,
 } from '@hackaton/contracts';
+import { isTranscribableWav, rms, wavSamples } from '../../shared/wav';
 import { ApiFailure, type ApiClient } from './client';
+
+/** Texto fijo del dictado simulado: el mismo que devuelve el modo mock del servidor. */
+export const MOCK_TRANSCRIPT = 'Quiero renovar mi documento';
+const MOCK_SILENCE_RMS = 0.01;
 
 export interface MockOptions {
   /** Origen del servidor local de páginas de prueba, si está activo. */
@@ -63,6 +69,17 @@ export class MockApiClient implements ApiClient {
     const evidence = /confirm|registr|reservad|gracias|éxito/i.test(heading) ? heading.slice(0, 200) : undefined;
     const response: NextStepResponse & { evidence?: string } = { sessionId: request.sessionId, steps: [], done: true, ...(evidence ? { evidence } : {}) };
     return response;
+  }
+
+  /**
+   * /v1/transcribe sin Whisper: si el audio es casi silencio
+   * devuelve `""` («no te escuché»); si no, el mismo texto fijo que el modo
+   * mock del servidor.
+   */
+  async transcribe(wav: Uint8Array, signal: AbortSignal): Promise<TranscribeResponse> {
+    await this.#wait(signal);
+    if (!isTranscribableWav(wav)) throw new ApiFailure('BAD_REQUEST', false);
+    return { text: rms(wavSamples(wav)) < MOCK_SILENCE_RMS ? '' : MOCK_TRANSCRIPT };
   }
 
   /** Devuelve la sesión indicada (o una nueva si no se indicó ninguna). */
