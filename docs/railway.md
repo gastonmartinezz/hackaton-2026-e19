@@ -51,6 +51,7 @@ No es alpine: si algún día se usa Whisper local, los binarios de `onnxruntime-
 | `TTS_PROVIDER` | `openai` | Texto a voz. Con `off` (valor por defecto) `/v1/speak` responde 503 no reintentable |
 | `CLAUDE_EFFORT`, `CLAUDE_EFFORT_*` | *(no cargar)* | Opus 5.5 usa `medium` por defecto, con razonamiento adaptativo. Ver [Claude: modelo, effort y URLs](#claude-modelo-effort-y-urls) |
 | `URL_CHECK_*`, `INTERPRET_WEB_SEARCH` | *(opcionales)* | Verificación de URLs (siempre activa) y búsqueda web (`off`) |
+| `GUIDE_WEB_SEARCH`, `GUIDE_WEB_SEARCH_MAX_USES` | *(opcionales)* `on`, `3` | Búsqueda web del paso a paso al elegir una opción de la guía (ver [api.md](api.md#post-v1next-step)) |
 | `OPENAI_STT_KEYWORDS`, `OPENAI_STT_PROMPT` | *(opcionales)* | Vacías por defecto. Valor propuesto y fuentes en [api.md](api.md#vocabulario-para-openai-openai_stt_prompt-y-openai_stt_keywords) |
 | `OPENAI_STT_MODEL` | *(opcional)* `gpt-transcribe` | |
 | `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE` | *(opcionales)* `gpt-4o-mini-tts`, `marin` | |

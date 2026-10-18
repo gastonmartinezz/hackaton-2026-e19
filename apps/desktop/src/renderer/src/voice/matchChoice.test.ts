@@ -82,4 +82,13 @@ describe('matchChoice', () => {
     expect(matchChoice('', page)).toEqual({ kind: 'none' });
     expect(matchChoice('eh', page)).toEqual({ kind: 'none' });
   });
+
+  it('confirmar un dato: «sí», «dale» o «está bien» al principio; lo demás por nombre', () => {
+    const confirm = [{ label: 'Está bien', kind: 'yes' as const }, { label: 'Decirlo de nuevo' }, { label: 'Lo escribo yo' }];
+    expect(matchChoice('Sí.', confirm)).toEqual({ kind: 'match', index: 0 });
+    expect(matchChoice('dale, seguí', confirm)).toEqual({ kind: 'match', index: 0 });
+    expect(matchChoice('quiero decirlo de nuevo', confirm)).toEqual({ kind: 'match', index: 1 });
+    expect(matchChoice('no, lo escribo yo', confirm)).toEqual({ kind: 'match', index: 2 });
+    expect(matchChoice('sí', page)).toEqual({ kind: 'none' });
+  });
 });

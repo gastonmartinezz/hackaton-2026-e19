@@ -7,6 +7,7 @@
  * también tiene modo mock con AI_PROVIDER=mock).
  */
 import { randomUUID } from 'node:crypto';
+import { isSensitiveField } from '@asistente/guidance';
 import type {
   GuideStep,
   InterpretRequest,
@@ -42,6 +43,8 @@ export interface MockOptions {
 interface MockSession {
   /** Opciones devueltas por /v1/options en esta sesión. */
   options: Set<string>;
+  /** Pasos que la persona ya completó (elemento e instrucción), para no repetirlos. */
+  completed: Set<string>;
 }
 
 export class MockApiClient implements ApiClient {
@@ -64,18 +67,24 @@ export class MockApiClient implements ApiClient {
     return { sessionId, options };
   }
 
-  /** Las guías del simulador terminan después del último paso teórico. */
+  /**
+   * Sigue la opción en la página actual: devuelve sus pasos reales que faltan.
+   * Si la opción ya no está en la página (por ejemplo, la de confirmación) o no
+   * le quedan pasos, termina, con evidencia solo si el título lo confirma.
+   */
   async nextStep(request: NextStepRequest, signal: AbortSignal): Promise<NextStepResponse> {
     await this.#wait(signal);
     const session = this.#sessions.get(request.sessionId);
     if (!session) throw new ApiFailure('SESSION_NOT_FOUND', false);
     if (!session.options.has(request.optionId)) throw new ApiFailure('BAD_REQUEST', false);
-    // TEMPORAL: `evidence` todavía no está en el contrato (ver api/pending-contract.ts).
-    // Cita el título de la página si confirma algo; si no, no hay evidencia.
-    const heading = parse(request.html).find((e) => /^h[1-6]$/.test(e.tag))?.label ?? '';
+    for (const done of request.completedSteps) session.completed.add(stepKey(done));
+    const page = parse(request.html);
+    const option = buildOptions(page).find((o) => o.id === request.optionId);
+    const steps = option?.steps.filter((s) => s.element !== null && !session.completed.has(stepKey(s))) ?? [];
+    if (steps.length > 0) return { sessionId: request.sessionId, steps, done: false };
+    const heading = page.find((e) => /^h[1-6]$/.test(e.tag))?.label ?? '';
     const evidence = /confirm|registr|reservad|gracias|éxito/i.test(heading) ? heading.slice(0, 200) : undefined;
-    const response: NextStepResponse & { evidence?: string } = { sessionId: request.sessionId, steps: [], done: true, ...(evidence ? { evidence } : {}) };
-    return response;
+    return { sessionId: request.sessionId, steps: [], done: true, ...(evidence ? { evidence } : {}) };
   }
 
   /**
@@ -115,7 +124,7 @@ export class MockApiClient implements ApiClient {
       return id;
     }
     const created = `s-${randomUUID().slice(0, 8)}`;
-    this.#sessions.set(created, { options: new Set() });
+    this.#sessions.set(created, { options: new Set(), completed: new Set() });
     return created;
   }
 
@@ -291,6 +300,21 @@ const step = (element: MockElement, instruction: string, waitFor: GuideStep['wai
   waitFor,
 });
 
+/** Un dato del formulario: se pregunta en voz alta; si es sensible, lo escribe la persona. */
+function fieldStep(field: MockElement): GuideStep {
+  const name = field.label || 'este dato';
+  const choice = field.tag === 'select';
+  return {
+    ...step(field, choice ? `Elegí una opción en «${name}».` : `Escribí el dato en «${name}».`, 'userConfirmation'),
+    field: {
+      question: choice ? `¿Qué elegís en «${name}»?`.slice(0, 200) : `¿Qué escribo en «${name}»?`.slice(0, 200),
+      sensitive: isSensitiveField({ label: field.label, inputType: field.type }),
+    },
+  };
+}
+
+const stepKey = (s: GuideStep) => `${s.element}|${s.instruction}`;
+
 /** Paso teórico final: el resultado aparece después de la última acción. */
 const check = (instruction: string): GuideStep => ({ element: null, presentation: 'highlight', instruction, waitFor: 'userConfirmation' });
 
@@ -310,7 +334,7 @@ function buildOptions(page: MockElement[]): PageOption[] {
     const fields = enabled.filter((e) => e.parent === form.id && FIELD(e));
     const submit = enabled.find((e) => e.parent === form.id && CLICKABLE(e));
     if (fields.length < 2) continue;
-    const steps = fields.map((field) => step(field, `Completá «${field.label || 'este campo'}».`, 'userInteraction'));
+    const steps = fields.map(fieldStep);
     if (submit) steps.push(step(submit, `Cuando esté todo, hacé clic en «${submit.label}».`, 'navigation'));
     options.push({ id: `form-${form.id}`, title: `Completar: ${form.label || 'formulario'}`.slice(0, 120), steps: [...steps, check('Revisá el mensaje de confirmación.')].slice(0, 15) });
   }

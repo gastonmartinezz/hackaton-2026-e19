@@ -48,7 +48,7 @@ const request = (task: AiTask = 'interpret') => ({
 describe('taskSettings', () => {
   it('usa CLAUDE_MODEL y CLAUDE_EFFORT si la tarea no tiene los suyos (los valores por defecto no cambian)', () => {
     const base = config();
-    for (const task of ['interpret', 'options', 'nextStep'] as const) {
+    for (const task of ['interpret', 'options', 'nextStep', 'procedure'] as const) {
       expect(taskSettings(base, task)).toEqual({ model: 'claude-opus-5-5', effort: 'medium' });
     }
   });
@@ -58,7 +58,9 @@ describe('taskSettings', () => {
       CLAUDE_MODEL_INTERPRET: 'claude-haiku-5-5',
       CLAUDE_EFFORT_INTERPRET: 'low',
       CLAUDE_EFFORT_NEXT_STEP: 'low',
+      CLAUDE_EFFORT_PROCEDURE: 'high',
     });
+    expect(taskSettings(custom, 'procedure')).toEqual({ model: 'claude-opus-5-5', effort: 'high' });
     expect(taskSettings(custom, 'interpret')).toEqual({ model: 'claude-haiku-5-5', effort: 'low' });
     expect(taskSettings(custom, 'options')).toEqual({ model: 'claude-opus-5-5', effort: 'medium' });
     expect(taskSettings(custom, 'nextStep')).toEqual({ model: 'claude-opus-5-5', effort: 'low' });

@@ -18,6 +18,7 @@ beforeEach(() => {
     command: vi.fn(async (c: UiCommand) => void sent.push(c)),
     onState: () => () => {},
     transcribe: vi.fn(),
+    dictateField: vi.fn(),
     speak: vi.fn(),
     stopSpeaking: vi.fn(),
     onSpeechCut: () => () => {},

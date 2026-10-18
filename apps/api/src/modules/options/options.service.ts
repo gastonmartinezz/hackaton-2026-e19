@@ -3,6 +3,7 @@ import { AppError } from '../../lib/errors.js';
 import type { StructuredModel } from '../ai/model.js';
 import { SYSTEM_PROMPTS } from '../ai/prompts.js';
 import { OptionsOutput } from '../ai/schemas.js';
+import { toGuideSteps } from '../ai/steps.js';
 import type { SessionStore } from '../sessions/session-store.js';
 
 export class OptionsService {
@@ -25,7 +26,8 @@ export class OptionsService {
       schema: OptionsOutput,
     });
 
-    const parsed = OptionsResponse.safeParse({ sessionId, ...output });
+    const options = output.options.map((option) => ({ ...option, steps: toGuideSteps(option.steps) }));
+    const parsed = OptionsResponse.safeParse({ sessionId, options });
     if (!parsed.success) throw new AppError('AI_INVALID_RESPONSE', 'Respuesta de Claude incoherente con el contrato');
 
     this.sessions.append(sessionId, owner, { type: 'options', options: parsed.data.options });

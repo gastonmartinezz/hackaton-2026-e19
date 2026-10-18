@@ -2,6 +2,19 @@ import { z } from 'zod';
 import { Limits, SessionId, ShortText } from './common.js';
 
 /**
+ * Dato de un formulario que el paso pide. Guíame lo pregunta en voz alta
+ * (`question`) y la persona responde. Si no es sensible, Guíame escribe lo que
+ * la persona dictó y le pide que lo revise; si es sensible (claves, PIN,
+ * códigos, tarjeta, datos bancarios, documento), solo pone el cursor en el
+ * lugar y la persona lo escribe. El valor nunca vuelve al backend.
+ */
+export const FieldAsk = z.strictObject({
+  question: ShortText(200),
+  sensitive: z.boolean(),
+});
+export type FieldAsk = z.infer<typeof FieldAsk>;
+
+/**
  * Paso de la guía. `element` es el id de un elemento del HTML recibido (ej. "#el-3"),
  * o null si el paso es teórico: el elemento todavía no existe en la página.
  */
@@ -10,6 +23,8 @@ export const GuideStep = z.strictObject({
   instruction: ShortText(300),
   presentation: z.enum(['highlight', 'scrollAndHighlight']),
   waitFor: z.enum(['userInteraction', 'navigation', 'userConfirmation']),
+  /** Solo en pasos que piden un dato de un formulario (element apunta a ese lugar). */
+  field: FieldAsk.optional(),
 });
 export type GuideStep = z.infer<typeof GuideStep>;
 

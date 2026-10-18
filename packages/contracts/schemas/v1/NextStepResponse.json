@@ -45,6 +45,24 @@
               "navigation",
               "userConfirmation"
             ]
+          },
+          "field": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "sensitive": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "question",
+              "sensitive"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -58,6 +76,11 @@
     },
     "done": {
       "type": "boolean"
+    },
+    "evidence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
     }
   },
   "required": [

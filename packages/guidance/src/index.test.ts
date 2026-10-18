@@ -1,6 +1,6 @@
 import type { GuideStep, PageOption } from '@hackaton/contracts';
 import { describe, expect, it } from 'vitest';
-import { evaluateObservation, expectedStep, initialState, isSensitiveStep, transition, type GuideEvent, type GuideState } from './index';
+import { evaluateObservation, expectedStep, initialState, isSensitiveField, isSensitiveStep, transition, type GuideEvent, type GuideState } from './index';
 
 const real = (id: string, waitFor: GuideStep['waitFor'] = 'userInteraction'): GuideStep => ({
   element: `#${id}`,
@@ -18,6 +18,11 @@ function run(...events: GuideEvent[]): GuideState {
 }
 const choosing = () => run({ type: 'ANALYZE', goal: 'turno' }, { type: 'OPTIONS', options: [turno, buscar, turno] });
 const done: GuideEvent = { type: 'OUTCOME', outcome: 'signalObserved' };
+/** Elige la opción y recibe de /v1/next-step los pasos reales (el plan de la opción, salvo que se indique otro). */
+const started = (optionId: string, steps?: GuideStep[]) => {
+  const selected = transition(choosing(), { type: 'SELECT', optionId });
+  return transition(selected, { type: 'NEXT', response: { steps: steps ?? selected.option!.steps, done: false } });
+};
 
 describe('transition', () => {
   it('muestra las opciones sin duplicados y conserva el objetivo del chat', () => {
@@ -28,17 +33,25 @@ describe('transition', () => {
     expect(run({ type: 'ANALYZE' }, { type: 'OPTIONS', options: [] }).phase).toBe('unsupported');
   });
 
-  it('recorre una guía de pasos reales sin pedir nada al servidor', () => {
-    let state = transition(choosing(), { type: 'SELECT', optionId: 'buscar' });
+  it('al elegir una opción pide los pasos reales a /v1/next-step con el primer paso del borrador', () => {
+    const state = transition(choosing(), { type: 'SELECT', optionId: 'buscar' });
+    expect(state).toMatchObject({ phase: 'guiding', step: real('el-1'), plan: [real('el-2')], stepCount: 0, completed: [] });
+    expect(expectedStep(state.step!)).toEqual(real('el-1'));
+  });
+
+  it('recorre los pasos recibidos y, al terminarlos, informa el avance en vez de darlo por terminado', () => {
+    let state = started('buscar');
     expect(state).toMatchObject({ phase: 'waitingForUser', step: real('el-1'), stepCount: 1 });
     state = transition(state, done);
     expect(state).toMatchObject({ phase: 'waitingForUser', step: real('el-2'), stepCount: 2, completed: [real('el-1')] });
     state = transition(state, done);
+    expect(state).toMatchObject({ phase: 'verifying', step: real('el-2'), completed: [real('el-1'), real('el-2')] });
+    state = transition(transition(state, { type: 'REQUEST_NEXT' }), { type: 'NEXT', response: { steps: [], done: true } });
     expect(state.phase).toBe('completed');
   });
 
   it('ante un paso teórico extrae la página y pide /v1/next-step con lo completado', () => {
-    let state = transition(choosing(), { type: 'SELECT', optionId: 'turno' });
+    let state = started('turno');
     state = transition(state, { type: 'SHOWN', elementId: 'el-3' });
     state = transition(state, done);
     expect(state).toMatchObject({ phase: 'verifying', step: theoretical, completed: [real('el-3')] });
@@ -50,12 +63,13 @@ describe('transition', () => {
     expect(state).toMatchObject({ phase: 'waitingForUser', step: real('el-9'), plan: [real('el-10')], completed: [], stepCount: 2 });
 
     state = transition(transition(state, done), done);
-    expect(state.phase).toBe('completed');
+    expect(state).toMatchObject({ phase: 'verifying', completed: [real('el-9'), real('el-10')] });
   });
 
   it('«Todavía no» después de terminar vuelve a mirar la página desde el último paso', () => {
-    let state = transition(choosing(), { type: 'SELECT', optionId: 'buscar' });
+    let state = started('buscar');
     state = transition(transition(state, done), done);
+    state = transition(transition(state, { type: 'REQUEST_NEXT' }), { type: 'NEXT', response: { steps: [], done: true } });
     expect(state).toMatchObject({ phase: 'completed', step: real('el-2') });
     state = transition(state, { type: 'RESUME' });
     expect(state).toMatchObject({ phase: 'verifying', step: real('el-2'), planStale: true });
@@ -79,17 +93,23 @@ describe('transition', () => {
   });
 
   it('un paso real que no se puede mostrar se vuelve a pedir con el HTML actual', () => {
-    let state = transition(choosing(), { type: 'SELECT', optionId: 'buscar' });
+    let state = started('buscar');
     state = transition(state, { type: 'OUTCOME', outcome: 'targetStale' });
     expect(state).toMatchObject({ phase: 'verifying', step: real('el-1'), completed: [] });
   });
 
   it('después de una navegación, los pasos reales que quedaban se vuelven a pedir', () => {
-    let state = transition(choosing(), { type: 'SELECT', optionId: 'buscar' });
+    let state = transition(started('buscar'), { type: 'SHOWN', elementId: 'el-1' });
     state = transition(state, { type: 'NAVIGATED' });
     expect(state).toMatchObject({ phase: 'verifying', step: real('el-2'), planStale: true, completed: [real('el-1')] });
     state = transition(transition(state, { type: 'REQUEST_NEXT' }), { type: 'NEXT', response: { steps: [real('el-5')], done: false } });
     expect(state).toMatchObject({ phase: 'waitingForUser', planStale: false });
+  });
+
+  it('un paso que no se llegó a señalar no cuenta como hecho si la página cambia', () => {
+    let state = started('buscar');
+    state = transition(state, { type: 'NAVIGATED' });
+    expect(state).toMatchObject({ phase: 'verifying', step: real('el-1'), completed: [], lastOutcome: 'targetStale' });
   });
 
   it('sin opción elegida, una navegación reanaliza', () => {
@@ -100,9 +120,9 @@ describe('transition', () => {
     const failedOptions = transition(run({ type: 'ANALYZE' }), { type: 'FAILED', message: 'x' });
     expect(transition(failedOptions, { type: 'RETRY' }).phase).toBe('analyzing');
 
-    const guiding = run({ type: 'ANALYZE' }, { type: 'OPTIONS', options: [turno] }, { type: 'SELECT', optionId: 'turno' }, done, { type: 'REQUEST_NEXT' });
+    const guiding = run({ type: 'ANALYZE' }, { type: 'OPTIONS', options: [turno] }, { type: 'SELECT', optionId: 'turno' });
     const failedNext = transition(guiding, { type: 'FAILED', message: 'x' });
-    expect(transition(failedNext, { type: 'RETRY' })).toMatchObject({ phase: 'verifying', step: theoretical });
+    expect(transition(failedNext, { type: 'RETRY' })).toMatchObject({ phase: 'verifying', step: real('el-3') });
     const back = transition(failedNext, { type: 'BACK' });
     expect(back).toMatchObject({ phase: 'choosing', options: [turno] });
     expect(back.option).toBeUndefined();
@@ -124,6 +144,16 @@ describe('evaluateObservation', () => {
     expect(evaluateObservation(shown, { kind: 'interaction', elementId: 'el-2' })).toBeNull();
     expect(evaluateObservation(real('el-1'), { kind: 'interaction', elementId: 'el-1' })).toBeNull();
     expect(evaluateObservation({ ...shown, waitFor: 'navigation' }, { kind: 'interaction', elementId: 'el-1' })).toBeNull();
+  });
+
+  it('en un lugar para escribir o elegir, avanza al terminar (change) y no con el clic para entrar', () => {
+    const field = { ...real('el-1', 'userConfirmation'), targetElementId: 'el-1', targetField: true };
+    expect(evaluateObservation(field, { kind: 'interaction', elementId: 'el-1', event: 'click' })).toBeNull();
+    expect(evaluateObservation(field, { kind: 'interaction', elementId: 'el-1', event: 'input' })).toBeNull();
+    expect(evaluateObservation(field, { kind: 'interaction', elementId: 'el-1', event: 'change' })).toBe('signalObserved');
+    expect(evaluateObservation(field, { kind: 'interaction', elementId: 'el-2', event: 'change' })).toBeNull();
+    // Aunque el backend haya pedido userInteraction, el clic en el campo no alcanza.
+    expect(evaluateObservation({ ...field, waitFor: 'userInteraction' }, { kind: 'interaction', elementId: 'el-1', event: 'click' })).toBeNull();
   });
 
   it('navegación, cambios de página, errores y confirmación', () => {
@@ -155,5 +185,27 @@ describe('isSensitiveStep', () => {
   it('deja seguir las de navegación', () => {
     expect(isSensitiveStep(s('Hacé clic en «Horarios».'), { role: 'link' })).toBe(false);
     expect(isSensitiveStep(s('Revisá la página que se abrió.'))).toBe(false);
+  });
+});
+
+describe('isSensitiveField', () => {
+  it('claves, códigos, tarjeta, datos bancarios y documento son sensibles', () => {
+    expect(isSensitiveField({ label: 'Usuario', inputType: 'password' })).toBe(true);
+    expect(isSensitiveField({ label: 'Contraseña' })).toBe(true);
+    expect(isSensitiveField({ label: 'Cédula de identidad' })).toBe(true);
+    expect(isSensitiveField({ label: 'C.I.' })).toBe(true);
+    expect(isSensitiveField({ label: 'Número de documento' })).toBe(true);
+    expect(isSensitiveField({ label: 'Código de verificación' })).toBe(true);
+    expect(isSensitiveField({ label: 'Número de tarjeta' })).toBe(true);
+    expect(isSensitiveField({ label: 'CVV' })).toBe(true);
+    expect(isSensitiveField({ label: 'Dato', autocomplete: 'cc-number' })).toBe(true);
+    expect(isSensitiveField({ label: 'Dato', autocomplete: 'one-time-code' })).toBe(true);
+    expect(isSensitiveField({ label: 'Dato', name: 'nroDocumento' })).toBe(true);
+    expect(isSensitiveField({ label: 'PIN' })).toBe(true);
+  });
+
+  it('nombre, correo, teléfono, dirección y fechas se pueden dictar', () => {
+    for (const label of ['Nombre completo', 'Correo electrónico', 'Teléfono', 'Dirección', 'Fecha de nacimiento', 'Código postal', 'Departamento', 'Pinar'])
+      expect(isSensitiveField({ label, inputType: 'text' })).toBe(false);
   });
 });

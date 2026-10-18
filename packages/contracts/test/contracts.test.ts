@@ -74,6 +74,14 @@ describe('OptionsResponse', () => {
     expect(OptionsResponse.safeParse(response).success).toBe(true);
   });
 
+  it('acepta un paso de datos con field y rechaza un field incompleto', () => {
+    const field = { question: '¿Cuál es tu correo electrónico?', sensitive: false };
+    const options = (f: object) => ({ sessionId: 's-abc', options: [{ id: 'turno', title: 'Sacar un turno', steps: [{ ...step('#el-4'), field: f }] }] });
+    expect(OptionsResponse.safeParse(options(field)).success).toBe(true);
+    expect(OptionsResponse.safeParse(options({ question: '¿Tu clave?' })).success).toBe(false);
+    expect(OptionsResponse.safeParse(options({ ...field, value: 'x' })).success).toBe(false);
+  });
+
   it('exige al menos un paso por opción', () => {
     const response = { sessionId: 's-abc', options: [{ id: 'turno', title: 'Sacar un turno', steps: [] }] };
     expect(OptionsResponse.safeParse(response).success).toBe(false);
@@ -83,6 +91,13 @@ describe('OptionsResponse', () => {
 describe('NextStepResponse', () => {
   it('acepta done sin pasos', () => {
     expect(NextStepResponse.safeParse({ sessionId: 's-abc', steps: [], done: true }).success).toBe(true);
+  });
+
+  it('acepta la evidencia citada y la limita a 200 caracteres', () => {
+    const done = (evidence: string) => NextStepResponse.safeParse({ sessionId: 's-abc', steps: [], done: true, evidence });
+    expect(done('Su reserva fue confirmada').success).toBe(true);
+    expect(done('').success).toBe(false);
+    expect(done('x'.repeat(201)).success).toBe(false);
   });
 });
 

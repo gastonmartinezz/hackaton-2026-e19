@@ -172,7 +172,12 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
   });
   await app.register(interpretRoutes, { service: interpretService });
   await app.register(optionsRoutes, { service: new OptionsService(model, sessions) });
-  await app.register(nextStepRoutes, { service: new NextStepService(model, sessions) });
+  await app.register(nextStepRoutes, {
+    service: new NextStepService(model, sessions, {
+      webSearch: config.GUIDE_WEB_SEARCH === 'on',
+      webSearchMaxUses: config.GUIDE_WEB_SEARCH_MAX_USES,
+    }),
+  });
   await app.register(transcribeRoutes, {
     service: transcribeService,
     rateLimit: { max: config.STT_RATE_LIMIT_MAX, timeWindow: config.RATE_LIMIT_WINDOW_MS },

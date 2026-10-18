@@ -12,6 +12,15 @@ export type SessionEntry =
       completedSteps: GuideStep[];
       steps: GuideStep[];
       done: boolean;
+    }
+  /** Paso a paso investigado de una opción (tarea procedure). Se pide una sola vez por opción. */
+  | {
+      type: 'procedure';
+      optionId: string;
+      summary: string;
+      steps: Array<{ title: string; detail: string }>;
+      completion: string;
+      sources: string[];
     };
 
 /** Todo lo que Claude recibe como contexto del recorrido, desde interpret hasta la última llamada. */

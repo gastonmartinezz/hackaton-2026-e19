@@ -11,6 +11,7 @@ import { ipcMain, type IpcMainEvent } from 'electron';
 import type { z } from 'zod';
 import {
   ChangedMessageSchema,
+  FilledMessageSchema,
   InteractionMessageSchema,
   PAGE_CHANNELS,
   ShownMessageSchema,
@@ -19,6 +20,7 @@ import {
   SummaryMessageSchema,
   ValidationMessageSchema,
   type EXTRACT_NOTES,
+  type FillResult,
   type ShowResult,
   type TargetRect,
 } from '../shared/ipc';
@@ -27,7 +29,7 @@ import type { SiteView } from './site-view';
 
 export interface PageBridgeEvents {
   changed: [{ structural: boolean; targetPresent: boolean | null }];
-  interaction: [{ elementId: string }];
+  interaction: [{ elementId: string; event: 'click' | 'change' | 'input' | 'submit' }];
   validationError: [];
   /** Cambió la huella de formularios o identidad (protección de sitios). */
   signature: [];
@@ -39,6 +41,10 @@ export interface ShownTarget {
   elementId?: string | undefined;
   rect?: TargetRect | undefined;
   field?: boolean | undefined;
+  /** Guíame puede escribir ahí lo dictado. */
+  fillable?: boolean | undefined;
+  /** Los atributos del sitio indican un dato sensible. */
+  sensitive?: boolean | undefined;
 }
 
 export interface ExtractedPage {
@@ -51,6 +57,7 @@ type Pending<T> = { resolve(value: T): void; reject(error: Error): void; timer: 
 export class PageBridge extends EventEmitter<PageBridgeEvents> {
   readonly #snapshots = new Map<string, Pending<ExtractedPage> & { navigationId: string; revision: number }>();
   readonly #shows = new Map<string, Pending<ShownTarget>>();
+  readonly #fills = new Map<string, Pending<FillResult>>();
   readonly #summaries = new Map<string, Pending<PageSummary> & { navigationId: string; contentVersion: number }>();
   readonly #disposers: Array<() => void> = [];
 
@@ -67,12 +74,19 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
       }
       pending.resolve({ snapshot: resanitize(snapshot), notes });
     });
-    this.#on(PAGE_CHANNELS.shown, ShownMessageSchema, ({ requestId, result, elementId, rect, field }) => {
+    this.#on(PAGE_CHANNELS.shown, ShownMessageSchema, ({ requestId, result, elementId, rect, field, fillable, sensitive }) => {
       const pending = this.#shows.get(requestId);
       if (!pending) return;
       this.#shows.delete(requestId);
       clearTimeout(pending.timer);
-      pending.resolve({ result, elementId, rect, field });
+      pending.resolve({ result, elementId, rect, field, fillable, sensitive });
+    });
+    this.#on(PAGE_CHANNELS.filled, FilledMessageSchema, ({ requestId, result }) => {
+      const pending = this.#fills.get(requestId);
+      if (!pending) return;
+      this.#fills.delete(requestId);
+      clearTimeout(pending.timer);
+      pending.resolve(result);
     });
     this.#on(PAGE_CHANNELS.changed, ChangedMessageSchema, (message) => this.emit('changed', message));
     this.#on(PAGE_CHANNELS.interaction, InteractionMessageSchema, (message) => this.emit('interaction', message));
@@ -141,6 +155,26 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
     });
   }
 
+  /** Escribe lo dictado en el lugar señalado. El valor solo viaja al preload; nunca se registra. */
+  fill(navigationId: string, elementId: string, value: string): Promise<FillResult> {
+    const requestId = shortId();
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.#fills.delete(requestId);
+        resolve('stale');
+      }, 3000);
+      this.#fills.set(requestId, { resolve, reject: () => resolve('stale'), timer });
+      this.site.contents.send(PAGE_CHANNELS.fill, { requestId, navigationId, elementId, value });
+    });
+  }
+
+  /** Pone el cursor en el lugar para que la persona escriba (datos sensibles). */
+  focus(navigationId: string, elementId: string): void {
+    if (this.site.contents.isDestroyed()) return;
+    this.site.contents.focus();
+    this.site.contents.send(PAGE_CHANNELS.focus, { navigationId, elementId });
+  }
+
   clear(): void {
     if (!this.site.contents.isDestroyed()) this.site.contents.send(PAGE_CHANNELS.clear);
   }
@@ -156,6 +190,11 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
       clearTimeout(pending.timer);
       pending.resolve({ result: 'stale' });
       this.#shows.delete(id);
+    }
+    for (const [id, pending] of this.#fills) {
+      clearTimeout(pending.timer);
+      pending.resolve('stale');
+      this.#fills.delete(id);
     }
   }
 

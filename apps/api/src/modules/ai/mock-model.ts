@@ -4,11 +4,39 @@
 import type { InterpretRequest } from '@hackaton/contracts';
 import type { z } from 'zod';
 import type { AiTask, StructuredModel, StructuredRequest } from './model.js';
-import type { InterpretOutput, NextStepOutput, OptionsOutput, SiteCheckOutput } from './schemas.js';
+import type { InterpretOutput, NextStepOutput, OptionsOutput, ProcedureOutput, SiteCheckOutput } from './schemas.js';
 
 type Handler = (input: any) => unknown;
 
 const firstId = (html: string) => /\sid="([A-Za-z][\w-]*)"/.exec(html)?.[1];
+
+interface NextStepInput {
+  html: string;
+  completedSteps?: Array<{ element: string | null; field?: unknown }>;
+  context?: { history: Array<{ type: string; completedSteps?: Array<{ element: string | null; field?: unknown }> }> };
+}
+
+/** Lugares de datos que la persona ya completó en la sesión: el mock no vuelve a pedirlos. */
+function completedFields(input: NextStepInput): Set<string> {
+  const steps = [...(input.completedSteps ?? []), ...(input.context?.history ?? []).flatMap((entry) => entry.completedSteps ?? [])];
+  return new Set(steps.flatMap((step) => (step.field && step.element ? [step.element] : [])));
+}
+
+/** Primer lugar para escribir del HTML: `<input>` de texto (no botones, casilleros ni opciones) o `<textarea>`. */
+function firstTextbox(html: string, skip: ReadonlySet<string>): { id: string; label: string; sensitive: boolean } | undefined {
+  for (const match of html.matchAll(/<(input|textarea)\b([^>]*)>/g)) {
+    const attrs = match[2] ?? '';
+    const type = /\stype="([^"]*)"/.exec(attrs)?.[1] ?? 'text';
+    if (match[1] === 'input' && ['submit', 'button', 'reset', 'image', 'checkbox', 'radio', 'hidden'].includes(type)) continue;
+    const id = /\sid="([A-Za-z][\w-]*)"/.exec(attrs)?.[1];
+    if (!id || skip.has(`#${id}`)) continue;
+    return { id, label: /\saria-label="([^"]*)"/.exec(attrs)?.[1] || 'el espacio', sensitive: type === 'password' };
+  }
+  return undefined;
+}
+
+/** Texto del primer título del HTML (evidencia simulada de que terminó). */
+const firstHeading = (html: string) => /<h\d\b[^>]*>([^<]+)<\/h\d>/.exec(html)?.[1]?.trim() ?? null;
 
 export const defaultMockHandlers: Record<AiTask, Handler> = {
   // Primer mensaje: pregunta. Con más contexto: redirige.
@@ -46,12 +74,14 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
               instruction: 'Hacé clic acá para empezar.',
               presentation: 'highlight',
               waitFor: 'userInteraction',
+              field: null,
             },
             {
               element: null,
               instruction: 'Seguí con el paso siguiente.',
               presentation: 'highlight',
               waitFor: 'userInteraction',
+              field: null,
             },
           ],
         },
@@ -59,17 +89,48 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
     };
   },
 
-  // Con un id en el HTML: un paso real. Sin ids: la tarea terminó.
-  nextStep: (input: { html: string }): NextStepOutput => {
-    const id = firstId(input.html);
-    if (!id) return { steps: [], done: true };
+  // Con un lugar para escribir que falta: un paso de datos (sensible si es una contraseña). Con otro id: un
+  // clic. Sin ids pendientes: la tarea terminó, con el primer título como evidencia. Lo ya completado no se repite.
+  nextStep: (input: NextStepInput): NextStepOutput => {
+    const filled = completedFields(input);
+    const textbox = firstTextbox(input.html, filled);
+    if (textbox) {
+      return {
+        steps: [
+          {
+            element: `#${textbox.id}`,
+            instruction: `Escribí el dato en «${textbox.label}».`,
+            presentation: 'scrollAndHighlight',
+            waitFor: 'userConfirmation',
+            field: textbox.sensitive
+              ? { question: `Ese dato lo escribís vos en «${textbox.label}».`, sensitive: true }
+              : { question: `¿Qué escribo en «${textbox.label}»?`, sensitive: false },
+          },
+        ],
+        done: false,
+        evidence: null,
+      };
+    }
+    const id = [...input.html.matchAll(/\sid="([A-Za-z][\w-]*)"/g)].map((match) => match[1]).find((candidate) => !filled.has(`#${candidate}`));
+    if (!id) return { steps: [], done: true, evidence: firstHeading(input.html) };
     return {
-      steps: [
-        { element: `#${id}`, instruction: 'Ahora hacé clic acá.', presentation: 'highlight', waitFor: 'userInteraction' },
-      ],
+      steps: [{ element: `#${id}`, instruction: 'Ahora hacé clic acá.', presentation: 'highlight', waitFor: 'userInteraction', field: null }],
       done: false,
+      evidence: null,
     };
   },
+
+  // Paso a paso fijo, sin búsqueda.
+  procedure: (input: { option: { title: string } }): ProcedureOutput => ({
+    summary: `Simulación del paso a paso de «${input.option.title}».`,
+    steps: [
+      { title: 'Empezar la tarea', detail: 'Hacer clic en el botón de la opción.' },
+      { title: 'Completar los datos', detail: 'Pide los datos del formulario.' },
+      { title: 'Confirmar', detail: 'Enviar el formulario y esperar la confirmación.' },
+    ],
+    completion: 'La página muestra un título de confirmación.',
+    sources: [],
+  }),
 
   // Explicación fija según el riesgo calculado por reglas; no identifica organizaciones ni pedidos
   // (con el mock solo cuentan las reglas determinísticas sobre declaredBrand y formularios).

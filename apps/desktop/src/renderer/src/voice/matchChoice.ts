@@ -4,7 +4,8 @@
  *
  * Reconoce, en este orden:
  * 1. «otras» / «ver otras» / «más opciones» → la opción `more`;
- *    «no sé» / «no estoy seguro» → la opción `unsure`.
+ *    «no sé» / «no estoy seguro» → la opción `unsure`;
+ *    «sí» / «dale» / «está bien» al principio → la opción `yes`.
  * 2. Números y ordinales: «la primera», «la 2», «opción dos», «la última»,
  *    en el mismo orden en que se leyeron las opciones (incluidas «No estoy
  *    seguro» y «Ver otras opciones» si se leyeron; las que no se leyeron
@@ -19,8 +20,8 @@ export interface ChoiceSpec {
   label: string;
   /** Otras formas de nombrarlo (por ejemplo, el título del sitio). */
   aliases?: string[];
-  /** `more`: «Ver otras opciones»; `unsure`: «No sé bien». */
-  kind?: 'more' | 'unsure';
+  /** `more`: «Ver otras opciones»; `unsure`: «No sé bien»; `yes`: la respuesta afirmativa («Está bien»). */
+  kind?: 'more' | 'unsure' | 'yes';
   /** No se nombró al leer la lista: se puede elegir por su nombre, pero no cuenta para «la tercera». */
   unnumbered?: boolean;
 }
@@ -66,6 +67,7 @@ const SPOKEN_NUMBERS: Array<[RegExp, number]> = [
 
 const MORE = /\b(otras|otra opcion|otras opciones|mas opciones|ver otras|ver mas)\b/;
 const UNSURE = /\b(no se|no estoy segur[oa]|ni idea|no sabria)\b/;
+const YES = /^(si|claro|dale|correcto|esta bien|ok|okey|bien|listo)\b/;
 
 /** Índice por ordinal o número dicho, en el orden en que se leyeron («la última» es la última que se escuchó). */
 function ordinalIndex(spoken: string, choices: ChoiceSpec[]): number | null {
@@ -84,9 +86,10 @@ export function matchChoice(said: string, choices: ChoiceSpec[]): ChoiceMatch {
   const spoken = normalizeSpoken(said);
   if (!spoken || choices.length === 0) return { kind: 'none' };
 
-  // 1. Las dos opciones especiales.
-  const special = (kind: 'more' | 'unsure') => choices.findIndex((c) => c.kind === kind);
+  // 1. Las opciones especiales.
+  const special = (kind: 'more' | 'unsure' | 'yes') => choices.findIndex((c) => c.kind === kind);
   if (UNSURE.test(spoken) && special('unsure') >= 0) return { kind: 'match', index: special('unsure') };
+  if (YES.test(spoken) && special('yes') >= 0) return { kind: 'match', index: special('yes') };
   if (MORE.test(spoken) && special('more') >= 0) return { kind: 'match', index: special('more') };
 
   // 2. Título completo dicho tal cual (el más largo gana: «Solo abrir el sitio» antes que «abrir»).

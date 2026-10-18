@@ -8,10 +8,13 @@ import { join } from 'node:path';
 import type { GuideStep, NextStepRequest, OptionsRequest } from '@hackaton/contracts';
 import { extractSnapshot, resolveSelector, snapshotToHtml, type ElementRegistry } from '@asistente/page-analyzer';
 import { findLeaks } from '@asistente/privacy';
+import { isSensitiveField } from '@asistente/guidance';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiFailure, ApiSession, type ApiClient } from './api/client';
 import { MockApiClient } from './api/mock';
 import { Assistant, type PagePort } from './assistant';
+import { DICTATABLE_TYPES, dictatedValue, matchListOption } from '../shared/dictation';
+import { isField } from '../preload/page/highlighter';
 
 const FIXTURES = join(import.meta.dirname, '../../../../tests/fixtures/pages');
 
@@ -26,6 +29,7 @@ class FakePage implements PagePort {
   registry: ElementRegistry | undefined;
   html = '';
   shown: string[] = [];
+  focused: string[] = [];
   async extract(pageId: string, navigationId: string, revision: number) {
     const result = extractSnapshot(document, { pageId, navigationId, revision, previous: this.registry });
     this.registry = result.registry;
@@ -37,7 +41,33 @@ class FakePage implements PagePort {
     const elementId = registry ? resolveSelector(selector, this.html, document, (node) => registry.idOf(node)) : undefined;
     if (!elementId || !registry?.resolve(elementId)) return { result: 'stale' as const };
     this.shown.push(elementId);
-    return { result: 'shown' as const, elementId };
+    const element = registry.resolve(elementId)!;
+    const type = element.localName === 'select' ? 'select' : element.localName === 'textarea' ? 'textarea' : (element.getAttribute('type') ?? 'text');
+    return {
+      result: 'shown' as const,
+      elementId,
+      field: isField(element),
+      fillable: element.localName === 'select' || DICTATABLE_TYPES.has(type),
+      sensitive: isSensitiveField({ inputType: element.getAttribute('type') ?? undefined, name: element.getAttribute('name') ?? undefined }),
+    };
+  }
+  /** Como el preload: escribe lo dictado sin que cuente como interacción de la persona. */
+  async fill(navigationId: string, elementId: string, said: string) {
+    const element = this.registry?.navigationId === navigationId ? this.registry.resolve(elementId) : undefined;
+    if (!element) return 'stale' as const;
+    if (element instanceof HTMLSelectElement) {
+      const index = matchListOption(said, Array.from(element.options, (o) => o.text));
+      if (index === null) return 'noMatch' as const;
+      element.selectedIndex = index;
+      return 'filled' as const;
+    }
+    const value = dictatedValue(said, element.getAttribute('type') ?? 'text');
+    if (value === null) return 'noMatch' as const;
+    (element as HTMLInputElement).value = value;
+    return 'filled' as const;
+  }
+  focus(_navigationId: string, elementId: string) {
+    this.focused.push(elementId);
   }
   clear() {}
   cancelPending() {}
@@ -62,7 +92,7 @@ function recording(api: ApiClient, overrides: Partial<ApiClient> = {}) {
 
 function setup(api: ApiClient = mockApi(), session = new ApiSession()) {
   const page = new FakePage();
-  const assistant = new Assistant({ api, session, page, onChange: () => {}, settleMs: 0 });
+  const assistant = new Assistant({ api, session, page, onChange: () => {}, settleMs: 0, afterClickMs: 0 });
   const until = (predicate: () => boolean) => vi.waitFor(() => expect(predicate()).toBe(true), { timeout: 2000, interval: 5 });
   const target = () => page.registry!.resolve(assistant.state.step!.targetElementId!) as HTMLElement;
   const shownStep = () => assistant.state.phase === 'waitingForUser' && assistant.state.step?.targetElementId !== undefined;
@@ -77,7 +107,7 @@ const step = (element: string | null, waitFor: GuideStep['waitFor'] = 'userInter
 });
 
 describe('Assistant', () => {
-  it('guía un formulario con la sesión del chat, termina con /v1/next-step y no transmite valores', async () => {
+  it('guía un formulario hasta terminar: dicta lo no sensible, el documento lo escribe la persona y no transmite valores', async () => {
     load('formulario.html');
     // La sesión la crea el chat (/v1/interpret) en el mismo simulador.
     const session = new ApiSession();
@@ -93,35 +123,93 @@ describe('Assistant', () => {
     const form = assistant.state.options.find((o) => o.id.startsWith('form-'));
     expect(form).toBeDefined();
 
+    // Al elegir, la guía le pide los pasos reales a /v1/next-step.
     assistant.select(form!.id);
-    const typed = ['Marta Gómez', '30123456'];
-    for (const value of typed) {
-      await until(() => shownStep() && target().localName === 'input');
-      const input = target() as HTMLInputElement;
-      input.value = value;
-      assistant.interaction(assistant.state.step!.targetElementId!);
-    }
+    expect(assistant.state.phase).toBe('guiding');
+
+    // Nombre: Guíame lo pregunta, la persona lo dice y Guíame lo escribe; avanza al confirmar.
+    await until(() => shownStep() && target().id === 'nombre');
+    expect(assistant.ask).toMatchObject({ mode: 'dictate', filled: false });
+    expect(assistant.ask!.question).toMatch(/Nombre y apellido/);
+    // Entrar al lugar no alcanza para avanzar.
+    assistant.interaction(assistant.state.step!.targetElementId!, 'click');
+    expect(target().id).toBe('nombre');
+    expect(await assistant.fill('Marta Gómez.')).toBe('filled');
+    expect((target() as HTMLInputElement).value).toBe('Marta Gómez');
+    expect(assistant.ask).toMatchObject({ filled: true });
+    assistant.confirmDone();
+
+    // Documento: dato sensible. No se dicta: el cursor queda ahí y avanza cuando la persona termina de escribir.
+    await until(() => shownStep() && target().id === 'doc');
+    expect(assistant.ask).toMatchObject({ mode: 'type' });
+    expect(page.focused).toContain(assistant.state.step!.targetElementId);
+    expect(await assistant.fill('30123456')).toBe('notAllowed');
+    (target() as HTMLInputElement).value = '30123456';
+    assistant.interaction(assistant.state.step!.targetElementId!, 'change');
+
+    // Sede: una lista; lo dicho elige la opción.
     await until(() => shownStep() && target().localName === 'select');
-    assistant.interaction(assistant.state.step!.targetElementId!);
+    expect(await assistant.fill('la del centro')).toBe('filled');
+    expect((target() as HTMLSelectElement).value).toBe('Centro');
+    assistant.confirmDone();
 
     await until(() => shownStep() && target().localName === 'button');
     expect(assistant.state.step!.waitFor).toBe('navigation');
+    expect(assistant.ask).toBeNull();
     // Un clic no alcanza cuando se espera una navegación.
-    assistant.interaction(assistant.state.step!.targetElementId!);
+    assistant.interaction(assistant.state.step!.targetElementId!, 'click');
     expect(assistant.state.phase).toBe('waitingForUser');
 
     assistant.navigationStarted();
     load('confirmacion.html');
     assistant.navigated({ sameDocument: false, aiEnabled: true });
     await until(() => assistant.state.phase === 'completed');
+    expect(assistant.evidence).toMatch(/Turno confirmado/);
 
     expect(page.shown.length).toBe(4);
-    const [options, next] = rec.sent as [OptionsRequest, NextStepRequest];
-    expect(rec.sent).toHaveLength(2);
+    const [options, first, last] = rec.sent as [OptionsRequest, NextStepRequest, NextStepRequest];
+    expect(rec.sent).toHaveLength(3);
     expect(options.sessionId).toBe(session.id);
-    expect(next).toMatchObject({ sessionId: session.id, optionId: form!.id, expectedStep: { element: null } });
-    expect(next.completedSteps).toHaveLength(4);
-    expect(findLeaks(rec.sent, [...typed, 'Marta', '/formulario', 'nombre=', '127.0.0.1'])).toEqual([]);
+    expect(first).toMatchObject({ sessionId: session.id, optionId: form!.id, completedSteps: [] });
+    expect(last.completedSteps).toHaveLength(4);
+    expect(last.completedSteps[0]!.field).toMatchObject({ sensitive: false });
+    expect(findLeaks(rec.sent, ['Marta Gómez', '30123456', 'Centro', 'Marta', '/formulario', 'nombre=', '127.0.0.1'])).toEqual([]);
+  });
+
+  it('después de un clic espera antes del paso siguiente: si la página cambia, no lo muestra ni lo cuenta como hecho', async () => {
+    load('horarios.html');
+    const mock = mockApi();
+    let links: GuideStep[] = [];
+    let calls = 0;
+    const { api, sent } = recording(mock, {
+      options: async (r, s) => {
+        const response = await mock.options(r, s);
+        links = response.options.filter((o) => o.id.startsWith('go-')).slice(0, 2).map((o) => ({ ...o.steps[0]!, waitFor: 'userInteraction' as const }));
+        return { ...response, options: [{ id: 'x', title: 'X', steps: links }] };
+      },
+      nextStep: async (r) => (++calls === 1 ? { sessionId: r.sessionId, steps: links, done: false } : { sessionId: r.sessionId, steps: [], done: false }),
+    });
+    const page = new FakePage();
+    const assistant = new Assistant({ api, session: new ApiSession(), page, onChange: () => {}, settleMs: 0, afterClickMs: 40 });
+    const until = (predicate: () => boolean) => vi.waitFor(() => expect(predicate()).toBe(true), { timeout: 2000, interval: 5 });
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    assistant.select('x');
+    await until(() => assistant.state.phase === 'waitingForUser' && assistant.state.step?.targetElementId !== undefined);
+
+    assistant.interaction(assistant.state.step!.targetElementId!, 'click');
+    // El paso siguiente queda en espera: no se señala (ni se lee) todavía.
+    expect(assistant.settling).toBe(true);
+    expect(page.shown).toHaveLength(1);
+    assistant.navigationStarted();
+    await new Promise((r) => setTimeout(r, 60));
+    expect(page.shown).toHaveLength(1);
+
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    await until(() => sent.length === 3);
+    // Se informa solo el clic que hizo la persona; el paso que nunca se mostró no cuenta.
+    expect((sent[2] as NextStepRequest).completedSteps).toHaveLength(1);
   });
 
   it('con pasos reales recibidos de /v1/next-step sigue guiando', async () => {
@@ -242,9 +330,10 @@ describe('Assistant', () => {
     load('horarios.html');
     const mock = mockApi();
     const session = new ApiSession();
+    let calls = 0;
     const { api, sent } = recording(mock, {
       options: async (r, s) => ({ ...(await mock.options(r, s)), options: [{ id: 'x', title: 'X', steps: [step('#el-1'), step(null)] }] }),
-      nextStep: async (r) => ({ sessionId: r.sessionId, steps: [], done: true }),
+      nextStep: async (r) => (++calls === 1 ? { sessionId: r.sessionId, steps: [step('#el-1', 'userConfirmation')], done: false } : { sessionId: r.sessionId, steps: [], done: true }),
     });
     const { assistant, until, shownStep } = setup(api, session);
     assistant.navigated({ sameDocument: false, aiEnabled: true });
@@ -259,6 +348,7 @@ describe('Assistant', () => {
     assistant.confirmDone();
     await until(() => assistant.state.phase === 'completed');
     expect((sent[1] as NextStepRequest).sessionId).toBe(guideSession);
+    expect((sent[2] as NextStepRequest).sessionId).toBe(guideSession);
     expect(session.id).toBe('s-otra');
   });
 
