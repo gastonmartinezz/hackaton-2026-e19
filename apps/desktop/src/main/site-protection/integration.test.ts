@@ -50,7 +50,6 @@ describe('protección de sitios con el backend simulado', () => {
   it('cada página de demostración produce su estado', async () => {
     const cases: Array<[string, string, ReturnType<typeof siteIndicatorState> | 'unverified']> = [
       ['banco.html', 'http://banco-demo.example:47321/banco.html', 'official'],
-      ['horarios.html', 'http://tramites.mostrame-demo.gob.ar:47321/horarios.html', 'official'],
       ['horarios.html', 'http://tramites.mostrame-demo.gub.uy:47321/horarios.html', 'official'],
       ['horarios.html', 'http://usina-uy.example:47321/horarios.html', 'official'],
       ['horarios.html', 'http://sin-alertas.example:47321/horarios.html', 'no_alerts'],
@@ -71,7 +70,6 @@ describe('protección de sitios con el backend simulado', () => {
   it('«Sitio oficial» trae su fuente de autoridad', async () => {
     for (const [url, basis, organization] of [
       ['http://banco-demo.example:47321/banco.html', 'financial_regulator', 'Banco de Demostración'],
-      ['http://tramites.mostrame-demo.gob.ar:47321/horarios.html', 'government_domain', 'Estado argentino'],
       ['http://tramites.mostrame-demo.gub.uy:47321/horarios.html', 'government_domain', 'Estado uruguayo'],
       ['http://usina-uy.example:47321/horarios.html', 'official_catalog', 'Usina de Demostración (Uruguay)'],
     ] as const) {
@@ -82,6 +80,13 @@ describe('protección de sitios con el backend simulado', () => {
       expect(identity?.source?.name).toBeTruthy();
       expect(Date.parse(identity!.source!.reviewedAt)).not.toBeNaN();
     }
+  });
+
+  it('el banco de demostración figura en el registro de instituciones del BCU (simulado)', async () => {
+    const { protection } = setup();
+    await visit(protection, 'banco.html', 'http://banco-demo.example:47321/banco.html');
+    expect(protection.snapshot.response?.identity.source).toMatchObject({ name: 'Registro de instituciones del BCU (simulado)' });
+    expect(new URL(protection.snapshot.response!.identity.source!.url!).hostname).toBe('www.bcu.gub.uy');
   });
 
   it('la imitación avisa ya en la fase dirección', async () => {
@@ -113,7 +118,7 @@ describe('protección de sitios con el backend simulado', () => {
 
   it('nada de lo escrito en la página, cookies ni tokens de la URL sale del equipo', async () => {
     const { protection, sent } = setup();
-    load('banco-falso.html', 'http://bancodemo-acceso.example:47321/banco-falso.html?token=tok_9f8e7d6c5b4a3210zz&dni=30123456#ana@correo.com');
+    load('banco-falso.html', 'http://bancodemo-acceso.example:47321/banco-falso.html?token=tok_9f8e7d6c5b4a3210zz&cedula=30123456#ana@correo.com');
     document.cookie = 'sesion=cookie-secreta-123';
     for (const input of document.querySelectorAll('input')) (input as HTMLInputElement).value = 'Secreto123!';
     protection.navigationStarted(document.URL);
@@ -127,7 +132,7 @@ describe('protección de sitios con el backend simulado', () => {
 
   it('las respuestas simuladas cumplen el contrato', () => {
     const base = { navigationId: 'nav-1', url: 'https://x.example/', registrableDomain: 'x.example' };
-    for (const hostname of ['banco-demo.example', 'tramites.mostrame-demo.gob.ar', 'tramites.mostrame-demo.gub.uy', 'usina-uy.example', 'atencion.example', 'bancodemo-acceso.example', 'premio-gratis.example', 'parcial.example', 'otro.example']) {
+    for (const hostname of ['banco-demo.example', 'tramites.mostrame-demo.gub.uy', 'usina-uy.example', 'atencion.example', 'bancodemo-acceso.example', 'premio-gratis.example', 'parcial.example', 'otro.example']) {
       for (const contentVersion of [0, 1]) {
         const page = { text: '', forms: [], links: [], scriptHosts: [], iframeHosts: [] };
         const response = mockSiteCheck({ ...base, hostname, contentVersion, ...(contentVersion ? { page } : {}) });

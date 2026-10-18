@@ -1,19 +1,18 @@
 /**
  * TEMPORAL — respuestas simuladas de POST /v1/site-check para ver cada estado
  * del indicador sin el backend real. Decide por el hostname de las páginas de
- * demostración (`*.example`, `*.mostrame-demo.gob.ar` y `*.mostrame-demo.gub.uy`, que en desarrollo
+ * demostración (`*.example` y `*.mostrame-demo.gub.uy`, que en desarrollo
  * resuelven al servidor local de fixtures) y, para el resto, devuelve una
  * revisión incompleta: el simulador no consulta fuentes reales y nunca aprueba
  * un sitio que no conoce.
  *
  * «Sitio oficial» sigue la regla del contrato: solo con una fuente de autoridad
- * (`identity.basis`): zona reservada al Estado, padrón de entidades del BCRA o
- * catálogo curado (sitios de Uruguay).
+ * (`identity.basis`): zona reservada al Estado, registro de instituciones del
+ * Banco Central del Uruguay (BCU) o catálogo curado (sitios de Uruguay).
  *
  * | Hostname                      | Estado esperado          |
  * |-------------------------------|--------------------------|
- * | banco-demo.example            | Sitio oficial (padrón del BCRA: Banco de Demostración) |
- * | tramites.mostrame-demo.gob.ar | Sitio oficial (zona reservada al Estado: Estado argentino) |
+ * | banco-demo.example            | Sitio oficial (registro de instituciones del BCU: Banco de Demostración) |
  * | tramites.mostrame-demo.gub.uy | Sitio oficial (zona reservada al Estado: Estado uruguayo) |
  * | usina-uy.example              | Sitio oficial (catálogo curado: Usina de Demostración, Uruguay) |
  * | sin-alertas.example           | Sin alertas detectadas (Atención si aparece un campo de contraseña) |
@@ -40,10 +39,13 @@ export const MOCK_ORGANIZATION = 'Banco de Demostración';
 
 /** Fuentes simuladas de «Sitio oficial» (`identity.source`). Las fechas son de revisión de la fuente. */
 export const MOCK_SOURCES = {
-  bcra: { name: 'Padrón de entidades financieras del BCRA, simulado', url: 'https://www.bcra.gob.ar/', reviewedAt: '2026-10-01T12:00:00Z' },
-  gobAr: { name: 'Reglas del dominio .gob.ar de NIC Argentina, simulado', url: 'https://nic.ar/', reviewedAt: '2026-09-15T12:00:00Z' },
-  gubUy: { name: 'Reglas del dominio .gub.uy, simulado', url: 'https://www.gub.uy/', reviewedAt: '2026-09-20T12:00:00Z' },
-  catalog: { name: 'Lista de sitios oficiales de Mostrame, simulada', reviewedAt: '2026-10-10T12:00:00Z' },
+  bcu: {
+    name: 'Registro de instituciones del BCU (simulado)',
+    url: 'https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/Default.aspx',
+    reviewedAt: '2026-10-01T12:00:00Z',
+  },
+  gubUy: { name: 'Reglas del dominio .gub.uy (simulado)', url: 'https://www.gub.uy/', reviewedAt: '2026-09-20T12:00:00Z' },
+  catalog: { name: 'Lista de sitios oficiales de Mostrame (simulada)', reviewedAt: '2026-10-10T12:00:00Z' },
 } as const;
 
 const FRAUD: ReadonlySet<ReasonCode> = new Set([
@@ -106,9 +108,7 @@ export function mockSiteCheck(raw: SiteCheckRequest): SiteCheckResponse {
 
   switch (host) {
     case 'banco-demo.example':
-      return respond({ identity: { status: 'verified_official', basis: 'financial_regulator', organization: MOCK_ORGANIZATION, source: MOCK_SOURCES.bcra } });
-    case 'tramites.mostrame-demo.gob.ar':
-      return respond({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'Estado argentino', source: MOCK_SOURCES.gobAr } });
+      return respond({ identity: { status: 'verified_official', basis: 'financial_regulator', organization: MOCK_ORGANIZATION, source: MOCK_SOURCES.bcu } });
     case 'tramites.mostrame-demo.gub.uy':
       return respond({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'Estado uruguayo', source: MOCK_SOURCES.gubUy } });
     case 'usina-uy.example':
