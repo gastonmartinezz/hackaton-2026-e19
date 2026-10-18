@@ -395,6 +395,26 @@ describe('POST /v1/site-check: vencimiento', () => {
 });
 
 describe('POST /v1/site-check: reglas de contenido', () => {
+  it('un sitio oficial que nombra a su propia organización en un enlace a otro dominio sigue siendo oficial', async () => {
+    app = await testApp({ siteCheck: fakeProviders() });
+    // Como Prex (prex.onelink.me), Tigo (WhatsApp) o Itaú (su AFAP): descargar la app o un canal propio.
+    const page = { ...emptyPage, links: [{ text: 'Descargá la app de Antel', href: 'https://antel.onelink.me/app' }] };
+    const official = await check(contentRequest('https://www.antel.com.uy/', page));
+    expect(codes(official)).not.toContain('LINK_TEXT_MISMATCH');
+    expect(siteIndicatorState(official)).toBe('official');
+    // En una página que no es de Antel, el mismo enlace sí es sospechoso.
+    const other = await check(contentRequest('https://www.ejemplo-comercio.com.uy/', page));
+    expect(codes(other)).toContain('LINK_TEXT_MISMATCH');
+  });
+
+  it('en un sitio del Estado, un enlace que nombra a otro organismo y lleva a otro dominio sigue siendo sospechoso', async () => {
+    app = await testApp({ siteCheck: fakeProviders() });
+    const page = { ...emptyPage, links: [{ text: 'Banco de Previsión Social', href: 'https://bps-pagos.example.net/' }] };
+    const r = await check(contentRequest('https://www.msp.gub.uy/', page));
+    expect(r.identity).toMatchObject({ status: 'verified_official', basis: 'government_domain' });
+    expect(codes(r)).toContain('LINK_TEXT_MISMATCH');
+  });
+
   it('una amenaza en la línea siguiente a «Contraseña:» se detecta (el resumen se depura una sola vez)', async () => {
     app = await testApp({ siteCheck: fakeProviders() });
     const page = {
