@@ -13,10 +13,7 @@ export interface Finding {
   impersonatedOrganization?: string;
 }
 
-/**
- * Resultado de una verificación. Lo comparten la ruta y las tools MCP: siempre trae
- * fuente, fecha, alcance (cobertura), limitaciones y errores.
- */
+/** Resultado de una verificación: fuente, fecha, alcance (cobertura), limitaciones y errores. */
 export interface SourceResult<T> {
   source: string;
   checkedAt: string;

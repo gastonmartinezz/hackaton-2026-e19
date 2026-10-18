@@ -110,11 +110,6 @@ const EnvSchema = z
     // Tope de consultas por minuto a cada proveedor externo (protege cuotas y costos).
     SITE_CHECK_PROVIDER_MAX_PER_MINUTE: z.coerce.number().int().positive().default(120),
 
-    // Servidor MCP privado. Sin tokens no se levanta. Por defecto escucha solo en loopback.
-    MCP_ACCESS_TOKENS: csv.pipe(z.array(z.string().min(24, 'Cada token MCP debe tener al menos 24 caracteres'))),
-    MCP_HOST: z.string().default('127.0.0.1'),
-    MCP_PORT: z.coerce.number().int().positive().default(3100),
-
     ...SttEnvSchema.shape,
 
     OPENAI_API_KEY: z.string().optional(),
@@ -152,9 +147,6 @@ const EnvSchema = z
     }
     if (env.NODE_ENV === 'production' && env.REPUTATION_PROVIDER === 'mock') {
       ctx.addIssue({ code: 'custom', path: ['REPUTATION_PROVIDER'], message: 'El modo mock no se permite en producción' });
-    }
-    if (env.MCP_ACCESS_TOKENS.some((token) => env.API_ACCESS_TOKENS.includes(token))) {
-      ctx.addIssue({ code: 'custom', path: ['MCP_ACCESS_TOKENS'], message: 'Usar tokens distintos a los de la API' });
     }
     if (env.NODE_ENV === 'production' && env.STT_PROVIDER === 'mock') {
       ctx.addIssue({ code: 'custom', path: ['STT_PROVIDER'], message: 'El modo mock no se permite en producción' });

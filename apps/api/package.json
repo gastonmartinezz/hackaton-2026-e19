@@ -22,7 +22,6 @@
     "@fastify/swagger-ui": "6.1.2",
     "@hackaton/contracts": "workspace:*",
     "@huggingface/transformers": "4.3.1",
-    "@modelcontextprotocol/sdk": "1.31.0",
     "fastify": "5.12.7",
     "fastify-type-provider-zod": "7.0.0",
     "openai": "7.33.0",

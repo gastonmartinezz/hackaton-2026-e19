@@ -1,6 +1,6 @@
 # Protección de sitios: qué se valida hoy
 
-Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que **no** está activo. El contrato del endpoint está en [`api.md`](api.md) y el servidor MCP en [`mcp.md`](mcp.md).
+Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que **no** está activo. El contrato del endpoint está en [`api.md`](api.md).
 
 ## Resumen
 
@@ -75,15 +75,6 @@ Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que
 ### Caché
 
 Los resultados se guardan por fuente: reputación 10 min (30 min si hay amenaza), conexión 1 h, registro 24 h, contenido 10 min y registro del BCU 24 h. Si alguna fuente falla o la página todavía no cargó, el resultado vence al minuto. Los resultados con fallas no se guardan.
-
-## Servidor MCP
-
-Existe un servidor MCP privado con 6 herramientas (`check_url_reputation`, `lookup_official_identity`, `get_domain_registration`, `inspect_connection`, `analyze_page_structure` y `compare_brand_identity`). Usan los mismos servicios que el endpoint. **Hoy no lo usa nadie:**
-
-- está apagado salvo que se configure `MCP_ACCESS_TOKENS`;
-- la IA del análisis no llama a herramientas: el servicio hace todas las verificaciones y le pasa los resultados.
-
-Detalle en [`mcp.md`](mcp.md).
 
 ## Limitaciones conocidas
 

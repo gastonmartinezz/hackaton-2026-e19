@@ -29,7 +29,6 @@ import { speakRoutes } from './modules/speak/speak.routes.js';
 import { SpeakService } from './modules/speak/speak.service.js';
 import { createSiteCheckService, type SiteCheckOverrides } from './modules/site-check/factory.js';
 import { siteCheckRoutes } from './modules/site-check/site-check.routes.js';
-import type { SiteCheckService } from './modules/site-check/site-check.service.js';
 import { LocalWhisperProvider } from './modules/transcribe/local-provider.js';
 import { MockTranscriptionProvider } from './modules/transcribe/mock-provider.js';
 import { OpenAITranscriptionProvider } from './modules/transcribe/openai-provider.js';
@@ -38,13 +37,6 @@ import { transcribeRoutes } from './modules/transcribe/transcribe.routes.js';
 import { TranscribeService } from './modules/transcribe/transcribe.service.js';
 import { UrlVerifier } from './modules/urls/url-verifier.js';
 import { registerAuth } from './plugins/auth.js';
-
-declare module 'fastify' {
-  interface FastifyInstance {
-    /** Servicio de Protección de sitios; el servidor MCP lo comparte (mismas cachés y límites). */
-    siteCheck: SiteCheckService;
-  }
-}
 
 export interface AppDeps {
   model?: StructuredModel;
@@ -183,7 +175,6 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
   });
 
   const { service: siteCheck, authority } = createSiteCheckService(config, model, deps.siteCheck);
-  app.decorate('siteCheck', siteCheck);
   // Descarga el registro de instituciones del BCU en segundo plano al arrancar (no en pruebas).
   if (config.NODE_ENV !== 'test') authority.warmUp();
   await app.register(siteCheckRoutes, {

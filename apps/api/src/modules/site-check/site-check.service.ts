@@ -72,7 +72,6 @@ const IDENTITY_LIMITATIONS = [
  * Protección de sitios. Las validaciones esenciales corren siempre acá, en el servicio. La IA solo
  * identifica la organización declarada y los pedidos de la página; esa organización se contrasta
  * con las fuentes de autoridad. Nunca otorga identidad oficial ni baja el riesgo.
- * Cada método de verificación es también una tool MCP.
  */
 export class SiteCheckService {
   constructor(private readonly deps: SiteCheckDeps) {}

@@ -1,5 +1,7 @@
 # Protección de sitios en Mostrame
 
+> **Nota histórica (octubre de 2026).** Este es el encargo original. El servidor MCP privado se quitó porque la IA no llama herramientas: el servicio hace todas las verificaciones y le pasa los resultados. El estado actual está en [`docs/proteccion-sitios.md`](docs/proteccion-sitios.md) y el contrato en [`docs/api.md`](docs/api.md#protección-de-sitios-post-v1site-check).
+
 ## Objetivo del producto
 
 Incorporar al navegador existente una funcionalidad que analice automáticamente la página actual para detectar señales de estafa, phishing o suplantación. Debe explicar los hallazgos y ofrecer acciones claras para personas mayores.
