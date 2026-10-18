@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { GuideStep, NextStepRequest, OptionsRequest } from '@hackaton/contracts';
+import { OptionsRequest, type GuideStep, type NextStepRequest } from '@hackaton/contracts';
 import { extractSnapshot, resolveSelector, snapshotToHtml, type ElementRegistry } from '@asistente/page-analyzer';
 import { findLeaks } from '@asistente/privacy';
 import { describe, expect, it, vi } from 'vitest';
@@ -117,6 +117,7 @@ describe('Assistant', () => {
     const [options, next] = rec.sent as [OptionsRequest, NextStepRequest];
     expect(rec.sent).toHaveLength(2);
     expect(options.sessionId).toBe(session.id);
+    expect(options.goal).toBe('pedir turno');
     expect(next).toMatchObject({ sessionId: session.id, optionId: form!.id, expectedStep: { element: null } });
     expect(next.completedSteps).toHaveLength(4);
     expect(findLeaks(rec.sent, [...typed, 'Marta', '/formulario', 'nombre=', '127.0.0.1'])).toEqual([]);
@@ -187,6 +188,27 @@ describe('Assistant', () => {
     assistant.analyze();
     await until(() => sent.length === 2 && assistant.state.phase === 'choosing');
     expect((sent[1] as OptionsRequest).metadata).toEqual({ page: { title: 'Biblioteca - Horarios' } });
+  });
+
+  it('envía como goal lo que la persona pide en la página y nunca un objetivo vacío', async () => {
+    load('horarios.html');
+    const { api, sent } = recording(mockApi());
+    const { assistant, until } = setup(api);
+    assistant.expectDestination('');
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    await until(() => assistant.state.phase === 'choosing');
+    expect(sent[0]).not.toHaveProperty('goal');
+
+    // «¿No está lo que buscás?» → askOnPage → analyze(goal).
+    assistant.analyze('quiero iniciar sesion');
+    await until(() => sent.length === 2 && assistant.state.phase === 'choosing');
+    expect((sent[1] as OptionsRequest).goal).toBe('quiero iniciar sesion');
+    expect(OptionsRequest.safeParse(sent[1]).success).toBe(true);
+
+    // Reintentar sin texto nuevo conserva el pedido.
+    assistant.analyze();
+    await until(() => sent.length === 3 && assistant.state.phase === 'choosing');
+    expect((sent[2] as OptionsRequest).goal).toBe('quiero iniciar sesion');
   });
 
   it('descarta respuestas tardías de una navegación anterior', async () => {
