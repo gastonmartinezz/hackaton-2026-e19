@@ -69,7 +69,7 @@ Spec: `proteccion-sitios-agentes.md`. Contrato: `packages/contracts/src/site-che
 | `sin-alertas.example/cambiante.html` | Sin alertas → Atención al agregar un campo de contraseña; el botón de pago cambia la ruta (SPA) |
 | `atencion.example/urgente.html` | Atención |
 | `bancodemo-acceso.example/banco-falso.html` | Posible estafa por imitación, ya en la fase dirección |
-| `premio-gratis.example/premio.html` | Posible estafa por malware (sin «parece imitar») |
+| `premio-gratis.example/premio.html` | Posible estafa por el contenido: urgencia y pedido de tarjeta (sin «parece imitar») |
 | `falla.example/…` · `parcial.example/…` | No pudimos verificarlo (error del servicio · cobertura parcial) |
 | `lenta.example/…` · `sin-respuesta.example/…` | Revisando 6 s y luego Sin alertas · vence el tiempo máximo |
 

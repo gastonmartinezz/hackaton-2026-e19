@@ -4,7 +4,6 @@ import { BCU_HOST, BCU_LISTS_HANDLER } from '../src/modules/site-check/bcu-regis
 import type { HopRequester, HopResult } from '../src/modules/site-check/connection.js';
 import type { SiteCheckOverrides } from '../src/modules/site-check/factory.js';
 import type { HostResolver } from '../src/modules/site-check/net-guard.js';
-import { MockReputationProvider, type Threat } from '../src/modules/site-check/reputation.js';
 
 /** IP pública de ejemplo. Nunca se contacta: el requester de las pruebas es falso. */
 export const PUBLIC_IP = '93.184.216.34';
@@ -94,15 +93,13 @@ export function fakeRdapFetch({ registeredAt = '2001-05-10T00:00:00Z', fail = fa
 }
 
 /** Proveedores falsos y sin red. Se pueden reemplazar uno por uno. */
-export function fakeProviders(over: Partial<SiteCheckOverrides> & { flagged?: Record<string, Threat[]> } = {}): SiteCheckOverrides {
-  const { flagged, ...rest } = over;
+export function fakeProviders(over: Partial<SiteCheckOverrides> = {}): SiteCheckOverrides {
   return {
-    reputationProvider: new MockReputationProvider(flagged),
     fetchImpl: fakeRdapFetch().impl,
     catalogFiles: TEST_CATALOGS,
     resolver: publicResolver,
     requester: recordingRequester().requester,
-    ...rest,
+    ...over,
   };
 }
 

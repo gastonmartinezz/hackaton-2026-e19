@@ -10,7 +10,7 @@ describe('plainDate', () => {
 
 const evidence = [{ source: 'test', checkedAt: '2026-10-17T22:00:00Z', observedBy: 'service' as const, detail: 'x' }];
 const reason = (code: ReasonCode, category: SiteCheckReason['category'] = 'fraud'): SiteCheckReason => ({ code, category, evidence });
-const COMPLETE = { reputation: 'complete', identity: 'complete', content: 'complete', registration: 'unavailable', connection: 'unavailable' } as const;
+const COMPLETE = { identity: 'complete', content: 'complete', registration: 'unavailable', connection: 'unavailable' } as const;
 const response = (over: Partial<SiteCheckResponse> = {}) =>
   SiteCheckResponse.parse({
     navigationId: 'nav-1',
@@ -86,10 +86,16 @@ describe('textos del indicador', () => {
     expect(copy.panel.primary).toEqual({ id: 'leave', label: 'Salir de este sitio' });
 
     // Organización informada pero el motivo es otro: no se afirma suplantación.
-    const malware = response({ risk: 'high', identity: { status: 'unknown', impersonatedOrganization: 'Banco del Sur Demo' }, reasons: [reason('KNOWN_MALWARE')] });
-    expect(scamSummary(malware)).not.toContain('imitar');
-    expect(scamSummary(malware)).toContain('dañar tu equipo');
-    expect(scamSummary(response({ risk: 'high', reasons: [reason('KNOWN_PHISHING')] }))).toContain('robar datos');
+    const content = response({
+      risk: 'high',
+      identity: { status: 'unknown', impersonatedOrganization: 'Banco del Sur Demo' },
+      reasons: [reason('SENSITIVE_DATA_REQUEST'), reason('URGENCY_OR_THREAT')],
+    });
+    expect(scamSummary(content)).toBe('Encontramos señales de estafa en este sitio. No ingreses contraseñas ni códigos.');
+    // Dirección engañosa sin una organización a la que imite.
+    expect(scamSummary(response({ risk: 'high', reasons: [reason('MISLEADING_SUBDOMAIN')] }))).toBe(
+      'La dirección se parece a la de otro sitio, pero no es la misma. No ingreses contraseñas ni códigos.',
+    );
     expect(scamSummary(response({ risk: 'high', reasons: [reason('SENSITIVE_DATA_REQUEST')] }))).toBe(
       'Encontramos señales de estafa en este sitio. No ingreses contraseñas ni códigos.',
     );
@@ -115,7 +121,8 @@ describe('textos del indicador', () => {
 describe('nota de cobertura', () => {
   it('no se muestra por registro o conexión no disponibles (no son obligatorios)', () => {
     expect(siteCheckCopy('no_alerts', response()).panel.coverageNote).toBeNull();
-    expect(siteCheckCopy('unverified', response({ status: 'partial', coverage: { ...COMPLETE, reputation: 'unavailable' } })).panel.coverageNote).not.toBeNull();
+    expect(siteCheckCopy('unverified', response({ status: 'partial', coverage: { ...COMPLETE, content: 'partial' } })).panel.coverageNote).not.toBeNull();
+    expect(siteCheckCopy('unverified', response({ status: 'partial', coverage: { ...COMPLETE, identity: 'unavailable' } })).panel.coverageNote).not.toBeNull();
   });
 });
 
@@ -145,16 +152,10 @@ describe('sitio oficial según la fuente de autoridad (identity.basis)', () => {
     expect(announcementText('official', r)).toBe('Sitio oficial del Estado uruguayo.');
   });
 
-  it('sin reputación consultada sigue siendo oficial, con el aviso de revisión incompleta en los detalles', () => {
-    const r = response({
-      status: 'partial',
-      risk: 'unknown',
-      identity: { status: 'verified_official', basis: 'government_domain', organization: 'Estado uruguayo', source: SOURCE },
-      coverage: { ...COMPLETE, reputation: 'unavailable' },
-    });
-    const copy = siteCheckCopy('official', r, 'www.gub.uy');
+  it('sin registro ni conexión (no obligatorios) sigue siendo oficial y sin aviso de revisión incompleta', () => {
+    const copy = siteCheckCopy('official', official('government_domain', 'Estado uruguayo'), 'www.gub.uy');
     expect(copy.label).toBe('Sitio oficial');
-    expect(copy.panel.coverageNote).toBe('Algunas comprobaciones no estuvieron disponibles, así que la revisión no está completa.');
+    expect(copy.panel.coverageNote).toBeNull();
   });
 
   it('dominio del Gobierno de Estados Unidos', () => {

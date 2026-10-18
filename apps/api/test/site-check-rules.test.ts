@@ -510,8 +510,8 @@ describe('sanitización en el backend', () => {
 
 describe('riesgo determinístico', () => {
   it('una señal fuerte alcanza para riesgo alto', () => {
-    expect(computeRisk(new Set(['KNOWN_PHISHING']), true)).toBe('high');
     expect(computeRisk(new Set(['LOOKALIKE_DOMAIN']), false)).toBe('high');
+    expect(computeRisk(new Set(['MISLEADING_SUBDOMAIN']), true)).toBe('high');
   });
 
   it('las debilidades técnicas nunca dan riesgo alto por sí solas', () => {

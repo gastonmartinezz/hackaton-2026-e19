@@ -5,15 +5,15 @@ Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que
 ## Resumen
 
 - El navegador revisa cada sitio que se abre y muestra el resultado junto al dominio, en la barra «Estás en…»: «Revisando sitio…», «Sitio oficial», «Sin alertas detectadas», «Atención», «Posible estafa» o «No pudimos verificarlo».
-- Las verificaciones las hace el backend (`POST /v1/site-check`), con reglas propias, fuentes de Uruguay (zonas `gub.uy` y `mil.uy`, el registro del Banco Central del Uruguay y un catálogo verificado) y algunas fuentes externas.
+- Las verificaciones las hace el backend (`POST /v1/site-check`), con reglas propias, fuentes de Uruguay (zonas `gub.uy` y `mil.uy`, el registro del Banco Central del Uruguay y un catálogo verificado), RDAP y una inspección de la conexión.
 - La IA (Claude) solo complementa el análisis: nunca decide «Sitio oficial» ni baja el riesgo.
-- **Sin una clave de reputación configurada, ningún sitio puede quedar como «Sin alertas detectadas».** Los sitios oficiales (`gub.uy`, bancos del BCU, catálogo) igual se ven como «Sitio oficial»; los demás muestran «No pudimos verificarlo». Ver [Limitaciones](#limitaciones-conocidas).
+- **No se usan listas de reportes de phishing o malware** (Google Safe Browsing, Web Risk ni otras), y no hace falta ninguna clave para Protección de sitios. Ver [Limitaciones](#limitaciones-conocidas).
 
 ## Cuándo se ejecuta
 
 | Momento | Qué se envía | Qué se revisa |
 |---|---|---|
-| Al empezar cada navegación | Solo la dirección, depurada (`contentVersion: 0`) | Reputación, sitio oficial, dominios parecidos, registro y conexión. Si ya hay riesgo, la advertencia aparece antes de que cargue la página. |
+| Al empezar cada navegación | Solo la dirección, depurada (`contentVersion: 0`) | Sitio oficial, dominios parecidos, registro y conexión. Si ya hay riesgo, la advertencia aparece antes de que cargue la página. |
 | 400 ms después de que carga la página | Resumen depurado de la página (`contentVersion ≥ 1`) | Todo lo anterior, más las reglas de contenido y la IA |
 | Cambios en la página (otra ruta del mismo sitio, formularios nuevos o la marca declarada) | Nuevo resumen | Igual que el anterior. Espera 1,5 s, deja 5 s entre revisiones y hace como máximo 6 por navegación. |
 | «Intentar de nuevo» | Nuevo resumen | Igual. No cuenta para el máximo. |
@@ -32,7 +32,6 @@ Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que
 
 | Validación | Fuente | Estado hoy |
 |---|---|---|
-| Sitio reportado como phishing o malware | Google Safe Browsing o Web Risk (API) | ❌ **No activa.** Falta configurar una clave. |
 | «Sitio oficial»: zonas reservadas al Estado | `zones` del catálogo de Uruguay y `government-zones.json` | ✅ `.gub.uy` (Estado uruguayo) y `.mil.uy` (Fuerzas Armadas), que solo se registran vía AGESIC según nic.uy. También `.gov` y `.mil` de EE. UU. |
 | «Sitio oficial»: instituciones financieras | **Registro de instituciones del Banco Central del Uruguay (BCU)**, descargado automáticamente al arrancar y cada 24 h | ✅ 161 instituciones con sitio web: bancos, financieras, administradoras de crédito, cooperativas, casas de cambio, AFAP, aseguradoras y entidades del Sistema de Pagos (billeteras, cobranzas) |
 | «Sitio oficial»: otras organizaciones de Uruguay | Catálogo `official-sites.uy.json` (revisado el 17/10/2026) | ✅ 153 entradas con fuente (BCU, `gub.uy` o MSP) y fecha: Antel, UTE, OSE, ANCAP, Correo, Claro, Tigo, Abitab, Redpagos, Mercado Libre, mutualistas, organismos fuera de `gub.uy`. También aporta dominios que el BCU no publica, como `brou.com.uy`. **Se actualiza a mano.** |
@@ -48,8 +47,8 @@ Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que
 - **Si un dominio está en el BCU y en el catálogo**, se muestra el nombre corto del catálogo («Banco República (BROU)») con el BCU como fuente.
 - **Un dominio que el catálogo descartó** (no responde, redirige a otro o no se pudo verificar) no se aprueba aunque el BCU lo publique.
 - **El riesgo tiene prioridad sobre lo oficial.** Un sitio `.gub.uy` comprometido igual muestra «Posible estafa».
-- **Para «Sitio oficial»** tienen que estar completos la identidad (probada por la autoridad) y el contenido, sin ningún motivo de estafa. La reputación **no** es obligatoria para lo oficial: la oficialidad la prueba la autoridad, no una lista de reportes. Si no se pudo consultar, «Ver por qué» lo avisa («Algunas comprobaciones no estuvieron disponibles…»). Una amenaza reportada igual da «Posible estafa».
-- **Para «Sin alertas detectadas»** (sitios sin autoridad que los respalde) tienen que estar completas la reputación, la identidad y el contenido. Si alguna falta o falla, el resultado es «No pudimos verificarlo», nunca una aprobación.
+- **Para «Sitio oficial»** tienen que estar completos la identidad (probada por la autoridad) y el contenido, sin ningún motivo de estafa.
+- **Para «Sin alertas detectadas»** (sitios sin autoridad que los respalde) tienen que estar completos la identidad (el registro del BCU vigente, para saber que no es una institución financiera ni la imita) y el contenido, sin ningún motivo de estafa. Si algo falta o falla, el resultado es «No pudimos verificarlo», nunca una aprobación.
 - Las dos reglas están en `siteIndicatorState()` del contrato, que usan el navegador y el backend.
 - **El registro y la conexión no son obligatorios:** si faltan, no aprueban ni reprueban.
 
@@ -74,14 +73,11 @@ Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que
 
 ### Caché
 
-Los resultados se guardan por fuente: reputación 10 min (30 min si hay amenaza), conexión 1 h, registro 24 h, contenido 10 min y registro del BCU 24 h. Si alguna fuente falla o la página todavía no cargó, el resultado vence al minuto. Los resultados con fallas no se guardan.
+Los resultados se guardan por fuente: conexión 1 h, registro 24 h y registro del BCU 24 h. Una respuesta completa vence a los 10 min. Si alguna fuente falla o la página todavía no cargó, el resultado vence al minuto. Los resultados con fallas no se guardan.
 
 ## Limitaciones conocidas
 
-1. **Sin reputación activa.** Sin clave de Google Safe Browsing o Web Risk no se consulta ninguna lista de phishing: ningún sitio no oficial puede quedar como «Sin alertas detectadas», y un sitio oficial comprometido y ya denunciado no se detectaría como amenaza.
-   - **Safe Browsing:** gratis y sin tarjeta, pero solo para uso no comercial.
-   - **Web Risk:** comercial, gratis hasta 100.000 consultas por mes, y exige activar la facturación.
-   - Se configuran con `REPUTATION_PROVIDER` y la clave correspondiente.
+1. **Sin listas de reportes.** No se consulta ninguna lista de phishing o malware. Un sitio de estafa que no imita a una organización de Uruguay (ni en la dirección ni en el contenido) y no muestra señales en la página, como una descarga de malware, puede quedar como «Sin alertas detectadas». Un sitio oficial comprometido solo se detecta por su contenido (formularios que envían a otro dominio, amenazas, enlaces engañosos).
 2. **Arranque sin BCU.** Durante los primeros ~70 s después de arrancar el servidor, las instituciones financieras que no están en el catálogo quedan «No pudimos verificarlo».
 3. **El BCU es la fuente de los dominios financieros.** Si publica un dominio que vence y otro lo registra, sigue saliendo oficial hasta que el BCU actualice la ficha, salvo que el catálogo lo haya descartado. `.uy` no tiene RDAP para notarlo.
 4. **Nombres en mayúsculas.** Si el BCU no publica un nombre de fantasía y la institución no está en el catálogo, el nombre puede aparecer en mayúsculas («CAMBIO FAGALDE»).

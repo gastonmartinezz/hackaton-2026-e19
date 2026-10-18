@@ -115,7 +115,6 @@ export const CoverageLevel = z.enum(['complete', 'partial', 'unavailable', 'not_
 export type CoverageLevel = z.infer<typeof CoverageLevel>;
 
 export const SiteCheckCoverage = z.strictObject({
-  reputation: CoverageLevel,
   identity: CoverageLevel,
   content: CoverageLevel,
   registration: CoverageLevel,
@@ -129,8 +128,6 @@ export type SiteCheckCoverage = z.infer<typeof SiteCheckCoverage>;
  */
 export const ReasonCode = z.enum([
   // fraud
-  'KNOWN_PHISHING',
-  'KNOWN_MALWARE',
   'LOOKALIKE_DOMAIN',
   'CONFUSABLE_CHARACTERS',
   'MISLEADING_SUBDOMAIN',
@@ -151,11 +148,11 @@ export type ReasonCode = z.infer<typeof ReasonCode>;
 export const ReasonCategory = z.enum(['fraud', 'technical']);
 
 export const Evidence = z.strictObject({
-  /** Fuente: catálogo, proveedor de reputación, RDAP, reglas de contenido, etc. */
+  /** Fuente: fuentes de autoridad, RDAP, inspección de conexión, reglas de contenido, IA, etc. */
   source: ShortText(80),
   checkedAt: z.iso.datetime(),
-  /** Quién observó el dato: el navegador de la persona, un escáner externo o el servicio. */
-  observedBy: z.enum(['user_browser', 'external_scanner', 'service']),
+  /** Quién observó el dato: el navegador de la persona o el servicio (fuentes, RDAP, conexión, IA). */
+  observedBy: z.enum(['user_browser', 'service']),
   /** Detalle técnico breve. El front no lo muestra tal cual a la persona. */
   detail: ShortText(300),
 });
@@ -239,11 +236,10 @@ const enough = (level: CoverageLevel) => level === 'complete' || level === 'not_
 /**
  * Cobertura mínima acordada. Prioridad: riesgo alto, riesgo medio, pendiente, oficial, insuficiente, sin alertas.
  * - «Sitio oficial» exige identidad verificada por una autoridad (zona del Estado, registro del BCU o catálogo),
- *   identidad y contenido completos y ningún motivo de fraude. La reputación **no** es obligatoria: la oficialidad
- *   la prueba la autoridad, y sin proveedor de reputación configurado `gub.uy` igual tiene que verse oficial. Una
- *   amenaza reportada sigue ganando (riesgo alto, arriba).
- * - «Sin alertas detectadas» exige `status: complete` y reputación, contenido e identidad completos (o no
- *   aplicables): sin autoridad que respalde el sitio, no ver señales no alcanza si no se consultaron reportes.
+ *   identidad y contenido completos y ningún motivo de fraude. Un riesgo alto sigue ganando (arriba): un sitio
+ *   oficial comprometido se ve como «Posible estafa».
+ * - «Sin alertas detectadas» exige `status: complete`, riesgo `no_signals`, identidad y contenido completos (o no
+ *   aplicables) y ningún motivo de fraude. Si alguna comprobación obligatoria falta, «No pudimos verificarlo».
  * - Registro y conexión no son obligatorios: su ausencia nunca aprueba ni reprueba.
  */
 export function siteIndicatorState(r: SiteCheckResponse): SiteIndicatorState {
@@ -253,7 +249,6 @@ export function siteIndicatorState(r: SiteCheckResponse): SiteIndicatorState {
   const c = r.coverage;
   const hasFraud = r.reasons.some((reason) => reason.category === 'fraud');
   if (r.status !== 'unavailable' && r.identity.status === 'verified_official' && c.identity === 'complete' && enough(c.content) && !hasFraud) return 'official';
-  if (r.status !== 'complete' || r.risk !== 'no_signals') return 'unverified';
-  if (!enough(c.reputation) || !enough(c.content) || !enough(c.identity)) return 'unverified';
+  if (r.status !== 'complete' || r.risk !== 'no_signals' || hasFraud || !enough(c.identity) || !enough(c.content)) return 'unverified';
   return 'no_alerts';
 }

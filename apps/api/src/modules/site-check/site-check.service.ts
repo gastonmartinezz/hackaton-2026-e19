@@ -20,7 +20,6 @@ import { describeHost, type HostInfo } from './domain.js';
 import { lookalikeSignals } from './lookalike.js';
 import { analyzePage, compareBrand, type BrandComparison, type PageAnalysis } from './page-rules.js';
 import type { RdapClient, RegistrationData } from './rdap.js';
-import type { ReputationChecker, ReputationData } from './reputation.js';
 import { sanitizePage, sanitizeUrl } from './sanitize.js';
 import { errorKind, type Finding, type SourceResult } from './types.js';
 
@@ -41,7 +40,6 @@ export interface IdentityData {
 
 export interface SiteCheckDeps {
   authority: AuthorityService;
-  reputation: ReputationChecker;
   rdap: RdapClient;
   connection: ConnectionInspector;
   /** null deshabilita la IA (SITE_CHECK_AI=false). */
@@ -114,13 +112,6 @@ export class SiteCheckService {
       },
       findings,
     };
-  }
-
-  /** `check_url_reputation`. */
-  reputation(rawUrl: string): Promise<SourceResult<ReputationData>> {
-    const url = this.safeUrl(rawUrl);
-    if (describeHost(url.hostname).internal) return Promise.resolve(internalResult('Reputación', this.nowIso()));
-    return this.deps.reputation.check(url);
   }
 
   /** `get_domain_registration`. Se consulta siempre el dominio registrable, nunca el host completo. */
@@ -200,20 +191,19 @@ export class SiteCheckService {
         identity: { status: 'unknown' },
         risk: 'unknown',
         reasons: [],
-        coverage: { reputation: 'not_applicable', identity: 'not_applicable', content: 'not_applicable', registration: 'not_applicable', connection: 'not_applicable' },
+        coverage: { identity: 'not_applicable', content: 'not_applicable', registration: 'not_applicable', connection: 'not_applicable' },
         expiresAt: new Date(Date.parse(checkedAt) + INCOMPLETE_TTL_MS).toISOString(),
       });
     }
 
-    const [authority, reputation, registration, connection] = await Promise.all([
+    const [authority, registration, connection] = await Promise.all([
       this.deps.authority.view(),
-      this.deps.reputation.check(url),
       this.registration(host.hostname),
       this.connection(url.toString()),
     ]);
     const identity = await this.identity(host.hostname, authority);
     const official = identity.data?.official ?? null;
-    const findings: Finding[] = [...identity.findings, ...reputation.findings, ...registration.findings, ...connection.findings];
+    const findings: Finding[] = [...identity.findings, ...registration.findings, ...connection.findings];
     if (url.protocol === 'http:') {
       findings.push({ code: 'NO_HTTPS', source: 'Dirección', checkedAt, observedBy: 'user_browser', detail: 'La página no usa una conexión cifrada (https)' });
     }
@@ -230,10 +220,10 @@ export class SiteCheckService {
       let asksCredentials = page.data?.sensitiveKinds.includes('password') ?? false;
 
       if (this.deps.model) {
-        // Lo que la IA recibe tiene que reflejar la cobertura real: sin reputación o identidad completas el
-        // riesgo es «unknown» y el prompt le prohíbe tranquilizar.
-        const preCoverage = { reputation: reputation.coverage, identity: identity.coverage, content: page.coverage, registration: registration.coverage, connection: connection.coverage };
-        const preComplete = [preCoverage.reputation, preCoverage.identity, preCoverage.content].every(isEnough);
+        // Lo que la IA recibe tiene que reflejar la cobertura real: sin identidad completa el riesgo es «unknown»
+        // y el prompt le prohíbe tranquilizar.
+        const preCoverage = { identity: identity.coverage, content: page.coverage, registration: registration.coverage, connection: connection.coverage };
+        const preComplete = [preCoverage.identity, preCoverage.content].every(isEnough);
         const rulesRisk = computeRisk(new Set(findings.map((f) => f.code)), preComplete);
         const ai = await this.interpret(log, { host, risk: rulesRisk, coverage: preCoverage, official, findings, page: sanitized, analysis: page.data! });
         if (!ai) {
@@ -262,19 +252,18 @@ export class SiteCheckService {
     }
 
     const coverage: SiteCheckCoverage = {
-      reputation: reputation.coverage,
       identity: identity.coverage,
       content: contentCoverage,
       registration: registration.coverage,
       connection: connection.coverage,
     };
-    // Obligatorias para un estado favorable: reputación, identidad y contenido (ver siteIndicatorState).
-    const mandatory: CoverageLevel[] = page ? [coverage.reputation, coverage.identity, coverage.content] : [coverage.reputation, coverage.identity];
+    // Obligatorias para un estado favorable: identidad y contenido (ver siteIndicatorState).
+    const mandatory: CoverageLevel[] = page ? [coverage.identity, coverage.content] : [coverage.identity];
     const mandatoryComplete = mandatory.every(isEnough);
     const risk: SiteRisk = computeRisk(new Set(findings.map((f) => f.code)), mandatoryComplete);
 
     const status = !page ? 'pending' : mandatoryComplete ? 'complete' : 'partial';
-    const sources = [reputation, identity, registration, connection, ...(page ? [page] : [])];
+    const sources = [identity, registration, connection, ...(page ? [page] : [])];
     const incomplete = Object.values(coverage).some((level) => level === 'unavailable' || level === 'partial');
     const ttl = Math.min(...sources.filter((s) => s.ttlMs > 0).map((s) => s.ttlMs), CONTENT_TTL_MS, incomplete || !page ? INCOMPLETE_TTL_MS : Number.POSITIVE_INFINITY);
     const impersonated = findings.find((f) => f.impersonatedOrganization)?.impersonatedOrganization;

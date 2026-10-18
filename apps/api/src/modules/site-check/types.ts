@@ -1,6 +1,6 @@
 import type { CoverageLevel, ReasonCode } from '@hackaton/contracts';
 
-export type Observer = 'user_browser' | 'external_scanner' | 'service';
+export type Observer = 'user_browser' | 'service';
 
 /** Hallazgo de una fuente antes de agregarse como motivo de la respuesta. */
 export interface Finding {

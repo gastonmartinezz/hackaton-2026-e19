@@ -20,6 +20,6 @@ process.once('SIGINT', () => void shutdown('SIGINT'));
 
 await app.listen({ host: config.HOST, port: config.PORT });
 app.log.info(
-  { aiProvider: config.AI_PROVIDER, reputationProvider: config.REPUTATION_PROVIDER, sttProvider: config.STT_PROVIDER, ttsProvider: config.TTS_PROVIDER },
+  { aiProvider: config.AI_PROVIDER, sttProvider: config.STT_PROVIDER, ttsProvider: config.TTS_PROVIDER },
   'api ready',
 );

@@ -1,6 +1,6 @@
 # Protección de sitios en Mostrame
 
-> **Nota histórica (octubre de 2026).** Este es el encargo original. El servidor MCP privado se quitó porque la IA no llama herramientas: el servicio hace todas las verificaciones y le pasa los resultados. El estado actual está en [`docs/proteccion-sitios.md`](docs/proteccion-sitios.md) y el contrato en [`docs/api.md`](docs/api.md#protección-de-sitios-post-v1site-check).
+> **Nota histórica (octubre de 2026).** Este es el encargo original. Después se quitaron dos partes: la reputación de URL (no se usa ningún proveedor de listas de reportes, como Google Safe Browsing o Web Risk) y el servidor MCP privado (la IA no llama herramientas: el servicio hace todas las verificaciones y le pasa los resultados). El estado actual está en [`docs/proteccion-sitios.md`](docs/proteccion-sitios.md) y el contrato en [`docs/api.md`](docs/api.md#protección-de-sitios-post-v1site-check).
 
 ## Objetivo del producto
 

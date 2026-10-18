@@ -140,8 +140,6 @@
           "code": {
             "type": "string",
             "enum": [
-              "KNOWN_PHISHING",
-              "KNOWN_MALWARE",
               "LOOKALIKE_DOMAIN",
               "CONFUSABLE_CHARACTERS",
               "MISLEADING_SUBDOMAIN",
@@ -185,7 +183,6 @@
                   "type": "string",
                   "enum": [
                     "user_browser",
-                    "external_scanner",
                     "service"
                   ]
                 },
@@ -216,16 +213,6 @@
     "coverage": {
       "type": "object",
       "properties": {
-        "reputation": {
-          "type": "string",
-          "enum": [
-            "complete",
-            "partial",
-            "unavailable",
-            "not_applicable",
-            "pending"
-          ]
-        },
         "identity": {
           "type": "string",
           "enum": [
@@ -268,7 +255,6 @@
         }
       },
       "required": [
-        "reputation",
         "identity",
         "content",
         "registration",

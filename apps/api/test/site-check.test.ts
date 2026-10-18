@@ -5,23 +5,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { defaultMockHandlers, MockModel } from '../src/modules/ai/mock-model.js';
 import type { StructuredModel } from '../src/modules/ai/model.js';
 import type { SiteCheckOutput } from '../src/modules/ai/schemas.js';
-import type { ReputationProvider, ReputationVerdict } from '../src/modules/site-check/reputation.js';
 import { auth, testApp } from './helpers.js';
 import { addressRequest, contentRequest, emptyPage, fakeProviders, fakeRdapFetch, recordingRequester } from './site-check-helpers.js';
 
 let app: FastifyInstance;
 afterEach(() => app?.close());
-
-/** Proveedor de reputación que registra lo que recibe. */
-class RecordingProvider implements ReputationProvider {
-  readonly name = 'Proveedor de prueba';
-  readonly calls: string[][] = [];
-  constructor(private readonly impl: (urls: string[], signal: AbortSignal) => Promise<ReputationVerdict> = async () => ({ threats: [] })) {}
-  lookup(urls: string[], signal: AbortSignal) {
-    this.calls.push(urls);
-    return this.impl(urls, signal);
-  }
-}
 
 const post = (payload: object, headers: Record<string, string> = auth) => app.inject({ method: 'POST', url: '/v1/site-check', headers, payload });
 
@@ -56,7 +44,7 @@ describe('POST /v1/site-check: identidad oficial por fuentes de autoridad', () =
       risk: 'no_signals',
       identity: { status: 'verified_official', basis: 'government_domain', organization: 'Estado uruguayo' },
       // .uy no publica RDAP: el registro queda sin dato, sin afectar el resultado.
-      coverage: { reputation: 'complete', identity: 'complete', content: 'pending', registration: 'unavailable', connection: 'complete' },
+      coverage: { identity: 'complete', content: 'pending', registration: 'unavailable', connection: 'complete' },
     });
     expect(siteIndicatorState(r)).toBe('checking');
   });
@@ -126,12 +114,18 @@ describe('POST /v1/site-check: identidad oficial por fuentes de autoridad', () =
     expect(siteIndicatorState(r)).toBe('possible_scam');
   });
 
-  it('una amenaza conocida en un dominio .gub.uy tiene prioridad sobre la identidad oficial', async () => {
-    app = await testApp({ siteCheck: fakeProviders({ flagged: { 'www.bps.gub.uy': ['phishing'] } }) });
-    const r = await check(contentRequest('https://www.bps.gub.uy/'));
+  it('señales de estafa en una página .gub.uy tienen prioridad sobre la identidad oficial', async () => {
+    app = await testApp({ siteCheck: fakeProviders() });
+    // Un sitio oficial comprometido: amenaza y un formulario de clave que envía a otro dominio.
+    const page = {
+      ...emptyPage,
+      text: 'Su cuenta será bloqueada. Ingrese su clave.',
+      forms: [{ method: 'post', action: 'https://recolector.example.net/guardar', fields: [{ type: 'password', label: 'Clave' }] }],
+    };
+    const r = await check(contentRequest('https://www.bps.gub.uy/', page));
     expect(r.identity).toMatchObject({ status: 'verified_official', basis: 'government_domain' });
+    expect(codes(r)).toEqual(expect.arrayContaining(['FORM_SENDS_TO_OTHER_DOMAIN', 'URGENCY_OR_THREAT']));
     expect(r.risk).toBe('high');
-    expect(r.reasons[0]).toMatchObject({ code: 'KNOWN_PHISHING', category: 'fraud', evidence: [{ source: 'Reputación simulada', observedBy: 'external_scanner' }] });
     expect(siteIndicatorState(r)).toBe('possible_scam');
   });
 
@@ -232,41 +226,18 @@ describe('POST /v1/site-check: dominios parecidos y palabras comunes', () => {
 });
 
 describe('POST /v1/site-check: fallas externas', () => {
-  it('sin proveedor de reputación: un sitio oficial se ve oficial, uno sin autoridad no es favorable', async () => {
-    app = await testApp({ siteCheck: fakeProviders({ reputationProvider: null }) });
+  it('sin ningún proveedor de reputación, un sitio oficial y un comercio quedan completos', async () => {
+    app = await testApp({ siteCheck: fakeProviders() });
     const official = await check(contentRequest('https://www.gub.uy/'));
-    expect(official.coverage.reputation).toBe('unavailable');
-    expect(official.status).toBe('partial');
-    expect(official.identity).toMatchObject({ status: 'verified_official', basis: 'government_domain' });
+    expect(official).toMatchObject({ status: 'complete', risk: 'no_signals', identity: { status: 'verified_official', basis: 'government_domain' } });
     expect(siteIndicatorState(official)).toBe('official');
-    const other = await check(contentRequest('https://www.ejemplo-comercio.com.uy/'));
-    expect(other).toMatchObject({ status: 'partial', risk: 'unknown' });
-    expect(siteIndicatorState(other)).toBe('unverified');
+    // .uy no publica RDAP: el registro queda sin dato y el resultado vence pronto, pero el indicador no cambia.
+    const shop = await check(contentRequest('https://www.ejemplo-comercio.com.uy/'));
+    expect(shop).toMatchObject({ status: 'complete', risk: 'no_signals', identity: { status: 'unknown' }, coverage: { registration: 'unavailable' } });
+    expect(siteIndicatorState(shop)).toBe('no_alerts');
   });
 
-  it('un error del proveedor produce un resultado parcial', async () => {
-    const provider = new RecordingProvider(async () => {
-      throw new Error('503');
-    });
-    app = await testApp({ siteCheck: fakeProviders({ reputationProvider: provider }) });
-    const r = await check(contentRequest('https://www.ejemplo-comercio.com/'));
-    expect(r).toMatchObject({ status: 'partial', risk: 'unknown', coverage: { reputation: 'unavailable' } });
-    expect(siteIndicatorState(r)).toBe('unverified');
-    // El resultado incompleto vence pronto para reintentar.
-    expect(Date.parse(r.expiresAt) - Date.parse(r.checkedAt)).toBeLessThanOrEqual(60_000);
-  });
-
-  it('el tiempo máximo del proveedor produce un resultado parcial', async () => {
-    const provider = new RecordingProvider(
-      (_, signal) => new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason))),
-    );
-    app = await testApp({ siteCheck: fakeProviders({ reputationProvider: provider }) }, { SITE_CHECK_PROVIDER_TIMEOUT_MS: '30' });
-    const r = await check(contentRequest('https://www.ejemplo-comercio.com/'));
-    expect(r.coverage.reputation).toBe('unavailable');
-    expect(siteIndicatorState(r)).toBe('unverified');
-  });
-
-  it('una falla de RDAP o de conexión queda como unavailable sin convertirse en aprobación', async () => {
+  it('una falla de RDAP o de conexión queda como unavailable sin aprobar ni reprobar', async () => {
     app = await testApp(
       {
         siteCheck: fakeProviders({
@@ -281,6 +252,8 @@ describe('POST /v1/site-check: fallas externas', () => {
     const r = await check(contentRequest('https://www.ejemplo-comercio.com/'));
     expect(r.coverage).toMatchObject({ registration: 'unavailable', connection: 'unavailable' });
     expect(r.identity.status).toBe('unknown');
+    // Registro y conexión no son obligatorios: el indicador no cambia, y el resultado vence pronto para reintentar.
+    expect(siteIndicatorState(r)).toBe('no_alerts');
     expect(Date.parse(r.expiresAt) - Date.parse(r.checkedAt)).toBeLessThanOrEqual(60_000);
   });
 
@@ -302,18 +275,19 @@ describe('POST /v1/site-check: privacidad', () => {
         done();
       },
     });
-    const provider = new RecordingProvider();
-    app = await testApp({ siteCheck: fakeProviders({ reputationProvider: provider }), logStream }, { LOG_LEVEL: 'trace' });
+    const requester = recordingRequester();
+    const rdap = fakeRdapFetch();
+    app = await testApp({ siteCheck: fakeProviders({ requester: requester.requester, fetchImpl: rdap.impl }), logStream }, { LOG_LEVEL: 'trace' });
     const secret = 'MiClaveSecreta-9931';
     const page = { ...emptyPage, forms: [{ method: 'post', action: null, fields: [{ type: 'password', label: 'Clave', value: secret }] }] };
-    const res = await post(contentRequest('https://phishing-demo.example.com/login', page));
+    const res = await post(contentRequest('https://pagina-trampa.example.com/login', page));
     expect(res.statusCode).toBe(400);
     expect(res.json().error.code).toBe('BAD_REQUEST');
     expect(res.body).not.toContain(secret);
-    expect(provider.calls).toEqual([]);
+    expect([requester.calls, rdap.calls]).toEqual([[], []]);
     expect(logs.length).toBeGreaterThan(0);
     expect(logs.join('\n')).not.toContain(secret);
-    expect(logs.join('\n')).not.toContain('phishing-demo');
+    expect(logs.join('\n')).not.toContain('pagina-trampa');
   });
 
   it('no registra URLs, dominios ni contenido en los logs de un análisis', async () => {
@@ -331,22 +305,23 @@ describe('POST /v1/site-check: privacidad', () => {
     expect(joined).not.toMatch(/ejemplo-comercio|30111222|Texto privado/);
   });
 
-  it('a los proveedores solo llega la URL depurada (sin query, fragmento ni secretos)', async () => {
-    const provider = new RecordingProvider();
-    app = await testApp({ siteCheck: fakeProviders({ reputationProvider: provider }) });
+  it('afuera solo llegan la URL depurada (sin query, fragmento ni secretos) y el dominio registrable', async () => {
+    const requester = recordingRequester();
+    const rdap = fakeRdapFetch();
+    app = await testApp({ siteCheck: fakeProviders({ requester: requester.requester, fetchImpl: rdap.impl }) });
     await check(addressRequest('https://www.ejemplo-comercio.com/reset/a1b2c3d4e5f6g7h8i9j0?token=xyz#frag'));
-    expect(provider.calls).toEqual([['https://www.ejemplo-comercio.com/reset/redactado', 'https://www.ejemplo-comercio.com/']]);
+    expect(requester.calls).toEqual(['https://www.ejemplo-comercio.com/reset/redactado']);
+    expect(rdap.calls.filter((url) => url.startsWith('https://rdap.prueba/'))).toEqual(['https://rdap.prueba/domain/ejemplo-comercio.com']);
   });
 
   it('las direcciones locales no se analizan con servicios externos', async () => {
-    const provider = new RecordingProvider();
     const requester = recordingRequester();
     const rdap = fakeRdapFetch();
-    app = await testApp({ siteCheck: fakeProviders({ reputationProvider: provider, requester: requester.requester, fetchImpl: rdap.impl }) });
+    app = await testApp({ siteCheck: fakeProviders({ requester: requester.requester, fetchImpl: rdap.impl }) });
     const r = await check(contentRequest('http://127.0.0.1:5173/', emptyPage, { hostname: '127.0.0.1', registrableDomain: '127.0.0.1' }));
     expect(r).toMatchObject({ status: 'unavailable', risk: 'unknown', identity: { status: 'unknown' } });
-    expect(Object.values(r.coverage)).toEqual(Array(5).fill('not_applicable'));
-    expect([provider.calls, requester.calls, rdap.calls]).toEqual([[], [], []]);
+    expect(Object.values(r.coverage)).toEqual(Array(4).fill('not_applicable'));
+    expect([requester.calls, rdap.calls]).toEqual([[], []]);
   });
 });
 
@@ -361,8 +336,8 @@ describe('POST /v1/site-check: navegación y versión', () => {
         return request.schema.parse(defaultMockHandlers.siteCheck(request.input));
       },
     };
-    const provider = new RecordingProvider();
-    app = await testApp({ model, siteCheck: fakeProviders({ reputationProvider: provider }) });
+    const requester = recordingRequester();
+    app = await testApp({ model, siteCheck: fakeProviders({ requester: requester.requester }) });
     const url = 'https://www.ejemplo-comercio.com/';
     const scamPage = {
       ...emptyPage,
@@ -380,8 +355,8 @@ describe('POST /v1/site-check: navegación y versión', () => {
     expect(r2.json()).toMatchObject({ navigationId: 'nav-A', contentVersion: 2, risk: 'high' });
     expect(rB.json()).toMatchObject({ navigationId: 'nav-B', contentVersion: 0, status: 'pending' });
     expect(new Set([r1.json().analysisId, r2.json().analysisId, rB.json().analysisId]).size).toBe(3);
-    // Las tres comparten la consulta de reputación (caché por URL), no el resultado.
-    expect(provider.calls).toHaveLength(1);
+    // Las tres comparten la inspección de conexión (caché por URL), no el resultado.
+    expect(requester.calls).toHaveLength(1);
     expect(r1.json().reasons).toEqual([]);
   });
 
@@ -461,12 +436,13 @@ describe('POST /v1/site-check: IA', () => {
     expect(r.explanation).toBeUndefined();
   });
 
-  it('la IA recibe la cobertura real: sin reputación el riesgo es unknown, no no_signals', async () => {
+  it('la IA recibe la cobertura real: sin identidad verificable el riesgo es unknown, no no_signals', async () => {
     const { model, inputs } = siteCheckModel(() => ({ ...quiet, explanation: 'No encontramos señales.' }));
-    app = await testApp({ model, siteCheck: fakeProviders({ reputationProvider: null }) });
+    app = await testApp({ model, siteCheck: fakeProviders({ fetchImpl: fakeRdapFetch({ bcuDown: true }).impl }) });
     await check(contentRequest('https://www.ejemplo-comercio.com/'));
     expect(inputs[0].risk).toBe('unknown');
-    expect(inputs[0].coverage).toMatchObject({ reputation: 'unavailable' });
+    expect(inputs[0].coverage).toMatchObject({ identity: 'unavailable' });
+    expect(inputs[0].coverage).not.toHaveProperty('reputation');
   });
 
   it('la organización que identifica la IA se contrasta con las fuentes de autoridad', async () => {

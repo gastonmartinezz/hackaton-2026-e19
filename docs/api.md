@@ -372,7 +372,7 @@ Cada respuesta devuelve **exactamente** el `navigationId` y el `contentVersion` 
   },
   "risk": "no_signals",
   "reasons": [],
-  "coverage": { "reputation": "complete", "identity": "complete", "content": "complete", "registration": "unavailable", "connection": "complete" },
+  "coverage": { "identity": "complete", "content": "complete", "registration": "unavailable", "connection": "complete" },
   "explanation": "No encontramos señales de estafa en las comprobaciones realizadas.",
   "checkedAt": "2026-10-17T22:00:00.000Z",
   "expiresAt": "2026-10-17T22:10:00.000Z"
@@ -392,7 +392,7 @@ Posible estafa (dominio parecido):
     { "code": "LOOKALIKE_DOMAIN", "category": "fraud",
       "evidence": [{ "source": "Fuentes de autoridad", "checkedAt": "…", "observedBy": "service", "detail": "brou-seguro.com combina brou con una palabra de acceso o seguridad" }] }
   ],
-  "coverage": { "reputation": "complete", "identity": "complete", "content": "pending", "registration": "complete", "connection": "complete" },
+  "coverage": { "identity": "complete", "content": "pending", "registration": "complete", "connection": "complete" },
   "checkedAt": "…",
   "expiresAt": "…"
 }
@@ -400,7 +400,7 @@ Posible estafa (dominio parecido):
 
 - **`identity.status: "verified_official"`** sale **solo** de una fuente de autoridad (ver «Fuentes de oficialidad»), siempre con `basis` y `source`. La coincidencia es por límites de dominio: `gub.uy` cubre `www.bps.gub.uy`, pero no `bps.gub.uy.evil.com` ni `bps-gub-uy.com`. Ni la IA, ni HTTPS, ni la apariencia del sitio pueden otorgarla.
 - **`identity.impersonatedOrganization`** aparece cuando hay un motivo de imitación (dominio parecido, subdominio engañoso, caracteres confusos, marca declarada o enlace) que nombra a una organización de las fuentes de autoridad (el Estado, una institución del registro del BCU o una entrada del catálogo de Uruguay).
-- **`evidence[].observedBy`**: `user_browser` (lo vio el navegador de la persona), `external_scanner` (proveedor de reputación) o `service` (fuentes de autoridad, RDAP, inspección de conexión del backend, IA). Lo que ve el backend puede diferir de lo que ve la persona (sesión, ubicación).
+- **`evidence[].observedBy`**: `user_browser` (lo vio el navegador de la persona) o `service` (fuentes de autoridad, RDAP, inspección de conexión del backend, IA). Lo que ve el backend puede diferir de lo que ve la persona (sesión, ubicación).
 - **`explanation`** es complementaria y la genera la IA. No controla etiquetas ni acciones; el front usa sus propios textos revisados.
 
 ### Fuentes de oficialidad
@@ -483,18 +483,19 @@ El archivo acepta un dominio u origen por línea, o un CSV con el origen en la p
 
 | Campo | Regla |
 |---|---|
-| `risk: "high"` | Amenaza conocida (`KNOWN_*`) o imitación del dominio (`LOOKALIKE_DOMAIN`, `CONFUSABLE_CHARACTERS`, `MISLEADING_SUBDOMAIN`); o dos señales moderadas distintas |
+| `risk: "high"` | Imitación del dominio (`LOOKALIKE_DOMAIN`, `CONFUSABLE_CHARACTERS`, `MISLEADING_SUBDOMAIN`) o dos señales moderadas distintas |
 | `risk: "medium"` | Una señal moderada (`BRAND_IMPERSONATION`, `SENSITIVE_DATA_REQUEST`, `FORM_SENDS_TO_OTHER_DOMAIN`, `LINK_TEXT_MISMATCH`, `URGENCY_OR_THREAT`, `RECENTLY_REGISTERED`), un formulario con datos sensibles por `http`, o un motivo concreto agregado por la IA |
-| `risk: "no_signals"` | Sin motivos de fraude y con reputación, identidad (y contenido, en la fase de contenido) completas |
+| `risk: "no_signals"` | Sin motivos de fraude y con identidad (y contenido, en la fase de contenido) completas |
 | `risk: "unknown"` | Sin motivos, pero alguna verificación obligatoria no se pudo hacer |
 | `status: "pending"` | Fase de dirección (`coverage.content: "pending"`) |
-| `status: "complete"` | Fase de contenido con reputación, identidad y contenido `complete` o `not_applicable` |
-| `status: "partial"` | Fase de contenido con alguna verificación obligatoria `unavailable` o `partial` |
+| `status: "complete"` | Fase de contenido con identidad y contenido `complete` o `not_applicable` |
+| `status: "partial"` | Fase de contenido con identidad o contenido `unavailable` o `partial` (registro del BCU caído o viejo, falla de la IA) |
 | `status: "unavailable"` | Dirección local, privada o interna |
 
-- Una amenaza tiene prioridad sobre la identidad oficial: un dominio `.gub.uy` o del BCU con un reporte de phishing devuelve `identity: verified_official` **y** `risk: high` → el indicador muestra «Posible estafa».
+- El riesgo tiene prioridad sobre la identidad oficial: una página `.gub.uy` o del BCU comprometida (por ejemplo, con un formulario de clave que envía a otro dominio y un texto de amenaza) devuelve `identity: verified_official` **y** `risk: high` → el indicador muestra «Posible estafa».
 - Los motivos `technical` (`NO_HTTPS`, `CERTIFICATE_PROBLEM`, `CROSS_DOMAIN_REDIRECT`) nunca suben el riesgo por sí solos. `INSECURE_FORM_ACTION` solo aparece con datos sensibles y da, como mucho, riesgo medio.
-- Antigüedad, HTTPS y ausencia de reportes **nunca** generan un resultado favorable por sí solos: lo favorable solo surge de no encontrar motivos con las verificaciones obligatorias completas.
+- Antigüedad y HTTPS **nunca** generan un resultado favorable por sí solos: lo favorable solo surge de no encontrar motivos con las verificaciones obligatorias completas.
+- No se consultan listas de reportes de phishing o malware (Google Safe Browsing, Web Risk u otras): la detección sale de las fuentes de Uruguay, las reglas propias y la IA.
 - Una contraseña sola no es un pedido sensible (cualquier sitio con usuarios la pide). Cuenta como `SENSITIVE_DATA_REQUEST` cuando el sitio, sin identidad oficial, ya muestra otra señal de fraude (por ejemplo, dice ser el BPS). Tarjeta, cuenta bancaria, claves de BPS o DGI y códigos de verificación cuentan siempre en sitios sin identidad oficial.
 - La IA solo identifica la organización declarada y los pedidos (credenciales, pagos, códigos), con salida validada por Zod. Lo que identifica se contrasta con las fuentes de autoridad y puede sumar `BRAND_IMPERSONATION` o `SENSITIVE_DATA_REQUEST` (fuente «Análisis con IA»). Nunca baja el riesgo ni cambia `identity`. Si la IA falla o tarda más de `SITE_CHECK_AI_TIMEOUT_MS`, `coverage.content` queda `partial` (nunca favorable) y la respuesta sale sin `explanation`.
 
@@ -507,8 +508,8 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 | Posible estafa | `risk: high` (siempre primero, aunque sea oficial o parcial) |
 | Atención | `risk: medium` |
 | Revisando sitio… | `status: pending` |
-| Sitio oficial | `identity.status: verified_official`, `coverage.identity: complete`, contenido `complete`/`not_applicable`, ningún motivo `fraud` y `status` distinto de `unavailable`. **La reputación no es obligatoria**: la oficialidad la prueba la autoridad (zona, BCU o catálogo) |
-| No pudimos verificarlo | Sin identidad oficial: `status` distinto de `complete`, `risk` distinto de `no_signals`, o reputación, identidad o contenido sin `complete`/`not_applicable` |
+| Sitio oficial | `identity.status: verified_official` (zona, BCU o catálogo), `coverage.identity: complete`, contenido `complete`/`not_applicable`, ningún motivo `fraud` y `status` distinto de `unavailable` |
+| No pudimos verificarlo | Sin identidad oficial: `status` distinto de `complete`, `risk` distinto de `no_signals`, algún motivo `fraud`, o identidad o contenido sin `complete`/`not_applicable` |
 | Sin alertas detectadas | Sin identidad oficial, con todo lo anterior completo |
 
 `registration` (RDAP) y `connection` (TLS/redirecciones) **no son obligatorias**: su ausencia nunca aprueba ni reprueba; se informan para transparencia y vencen pronto (`expiresAt`) para reintentar.
@@ -517,8 +518,6 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 
 | Código | Categoría | Fuente | Qué significa |
 |---|---|---|---|
-| `KNOWN_PHISHING` | fraud | Reputación | Reportado como phishing o ingeniería social |
-| `KNOWN_MALWARE` | fraud | Reputación | Reportado como malware o software no deseado |
 | `LOOKALIKE_DOMAIN` | fraud | Fuentes de autoridad | Dominio parecido a uno del BCU, del catálogo o a una zona de gobierno: letras sustituidas, una edición, marca + palabra clave, otra terminación |
 | `CONFUSABLE_CHARACTERS` | fraud | Fuentes de autoridad | Caracteres de otro alfabeto (punycode/IDN) que imitan un dominio de referencia o una zona de gobierno, o mezcla de alfabetos |
 | `MISLEADING_SUBDOMAIN` | fraud | Fuentes de autoridad | Una zona de gobierno, un dominio de referencia o una marca aparece en los subdominios de otro dominio (`bps.gub.uy.evil.com`) |
@@ -537,8 +536,6 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 
 | Fuente | Clave | Vigencia |
 |---|---|---|
-| Reputación sin reportes | hash de proveedor + URL depurada | 10 min |
-| Reputación con reporte | ídem | la que indique el proveedor (máx. 30 min) |
 | RDAP | hash del dominio registrable | 24 h (bootstrap de IANA: 24 h) |
 | Conexión | hash de la URL depurada | 1 h |
 | Registro del BCU | en memoria, una copia | refresco cada 24 h; vigente 48 h; vieja (no aprueba) hasta 7 días |
@@ -547,7 +544,7 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 - `expiresAt` = la vigencia más corta de las fuentes usadas. Con alguna cobertura `unavailable`/`partial`, y en la fase de dirección, es de **60 segundos**.
 - Las fallas no se guardan en caché: «Intentar de nuevo» vuelve a consultar.
 - Consultas simultáneas a la misma URL comparten una sola llamada al proveedor.
-- Tiempos máximos: `SITE_CHECK_PROVIDER_TIMEOUT_MS` (reputación y RDAP, 4 s), `SITE_CHECK_CONNECTION_TIMEOUT_MS` (todas las redirecciones, 5 s) y `SITE_CHECK_AI_TIMEOUT_MS` (8 s). Las fuentes corren en paralelo.
+- Tiempos máximos: `SITE_CHECK_PROVIDER_TIMEOUT_MS` (RDAP y espera al registro del BCU, 4 s), `SITE_CHECK_CONNECTION_TIMEOUT_MS` (todas las redirecciones, 5 s) y `SITE_CHECK_AI_TIMEOUT_MS` (8 s). Las fuentes corren en paralelo.
 - Tope por proveedor: `SITE_CHECK_PROVIDER_MAX_PER_MINUTE` (120). Al superarlo, esa cobertura queda `unavailable`.
 - Logs: solo fase, estado, riesgo, códigos, coberturas y latencia. Nunca URLs, dominios, contenido de página ni claves.
 
@@ -555,9 +552,6 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 
 | Variable | Valores | Uso |
 |---|---|---|
-| `REPUTATION_PROVIDER` | `none` (defecto), `mock`, `safe_browsing`, `web_risk` | Fuente de reputación. `mock` no se permite en producción |
-| `GOOGLE_SAFE_BROWSING_API_KEY` | clave | Requerida con `safe_browsing` |
-| `GOOGLE_WEB_RISK_API_KEY` | clave | Requerida con `web_risk` |
 | `SITE_CHECK_RDAP` | `true`/`false` | Consulta RDAP |
 | `SITE_CHECK_BCU_REGISTRY` | `true`/`false` | Registro de instituciones del BCU. Con `false`, las instituciones financieras solo pueden ser «Sitio oficial» por el catálogo, y lo que no está en zonas ni en el catálogo queda sin verificar |
 | `SITE_CHECK_BCU_TIMEOUT_MS` | número | Tiempo máximo por pedido al BCU (15 s) |
@@ -567,34 +561,16 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 | `SITE_CHECK_RATE_LIMIT_MAX` | número | Solicitudes por ventana y token en `/v1/site-check` |
 | `SITE_CHECK_PROVIDER_TIMEOUT_MS`, `SITE_CHECK_CONNECTION_TIMEOUT_MS`, `SITE_CHECK_AI_TIMEOUT_MS`, `SITE_CHECK_PROVIDER_MAX_PER_MINUTE` | número | Tiempos máximos y topes |
 
-Las claves viven solo en el servidor. Sin proveedor de reputación (`none`), la cobertura de reputación es `unavailable`: el indicador nunca muestra «Sin alertas detectadas», pero los sitios oficiales siguen viéndose como «Sitio oficial».
+Ninguna fuente de Protección de sitios necesita claves. No se usa ningún proveedor de reputación (Google Safe Browsing, Web Risk, VirusTotal, urlscan.io): ninguna URL de la persona se envía a listas de reportes ni a escaneos de terceros.
 
-**Consultar reportes vs. enviar a escanear.** Todas las implementaciones solo **consultan** listas de reportes existentes. Se evitan a propósito:
-
-- La Web Risk **Evaluate API**, porque envía la URL a evaluar.
-- Los escaneos de `urlscan.io`, porque publican o comparten la URL.
-- El envío de URLs a VirusTotal.
-
-Todas exponen la URL, y con ella datos del recorrido de la persona. No se publica nada automáticamente.
-
-**Licencias:**
-
-- Web Risk está pensada para uso comercial.
-- Safe Browsing Lookup v4 es gratuita, pero solo para uso no comercial.
-- La API pública de VirusTotal tampoco permite uso comercial.
-- Para un servicio comercial corresponde Web Risk.
-
-| Opción | Licencia y costo | Privacidad | Cobertura |
+| Fuente | Licencia y costo | Privacidad | Cobertura |
 |---|---|---|---|
-| Google Safe Browsing Lookup API v4 (`safe_browsing`) | Gratuita, **solo uso no comercial** según los términos de Google | La URL depurada viaja en claro a Google (sin query, fragmento ni secretos) | Phishing, malware, software no deseado; listas de Google |
-| Google Cloud Web Risk `uris.search` (`web_risk`) | **Comercial**, facturada por consulta en Google Cloud (ver la tarifa vigente) | Igual que Lookup: la URL depurada viaja a Google. La Update API (hashes locales) daría más privacidad y queda como mejora | Mismas listas que Safe Browsing, con SLA |
-| `mock` | Solo desarrollo | Sin red | Marca hosts con la etiqueta `phishing-demo` o `malware-demo` (por ejemplo `https://phishing-demo.example.com/`) |
 | RDAP vía bootstrap IANA | Público y gratuito; cada registro fija sus límites | Solo se envía el dominio registrable | Depende del TLD. **`.uy` no publica RDAP** (no figura en el bootstrap de IANA): para dominios uruguayos `registration` siempre queda `unavailable`, sin que eso cambie el indicador |
 | Inspección de conexión propia | Sin costo | El backend se conecta al sitio (sin cookies ni credenciales, solo encabezados, sin query) | TLS de cada salto, hasta 5 redirecciones |
 
 ### Limitaciones
 
-- No promete detectar todas las amenazas: un sitio de phishing nuevo puede no estar reportado todavía.
+- No promete detectar todas las amenazas. Sin listas de reportes, un sitio de phishing que no imita a una organización conocida ni muestra señales en su contenido (por ejemplo, una descarga de malware) puede quedar como «Sin alertas detectadas».
 - «Oficial» cubre solo lo que una autoridad respalda: organismos en zonas de gobierno, instituciones del registro del BCU y entradas del catálogo de Uruguay. Empresas legítimas fuera de esas fuentes (comercios, servicios que no están en el catálogo) se muestran como «Sin alertas detectadas», nunca como oficiales.
 - El registro del BCU se arma leyendo su portal, que no es una API documentada. Si deja de responder o cambia de formato, las instituciones financieras dejan de verse como oficiales por esa vía (nunca se aprueba en falso). Una institución que use otros dominios además del publicado solo es oficial en esos otros dominios si están en el catálogo.
 - Si el BCU publica un dominio que vence y otro lo registra, sigue saliendo oficial hasta que el BCU actualice la ficha (salvo que el catálogo lo haya descartado). `.uy` no tiene RDAP para notar el cambio de titular.
@@ -647,7 +623,7 @@ Con `AI_PROVIDER=mock` (el valor por defecto en desarrollo), el servidor respond
 - `/v1/interpret`: con un solo mensaje devuelve `question`; con más de uno devuelve `redirect` a `https://www.example.com/`.
 - `/v1/options`: devuelve una opción `start` con dos pasos: el primero sobre el primer `id="..."` del HTML y el segundo teórico (`element: null`). Si el HTML no tiene ids, devuelve `options: []`.
 - `/v1/next-step`: si el HTML tiene un `id="..."`, devuelve un paso sobre ese elemento con `done: false`. Si no tiene ninguno, devuelve `steps: []` y `done: true`.
-- `/v1/site-check`: la explicación es un texto fijo según el riesgo y la IA nunca agrega motivos. Con `REPUTATION_PROVIDER=mock` (el valor de `.env.example`), los hosts con la etiqueta `phishing-demo` o `malware-demo` figuran como amenaza conocida. RDAP y la inspección de conexión son reales salvo que se deshabiliten con `SITE_CHECK_RDAP=false` y `SITE_CHECK_CONNECTION=false`.
+- `/v1/site-check`: la explicación es un texto fijo según el riesgo y la IA nunca agrega motivos. El registro del BCU, RDAP y la inspección de conexión son reales salvo que se deshabiliten con `SITE_CHECK_BCU_REGISTRY=false`, `SITE_CHECK_RDAP=false` y `SITE_CHECK_CONNECTION=false`.
 - `/v1/transcribe` con `STT_PROVIDER=mock`: devuelve siempre `{ "text": "Quiero renovar la cédula de identidad" }` para cualquier WAV válido (con silencio devuelve `""`). Las validaciones del WAV y los errores son los reales.
 - `/v1/speak` con `TTS_PROVIDER=mock`: devuelve siempre el mismo MP3 válido de ~0,5 s de silencio, en dos partes. Las validaciones y los errores son los reales.
 
@@ -662,7 +638,7 @@ curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'conte
 # Página que dice ser el BPS en otro dominio y pide la clave → risk high, BRAND_IMPERSONATION
 curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -d '{"navigationId":"nav-2","contentVersion":1,"url":"https://tramites-online.com.uy/","hostname":"tramites-online.com.uy","registrableDomain":"tramites-online.com.uy","page":{"title":"BPS","declaredBrand":"BPS","text":"Su prestación será suspendida. Ingrese su contraseña.","forms":[{"method":"post","action":null,"fields":[{"type":"password","label":"Contraseña"}]}],"links":[],"scriptHosts":[],"iframeHosts":[]}}'
-# Amenaza simulada → KNOWN_PHISHING
+# Dominio parecido al de un banco del BCU → risk high, LOOKALIKE_DOMAIN, ya en la fase de dirección
 curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
-  -d '{"navigationId":"nav-3","contentVersion":0,"url":"https://phishing-demo.example.com/","hostname":"phishing-demo.example.com","registrableDomain":"example.com"}'
+  -d '{"navigationId":"nav-3","contentVersion":0,"url":"https://itau-login.com/","hostname":"itau-login.com","registrableDomain":"itau-login.com"}'
 ```

@@ -9,7 +9,7 @@ const evidence = [{ source: 'test', checkedAt: '2026-10-17T22:00:00Z', observedB
 const reason = (code: SiteCheckReason['code'], category: SiteCheckReason['category'] = 'fraud'): SiteCheckReason => ({ code, category, evidence });
 
 type Over = Partial<SiteCheckResponse>;
-const COMPLETE = { reputation: 'complete', identity: 'complete', content: 'complete', registration: 'unavailable', connection: 'unavailable' } as const;
+const COMPLETE = { identity: 'complete', content: 'complete', registration: 'unavailable', connection: 'unavailable' } as const;
 const ADDRESS = { ...COMPLETE, content: 'pending' } as const;
 
 function responseFor(request: SiteCheckRequest, over: Over = {}): SiteCheckResponse {
@@ -101,7 +101,7 @@ describe('SiteProtection', () => {
     expect(protection.snapshot).toMatchObject({ kind: 'checking', response: null, warningOpen: false });
     expect(calls[0]!.signal.aborted).toBe(true);
     // Una respuesta tardía de la navegación anterior no se aplica.
-    calls[0]!.respondWith(responseFor(calls[0]!.request, { risk: 'high', reasons: [reason('KNOWN_PHISHING')] }));
+    calls[0]!.respondWith(responseFor(calls[0]!.request, { risk: 'high', reasons: [reason('LOOKALIKE_DOMAIN')] }));
     await flush();
     expect(protection.snapshot.kind).toBe('checking');
   });
@@ -167,7 +167,7 @@ describe('SiteProtection', () => {
     protection.navigationStarted('https://a.com/');
     protection.pageLoaded('https://a.com/');
     await vi.advanceTimersByTimeAsync(100);
-    calls[1]!.resolve({ status: 'partial', coverage: { ...COMPLETE, reputation: 'unavailable' } });
+    calls[1]!.resolve({ status: 'partial', coverage: { ...COMPLETE, content: 'partial' } });
     await flush();
     expect(protection.snapshot.kind).toBe('unverified');
   });

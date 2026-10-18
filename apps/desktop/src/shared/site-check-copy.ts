@@ -68,8 +68,6 @@ const TONES: Record<Exclude<SiteIndicatorKind, 'none'>, SiteCheckTone> = {
 
 /** Frase simple por motivo. Sin porcentajes ni términos técnicos. */
 export const REASON_TEXT: Record<ReasonCode, string> = {
-  KNOWN_PHISHING: 'Figura en listas de sitios que intentan robar datos.',
-  KNOWN_MALWARE: 'Figura en listas de sitios que pueden dañar tu equipo.',
   LOOKALIKE_DOMAIN: 'La dirección se parece a la de un sitio conocido, pero no es la misma.',
   CONFUSABLE_CHARACTERS: 'La dirección usa letras que se confunden con otras.',
   MISLEADING_SUBDOMAIN: 'La dirección incluye el nombre de otro sitio para confundir.',
@@ -193,8 +191,6 @@ export function scamSummary(response: SiteCheckResponse | null): string {
   const codes = new Set(response?.reasons.map((r) => r.code) ?? []);
   const imitated = response?.identity.impersonatedOrganization;
   if (imitated && [...codes].some((c) => IMPERSONATION.has(c))) return `Este sitio parece imitar a ${imitated}. ${NO_DATA}`;
-  if (codes.has('KNOWN_PHISHING')) return `Este sitio figura en listas de sitios que intentan robar datos. ${NO_DATA}`;
-  if (codes.has('KNOWN_MALWARE')) return 'Este sitio figura en listas de sitios que pueden dañar tu equipo. No descargues nada ni ingreses datos.';
   if (codes.has('LOOKALIKE_DOMAIN') || codes.has('CONFUSABLE_CHARACTERS') || codes.has('MISLEADING_SUBDOMAIN')) {
     return `La dirección se parece a la de otro sitio, pero no es la misma. ${NO_DATA}`;
   }
@@ -204,8 +200,8 @@ export function scamSummary(response: SiteCheckResponse | null): string {
 function coverageNote(response: SiteCheckResponse | null): string | null {
   if (!response) return null;
   // Registro y conexión no son obligatorios (regla de cobertura del contrato): su ausencia no se señala.
-  const { reputation, identity, content } = response.coverage;
-  const levels = [reputation, identity, content];
+  const { identity, content } = response.coverage;
+  const levels = [identity, content];
   const incomplete = response.status === 'partial' || response.status === 'unavailable' || levels.some((l) => l === 'partial' || l === 'unavailable');
   return incomplete ? 'Algunas comprobaciones no estuvieron disponibles, así que la revisión no está completa.' : null;
 }

@@ -34,7 +34,7 @@ describe('SiteCheckRequest.json', () => {
   ]);
 });
 
-const coverage = { reputation: 'complete', identity: 'complete', content: 'complete', registration: 'unavailable', connection: 'unavailable' };
+const coverage = { identity: 'complete', content: 'complete', registration: 'unavailable', connection: 'unavailable' };
 const response = (identity: unknown) => ({
   navigationId: 'nav-1',
   contentVersion: 1,

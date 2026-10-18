@@ -3,8 +3,6 @@ import type { Finding } from './types.js';
 
 /** `fraud`: evidencia de estafa. `technical`: debilidad de configuración, nunca riesgo alto por sí sola. */
 export const CATEGORY: Record<ReasonCode, 'fraud' | 'technical'> = {
-  KNOWN_PHISHING: 'fraud',
-  KNOWN_MALWARE: 'fraud',
   LOOKALIKE_DOMAIN: 'fraud',
   CONFUSABLE_CHARACTERS: 'fraud',
   MISLEADING_SUBDOMAIN: 'fraud',
@@ -20,8 +18,8 @@ export const CATEGORY: Record<ReasonCode, 'fraud' | 'technical'> = {
   INSECURE_FORM_ACTION: 'technical',
 };
 
-/** Alcanzan solas para riesgo alto: amenaza conocida o imitación del dominio de una organización. */
-const STRONG: ReadonlySet<ReasonCode> = new Set(['KNOWN_PHISHING', 'KNOWN_MALWARE', 'LOOKALIKE_DOMAIN', 'CONFUSABLE_CHARACTERS', 'MISLEADING_SUBDOMAIN']);
+/** Alcanzan solas para riesgo alto: imitación del dominio de una organización. */
+const STRONG: ReadonlySet<ReasonCode> = new Set(['LOOKALIKE_DOMAIN', 'CONFUSABLE_CHARACTERS', 'MISLEADING_SUBDOMAIN']);
 
 /** Solas dan riesgo medio; dos distintas, riesgo alto. RECENTLY_REGISTERED es apoyo: nunca alto por sí sola. */
 const MODERATE: ReadonlySet<ReasonCode> = new Set([
