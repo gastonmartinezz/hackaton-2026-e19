@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppState, SiteCheckView, UiCommand } from '../../shared/ipc';
 import { CONTINUE_ACTION, siteCheckCopy, type SiteIndicatorKind } from '../../shared/site-check-copy';
 import {
-  chooseIndicatorFit,
   GuidePausedNotice,
   NO_SITE_CHECK,
   SiteCheckAnnouncer,
@@ -14,7 +13,6 @@ import {
   SiteCheckPopover,
   SiteCheckUnderBar,
   SiteCheckWarning,
-  type OmniMeasure,
 } from './SiteCheck';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -34,6 +32,7 @@ beforeEach(() => {
       return () => {};
     },
     transcribe: vi.fn(),
+    dictateField: vi.fn(),
     speak: vi.fn(),
     stopSpeaking: vi.fn(),
     onSpeechCut: () => () => {},
@@ -227,48 +226,6 @@ describe('SiteCheckUnderBar (solo con la advertencia abierta)', () => {
   it('cerrado y con el indicador en la píldora no ocupa lugar', () => {
     render(<SiteCheckUnderBar view={view('official')} showIndicator={false} />);
     expect(container.querySelector('.site-check-band')).toBeNull();
-  });
-});
-
-describe('chooseIndicatorFit: el sello entra en la píldora sin cortar el dominio', () => {
-  const base: OmniMeasure = {
-    available: 600,
-    padding: 34,
-    omniGap: 10,
-    whereGap: 10,
-    estas: 95,
-    insecureText: 210,
-    insecureIcon: 26,
-    sub: 0,
-    subMin: 26,
-    main: 205,
-    badge: 150,
-    badgeTwoLines: 110,
-    twoLinesFit: true,
-  };
-
-  it('compacta en orden: «Estás en», conexión no segura, sello en dos líneas', () => {
-    expect(chooseIndicatorFit({ ...base, available: 800 })).toEqual({ compact: 0, inline: true, sub: 'full', overflow: false });
-    expect(chooseIndicatorFit({ ...base, available: 640 })).toEqual({ compact: 1, inline: true, sub: 'full', overflow: false });
-    expect(chooseIndicatorFit({ ...base, available: 450 })).toEqual({ compact: 2, inline: true, sub: 'full', overflow: false });
-    expect(chooseIndicatorFit({ ...base, available: 400 })).toEqual({ compact: 3, inline: true, sub: 'full', overflow: false });
-  });
-
-  it('si el sello no entra en dos líneas de alto (1,75×), flota afuera con la menor compactación que deja ver el dominio', () => {
-    expect(chooseIndicatorFit({ ...base, available: 400, twoLinesFit: false })).toEqual({ compact: 2, inline: false, sub: 'full', overflow: false });
-  });
-
-  it('acorta el subdominio antes de sacar el sello, y nunca corta el dominio principal si se puede evitar', () => {
-    const long = { ...base, insecureText: 0, estas: 0, sub: 90, subMin: 26, main: 300, badgeTwoLines: 150 };
-    expect(chooseIndicatorFit({ ...long, available: 34 + 300 + 26 + 10 + 150 })).toEqual({ compact: 0, inline: true, sub: 'short', overflow: false });
-    expect(chooseIndicatorFit({ ...long, available: 34 + 300 + 10 + 150 })).toEqual({ compact: 0, inline: true, sub: 'none', overflow: false });
-    expect(chooseIndicatorFit({ ...long, available: 34 + 300 + 90 })).toEqual({ compact: 0, inline: false, sub: 'full', overflow: false });
-  });
-
-  it('último recurso: sin el ícono de conexión no segura; si ni así entra, recorte dentro de la píldora', () => {
-    const tight = { ...base, estas: 0, main: 400 };
-    expect(chooseIndicatorFit({ ...tight, available: 34 + 400 + 5 })).toEqual({ compact: 4, inline: false, sub: 'full', overflow: false });
-    expect(chooseIndicatorFit({ ...tight, available: 300 })).toEqual({ compact: 4, inline: false, sub: 'full', overflow: true });
   });
 });
 

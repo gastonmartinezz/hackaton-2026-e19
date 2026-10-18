@@ -15,7 +15,7 @@ import {
   SiteCheckUnderBar,
   SiteCheckWarning,
   useDismissOnOutsidePointer,
-  useIndicatorFit,
+  useIndicatorFits,
   useSiteCheckAnchor,
 } from './SiteCheck';
 import { TopBar } from './TopBar';
@@ -25,9 +25,9 @@ export function App() {
   const state = useAppState();
   const [editingProfile, setEditingProfile] = useState(false);
   const siteCheck = state?.siteCheck ?? NO_SITE_CHECK;
-  const fit = useIndicatorFit(siteCheck, state?.nav.domain ?? '', state?.prefs.textScale ?? 0);
+  const indicatorFits = useIndicatorFits(siteCheck, state?.nav.domain ?? '', state?.prefs.textScale ?? 0);
   // El panel flotante se ancla a la píldora «Estás en»; tocar otra cosa de la barra lo cierra.
-  useSiteCheckAnchor(fit.inline);
+  useSiteCheckAnchor(indicatorFits);
   useDismissOnOutsidePointer(siteCheck.panelOpen, '#site-check-indicator, .site-check-band');
 
   if (!state) {
@@ -40,7 +40,7 @@ export function App() {
 
   return (
     <div className="app">
-      <TopBar state={state} fit={fit} />
+      <TopBar state={state} indicatorInline={indicatorFits} />
       {/*
         Con un sitio abierto, la vista nativa ocupa el resto y los avisos van en la tarjeta.
         El panel de protección flota encima (site-check.html), sin mover el sitio. La
@@ -50,7 +50,7 @@ export function App() {
       {state.nav.visible ? (
         siteCheck.warning ? (
           <>
-            <SiteCheckUnderBar view={siteCheck} showIndicator={!fit.inline} />
+            <SiteCheckUnderBar view={siteCheck} showIndicator={!indicatorFits} />
             <SiteCheckWarning view={siteCheck} />
           </>
         ) : null

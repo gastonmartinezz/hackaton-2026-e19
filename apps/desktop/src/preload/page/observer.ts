@@ -4,13 +4,15 @@
  * informan qué control se usó, nunca su contenido.
  */
 
-const EVENTS = ['click', 'change', 'input', 'submit'];
+const EVENTS = ['click', 'change', 'input', 'submit'] as const;
+export type InteractionEvent = (typeof EVENTS)[number];
 const ATTRIBUTES = ['disabled', 'aria-disabled', 'hidden', 'aria-hidden', 'aria-expanded', 'aria-invalid', 'open', 'class', 'style'];
 
 export interface ObserverCallbacks {
   /** structural: se agregaron o quitaron elementos (no solo atributos). */
   onChange(structural: boolean): void;
-  onInteraction(target: Element): void;
+  /** `event`: el tipo de evento (clic, terminó de escribir…), nunca el contenido. */
+  onInteraction(target: Element, event: InteractionEvent): void;
   onValidationError(): void;
 }
 
@@ -66,7 +68,7 @@ export function observePage(doc: Document, callbacks: ObserverCallbacks, { debou
 
   const onInteraction = (event: Event) => {
     const target = event.composedPath()[0];
-    if (target instanceof Element && !isOwnOverlay(target)) callbacks.onInteraction(target);
+    if (target instanceof Element && !isOwnOverlay(target)) callbacks.onInteraction(target, event.type as InteractionEvent);
   };
   const onInvalid = () => callbacks.onValidationError();
 

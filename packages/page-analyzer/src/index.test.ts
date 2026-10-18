@@ -154,6 +154,25 @@ describe('HTML sintético para /v1/options', () => {
     for (const element of snapshot.elements) expect(parsed.getElementById(element.id)).not.toBeNull();
   });
 
+  it('marca los datos obligatorios sin incluir lo escrito', () => {
+    document.body.innerHTML = `
+      <form aria-label="Datos">
+        <label>Correo <input type="email" required value="marta.gomez@correo.com"></label>
+        <label>Teléfono <input type="tel" aria-required="true"></label>
+        <label>Notas <textarea>Calle Falsa 742</textarea></label>
+      </form>`;
+    const { snapshot } = extract();
+    const byLabel = Object.fromEntries(snapshot.elements.map((e) => [e.label, e]));
+    expect(byLabel['Correo']?.required).toBe(true);
+    expect(byLabel['Teléfono']?.required).toBe(true);
+    expect(byLabel['Notas']?.required).toBeUndefined();
+    const html = snapshotToHtml(snapshot);
+    const parsed = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+    expect(parsed.querySelector('input[aria-label="Correo"][required]')).not.toBeNull();
+    expect(parsed.querySelector('textarea[required]')).toBeNull();
+    for (const secret of SECRETS) expect(html).not.toContain(secret);
+  });
+
   it('escapa etiquetas con caracteres de HTML', () => {
     document.body.innerHTML = '<button aria-label="&lt;b&gt;Ir&lt;/b&gt; &quot;ya&quot;">x</button>';
     const html = snapshotToHtml(extract().snapshot);

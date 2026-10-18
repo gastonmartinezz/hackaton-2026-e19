@@ -4,7 +4,11 @@ import type { ChatMessage, GuideStep, Metadata, PageOption } from '@hackaton/con
 /** Cada llamada que se recuerda. No se guarda el HTML. */
 export type SessionEntry =
   | { type: 'interpret'; response: 'redirect' | 'question' | 'options'; goal: string; reason: string; urls: string[] }
-  | { type: 'options'; options: PageOption[] }
+  /**
+   * `goal`: lo que la persona dijo que quiere hacer en la página. `request`: lo
+   * que pidió con sus palabras fuera de las opciones (se investigó cómo hacerlo).
+   */
+  | { type: 'options'; goal?: string; options: PageOption[]; request?: string }
   | {
       type: 'nextStep';
       optionId: string;
@@ -12,6 +16,15 @@ export type SessionEntry =
       completedSteps: GuideStep[];
       steps: GuideStep[];
       done: boolean;
+    }
+  /** Paso a paso investigado de una opción (tarea procedure). Se pide una sola vez por opción. */
+  | {
+      type: 'procedure';
+      optionId: string;
+      summary: string;
+      steps: Array<{ title: string; detail: string }>;
+      completion: string;
+      sources: string[];
     };
 
 /** Todo lo que Claude recibe como contexto del recorrido, desde interpret hasta la última llamada. */
@@ -73,7 +86,12 @@ export class SessionStore {
     const session = this.touch(id, owner);
     if (!session) return;
     session.history.push(entry);
-    if (session.history.length > MAX_HISTORY) session.history.shift();
+    if (session.history.length > MAX_HISTORY) {
+      // Se descartan primero los pasos viejos de next-step: las opciones y el paso a paso
+      // investigado hacen falta mientras dure la guía.
+      const oldStep = session.history.findIndex((e) => e.type === 'nextStep');
+      session.history.splice(oldStep >= 0 ? oldStep : 0, 1);
+    }
   }
 
   sweep(): void {

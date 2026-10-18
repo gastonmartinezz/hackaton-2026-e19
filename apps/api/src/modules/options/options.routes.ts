@@ -13,6 +13,6 @@ export const optionsRoutes: FastifyPluginAsyncZod<{ service: OptionsService }> =
         response: { 200: OptionsResponse, '4xx': ApiError, '5xx': ApiError },
       },
     },
-    (request) => service.options(request.body, request.principal!),
+    (request) => service.options(request.body, request.principal!, request.log),
   );
 };

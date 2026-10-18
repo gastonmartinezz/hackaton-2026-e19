@@ -29,8 +29,9 @@ describe('MicButton', () => {
   it('en reposo: «Hablar» visible, nombre accesible «Hablar: decirlo en voz alta» y sin presionar', () => {
     render(<MicButton status={{ kind: 'idle' }} onToggle={() => {}} />);
     expect(button().getAttribute('aria-pressed')).toBe('false');
-    expect(button().textContent?.trim()).toBe(`${VOICE_TEXTS.speak}${VOICE_TEXTS.speakDescription}`);
-    expect(button().querySelector('.sr-only')?.textContent).toBe(VOICE_TEXTS.speakDescription);
+    // El nombre accesible incluye el texto visible (2.5.3), sin espacio antes de «:».
+    expect(button().textContent?.trim()).toBe(VOICE_TEXTS.speak);
+    expect(button().getAttribute('aria-label')).toBe('Hablar: decirlo en voz alta');
     expect(button().querySelector('.ic')?.getAttribute('aria-hidden')).toBe('true');
   });
 

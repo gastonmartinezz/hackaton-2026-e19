@@ -33,6 +33,22 @@ export const UI_COMMAND_CHANNEL = 'ui:command';
 export const UI_STATE_CHANNEL = 'ui:state';
 /** Dictado del buscador: WAV (shared/wav.ts) → texto para revisar. Solo desde la ventana. */
 export const UI_TRANSCRIBE_CHANNEL = 'ui:transcribe';
+/**
+ * Dictado de un dato del formulario (solo desde la tarjeta): WAV → texto →
+ * Guíame lo escribe en el lugar señalado. El texto nunca vuelve a la interfaz.
+ */
+export const UI_DICTATE_FIELD_CHANNEL = 'ui:dictate-field';
+
+/**
+ * Resultado del dictado de un dato. `filled`: quedó escrito en la página;
+ * `empty`: no se entendió nada; `noMatch`: lo dicho no sirve para ese lugar
+ * (una fecha que no se entiende, una opción que no está en la lista);
+ * `notAllowed`: el paso ya no pide dictar (cambió, es sensible o la guía está
+ * pausada); `error`: la transcripción falló.
+ */
+export type DictateFieldResult =
+  | { status: 'filled' | 'empty' | 'noMatch' | 'notAllowed' }
+  | { status: 'error'; reason: TranscribeErrorReason };
 
 /**
  * Resultado del dictado. `empty`: no se entendió nada; `busy`: el servidor pide
@@ -118,6 +134,8 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('stepBack') }),
   z.strictObject({ type: z.literal('exitHelp') }),
   z.strictObject({ type: z.literal('confirmDone') }),
+  /** «Lo escribo yo»: el dato se deja de dictar y el cursor queda en el lugar. */
+  z.strictObject({ type: z.literal('typeMyself') }),
   /** «Todavía no» → «Creo que me falta un paso» (17): se vuelve a mirar la página. */
   z.strictObject({ type: z.literal('resumeGuide') }),
   /** Termina la ayuda sin el aviso «Saliste de la ayuda» (tarea terminada). */
@@ -264,6 +282,8 @@ export interface AppState {
   guide: {
     phase: string;
     goal: string | null;
+    /** Mientras se buscan las opciones: lo que la persona pidió con sus palabras (no estaba entre las opciones). */
+    request: string | null;
     primary: OptionView[];
     secondary: OptionView[];
     option: OptionView | null;
@@ -279,6 +299,13 @@ export interface AppState {
     targetField: boolean;
     /** Cómo avanza el paso actual: `userConfirmation` pide «Listo, ya lo escribí». */
     waitFor: 'userInteraction' | 'navigation' | 'userConfirmation' | null;
+    /**
+     * El paso pide un dato del formulario. `dictate`: Guíame lo pregunta, la
+     * persona lo dice y Guíame lo escribe (`filled`: ya quedó escrito, falta que
+     * lo revise). `type`: dato sensible; el cursor queda en el lugar y lo
+     * escribe la persona. Nunca trae el valor.
+     */
+    ask: { question: string; mode: 'dictate' | 'type'; filled: boolean } | null;
     /** «Ya hiciste»: solo pasos pasados, en pasado. Nunca valores. */
     done: string[];
     /** Texto visible de la página que prueba que terminó (09). Sin él no se dice «Listo». */
@@ -315,6 +342,8 @@ export interface AsistenteBridge {
   onState(listener: (state: AppState) => void): () => void;
   /** Pasa a texto un WAV PCM16 mono de 16 kHz. Nunca envía la búsqueda. */
   transcribe(wav: ArrayBuffer): Promise<TranscribeResult>;
+  /** Dicta el dato que pide el paso actual: Guíame lo escribe en la página. El texto no vuelve. */
+  dictateField(wav: ArrayBuffer): Promise<DictateFieldResult>;
   /** Lee en voz alta un texto de Guíame (nunca datos de la página). Devuelve el MP3. */
   /**
    * Lee en voz alta un texto de Guíame (nunca datos de la página). Los
@@ -345,6 +374,9 @@ export const PAGE_CHANNELS = {
   summarize: 'page:summarize',
   summary: 'page:summary',
   signature: 'page:signature',
+  fill: 'page:fill',
+  filled: 'page:filled',
+  focus: 'page:focus',
 } as const;
 
 export const ExtractRequestSchema = z.strictObject({
@@ -387,11 +419,30 @@ export const ShownMessageSchema = z.strictObject({
   rect: TargetRectSchema.optional(),
   /** El control es un campo: la persona escribe ahí (pantalla 08). */
   field: z.boolean().optional(),
+  /** Guíame puede escribir ahí lo dictado (texto, correo, teléfono, número, fecha o lista). */
+  fillable: z.boolean().optional(),
+  /** Según los atributos del sitio, pide un dato sensible (clave, código, tarjeta, documento). */
+  sensitive: z.boolean().optional(),
 });
 
 export const ChangedMessageSchema = z.strictObject({ structural: z.boolean(), targetPresent: z.boolean().nullable() });
 
-export const InteractionMessageSchema = z.strictObject({ elementId: Id });
+/** `event`: qué hizo la persona (clic, terminó de escribir…), nunca el contenido. */
+export const InteractionMessageSchema = z.strictObject({ elementId: Id, event: z.enum(['click', 'change', 'input', 'submit']) });
+
+/** Escribir lo dictado en un lugar ya señalado. El valor nunca se registra. */
+export const FillRequestSchema = z.strictObject({
+  requestId: Id,
+  navigationId: Id,
+  elementId: Id,
+  value: z.string().min(1).max(500),
+});
+export const FILL_RESULTS = ['filled', 'noMatch', 'refused', 'stale'] as const;
+export type FillResult = (typeof FILL_RESULTS)[number];
+export const FilledMessageSchema = z.strictObject({ requestId: Id, result: z.enum(FILL_RESULTS) });
+
+/** Poner el cursor en un lugar para que la persona escriba un dato sensible. */
+export const FocusRequestSchema = z.strictObject({ navigationId: Id, elementId: Id });
 
 export const ValidationMessageSchema = z.strictObject({});
 

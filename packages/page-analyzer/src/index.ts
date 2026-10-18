@@ -227,6 +227,7 @@ export function extractSnapshot(doc: Document, options: ExtractOptions): Extract
     const entry: PageElement = { id, role, label, enabled: isEnabled(element) };
     const inputType = inputTypeOf(element);
     if (inputType) entry.inputType = inputType;
+    if (isRequired(element)) entry.required = true;
     const sectionId = nearestSectionId(element, elementIds);
     if (sectionId) entry.sectionId = sectionId;
     elements.push(entry);
@@ -382,6 +383,11 @@ function inputTypeOf(element: Element): string | undefined {
   if (element.localName !== 'input') return undefined;
   const type = (element.getAttribute('type') ?? 'text').toLowerCase();
   return INPUT_TYPES.has(type) ? type : 'text';
+}
+
+/** Solo atributos del sitio: nunca se mira lo que la persona escribió. */
+function isRequired(element: Element): boolean {
+  return element.hasAttribute('required') || element.getAttribute('aria-required') === 'true';
 }
 
 function isEnabled(element: Element): boolean {

@@ -256,6 +256,12 @@ select {
   color: var(--g-on-brand);
   box-shadow: var(--g-shadow-bar);
   font-size: var(--fs-support);
+  /* Los cortes de abajo se miden en em: escalan con «Tamaño de letra». */
+  container: barra / inline-size;
+}
+/* Solo la píldora «Estás en» cede lugar; los botones nunca se aplastan. */
+.chrome > :not(.omni) {
+  flex: none;
 }
 .chrome :focus-visible {
   box-shadow: var(--focus-ring-bar);
@@ -333,6 +339,8 @@ select {
 .omni {
   flex: 1 1 auto;
   min-width: 0;
+  /* Último recurso: el dominio nunca se dibuja encima de «Ayuda». */
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -396,12 +404,21 @@ select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 2ch;
+  min-width: 0;
 }
+/*
+ * La subdirección cede primero. Si el dominio principal no entra ni así, se
+ * recorta el principio: la terminación (.gub.uy, .com.uy) siempre se ve. El
+ * texto va aislado en LTR (<bdi dir="ltr"> en TopBar.tsx): con `rtl` solo, un
+ * dominio que empieza con un número («3tienda.com») se mostraría desordenado.
+ */
 .omni b {
   font-weight: var(--fw-semibold);
   white-space: nowrap;
-  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
 }
 .omni .badge {
   margin-left: auto;
@@ -418,6 +435,36 @@ select {
 :root[data-text-scale='1.45'] .lbl-short,
 :root[data-text-scale='1.75'] .lbl-short {
   display: inline;
+}
+/*
+ * Ventana angosta: la barra se compacta por pasos para que el dominio entre
+ * sin pisar los botones. Primero «Tamaño de letra» pasa a «Letra»; después los
+ * botones se ajustan y, al final, «Letra» queda sin las «AA».
+ */
+@container barra (max-width: 55em) {
+  .lbl-long {
+    display: none;
+  }
+  .lbl-short {
+    display: inline;
+  }
+}
+@container barra (max-width: 36em) {
+  .chrome .brand {
+    margin-right: 0;
+    padding: 0;
+  }
+  .btn-chrome:not(.icon-only) {
+    padding: 0 var(--space-2);
+  }
+  .btn-help {
+    padding: 0 var(--space-3);
+  }
+}
+@container barra (max-width: 30em) {
+  .chrome .aa {
+    display: none;
+  }
 }
 
 /* ---------- Pantallas propias: inicio, pregunta y recomendación ---------- */

@@ -28,6 +28,8 @@ export const PageElementSchema = z.strictObject({
   label: z.string().max(SNAPSHOT_LIMITS.labelLength),
   inputType: z.string().max(SNAPSHOT_LIMITS.inputTypeLength).optional(),
   enabled: z.boolean(),
+  /** El sitio marca el dato como obligatorio (required o aria-required). Nunca el valor. */
+  required: z.boolean().optional(),
   sectionId: Id.optional(),
 });
 export type PageElement = z.infer<typeof PageElementSchema>;
@@ -75,6 +77,7 @@ export function snapshotToHtml(snapshot: PageSnapshot): string {
   const render = (element: PageElement): string => {
     const attrs = [`id="${escape(element.id)}"`];
     if (!element.enabled) attrs.push('disabled');
+    if (element.required) attrs.push('required');
     const sectionTag = SECTION_TAGS[element.role];
     if (sectionTag) {
       if (element.label) attrs.push(`aria-label="${escape(element.label)}"`);

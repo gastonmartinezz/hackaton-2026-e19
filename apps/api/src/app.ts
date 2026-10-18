@@ -19,6 +19,7 @@ import { interpretRoutes } from './modules/interpret/interpret.routes.js';
 import { NextStepService } from './modules/next-step/next-step.service.js';
 import { nextStepRoutes } from './modules/next-step/next-step.routes.js';
 import { OptionsService } from './modules/options/options.service.js';
+import { ProcedureResearcher } from './modules/procedure/procedure.service.js';
 import { optionsRoutes } from './modules/options/options.routes.js';
 import { createOpenAI } from './modules/openai/client.js';
 import { SessionStore } from './modules/sessions/session-store.js';
@@ -163,8 +164,13 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
     webSearchMaxUses: config.INTERPRET_WEB_SEARCH_MAX_USES,
   });
   await app.register(interpretRoutes, { service: interpretService });
-  await app.register(optionsRoutes, { service: new OptionsService(model, sessions) });
-  await app.register(nextStepRoutes, { service: new NextStepService(model, sessions) });
+  // El paso a paso real de una tarea: al empezar una opción (next-step) o al pedir algo que no estaba entre las opciones (options).
+  const researcher = new ProcedureResearcher(model, {
+    webSearch: config.GUIDE_WEB_SEARCH === 'on',
+    webSearchMaxUses: config.GUIDE_WEB_SEARCH_MAX_USES,
+  });
+  await app.register(optionsRoutes, { service: new OptionsService(model, sessions, researcher) });
+  await app.register(nextStepRoutes, { service: new NextStepService(model, sessions, researcher) });
   await app.register(transcribeRoutes, {
     service: transcribeService,
     rateLimit: { max: config.STT_RATE_LIMIT_MAX, timeWindow: config.RATE_LIMIT_WINDOW_MS },
