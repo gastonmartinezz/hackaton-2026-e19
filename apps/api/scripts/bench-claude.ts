@@ -39,6 +39,8 @@ interface ClaudeMetric {
   outputTokens: number;
   cacheReadInputTokens: number;
   cacheCreationInputTokens: number;
+  /** Búsquedas web del servidor (las hace `procedure` en nextStep y options, con GUIDE_WEB_SEARCH=on). */
+  webSearches: number;
 }
 interface UrlMetric {
   type: string;
@@ -69,7 +71,9 @@ function metricsLogger(claude: ClaudeMetric[], urls: UrlMetric[]): FastifyBaseLo
 
 const cost = (m: ClaudeMetric) =>
   (m.inputTokens * OPUS.input + m.cacheCreationInputTokens * OPUS.input * 1.25 + m.cacheReadInputTokens * OPUS.cacheRead + m.outputTokens * OPUS.output) /
-  1_000_000;
+    1_000_000 +
+  // USD 10 cada 1000 búsquedas web, aparte de los tokens.
+  (m.webSearches ?? 0) * 0.01;
 
 function percentile(values: number[], p: number): number {
   const sorted = [...values].sort((a, b) => a - b);
