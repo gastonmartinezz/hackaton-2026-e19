@@ -7,7 +7,7 @@ import { hostMatches } from './domain.js';
 
 /**
  * Fuentes de autoridad locales y versionadas (en `data/`):
- * - `government-zones.json`: zonas reservadas al Estado (gob.ar, gov, …) y nombres de organismos.
+ * - `government-zones.json`: zonas reservadas al Estado (.gov, .mil) y nombres de organismos (`claims`).
  * - `official-sites.<país>.json`: catálogos curados con fuente y fecha de revisión por entrada
  *   (por ejemplo, Uruguay). Sus `zones` también cuentan como zonas de gobierno.
  * Un archivo inválido detiene el arranque: nunca se usa un catálogo a medias.
@@ -177,7 +177,7 @@ export function loadOfficialSources(options: { dataDir?: string; zonesFile?: str
 
 /** Zona de gobierno que contiene al host, por límites de dominio. */
 export function findZone(zones: readonly GovernmentZone[], hostname: string): GovernmentZone | undefined {
-  // La zona más específica primero (gob.ar antes que ar, si existiera).
+  // La zona más específica primero (gub.uy antes que uy, si existiera).
   return [...zones].sort((a, b) => b.suffix.length - a.suffix.length).find((zone) => hostname !== zone.suffix && hostMatches(hostname, zone.suffix, 'subdomains'));
 }
 

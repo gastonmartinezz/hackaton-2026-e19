@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { CoverageLevel } from '@hackaton/contracts';
-import { BCRA_SOURCE_NAME, type BcraRegistry, type RegistryEntity, type RegistryState } from './bcra-registry.js';
+import { BCU_SOURCE_NAME, type BcuInstitution, type BcuRegistry, type RegistryState } from './bcu-registry.js';
 import { describeHost } from './domain.js';
 import type { Reference, ZoneReference } from './lookalike.js';
 import {
@@ -15,9 +15,13 @@ import {
 
 /**
  * «Oficial» solo con prueba de una autoridad, en este orden:
- * 1. Catálogo curado (`official_catalog`): entrada con fuente y fecha de revisión.
- * 2. Zona reservada al Estado (`government_domain`): gob.ar, gub.uy, .gov… por regla de zona.
- * 3. Padrón del BCRA (`financial_regulator`): el sitio web que el regulador publica para cada entidad.
+ * 1. Registro de instituciones del BCU (`financial_regulator`), solo con la copia vigente: el dominio
+ *    registrable es el del sitio web que el BCU publica para una institución supervisada. Si el dominio
+ *    también está en el catálogo, la organización es el nombre corto del catálogo («Banco República (BROU)»
+ *    en vez de la razón social).
+ * 2. Catálogo curado (`official_catalog`): entrada con fuente y fecha de revisión. Cubre lo que no está en
+ *    el BCU y los dominios verificados que el BCU no publica (brou.com.uy, además de bancorepublica.com.uy).
+ * 3. Zona reservada al Estado (`government_domain`): gub.uy, mil.uy, .gov… por regla de zona.
  * La IA, HTTPS, rankings, certificados o la antigüedad nunca otorgan oficialidad.
  */
 
@@ -47,38 +51,77 @@ export interface ClaimHint {
 
 const asDateTime = (date: string) => (date.length === 10 ? `${date}T00:00:00.000Z` : new Date(date).toISOString());
 
-// Palabras que no distinguen a una entidad del padrón ("BANCO … S.A.", "COMPAÑIA FINANCIERA").
+// Palabras que no distinguen a una institución del BCU ("BANCO … S.A.", "… SERVICIOS FINANCIEROS", "COOPERATIVA DE AHORRO Y CRÉDITO").
 const GENERIC = new Set(
-  'banco bank de la del las los el y s a sa sau sociedad anonima unipersonal uniper compania cia financiera financier limitada limitad cooperativo coop na n sucursal argentina argentino nuevo the of and national association assoc credit'.split(' '),
+  'banco bank de la del las los el y s a sa sas srl sau r l ltda limitada sociedad anonima compania cia uruguay uruguaya uruguayo uy sucursal financiera financiero financieros servicios empresa cooperativa coop ahorro credito the of and n international association dinero electronico'.split(' '),
 );
-const FINANCIAL_WORDS = /\b(banco|bank|financiera|tarjeta|home ?banking|billetera)\b/;
+const FINANCIAL_WORDS = /\b(banco|bank|financiera|tarjeta|home ?banking|billetera|cooperativa|creditos?|prestamos?|cambio|cobranzas?|dinero electronico|red de pagos)\b/;
 const coreTokens = (text: string) => normalizeName(text).replace(/\./g, ' ').split(' ').filter((t) => t && !GENERIC.has(t));
+// El sitio publicado es la dirección raíz («https://scanntech.com/»), no una sección de otro sitio.
+const atRoot = (website: string) => /^(https?:\/\/)?[^/\s,;]+\/?$/i.test(website.trim());
 
 export class AuthorityView {
-  private readonly entities: RegistryEntity[];
+  private readonly institutions: BcuInstitution[];
   private readonly df = new Map<string, number>();
+  /** Instituciones del BCU por dominio registrable. */
+  private readonly byDomain = new Map<string, BcuInstitution[]>();
+  /** Catálogo y BCU enlazados por dominio: la entrada del catálogo que lista un dominio del BCU es esa institución. */
+  private readonly linked = new Map<string, Set<string>>();
 
   constructor(
     private readonly sources: OfficialSources,
     readonly registry: RegistryState,
     private readonly popular: readonly Reference[],
   ) {
-    this.entities = registry.snapshot?.entities ?? [];
-    for (const entity of this.entities) for (const token of new Set(coreTokens(entity.name))) this.df.set(token, (this.df.get(token) ?? 0) + 1);
+    this.institutions = registry.snapshot?.institutions ?? [];
+    for (const institution of this.institutions) {
+      for (const token of new Set([...coreTokens(institution.name), ...coreTokens(institution.tradeName ?? '')])) this.df.set(token, (this.df.get(token) ?? 0) + 1);
+      for (const domain of institution.domains) this.byDomain.set(domain, [...(this.byDomain.get(domain) ?? []), institution]);
+    }
+    const link = (a: string, b: string) => this.linked.set(a, (this.linked.get(a) ?? new Set<string>()).add(b));
+    for (const entry of this.sources.entries) {
+      for (const { domain } of entry.domains) {
+        const registrable = describeHost(domain).registrableDomain;
+        for (const institution of (registrable && this.byDomain.get(registrable)) || []) {
+          link(`catalog:${entry.id}`, `bcu:${institution.id}`);
+          link(`bcu:${institution.id}`, `catalog:${entry.id}`);
+        }
+      }
+    }
   }
 
   private catalogEntry(hostname: string): CatalogEntry | undefined {
     return this.sources.entries.find((entry) => catalogAuthorizes(entry, hostname));
   }
 
-  private registryEntity(hostname: string): RegistryEntity | undefined {
+  /** Instituciones del BCU cuyo sitio publicado tiene el mismo dominio registrable que el host (nunca por sufijo de texto). */
+  private registryInstitutions(hostname: string): BcuInstitution[] {
     const domain = describeHost(hostname).registrableDomain;
-    return domain ? this.entities.find((entity) => entity.domain === domain) : undefined;
+    return (domain && this.byDomain.get(domain)) || [];
   }
 
-  /** Fuente de autoridad que hace oficial al host, o null. Una copia vieja del padrón nunca aprueba. */
+  /** Nombre que ve la persona: el corto del catálogo enlazado, el de fantasía o la razón social. */
+  private institutionName(institution: BcuInstitution): string {
+    const catalogKey = [...(this.linked.get(`bcu:${institution.id}`) ?? [])][0];
+    const entry = catalogKey ? this.sources.entries.find((e) => `catalog:${e.id}` === catalogKey) : undefined;
+    return (entry ? entry.organization : (institution.tradeName ?? institution.name)).slice(0, 120);
+  }
+
+  /** Fuente de autoridad que hace oficial al host, o null. Una copia vieja del registro del BCU nunca aprueba. */
   official(hostname: string): OfficialMatch | null {
     const entry = this.catalogEntry(hostname);
+    const domain = describeHost(hostname).registrableDomain;
+    const candidates = this.registry.status === 'fresh' && domain ? this.registryInstitutions(hostname) : [];
+    const institution = candidates.find((i) => atRoot(i.website)) ?? candidates[0];
+    if (domain && institution && this.registry.snapshot) {
+      return {
+        basis: 'financial_regulator',
+        organization: entry ? entry.organization : this.institutionName(institution),
+        matched: domain,
+        source: { name: BCU_SOURCE_NAME, url: institution.sourceUrl, reviewedAt: this.registry.snapshot.fetchedAt },
+        detail: `${domain} es el sitio que el BCU publica para ${institution.name}`,
+      };
+    }
     if (entry) {
       const domain = entry.domains.find((d) => catalogAuthorizes({ ...entry, domains: [d] }, hostname))!;
       return {
@@ -99,38 +142,31 @@ export class AuthorityView {
         detail: `Zona .${zone.suffix} reservada al Estado (${zone.origin})`,
       };
     }
-    const entity = this.registry.status === 'fresh' ? this.registryEntity(hostname) : undefined;
-    if (entity && this.registry.snapshot) {
-      return {
-        basis: 'financial_regulator',
-        organization: entity.name.slice(0, 120),
-        matched: entity.domain,
-        source: { name: BCRA_SOURCE_NAME, url: entity.sourceUrl, reviewedAt: this.registry.snapshot.fetchedAt },
-        detail: `${entity.domain} es el sitio que el BCRA publica para ${entity.name}`,
-      };
-    }
     return null;
   }
 
   /**
-   * Cobertura de identidad: completa si una fuente local resolvió o si el padrón está vigente.
-   * Con el padrón viejo o caído, un sitio que no está en zona ni catálogo queda parcial o sin verificar.
+   * Cobertura de identidad: completa si una fuente local resolvió o si el registro del BCU está vigente.
+   * Con el registro viejo o caído, un sitio que no está en zona ni catálogo queda parcial o sin verificar.
    */
   coverage(hostname: string): CoverageLevel {
     if (this.catalogEntry(hostname) || findZone(this.sources.zones, hostname)) return 'complete';
     return this.registry.status === 'fresh' ? 'complete' : this.registry.status === 'stale' ? 'partial' : 'unavailable';
   }
 
-  /** Organizaciones a las que pertenece el host (también con el padrón viejo: sirve para no acusar en falso). */
+  /** Organizaciones a las que pertenece el host (también con el registro viejo: sirve para no acusar en falso). */
   keys(hostname: string): string[] {
-    const keys: string[] = [];
+    const keys = new Set<string>();
+    const add = (key: string) => {
+      keys.add(key);
+      for (const other of this.linked.get(key) ?? []) keys.add(other);
+    };
     const entry = this.catalogEntry(hostname);
-    if (entry) keys.push(`catalog:${entry.id}`);
+    if (entry) add(`catalog:${entry.id}`);
     const zone = findZone(this.sources.zones, hostname);
-    if (zone) keys.push(`gov:${zone.country}`);
-    const entity = this.registryEntity(hostname);
-    if (entity) keys.push(`bcra:${entity.code}`);
-    return keys;
+    if (zone) add(`gov:${zone.country}`);
+    for (const institution of this.registryInstitutions(hostname)) add(`bcu:${institution.id}`);
+    return [...keys];
   }
 
   /** Mismo dominio registrable o misma organización según las fuentes. */
@@ -159,31 +195,33 @@ export class AuthorityView {
         found.push({ organization: entry.organization, keys: [`catalog:${entry.id}`], via: 'official_catalog' });
       }
     }
-    // Padrón del BCRA (nombres en mayúsculas y cortados a 35 caracteres).
+    // Registro del BCU: razón social («BANCO ITAU URUGUAY S.A.») o nombre de fantasía («OCA Card», «Prex»).
     const declared = coreTokens(text);
     const financial = FINANCIAL_WORDS.test(normalizeName(text)) || hint?.kind === 'financial_entity';
-    const matches = this.entities.filter((entity) => {
-      const all = coreTokens(entity.name);
-      const distinctive = all.filter((t) => (this.df.get(t) ?? 0) === 1);
-      const declaredInName = declared.length > 0 && declared.every((t) => all.includes(t)) && declared.some((t) => (this.df.get(t) ?? 0) <= 4);
-      const nameInDeclared = distinctive.length > 0 && distinctive.every((t) => declared.includes(t));
-      // Sin una palabra financiera (o la pista de la IA) no alcanza: "La Nación" es también un diario.
-      return (declaredInName || nameInDeclared) && financial;
-    });
+    const matches = this.institutions.filter((institution) =>
+      [institution.name, institution.tradeName ?? ''].some((name) => {
+        const all = coreTokens(name);
+        const distinctive = all.filter((t) => (this.df.get(t) ?? 0) === 1);
+        const declaredInName = declared.length > 0 && declared.every((t) => all.includes(t)) && declared.some((t) => (this.df.get(t) ?? 0) <= 4);
+        const nameInDeclared = distinctive.length > 0 && distinctive.every((t) => declared.includes(t));
+        // Sin una palabra financiera (o la pista de la IA) no alcanza: «Verde» o «Pronto» también son palabras comunes.
+        return (declaredInName || nameInDeclared) && financial;
+      }),
+    );
     if (matches.length > 0) {
-      found.push({ organization: matches[0]!.name.slice(0, 120), keys: matches.map((m) => `bcra:${m.code}`), via: 'financial_regulator' });
+      found.push({ organization: this.institutionName(matches[0]!), keys: matches.map((m) => `bcu:${m.id}`), via: 'financial_regulator' });
     }
     return found;
   }
 
-  /** Referencias para dominios parecidos: padrón (también viejo), catálogos y populares. */
+  /** Referencias para dominios parecidos: registro del BCU (también viejo), catálogos y populares. */
   references(): Reference[] {
     const refs: Reference[] = [];
     const push = (domain: string, organization: string, kind: Reference['kind']) => {
       const host = describeHost(domain);
       if (host.registrableDomain && host.label) refs.push({ domain: host.registrableDomain, label: host.label, organization, kind });
     };
-    for (const entity of this.entities) push(entity.domain, entity.name, 'financial_regulator');
+    for (const institution of this.institutions) for (const domain of institution.domains) push(domain, this.institutionName(institution), 'financial_regulator');
     for (const entry of this.sources.entries) for (const d of entry.domains) push(d.domain, entry.organization, 'official_catalog');
     refs.push(...this.popular);
     return refs;
@@ -202,8 +240,8 @@ export class AuthorityView {
   describe(): { versions: string[]; registry: string } {
     const snapshot = this.registry.snapshot;
     const registry = snapshot
-      ? `${BCRA_SOURCE_NAME}: ${snapshot.entities.length} entidades con sitio web (${snapshot.skipped.length} sin sitio utilizable), descargado ${snapshot.fetchedAt}${this.registry.status === 'stale' ? ' (copia vieja: no aprueba)' : ''}`
-      : `${BCRA_SOURCE_NAME}: no disponible (${this.registry.error ?? 'sin copia'})`;
+      ? `${BCU_SOURCE_NAME}: ${snapshot.institutions.length} instituciones con sitio web (${snapshot.skipped.length} sin sitio utilizable o no activas), descargado ${snapshot.fetchedAt}${this.registry.status === 'stale' ? ' (copia vieja: no aprueba)' : ''}`
+      : `${BCU_SOURCE_NAME}: no disponible (${this.registry.error ?? 'sin copia'})`;
     return { versions: this.sources.versions, registry };
   }
 }
@@ -211,7 +249,7 @@ export class AuthorityView {
 export class AuthorityService {
   constructor(
     private readonly sources: OfficialSources,
-    private readonly registry: BcraRegistry,
+    private readonly registry: BcuRegistry,
     private readonly popular: readonly Reference[],
     private readonly registryWaitMs: number,
   ) {}

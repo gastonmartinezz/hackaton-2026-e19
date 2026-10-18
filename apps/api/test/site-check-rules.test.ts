@@ -1,19 +1,21 @@
-import { writeFileSync } from 'node:fs';
+import { X509Certificate } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { rootCertificates } from 'node:tls';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { computeRisk } from '../src/modules/site-check/aggregate.js';
 import { AuthorityView, loadPopularDomains } from '../src/modules/site-check/authority.js';
-import { BcraRegistry, parseWebsite } from '../src/modules/site-check/bcra-registry.js';
+import { bcuFetch, BcuRegistry, parseWebsite, parseWebsites } from '../src/modules/site-check/bcu-registry.js';
 import { describeHost, editDistance, hostMatches } from '../src/modules/site-check/domain.js';
 import { lookalikeSignals } from '../src/modules/site-check/lookalike.js';
-import { loadOfficialSources } from '../src/modules/site-check/official-sources.js';
+import { DATA_DIR, loadOfficialSources } from '../src/modules/site-check/official-sources.js';
 import { redactText, sanitizeUrl } from '../src/modules/site-check/sanitize.js';
 import { fakeRdapFetch, TEST_CATALOGS } from './site-check-helpers.js';
 
 const HOUR = 60 * 60_000;
-const registry = (fetchImpl = fakeRdapFetch().impl, now?: () => number) =>
-  new BcraRegistry({ enabled: true, fetchImpl, requestTimeoutMs: 1000, refreshAfterMs: 24 * HOUR, validForMs: 48 * HOUR, usableForMs: 168 * HOUR, retryAfterMs: 0, now });
+const registry = (fetchImpl = fakeRdapFetch().impl, now?: () => number, extra: { maxRequests?: number } = {}) =>
+  new BcuRegistry({ enabled: true, fetchImpl, requestTimeoutMs: 1000, refreshAfterMs: 24 * HOUR, validForMs: 48 * HOUR, usableForMs: 168 * HOUR, retryAfterMs: 0, now, ...extra });
 
 let view: AuthorityView;
 beforeAll(async () => {
@@ -25,36 +27,61 @@ const signals = (hostname: string) =>
 
 describe('fuentes de autoridad', () => {
   it('zona de gobierno por límites de dominio, nunca por sufijo de texto', () => {
-    expect(view.official('www.anses.gob.ar')).toMatchObject({ basis: 'government_domain', organization: 'Estado argentino', matched: 'gob.ar' });
-    expect(view.official('www.anses.gob.ar')?.source).toMatchObject({
-      url: 'https://www.argentina.gob.ar/normativa/nacional/norma-270431/texto',
-      reviewedAt: '2026-10-17T00:00:00.000Z',
-    });
+    expect(view.official('www.bps.gub.uy')).toMatchObject({ basis: 'government_domain', organization: 'Estado uruguayo', matched: 'gub.uy' });
+    expect(view.official('www.bps.gub.uy')?.source).toMatchObject({ url: 'https://www.gub.uy/', reviewedAt: '2026-10-17T00:00:00.000Z' });
     expect(view.official('www.irs.gov')).toMatchObject({ basis: 'government_domain', organization: 'Gobierno de Estados Unidos' });
-    expect(view.official('anses.gob.ar.evil.com')).toBeNull();
-    expect(view.official('anses-gob-ar.com')).toBeNull();
-    expect(view.official('evilanses.gobar.com')).toBeNull();
+    expect(view.official('bps.gub.uy.evil.com')).toBeNull();
+    expect(view.official('bps-gub-uy.com')).toBeNull();
+    expect(view.official('evilbps.gubuy.com')).toBeNull();
     expect(view.official('foo.gob.bo')).toBeNull(); // no se generaliza a cualquier gob.xx
-    expect(view.official('gob.ar')).toBeNull();
+    expect(view.official('gub.uy')).toBeNull();
     // El sufijo de la zona no es oficial, pero tampoco un subdominio engañoso de sí mismo.
-    expect(signals('gob.ar')).toEqual([]);
+    expect(signals('gub.uy')).toEqual([]);
   });
 
-  it('padrón del BCRA: dominio registrable del sitio publicado por el regulador', () => {
-    const match = view.official('online.bna.com.ar');
-    expect(match).toMatchObject({ basis: 'financial_regulator', organization: 'BANCO DE LA NACION ARGENTINA', matched: 'bna.com.ar' });
-    expect(match?.source.name).toBe('Padrón de entidades financieras del BCRA');
-    expect(match?.source.url).toContain('category=00011');
-    expect(view.official('www.bancociudad.com.ar')?.basis).toBe('financial_regulator'); // publicado con path
-    expect(view.official('bna.com.ar.evil.com')).toBeNull();
-    expect(view.official('xbna.com.ar')).toBeNull();
+  it('registro del BCU: banco con su ficha como fuente y el nombre corto del catálogo', () => {
+    const match = view.official('www.bancorepublica.com.uy');
+    expect(match).toMatchObject({ basis: 'financial_regulator', organization: 'Banco República (BROU)', matched: 'bancorepublica.com.uy' });
+    expect(match?.source).toEqual({
+      name: 'Registro de instituciones del BCU',
+      url: 'https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1001',
+      reviewedAt: view.registry.snapshot!.fetchedAt,
+    });
+    // brou.com.uy no lo publica el BCU: sale del catálogo, con su propia fuente.
+    expect(view.official('www.brou.com.uy')).toMatchObject({ basis: 'official_catalog', organization: 'Banco República (BROU)' });
+    // Sin entrada en el catálogo, la razón social que publica el BCU.
+    expect(view.official('www.itau.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'BANCO ITAU URUGUAY S.A.' });
+    expect(view.official('www.itau.com.uy')?.source.url).toContain('nroinst=1113');
+    expect(view.official('bancorepublica.com.uy.evil.com')).toBeNull();
+    expect(view.official('xitau.com.uy')).toBeNull();
   });
 
-  it('descarta sitios web del padrón que no se pueden usar', () => {
-    expect(parseWebsite('www.mobilize fs.com.ar')).toEqual({ reason: 'sitio web con espacios' });
+  it('registro del BCU: billeteras y medios de pago del Sistema de Pagos', () => {
+    expect(view.official('www.prexcard.com')).toMatchObject({
+      basis: 'financial_regulator',
+      organization: 'Prex',
+      source: { name: 'Registro de instituciones del BCU', url: 'https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/prex.aspx' },
+    });
+    expect(view.official('www.midinero.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'Midinero' });
+    // Columnas en otro orden (Oca Blue) y sitio como texto, sin enlace (Pedidos Ya).
+    expect(view.official('ocablue.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'Oca Blue' });
+    expect(view.official('www.pedidosya.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'Pedidos Ya' });
+    // Varias instituciones con el mismo dominio: se nombra la que lo publica como sitio principal.
+    expect(view.official('www.scanntech.com')?.organization).toBe('Scanntech');
+  });
+
+  it('sitios publicados por el BCU que se corrigen o se descartan', () => {
+    expect(parseWebsite('http://https://avenida.com.uy')).toMatchObject({ domain: 'avenida.com.uy' }); // esquema repetido en el href
+    expect(parseWebsite('www.ejemplo financiera.com.uy')).toEqual({ reason: 'sitio web con espacios' });
     expect(parseWebsite('')).toEqual({ reason: 'sin sitio web' });
-    expect(parseWebsite('www.jpmorgan.com/country/ar/es/jpmorgan')).toMatchObject({ domain: 'jpmorgan.com' });
-    expect(view.registry.snapshot?.skipped.map((s) => s.code).sort()).toEqual(['00269', '00339']);
+    expect(parseWebsite('https://www.facebook.com/financiera')).toEqual({ reason: 'sitio web en una plataforma compartida' });
+    expect(parseWebsite('https://www.itau.com.uy/inst/')).toMatchObject({ domain: 'itau.com.uy' });
+    expect(parseWebsites('www.floder.uy,  www.paigo.com.uy ,https://www.paigo.com.uy')).toEqual({ domains: ['floder.uy', 'paigo.com.uy'] });
+    // Floder S.A. (nombre de fantasía «Paigo») publica ocho sitios en la ficha.
+    expect(view.official('www.paigo.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'Paigo' });
+    expect(view.official('www.credisol.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'Paigo' });
+    expect(view.registry.snapshot?.skipped).toContainEqual({ id: 'ssf-7835', name: 'CREDIYI S.A.', reason: 'sin sitio web' });
+    expect(view.registry.snapshot?.institutions).toHaveLength(99);
   });
 
   it('catálogo curado con fuente y fecha por entrada; alcance exact', () => {
@@ -63,7 +90,7 @@ describe('fuentes de autoridad', () => {
     expect(view.official('ebanking.brou.uy')?.basis).toBe('official_catalog');
     expect(view.official('www.ebanking.brou.uy')).toBeNull();
     expect(view.official('tramites.gub.uy')).toMatchObject({ basis: 'government_domain', organization: 'Estado uruguayo' });
-    expect(hostMatches('a.x.com.ar', 'x.com.ar', 'subdomains')).toBe(true);
+    expect(hostMatches('a.x.com.uy', 'x.com.uy', 'subdomains')).toBe(true);
   });
 
   it('rechaza un catálogo inválido o con dominios repetidos', () => {
@@ -76,32 +103,39 @@ describe('fuentes de autoridad', () => {
     expect(() => loadOfficialSources({ catalogFiles: [dup] })).toThrow(/x\.com\.uy/);
   });
 
-  it('organizaciones declaradas: Estado, padrón y catálogo', () => {
-    expect(view.claims('ANSES - Mi cuenta').map((c) => [c.via, c.keys])).toEqual([['government_domain', ['gov:AR']]]);
-    expect(view.claims('Banco Nación').map((c) => c.organization)).toEqual(['BANCO DE LA NACION ARGENTINA']);
-    expect(view.claims('Banco Galicia').map((c) => c.organization)).toEqual(['BANCO DE GALICIA Y BUENOS AIRES S.A']);
-    expect(view.claims('Galicia', { kind: 'financial_entity', country: 'AR' }).map((c) => c.organization)).toEqual(['BANCO DE GALICIA Y BUENOS AIRES S.A']);
-    expect(view.claims('LA NACION')).toEqual([]); // un diario, no el banco
-    expect(view.claims('Galicia')).toEqual([]);
-    expect(view.claims('Banco Provincia')[0]?.keys).toContain('bcra:00014');
+  it('organizaciones declaradas: registro del BCU y catálogo', () => {
+    expect(view.claims('Banco Itaú').map((c) => c.organization)).toEqual(['Banco Itaú']);
+    expect(view.claims('Banco Itaú')[0]?.keys).toEqual(expect.arrayContaining(['bcu:sp-itau', 'bcu:ssf-1113']));
+    expect(view.claims('Itaú')).toEqual([]); // sin palabra financiera no alcanza
+    expect(view.claims('Itaú', { kind: 'financial_entity', country: 'UY' }).map((c) => c.organization)).toEqual(['Banco Itaú']);
+    // El catálogo y el BCU reconocen al mismo banco: las dos claves lo autorizan.
+    expect(view.claims('Banco República').map((c) => [c.via, c.organization])).toEqual([
+      ['official_catalog', 'Banco República (BROU)'],
+      ['financial_regulator', 'Banco República (BROU)'],
+    ]);
+    expect(view.claims('Billetera Prex')[0]?.keys).toEqual(['bcu:sp-prex']);
+    expect(view.claims('Verde')).toEqual([]); // nombre de fantasía que es una palabra común
     expect(view.claims('Antel')[0]).toMatchObject({ via: 'official_catalog', keys: ['catalog:antel'] });
     expect(view.claims('BROU')[0]?.keys).toEqual(['catalog:brou']);
-    expect(view.claims('Diario La Nación')).toEqual([]); // sin palabra financiera, "nacion" sola no alcanza
-    expect(view.claims('Argentina')).toEqual([]);
-    expect(view.claims('Organismo X', { kind: 'government', country: 'AR' })[0]?.keys).toEqual(['gov:AR']);
+  });
+
+  it('catálogo y BCU se enlazan por dominio: el BROU en brou.com.uy es la misma institución', () => {
+    expect(view.keys('www.brou.com.uy')).toEqual(expect.arrayContaining(['catalog:brou', 'bcu:ssf-1001']));
+    expect(view.keys('www.bancorepublica.com.uy')).toEqual(expect.arrayContaining(['catalog:brou', 'bcu:ssf-1001']));
+    expect(view.sameOrganization('www.brou.com.uy', 'www.bancorepublica.com.uy')).toBe(true);
   });
 });
 
-describe('padrón del BCRA', () => {
+describe('registro del BCU', () => {
   it('caído y sin copia: no disponible', async () => {
-    const state = await registry(fakeRdapFetch({ bcraDown: true }).impl).state(1000);
-    expect(state).toMatchObject({ status: 'unavailable', snapshot: null });
+    const state = await registry(fakeRdapFetch({ bcuDown: true }).impl).state(1000);
+    expect(state).toMatchObject({ status: 'unavailable', snapshot: null, error: 'http_503' });
   });
 
-  it('usa la última copia: vigente hasta 48 h, vieja (no aprueba) hasta 7 días', async () => {
-    let now = Date.parse('2026-10-17T00:00:00Z');
+  it('usa la última copia: vigente hasta 48 h, vieja (detecta pero no aprueba) hasta 7 días', async () => {
+    let now = Date.parse('2026-10-18T00:00:00Z');
     let down = false;
-    const fetchImpl = ((input: string | URL | Request, init?: RequestInit) => fakeRdapFetch({ bcraDown: down }).impl(input, init)) as typeof fetch;
+    const fetchImpl = ((input: string | URL | Request, init?: RequestInit) => fakeRdapFetch({ bcuDown: down }).impl(input, init)) as typeof fetch;
     const reg = registry(fetchImpl, () => now);
     expect((await reg.state(1000)).status).toBe('fresh');
     down = true;
@@ -110,56 +144,108 @@ describe('padrón del BCRA', () => {
     now += 30 * HOUR;
     const stale = await reg.state(1000);
     expect(stale.status).toBe('stale');
-    expect(new AuthorityView(loadOfficialSources({ catalogFiles: [] }), stale, []).official('www.bna.com.ar')).toBeNull();
+    const old = new AuthorityView(loadOfficialSources({ catalogFiles: [] }), stale, []);
+    expect(old.official('www.bancorepublica.com.uy')).toBeNull();
+    expect(old.coverage('www.bancorepublica.com.uy')).toBe('partial');
+    expect(lookalikeSignals(describeHost('bancorepublica-seguro.com'), old.references(), []).map((s) => s.code)).toContain('LOOKALIKE_DOMAIN');
     now += 7 * 24 * HOUR;
     expect((await reg.state(1000)).status).toBe('unavailable');
+  });
+
+  it('un cambio de formato en una lista hace fallar la descarga, nunca aprueba', async () => {
+    const base = fakeRdapFetch().impl;
+    const fetchImpl = ((input: string | URL | Request, init?: RequestInit) =>
+      String(input).endsWith('bancos_Instituciones_Lst.aspx') ? Promise.resolve(new Response('<html>En mantenimiento</html>')) : base(input, init)) as typeof fetch;
+    expect(await registry(fetchImpl).state(1000)).toMatchObject({ status: 'unavailable', snapshot: null });
+  });
+
+  it('una ficha caída conserva la copia anterior de esa institución', async () => {
+    let now = Date.parse('2026-10-18T00:00:00Z');
+    let broken = false;
+    const base = fakeRdapFetch().impl;
+    const fetchImpl = ((input: string | URL | Request, init?: RequestInit) =>
+      broken && String(input).endsWith('nroinst=1113') ? Promise.resolve(new Response('error', { status: 500 })) : base(input, init)) as typeof fetch;
+    const reg = registry(fetchImpl, () => now);
+    await reg.state(1000);
+    broken = true;
+    now += 49 * HOUR; // copia vencida: espera el refresco
+    const state = await reg.state(1000);
+    expect(state.snapshot?.fetchedAt).toBe('2026-10-20T01:00:00.000Z');
+    expect(state.snapshot?.institutions.map((i) => i.id)).toContain('ssf-1113');
+  });
+
+  it('no castiga al BCU: tope de pedidos y vista de cada entidad reutilizada', async () => {
+    expect(await registry(fakeRdapFetch().impl, undefined, { maxRequests: 20 }).state(1000)).toMatchObject({ status: 'unavailable', error: 'rate_limited' });
+    let now = Date.parse('2026-10-18T00:00:00Z');
+    const rdap = fakeRdapFetch();
+    const reg = registry(rdap.impl, () => now);
+    await reg.state(1000);
+    const pages = () => rdap.calls.filter((url) => url.includes('/Sistema-de-Pagos/Paginas/')).length;
+    const first = pages();
+    expect(first).toBe(49);
+    now += 49 * HOUR;
+    expect((await reg.state(1000)).snapshot?.fetchedAt).toBe('2026-10-20T01:00:00.000Z');
+    expect(pages()).toBe(first); // el refresco usa la vista conocida, sin volver a bajar las páginas
+  });
+
+  it('solo se conecta a www.bcu.gub.uy', async () => {
+    await expect(bcuFetch('https://evil.example/')).rejects.toThrow(/no permitido/);
+    await expect(bcuFetch('http://www.bcu.gub.uy/')).rejects.toThrow(/no permitido/);
+  });
+
+  it('los intermedios guardados completan la cadena hasta una raíz de Node', () => {
+    const pem = readFileSync(join(DATA_DIR, 'bcu-intermediates.pem'), 'utf8');
+    const [abitab, certum] = pem.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g)!.map((c) => new X509Certificate(c));
+    expect(abitab!.subject).toContain('CN=Abitab SSL Organization Validated');
+    expect(abitab!.checkIssued(certum!)).toBe(true);
+    expect(rootCertificates.some((root) => certum!.checkIssued(new X509Certificate(root)))).toBe(true);
   });
 });
 
 describe('dominios parecidos (sin lista manual)', () => {
   it.each([
-    ['anses-gob-ar.com', 'LOOKALIKE_DOMAIN', 'Estado argentino'],
-    ['anses-gob.ar.com', 'LOOKALIKE_DOMAIN', 'Estado argentino'],
-    ['anses.gob.ar.evil.com', 'MISLEADING_SUBDOMAIN', 'Estado argentino'],
+    ['bps-gub-uy.com', 'LOOKALIKE_DOMAIN', 'Estado uruguayo'],
+    ['bps-gub.uy.com', 'LOOKALIKE_DOMAIN', 'Estado uruguayo'],
+    ['bps.gub.uy.evil.com', 'MISLEADING_SUBDOMAIN', 'Estado uruguayo'],
     ['tramites-gub-uy.com', 'LOOKALIKE_DOMAIN', 'Estado uruguayo'],
     ['gub-uy.com', 'LOOKALIKE_DOMAIN', 'Estado uruguayo'],
-    ['bna-seguro.com', 'LOOKALIKE_DOMAIN', 'BANCO DE LA NACION ARGENTINA'], // marca + palabra clave
-    ['bna-ar.com', 'LOOKALIKE_DOMAIN', 'BANCO DE LA NACION ARGENTINA'], // cambio de terminación
-    ['bna.com.ar.verificacion.net', 'MISLEADING_SUBDOMAIN', 'BANCO DE LA NACION ARGENTINA'],
-    ['bna.secure-login.com', 'MISLEADING_SUBDOMAIN', 'BANCO DE LA NACION ARGENTINA'],
-    ['bancoprovincla.com.ar', 'LOOKALIKE_DOMAIN', 'BANCO DE LA PROVINCIA DE BUENOS AIR'], // una letra
-    ['santander-login.com', 'LOOKALIKE_DOMAIN', 'BANCO SANTANDER ARGENTINA S.A.'],
+    ['bancorepublica-seguro.com', 'LOOKALIKE_DOMAIN', 'Banco República (BROU)'], // marca + palabra clave
+    ['bancorepublica.com.uy.verificacion.net', 'MISLEADING_SUBDOMAIN', 'Banco República (BROU)'],
+    ['itau.secure-login.com', 'MISLEADING_SUBDOMAIN', 'Banco Itaú'],
+    ['scotiabamk.com.uy', 'LOOKALIKE_DOMAIN', 'Scotiabank'], // una letra
+    ['prexcrad.com', 'LOOKALIKE_DOMAIN', 'Prex'], // letras cambiadas de lugar
+    ['prexcard-login.com', 'LOOKALIKE_DOMAIN', 'Prex'],
     ['antel-uy.com', 'LOOKALIKE_DOMAIN', 'Antel'],
     ['brou.com.uy.verificacion.net', 'MISLEADING_SUBDOMAIN', 'Banco República (BROU)'],
-    ['xn--mcro-53d.com.ar', 'CONFUSABLE_CHARACTERS', 'BANCO MACRO S.A.'], // "mаcro" con a cirílica
-    ['anses.xn--gb-jbc.ar', 'CONFUSABLE_CHARACTERS', 'Estado argentino'], // "gοb.ar" con ómicron griega
+    ['xn--bancorepublic-81k.com.uy', 'CONFUSABLE_CHARACTERS', 'Banco República (BROU)'], // "bancorepublicа" con a cirílica
+    ['bps.xn--gb-1bc.uy', 'CONFUSABLE_CHARACTERS', 'Estado uruguayo'], // "gυb.uy" con ípsilon griega
   ])('%s → %s', (hostname, code, organization) => {
     expect(signals(hostname)).toContainEqual([code, organization]);
   });
 
   it('cambio de terminación: solo con lista de populares, para no marcar sitios globales', () => {
-    expect(signals('bancociudad.com')).toEqual([]);
+    expect(signals('bancorepublica.com')).toEqual([]);
     expect(signals('www.santander.com')).toEqual([]);
     const tldSwap = (hostname: string) => lookalikeSignals(describeHost(hostname), view.references(), [], { tldSwap: true }).map((s) => s.code);
-    expect(tldSwap('bancociudad.com')).toEqual(['LOOKALIKE_DOMAIN']);
+    expect(tldSwap('bancorepublica.com')).toEqual(['LOOKALIKE_DOMAIN']);
   });
 
   it('no marca sitios sin relación ni marcas dentro de otras palabras', () => {
-    expect(signals('www.aerolineas.com.ar')).toEqual([]);
-    expect(signals('www.mercadolibre.com.ar')).toEqual([]);
-    expect(signals('www.bancogalicia.com')).toEqual([]); // "banco" no es palabra clave
-    expect(signals('www.blog-ar.com')).toEqual([]);
-    expect(signals('www.macrosoft.com')).toEqual([]);
+    expect(signals('www.tiendainglesa.com.uy')).toEqual([]);
+    expect(signals('www.mercadolibre.com.uy')).toEqual([]);
+    expect(signals('www.bancodelsur.com')).toEqual([]); // "banco" no es palabra clave
+    expect(signals('www.blog-uy.com')).toEqual([]);
+    expect(signals('www.ocaso.com')).toEqual([]);
     expect(signals('www.antelope.com')).toEqual([]);
   });
 
   it('una lista opcional de dominios populares suma referencias (nunca oficialidad)', () => {
     const file = join(tmpdir(), `crux-${process.pid}.csv`);
-    writeFileSync(file, 'origin,rank\nhttps://www.mercadolibre.com.ar,1000\nhttps://www.mercadopago.com.ar,1000\n');
+    writeFileSync(file, 'origin,rank\nhttps://www.tiendainglesa.com.uy,1000\nhttps://www.montevideo.com.uy,1000\n');
     const popular = loadPopularDomains(file, 10);
-    expect(popular.map((p) => p.domain)).toEqual(['mercadolibre.com.ar', 'mercadopago.com.ar']);
-    expect(lookalikeSignals(describeHost('mercadolibre-pagos.com'), popular, []).map((s) => s.code)).toContain('LOOKALIKE_DOMAIN');
-    expect(lookalikeSignals(describeHost('www.mercadolibre.com.ar'), popular, [])).toEqual([]);
+    expect(popular.map((p) => p.domain)).toEqual(['tiendainglesa.com.uy', 'montevideo.com.uy']);
+    expect(lookalikeSignals(describeHost('tiendainglesa-pagos.com'), popular, []).map((s) => s.code)).toContain('LOOKALIKE_DOMAIN');
+    expect(lookalikeSignals(describeHost('www.tiendainglesa.com.uy'), popular, [])).toEqual([]);
   });
 
   it('compara sin guiones las referencias que los tienen (banco-ejemplo.com.uy)', () => {
@@ -175,7 +261,7 @@ describe('dominios parecidos (sin lista manual)', () => {
 
   it('mezcla de alfabetos y distancia de edición', () => {
     expect(signals('xn--pypal-4ve.com').map(([code]) => code)).toContain('CONFUSABLE_CHARACTERS');
-    expect(editDistance('anses', 'asnes')).toBe(1);
+    expect(editDistance('prexcard', 'prexcrad')).toBe(1);
   });
 });
 
@@ -185,21 +271,21 @@ describe('hosts internos', () => {
     (hostname) => expect(describeHost(hostname).internal).toBe(true),
   );
 
-  it.each(['www.argentina.gob.ar', 'example.com', 'usuario.github.io', '8.8.8.8'])('%s es público', (hostname) => {
+  it.each(['www.gub.uy', 'example.com', 'usuario.github.io', '8.8.8.8'])('%s es público', (hostname) => {
     expect(describeHost(hostname).internal).toBe(false);
   });
 });
 
 describe('sanitización en el backend', () => {
   it('quita credenciales, query, fragmento y segmentos secretos del path', () => {
-    const url = sanitizeUrl('https://user:pass@sitio.com.ar/reset/a1b2c3d4e5f6g7h8i9j0/ana@mail.com/12345678?token=abc#frag');
-    expect(url?.toString()).toBe('https://sitio.com.ar/reset/redactado/redactado/redactado');
+    const url = sanitizeUrl('https://user:pass@sitio.com.uy/reset/a1b2c3d4e5f6g7h8i9j0/ana@mail.com/12345678?token=abc#frag');
+    expect(url?.toString()).toBe('https://sitio.com.uy/reset/redactado/redactado/redactado');
     expect(sanitizeUrl('javascript:alert(1)')).toBeNull();
   });
 
   it('redacta correos, números largos y tokens del texto; las URLs quedan como hostname', () => {
-    const text = redactText('Escribí a ana@mail.com, tu CBU 0110599520000001234567 y token abc123def456. Ver https://banco.com/x?dni=1', 200);
-    expect(text).not.toMatch(/ana@mail|0110599520000001234567|abc123def456|dni=/);
+    const text = redactText('Escribí a ana@mail.com, tu cuenta 0110599520000001234567 y token abc123def456. Ver https://banco.com/x?ci=1', 200);
+    expect(text).not.toMatch(/ana@mail|0110599520000001234567|abc123def456|ci=/);
     expect(text).toContain('banco.com');
   });
 

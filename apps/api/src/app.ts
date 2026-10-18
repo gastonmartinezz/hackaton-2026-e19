@@ -133,7 +133,7 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
 
   const { service: siteCheck, authority } = createSiteCheckService(config, model, deps.siteCheck);
   app.decorate('siteCheck', siteCheck);
-  // Descarga el padrón del BCRA en segundo plano al arrancar (no en pruebas).
+  // Descarga el registro de instituciones del BCU en segundo plano al arrancar (no en pruebas).
   if (config.NODE_ENV !== 'test') authority.warmUp();
   await app.register(siteCheckRoutes, {
     service: siteCheck,

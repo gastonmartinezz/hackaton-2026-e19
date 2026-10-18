@@ -176,8 +176,9 @@ export const SiteIdentity = z.strictObject({
   status: z.enum(['verified_official', 'unknown']),
   /**
    * Fuente de la oficialidad. Obligatoria con `verified_official`.
-   * - `government_domain`: zona reservada al Estado (gob.ar, mil.ar, gov.ar, .gov, .mil).
-   * - `financial_regulator`: padrón de entidades financieras del BCRA, descargado del regulador.
+   * - `government_domain`: zona reservada al Estado (gub.uy, mil.uy, .gov, .mil).
+   * - `financial_regulator`: registro de instituciones del Banco Central del Uruguay (BCU), descargado
+   *   del regulador: el dominio es el del sitio web que el BCU publica para una institución supervisada.
    * - `official_catalog`: catálogo curado y versionado (p. ej. sitios de Uruguay), con fuente y fecha
    *   de revisión verificables por entrada.
    */

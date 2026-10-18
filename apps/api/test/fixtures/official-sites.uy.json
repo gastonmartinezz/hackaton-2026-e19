@@ -28,6 +28,7 @@
       "category": "banco",
       "domains": [
         { "domain": "brou.com.uy", "scope": "subdomains" },
+        { "domain": "bancorepublica.com.uy", "scope": "subdomains" },
         { "domain": "ebanking.brou.uy", "scope": "exact" }
       ],
       "source": { "name": "Fuente de prueba del BROU", "url": "https://www.brou.com.uy/" },

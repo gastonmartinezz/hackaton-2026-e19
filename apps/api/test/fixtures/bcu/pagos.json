@@ -1,0 +1,1619 @@
+{
+ "recordedAt": "2026-10-18T04:20:06.266Z",
+ "listado": {
+  "draw": 1,
+  "recordsTotal": 49,
+  "recordsFiltered": 49,
+  "data": [
+   {
+    "0": "Midinero",
+    "1": "Findarin S.A.",
+    "2": "Instituciones Emisoras de Dinero Electrónico",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/MiDinero.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/MiDinero.aspx"
+    }
+   },
+   {
+    "0": "Deanda",
+    "1": "Dinero Electrónico Anda S.A.",
+    "2": "Instituciones Emisoras de Dinero Electrónico",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Deanda.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Deanda.aspx"
+    }
+   },
+   {
+    "0": "Pluxee",
+    "1": "Pluxee Uruguay S.A.",
+    "2": "Instituciones Emisoras de Dinero Electrónico",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Pluxee.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Pluxee.aspx"
+    }
+   },
+   {
+    "0": "Edenred",
+    "1": "Luncheon Tickets S.A.",
+    "2": "Instituciones Emisoras de Dinero Electrónico",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Luncheon.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Luncheon.aspx"
+    }
+   },
+   {
+    "0": "Prex",
+    "1": "Econstar S.A.",
+    "2": "Instituciones Emisoras de Dinero Electrónico",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/prex.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/prex.aspx"
+    }
+   },
+   {
+    "0": "Blanico",
+    "1": "Blanico S.A.",
+    "2": "Instituciones Emisoras de Dinero Electrónico",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Blanico.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver informacion</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Blanico.aspx"
+    }
+   },
+   {
+    "0": "Abitab",
+    "1": "Abitab S.A.",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Abitab.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver informacion</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Abitab.aspx"
+    }
+   },
+   {
+    "0": "Urupago",
+    "1": "Efamar S.A.",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Urupago.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver informacion</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Urupago.aspx"
+    }
+   },
+   {
+    "0": "Redpagos",
+    "1": "Nummi S.A.",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/RedPagos-PSPC.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver informacion</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/RedPagos-PSPC.aspx"
+    }
+   },
+   {
+    "0": "Scanntech",
+    "1": "Pos S.A.",
+    "2": "Proveedores de Servicios de Pago y Cobranza, Administradores de Red de Terminales de Procesamiento Electrónico de Pagos (POS)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/POS-SA.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/POS-SA.aspx"
+    }
+   },
+   {
+    "0": "New Age Data",
+    "1": "Phoenix S.A.",
+    "2": "Administradores de Red de Terminales de Procesamiento Electrónico de Pagos (POS)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Phoenix.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Phoenix.aspx"
+    }
+   },
+   {
+    "0": "Oca Comercios POS",
+    "1": "Resonet S.A.",
+    "2": "Administradores de Red de Terminales de Procesamiento Electrónico de Pagos (POS)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Resonet.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Resonet.aspx"
+    }
+   },
+   {
+    "0": "Sisteco",
+    "1": "Sistemas electrónicos comerciales S.A.",
+    "2": "Administradores de Red de Terminales de Procesamiento Electrónico de Pagos (POS)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Sisteco.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Sisteco.aspx"
+    }
+   },
+   {
+    "0": "Cobros Ya",
+    "1": "Medebal S.A.",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Medebal.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Medebal.aspx"
+    }
+   },
+   {
+    "0": "Urutec",
+    "1": "Urutec S.A.",
+    "2": "Proveedores de Servicios de Pago y Cobranza, Cámaras de Compensación Automatizadas",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Urutec.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Urutec.aspx"
+    }
+   },
+   {
+    "0": "Banco Itaú ",
+    "1": "Banco Itaú Uruguay S.A.",
+    "2": "Instituciones Emisoras de Dinero Electrónico",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Itau.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Itau.aspx"
+    }
+   },
+   {
+    "0": "Paganza",
+    "1": "Aduro S.A.",
+    "2": "Instituciones Emisoras de Dinero Electrónico, Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Aduro.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Aduro.aspx"
+    }
+   },
+   {
+    "0": "VISA",
+    "1": "Visa International Service Association",
+    "2": "Proveedores de Servicios de Conmutación de Transacciones Switch",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/VisaInternational.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/VisaInternational.aspx"
+    }
+   },
+   {
+    "0": "Dlocal Uruguay S.A.",
+    "1": "Dlocal Uruguay S.A.",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Dlocal-Uruguay-SA.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Dlocal-Uruguay-SA.aspx"
+    }
+   },
+   {
+    "0": "Grupo Disco",
+    "1": "Grupo Disco (Supermercados Disco del Uruguay S.A, Odaler S.A, Ameluz S.A, La Cabaña S.R.L, Devoto Hnos. S.A, Mercados Devoto S.A.)",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/grupodisco.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/grupodisco.aspx"
+    }
+   },
+   {
+    "0": "Fiserv",
+    "1": "First Data Uruguay S.R.L.",
+    "2": "Procesadores de Medios de Pago Electrónicos, Adquirentes de Medios de Pago Electrónicos, Proveedores de Servicios de Conmutación de Transacciones Switch, Administradores de Red de Terminales de Procesamiento Electrónico de Pagos (POS), Adquirentes de pagos con transferencia de fondos nacionales (PCT)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/First-Data02.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/First-Data02.aspx"
+    }
+   },
+   {
+    "0": "Correo Uruguayo",
+    "1": "Administración Nacional de Correos",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Correo.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Correo.aspx"
+    }
+   },
+   {
+    "0": "Banred",
+    "1": "Rías Redbanc S.A.",
+    "2": "Cámaras de Compensación Automatizadas",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Rías-Redbanc-SA.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Rías-Redbanc-SA.aspx"
+    }
+   },
+   {
+    "0": "Sarea",
+    "1": "Raidan S.A.",
+    "2": "Administradores de Red de Terminales de Procesamiento Electrónico de Pagos (POS)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Raidan.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Raidan.aspx"
+    }
+   },
+   {
+    "0": "Oca",
+    "1": "Oca S.A.",
+    "2": "Procesadores de Medios de Pago Electrónicos, Adquirentes de Medios de Pago Electrónicos, Adquirentes de pagos con transferencia de fondos nacionales (PCT)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/OCA.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/OCA.aspx"
+    }
+   },
+   {
+    "0": "Oca Blue",
+    "1": "Oca Dinero Electrónico S.A.",
+    "2": "Instituciones Emisoras de Dinero Electrónico",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/ocade.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/ocade.aspx"
+    }
+   },
+   {
+    "0": "Handy",
+    "1": "Riblinor S.A.",
+    "2": "Proveedores de Servicios de Pago y Cobranza, Adquirentes de pagos con transferencia de fondos nacionales (PCT)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Riblinor.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Riblinor.aspx"
+    }
+   },
+   {
+    "0": "TotalNet",
+    "1": "Compañía Uruguaya de Medios de Procesamiento S.A.",
+    "2": "Adquirentes de Medios de Pago Electrónicos, Proveedores de Servicios de Pago y Cobranza, Proveedores de Servicios de Conmutación de Transacciones Switch, Administradores de Red de Terminales de Procesamiento Electrónico de Pagos (POS), Adquirentes de pagos con transferencia de fondos nacionales (PCT)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/CUMPSA.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/CUMPSA.aspx"
+    }
+   },
+   {
+    "0": "Getnet",
+    "1": "Getnet Uruguay S.A.",
+    "2": "Adquirentes de Medios de Pago Electrónicos, Adquirentes de pagos con transferencia de fondos nacionales (PCT)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Getnet.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Getnet.aspx"
+    }
+   },
+   {
+    "0": "Cabal",
+    "1": "Cabal Uruguay S.A.",
+    "2": "Procesadores de Medios de Pago Electrónicos, Adquirentes de Medios de Pago Electrónicos",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Cabal.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Cabal.aspx"
+    }
+   },
+   {
+    "0": "Evertec",
+    "1": "Caleidon S.A.",
+    "2": "Procesadores de Medios de Pago Electrónicos",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Caleidon.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Caleidon.aspx"
+    }
+   },
+   {
+    "0": "Raltumy S.A.",
+    "1": "Raltumy S.A.",
+    "2": "Instituciones Emisoras de Dinero Electrónico",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Raltumy-SA.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Raltumy-SA.aspx"
+    }
+   },
+   {
+    "0": "Grin",
+    "1": "Fucac Dinero Electronico S.A.",
+    "2": "Instituciones Emisoras de Dinero Electrónico",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Fucac-Dinero-Electronico-SA.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Fucac-Dinero-Electronico-SA.aspx"
+    }
+   },
+   {
+    "0": "Mipspc ",
+    "1": "Mipspc S.A.S.",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/MIPSPC-SAS.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/MIPSPC-SAS.aspx"
+    }
+   },
+   {
+    "0": "Bamboo Payment Uruguay S.A",
+    "1": "Bamboo Payment Uruguay S.A",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Perdury.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Perdury.aspx"
+    }
+   },
+   {
+    "0": "Plexo",
+    "1": "Red Visual S.A.",
+    "2": "Adquirentes de Medios de Pago Electrónicos, Proveedores de Servicios de Pago y Cobranza, Adquirentes de pagos con transferencia de fondos nacionales (PCT)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Red-Visual-SA.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Red-Visual-SA.aspx"
+    }
+   },
+   {
+    "0": "Inswitch Pay",
+    "1": "Inswitch Pay S.A.S.",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Inswitch-Pay-S-A-S.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Inswitch-Pay-S-A-S.aspx"
+    }
+   },
+   {
+    "0": "Sistarbanc",
+    "1": "Sistarbanc S.R.L.",
+    "2": "Procesadores de Medios de Pago Electrónicos, Proveedores de Servicios de Pago y Cobranza, Adquirentes de pagos con transferencia de fondos nacionales (PCT)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Sistarbanc-S-R-L.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Sistarbanc-S-R-L.aspx"
+    }
+   },
+   {
+    "0": "Pedidos Ya",
+    "1": "Delivery Hero Payments Uruguay S.A.",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Delivery-Hero-Payments-Uruguay-S-A.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Delivery-Hero-Payments-Uruguay-S-A.aspx"
+    }
+   },
+   {
+    "0": "Enarel S.A.",
+    "1": "Enarel S.A.",
+    "2": "Adquirentes de Medios de Pago Electrónicos",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Enarel-S-A.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Enarel-S-A.aspx"
+    }
+   },
+   {
+    "0": "MercadoPago Uruguay",
+    "1": "MercadoPago Uruguay S.R.L.",
+    "2": "Instituciones Emisoras de Dinero Electrónico, Adquirentes de pagos con transferencia de fondos nacionales (PCT)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/MercadoPago-Uruguay-SRL.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/MercadoPago-Uruguay-SRL.aspx"
+    }
+   },
+   {
+    "0": "Scotiabank",
+    "1": "Scotiabank Uruguay S.A.",
+    "2": "Adquirentes de Medios de Pago Electrónicos",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Scotiabank.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Scotiabank.aspx"
+    }
+   },
+   {
+    "0": "Sebatop",
+    "1": "Sebatop S.A.",
+    "2": "Administradores de Red de Terminales de Procesamiento Electrónico de Pagos (POS)",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Sebatop-SA.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver Información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Sebatop-SA.aspx"
+    }
+   },
+   {
+    "0": "LocalPayment",
+    "1": "LocalPayment S.A.S.",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Localpayment.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Localpayment.aspx"
+    }
+   },
+   {
+    "0": "DLocal Services Uruguay S.A",
+    "1": "DLocal Services Uruguay S.A",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/DLocal.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/DLocal.aspx"
+    }
+   },
+   {
+    "0": "Ebanx ",
+    "1": "Ebanx Uruguay S.A. ",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Ebanx.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Ebanx.aspx"
+    }
+   },
+   {
+    "0": "Gales Servicios Financieros S.A.",
+    "1": "Gales Servicios Financieros S.A.",
+    "2": "Adquirentes de Medios de Pago Electrónicos",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Gales.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Gales.aspx"
+    }
+   },
+   {
+    "0": "Pagos360",
+    "1": "Pagos360 SAS",
+    "2": "Proveedores de Servicios de Pago y Cobranza",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Pagos360-SAS.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Pagos360-SAS.aspx"
+    }
+   },
+   {
+    "0": "Leydek S.A.",
+    "1": "Leydek S.A.",
+    "2": "Procesadores de Medios de Pago Electrónicos",
+    "3": "<div class=\"anchor-button\"><a href=\"https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Leydek.aspx\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>Ver información</span></a></div>",
+    "DT_RowAttr": {
+     "data-href": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Leydek.aspx"
+    }
+   }
+  ],
+  "columnTypes": [
+   "Text",
+   "Text",
+   "MultiChoice",
+   "URL"
+  ]
+ },
+ "paginas": {
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/MiDinero.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '01';\nd.listName         = 'Productos';\r\n                    d.viewName         = '01';\nd.listName         = 'Red de Extracción';\r\n                    d.viewName         = '001';\nd.listName         = 'Red de Extracción';\r\n                    d.viewName         = '01';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '16';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '01';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Deanda.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '02';\nd.listName         = 'Productos';\r\n                    d.viewName         = '02';\nd.listName         = 'Red de Extracción';\r\n                    d.viewName         = '02';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '02';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '02';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Pluxee.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '04';\nd.listName         = 'productos';\r\n                    d.viewName         = '04';\nd.listName         = 'Red de Extracción';\r\n                    d.viewName         = '04';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '04';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '04';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Luncheon.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '05';\nd.listName         = 'Productos';\r\n                    d.viewName         = '05';\nd.listName         = 'Red de Extracción';\r\n                    d.viewName         = '05';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '05';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '05';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/prex.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '06';\nd.listName         = 'Productos';\r\n                    d.viewName         = '06';\nd.listName         = 'Red de Extracción';\r\n                    d.viewName         = '06';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '06';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '06';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Blanico.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '09';\nd.listName         = 'Productos';\r\n                    d.viewName         = '09';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '09';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '09';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Abitab.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '13';\nd.listName         = 'Productos';\r\n                    d.viewName         = '13';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '13';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Urupago.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '15';\nd.listName         = 'Productos';\r\n                    d.viewName         = '15';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '15';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '15';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/RedPagos-PSPC.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '16';\nd.listName         = 'Productos';\r\n                    d.viewName         = '16';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '01';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '16';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/POS-SA.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '17';\nd.listName         = 'Productos';\r\n                    d.viewName         = '17';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '17';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '17';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Phoenix.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '18';\nd.listName         = 'Productos';\r\n                    d.viewName         = '18';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '18';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '18';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Resonet.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '19';\nd.listName         = 'Productos';\r\n                    d.viewName         = '19';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '19';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '19';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Sisteco.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '20';\nd.listName         = 'Productos';\r\n                    d.viewName         = '20';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '20';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '20';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Medebal.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '21';\nd.listName         = 'Productos';\r\n                    d.viewName         = '21';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '21';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '21';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Urutec.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '22';\nd.listName         = 'Productos';\r\n                    d.viewName         = '22';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '22';\nd.listName         = 'Personal SUperior';\r\n                    d.viewName         = '22';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Itau.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '23';\nd.listName         = 'Productos';\r\n                    d.viewName         = '23';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Aduro.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '24';\nd.listName         = 'Productos';\r\n                    d.viewName         = '24';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '24';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '24';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/VisaInternational.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '25';\nd.listName         = 'Productos';\r\n                    d.viewName         = '25';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '25';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '25';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Dlocal-Uruguay-SA.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '28';\nd.listName         = 'Productos';\r\n                    d.viewName         = '28';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '28';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '28';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/grupodisco.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '29';\nd.listName         = 'Productos';\r\n                    d.viewName         = '29';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '29';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/First-Data02.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '30';\nd.listName         = 'Productos';\r\n                    d.viewName         = '30';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '30';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '30';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Correo.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '31';\nd.listName         = 'Productos';\r\n                    d.viewName         = '31';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '31';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Rías-Redbanc-SA.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '32';\nd.listName         = 'Productos';\r\n                    d.viewName         = '32';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '32';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '32';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Raidan.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '34';\nd.listName         = 'Productos';\r\n                    d.viewName         = '34';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '34';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '34';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/OCA.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '35';\nd.listName         = 'Productos';\r\n                    d.viewName         = '35';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/ocade.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = 'ocade';\nd.listName         = 'Productos';\r\n                    d.viewName         = 'ocade';\nd.listName         = 'Red de Extracción';\r\n                    d.viewName         = '37';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '37';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '37';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Riblinor.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '38';\nd.listName         = 'Productos';\r\n                    d.viewName         = '38';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '38';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '38';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/CUMPSA.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '39';\nd.listName         = 'Productos';\r\n                    d.viewName         = '39';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '39';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '39';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Getnet.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '40';\nd.listName         = 'Productos';\r\n                    d.viewName         = '40';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '40';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '40';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Cabal.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '41';\nd.listName         = 'Productos';\r\n                    d.viewName         = '41';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '41';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '41';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Caleidon.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '42';\nd.listName         = 'Productos';\r\n                    d.viewName         = '42';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '42';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '42';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Raltumy-SA.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '43';\nd.listName         = 'Productos';\r\n                    d.viewName         = '43';\nd.listName         = 'Red de Extracción';\r\n                    d.viewName         = '43';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '43';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '43';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Fucac-Dinero-Electronico-SA.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '44';\nd.listName         = 'Productos';\r\n                    d.viewName         = '44';\nd.listName         = 'Red de Extracción';\r\n                    d.viewName         = '44';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '44';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '44';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/MIPSPC-SAS.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '46';\nd.listName         = 'Productos';\r\n                    d.viewName         = '46';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '46';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '46';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Perdury.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '47';\nd.listName         = 'Productos';\r\n                    d.viewName         = '47';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '47';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '47';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Red-Visual-SA.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '49';\nd.listName         = 'Productos';\r\n                    d.viewName         = '49';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '49';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '49';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Sistarbanc-S-R-L.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '52';\nd.listName         = 'Productos';\r\n                    d.viewName         = '52';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '52';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '52';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Inswitch-Pay-S-A-S.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '50';\nd.listName         = 'Productos';\r\n                    d.viewName         = '50';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '50';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '50';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Delivery-Hero-Payments-Uruguay-S-A.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '51';\nd.listName         = 'Productos';\r\n                    d.viewName         = '51';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '51';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '51';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Enarel-S-A.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '03';\nd.listName         = 'Productos';\r\n                    d.viewName         = '03';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '03';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '03';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Scotiabank.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '54';\nd.listName         = 'Productos';\r\n                    d.viewName         = '54';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/MercadoPago-Uruguay-SRL.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '53';\nd.listName         = 'Productos';\r\n                    d.viewName         = '53';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '53';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '53';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Sebatop-SA.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '55';\nd.listName         = 'Productos';\r\n                    d.viewName         = '55';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '55';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '55';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Localpayment.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '56';\nd.listName         = 'Productos';\r\n                    d.viewName         = '56';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '56';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '56';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/DLocal.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '57';\nd.listName         = 'Productos';\r\n                    d.viewName         = '57';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '57';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '57';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Ebanx.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '58';\nd.listName         = 'Productos';\r\n                    d.viewName         = '58';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '58';\nd.listName         = 'PErsonal Superior';\r\n                    d.viewName         = '58';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Gales.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '59';\nd.listName         = 'Productos';\r\n                    d.viewName         = '59';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Pagos360-SAS.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '60';\nd.listName         = 'Productos';\r\n                    d.viewName         = '60';\nd.listName         = 'Accionistas o Socios';\r\n                    d.viewName         = '60';\nd.listName         = 'Personal Superior';\r\n                    d.viewName         = '60';",
+  "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Leydek.aspx": "d.listName         = 'Datos Generales';\r\n                    d.viewName         = '61';\nd.listName         = 'Productos';\r\n                    d.viewName         = '61';"
+ },
+ "vistas": {
+  "13": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Abitab S.A.",
+     "1": "Daniel Fernández Crespo 2160",
+     "2": "2-924-5825",
+     "3": "24/8/2016",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.abitab.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.abitab.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.abitab.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "15": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Efamar S.A.",
+     "1": "Soriano 910",
+     "2": "29034603",
+     "3": "12/12/2016",
+     "4": "<div class=\"anchor-button\"><a href=\"https://urupago.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://urupago.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://urupago.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "16": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Nummi S.A.",
+     "1": "Av. Rivera 2452",
+     "2": "27008788",
+     "3": "29/3/2017",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.redpagos.com.uy/#/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.redpagos.com.uy/#/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.redpagos.com.uy/#/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "17": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Pos S.A.",
+     "1": "Duvimioso Terra 1975",
+     "2": "24038115",
+     "3": "",
+     "4": "<div class=\"anchor-button\"><a href=\"https://scanntech.com/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://scanntech.com/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://scanntech.com/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "Text"
+   ]
+  },
+  "18": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Phoenix S.A.",
+     "1": "La Cumparsita 1475, piso 6, Montevideo",
+     "2": "29170075",
+     "3": "7/5/2018",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.nad.uy/caja\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.nad.uy/caja</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.nad.uy/caja"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "19": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Resonet S.A.",
+     "1": "Bulevar General Artigas 1243, Montevideo",
+     "2": "2614 40 54",
+     "3": "26/1/2018",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.opos.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.opos.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.opos.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "20": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Sistemas electrónicos comerciales S.A.",
+     "1": "Nicaragua 1717",
+     "2": "29244615",
+     "3": "1/3/2018",
+     "4": "<div class=\"anchor-button\"><a href=\"http://www.sisteco.com.uy\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://sisteco.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "http://www.sisteco.com.uy"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "21": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Medebal S.A.",
+     "1": "Tiburcio Gómez 1329 apto 403",
+     "2": "27067204",
+     "3": "2/1/2018",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.cobrosya.com/sitio/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.cobrosya.com/sitio/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.cobrosya.com/sitio/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "22": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Urutec S.A.",
+     "1": "Dr. Luis Alberto de Herrera 1248, WTC Torre III, Unidad 1674 / 1675, Piso 16, Montevideo.",
+     "2": "26231111",
+     "3": "",
+     "4": "<div class=\"anchor-button\"><a href=\"http://www.urutec.com.uy\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://urutec.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "http://www.urutec.com.uy"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "23": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Banco Itaú Uruguay S.A.",
+     "1": "Dr. Luis Bonavita 1266",
+     "2": "26242624",
+     "3": "22/1/2018",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.itau.com.uy/inst/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.itau.com.uy/inst/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.itau.com.uy/inst/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "24": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Aduro S.A.",
+     "1": "Av. Dr. Francisco Soca 1549, Montevideo",
+     "2": "",
+     "3": "",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.paganza.com\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>www.paganza.com</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.paganza.com"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "25": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Visa International Service Association",
+     "1": "251 Little Falls Drive, Wilmington, New Castle, Delaware 19808",
+     "2": "3053281000",
+     "3": "3/4/2018",
+     "4": "<div class=\"anchor-button\"><a href=\"http://www.visa.com\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>www.visa.com</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "http://www.visa.com"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "28": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Dlocal Uruguay S.A.",
+     "1": "Cnel. Brandzen 1961 of 701",
+     "2": "",
+     "3": "5/6/2018",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.dlocal.com/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.dlocal.com/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.dlocal.com/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "29": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Grupo Disco (Supermercados Disco del Uruguay S.A, Odaler S.A, Ameluz S.A, La Cabaña S.R.L, Devoto Hnos. S.A, Mercados Devoto S.A.)",
+     "1": "Jaime Zudáñez 2627",
+     "2": "2711 3820",
+     "3": "2/7/2018",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.disco.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.disco.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.disco.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "30": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "First Data Uruguay S.R.L.",
+     "1": "Dionisio Oribe 3071",
+     "2": "08001244",
+     "3": "",
+     "4": "<div class=\"anchor-button\"><a href=\"https://merchants.fiserv.com/es-uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://merchants.fiserv.com/es-uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://merchants.fiserv.com/es-uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "31": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Administración Nacional de Correos",
+     "1": "Buenos Aires 451",
+     "2": "29160200",
+     "3": "14/11/2019",
+     "4": "<div class=\"anchor-button\"><a href=\"http://www.correo.com.uy\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>www.correo.com.uy</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "http://www.correo.com.uy"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "32": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Rías Redbanc S.A.",
+     "1": "Ituzaingó 1393 Piso 2",
+     "2": "4/12/2019"
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "DateTime"
+   ]
+  },
+  "34": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Raidan S.A.",
+     "1": "Basilio Pereira de la Luz 1173",
+     "2": "2626 0026",
+     "3": "5/2/2020",
+     "4": "<div class=\"anchor-button\"><a href=\"https://sarea.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://sarea.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://sarea.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "Text"
+   ]
+  },
+  "35": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Oca S.A.",
+     "1": "Colonia 1426",
+     "2": "29023657",
+     "3": "31/8/2022",
+     "4": "<div class=\"anchor-button\"><a href=\"https://oca.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://oca.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://oca.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "38": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Riblinor S.A.",
+     "1": "Rizal 3555, Montevideo",
+     "2": "26288366",
+     "3": "21/12/2020",
+     "4": "<div class=\"anchor-button\"><a href=\"https://handy.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://handy.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://handy.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "39": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Compañía Uruguaya de Medios de Procesamiento S.A.",
+     "1": "Av. Luis Alberto de Herrera 1248, Torre 3, Oficina 1974",
+     "2": "1840",
+     "3": "",
+     "4": "<div class=\"anchor-button\"><a href=\"https://totalnet.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://totalnet.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://totalnet.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "40": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Getnet Uruguay S.A.",
+     "1": "La Cumparsita 1475, piso 6, Montevideo",
+     "2": "26283401",
+     "3": "22/12/2021",
+     "4": "<div class=\"anchor-button\"><a href=\"https://getnet.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://getnet.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://getnet.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "41": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Cabal Uruguay S.A.",
+     "1": "Victor Soliño 349 Nivel 11 - Edificio Sinergia Faro",
+     "2": "2481 2099 - 2481 8999",
+     "3": "",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.cabal.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.cabal.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.cabal.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "42": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Caleidon S.A.",
+     "1": "Ruta 8 km 17.500, local 208 (luego se mudarán a Av. Italia 6201, Predio LATU, Edificio Los Sauces, PB).",
+     "2": "26041372",
+     "3": "7/3/2022",
+     "4": ""
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "Text"
+   ]
+  },
+  "43": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Raltumy S.A.",
+     "1": "Paraguay 1387",
+     "2": "",
+     "3": "5/5/2021",
+     "4": ""
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "Text"
+   ]
+  },
+  "44": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Fucac Dinero Electronico S.A.",
+     "1": "Luis Alberto de Herrera 1248, WTC Torre 2, piso 5",
+     "2": "",
+     "3": "4/8/2021",
+     "4": "<div class=\"anchor-button\"><a href=\"https://grin.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://grin.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://grin.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "Text"
+   ]
+  },
+  "46": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Mipspc S.A.S.",
+     "1": "Nicolás Piaggio 1179",
+     "2": "2628 0351",
+     "3": "27/9/2022",
+     "4": ""
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "47": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Bamboo Payment Uruguay S.A",
+     "1": "Oficina N°19 del Piso 1 Edificio Tres -Aguada Park ",
+     "2": "2402 2330",
+     "3": "25/10/2022",
+     "4": "<div class=\"anchor-button\"><a href=\"https://bamboopaymentsystems.com/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://bamboopaymentsystems.com/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://bamboopaymentsystems.com/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "Text"
+   ]
+  },
+  "49": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Red Visual S.A.",
+     "1": "Luis Lamas 3407 apto 103 – Montevideo",
+     "2": "26230132",
+     "3": "",
+     "4": "10/1/2023",
+     "5": "<div class=\"anchor-button\"><a href=\"https://www.plexo.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.plexo.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.plexo.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "Text"
+   ]
+  },
+  "50": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Inswitch Pay S.A.S.",
+     "1": "Solano García 2559",
+     "2": "2710 4457",
+     "3": "2/3/2023",
+     "4": "<div class=\"anchor-button\"><a href=\"https://inswitch.com/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://inswitch.com/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://inswitch.com/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "Text"
+   ]
+  },
+  "51": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Delivery Hero Payments Uruguay S.A.",
+     "1": "César Cortinas 2037",
+     "2": "26041604",
+     "3": "16/3/2023",
+     "4": "www.pedidosya.com.uy"
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "Text"
+   ]
+  },
+  "52": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Sistarbanc S.R.L.",
+     "1": "Convención 1441 - Montevideo",
+     "2": "2902 4109",
+     "3": "15/3/2023",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.e-sistarbanc.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.e-sistarbanc.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.e-sistarbanc.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "Text"
+   ]
+  },
+  "53": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "MercadoPago Uruguay S.R.L.",
+     "1": "Dr. Luis Bonavita 1238, Piso 14, Cosmos Tower",
+     "2": "2624 0238 ",
+     "3": "18/1/2023",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.mercadopago.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.mercadopago.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.mercadopago.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "Text"
+   ]
+  },
+  "54": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Scotiabank Uruguay S.A.",
+     "1": "Misiones 1399",
+     "2": "28/9/2023"
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "DateTime"
+   ]
+  },
+  "55": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Sebatop S.A.",
+     "1": "Plaza Independencia 831, piso 9, apto. 906",
+     "2": "20/11/2023"
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "DateTime"
+   ]
+  },
+  "56": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "LocalPayment S.A.S.",
+     "1": "",
+     "2": "4/12/2024"
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "DateTime"
+   ]
+  },
+  "57": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "DLocal Services Uruguay S.A",
+     "1": "Dr. Luis Bonavita 1294 Piso 15 y 16 (World Trade Center Free Zone)",
+     "2": "27/1/2025"
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "DateTime"
+   ]
+  },
+  "58": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Ebanx Uruguay S.A. ",
+     "1": "Dr. Luis Alberto de Herrera 1248 WTC torre III piso 12 oficina 1219",
+     "2": "28/1/2025"
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "DateTime"
+   ]
+  },
+  "59": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Gales Servicios Financieros S.A.",
+     "1": "11/6/2025"
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "DateTime"
+   ]
+  },
+  "60": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Pagos360 SAS",
+     "1": "28/5/2026",
+     "2": "2915 2732",
+     "3": "Proveedores de Servicios de Pago y Cobranza"
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "DateTime",
+    "Text",
+    "MultiChoice"
+   ]
+  },
+  "61": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Leydek S.A.",
+     "1": "23/6/2026",
+     "2": "26237680",
+     "3": "Procesadores de Medios de Pago Electrónicos",
+     "4": "www.leydek.com"
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "DateTime",
+    "Text",
+    "MultiChoice",
+    "Text"
+   ]
+  },
+  "01": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Findarin S.A.",
+     "1": "Av. Gral. Rivera 2452",
+     "2": "",
+     "3": "15/4/2015",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.midinero.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.midinero.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.midinero.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "02": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Dinero Electrónico Anda S.A.",
+     "1": "18 de Julio 1250, Piso 1",
+     "2": "24003636",
+     "3": "6/5/2015",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.deanda.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.deanda.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.deanda.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "04": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Pluxee Uruguay S.A.",
+     "1": "Cebollati 1470 Piso 3",
+     "2": "2902 4855",
+     "3": "12/8/2015",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.pluxee.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.pluxee.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.pluxee.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "05": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Luncheon Tickets S.A.",
+     "1": "Victor Soliño 349 Oficina 2209",
+     "2": "24088080",
+     "3": "12/8/2015",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.edenred.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.edenred.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.edenred.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "06": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Econstar S.A.",
+     "1": "Tomás de Tezanos 1263",
+     "2": "2623 7680",
+     "3": "23/9/2015",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.prexcard.com/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.prexcard.com/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.prexcard.com/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "09": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Blanico S.A.",
+     "1": "Av. D. Fernández Crespo 2149 ",
+     "2": "2924 04 04 ",
+     "3": "29/12/2015",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.abitab.com.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.abitab.com.uy/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.abitab.com.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  },
+  "ocade": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "<div class=\"anchor-button\"><a href=\"https://ocablue.uy/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://ocablue.uy/</span></a></div>",
+     "1": "7/7/2020",
+     "2": "Colonia 1426, Montevideo",
+     "3": "1730",
+     "4": "",
+     "5": "Oca Dinero Electrónico S.A.",
+     "DT_RowAttr": {
+      "data-href": "https://ocablue.uy/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "DateTime",
+    "Text",
+    "Text",
+    "Text",
+    "Text"
+   ]
+  },
+  "03": {
+   "draw": 1,
+   "recordsTotal": 1,
+   "recordsFiltered": 1,
+   "data": [
+    {
+     "0": "Enarel S.A.",
+     "1": "Pasaje de las Carretas 2580 Piso 12 Of. 3",
+     "2": "",
+     "3": "10/5/2023",
+     "4": "<div class=\"anchor-button\"><a href=\"https://www.scanntech.com/soluciones/procobro/enarel/\" target=\"_blank\" onclick=\"event.stopPropagation();\"><i class=\"other\"></i><span>https://www.scanntech.com/soluciones/procobro/enarel/</span></a></div>",
+     "DT_RowAttr": {
+      "data-href": "https://www.scanntech.com/soluciones/procobro/enarel/"
+     }
+    }
+   ],
+   "columnTypes": [
+    "Text",
+    "Text",
+    "Text",
+    "DateTime",
+    "URL"
+   ]
+  }
+ }
+}

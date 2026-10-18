@@ -55,7 +55,7 @@ export function createMcpServer(service: SiteCheckService): McpServer {
   server.registerTool(
     'lookup_official_identity',
     {
-      description: 'Identidad oficial según fuentes de autoridad: zonas reservadas al Estado (gob.ar, gub.uy, .gov…), padrón de entidades financieras del BCRA y catálogos curados. Devuelve basis, organización, fuente y fecha de revisión o descarga; además, dominios parecidos, caracteres engañosos y subdominios confusos.',
+      description: 'Identidad oficial según fuentes de autoridad: zonas reservadas al Estado (gub.uy, mil.uy, .gov, .mil), registro de instituciones del Banco Central del Uruguay (BCU) y catálogos curados. Devuelve basis, organización, fuente y fecha de revisión o descarga; además, dominios parecidos, caracteres engañosos y subdominios confusos.',
       inputSchema: { hostname: Hostname },
       annotations: { ...readOnly, openWorldHint: false },
     },
@@ -95,7 +95,7 @@ export function createMcpServer(service: SiteCheckService): McpServer {
   server.registerTool(
     'compare_brand_identity',
     {
-      description: 'Contrasta la organización que el sitio declara con las fuentes de autoridad (organismos del Estado, padrón del BCRA, catálogos curados). Una marca declarada nunca prueba identidad: solo detecta suplantación.',
+      description: 'Contrasta la organización que el sitio declara con las fuentes de autoridad (organismos del Estado uruguayo, registro de instituciones del BCU, catálogos curados). Una marca declarada nunca prueba identidad: solo detecta suplantación.',
       inputSchema: { hostname: Hostname, declaredBrand: ShortText(120) },
       annotations: { ...readOnly, openWorldHint: false },
     },

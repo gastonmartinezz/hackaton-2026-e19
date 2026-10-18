@@ -1,7 +1,7 @@
 import type { AppConfig } from '../../config/env.js';
 import type { StructuredModel } from '../ai/model.js';
 import { AuthorityService, loadPopularDomains } from './authority.js';
-import { BcraRegistry } from './bcra-registry.js';
+import { BcuRegistry } from './bcu-registry.js';
 import { ConnectionInspector, type HopRequester } from './connection.js';
 import type { HostResolver } from './net-guard.js';
 import { loadOfficialSources, type OfficialSources } from './official-sources.js';
@@ -14,7 +14,7 @@ const HOUR = 60 * 60_000;
 /** Reemplazos para pruebas: ninguna prueba hace red real. */
 export interface SiteCheckOverrides {
   reputationProvider?: ReputationProvider | null;
-  /** fetch para RDAP, padrón del BCRA y proveedores de reputación. */
+  /** fetch para RDAP, registro del BCU y proveedores de reputación. */
   fetchImpl?: typeof fetch;
   resolver?: HostResolver;
   requester?: HopRequester;
@@ -42,10 +42,11 @@ export function createSiteCheckService(config: AppConfig, model: StructuredModel
   const provider = overrides.reputationProvider !== undefined ? overrides.reputationProvider : reputationProvider(config, overrides.fetchImpl);
   // Un archivo de fuentes inválido detiene el arranque.
   const sources = overrides.officialSources ?? loadOfficialSources(overrides.catalogFiles ? { catalogFiles: overrides.catalogFiles } : {});
-  const registry = new BcraRegistry({
-    enabled: config.SITE_CHECK_BCRA_REGISTRY,
+  // Sin fetch de prueba usa bcuFetch: solo www.bcu.gub.uy, con los intermedios de su certificado.
+  const registry = new BcuRegistry({
+    enabled: config.SITE_CHECK_BCU_REGISTRY,
     fetchImpl: overrides.fetchImpl,
-    requestTimeoutMs: config.SITE_CHECK_REGISTRY_TIMEOUT_MS,
+    requestTimeoutMs: config.SITE_CHECK_BCU_TIMEOUT_MS,
     refreshAfterMs: 24 * HOUR,
     validForMs: 48 * HOUR,
     usableForMs: 7 * 24 * HOUR,

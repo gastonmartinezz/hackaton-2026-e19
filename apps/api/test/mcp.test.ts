@@ -67,11 +67,11 @@ describe('servidor MCP privado', () => {
 
   it.each([
     ['check_url_reputation', { url: 'https://phishing-demo.example.com/login?x=1' }, 'KNOWN_PHISHING'],
-    ['lookup_official_identity', { hostname: 'anses-gob-ar.com' }, 'LOOKALIKE_DOMAIN'],
-    ['get_domain_registration', { domain: 'www.ejemplo.com.ar' }, null],
-    ['inspect_connection', { url: 'https://www.ejemplo.com.ar/' }, null],
-    ['analyze_page_structure', { url: 'https://www.ejemplo.com.ar/', page: { ...emptyPage, forms: [{ method: 'post', action: null, fields: [{ type: 'text', label: 'CBU' }] }] } }, 'SENSITIVE_DATA_REQUEST'],
-    ['compare_brand_identity', { hostname: 'www.ejemplo.com.ar', declaredBrand: 'ANSES' }, 'BRAND_IMPERSONATION'],
+    ['lookup_official_identity', { hostname: 'bps-gub-uy.com' }, 'LOOKALIKE_DOMAIN'],
+    ['get_domain_registration', { domain: 'www.ejemplo.com' }, null],
+    ['inspect_connection', { url: 'https://www.ejemplo.com/' }, null],
+    ['analyze_page_structure', { url: 'https://www.ejemplo.com/', page: { ...emptyPage, forms: [{ method: 'post', action: null, fields: [{ type: 'text', label: 'Número de cuenta bancaria' }] }] } }, 'SENSITIVE_DATA_REQUEST'],
+    ['compare_brand_identity', { hostname: 'www.ejemplo.com', declaredBrand: 'Banco Itaú' }, 'BRAND_IMPERSONATION'],
   ])('%s devuelve fuente, fecha, cobertura y limitaciones', async (name, args, code) => {
     await setup();
     const result = await callTool(name, args);
@@ -85,8 +85,9 @@ describe('servidor MCP privado', () => {
   });
 
   it.each([
-    ['servicios.afip.gob.ar', 'government_domain', 'gob.ar', 'Estado argentino'],
-    ['www.bna.com.ar', 'financial_regulator', 'bna.com.ar', 'BANCO DE LA NACION ARGENTINA'],
+    ['servicios.dgi.gub.uy', 'government_domain', 'gub.uy', 'Estado uruguayo'],
+    ['www.bancorepublica.com.uy', 'financial_regulator', 'bancorepublica.com.uy', 'Banco República (BROU)'],
+    ['www.prexcard.com', 'financial_regulator', 'prexcard.com', 'Prex'],
     ['www.antel.com.uy', 'official_catalog', 'antel.com.uy', 'Antel'],
   ])('lookup_official_identity: %s → %s con fuente y fecha', async (hostname, basis, matched, organization) => {
     await setup();
@@ -97,9 +98,9 @@ describe('servidor MCP privado', () => {
     expect(structuredContent.data.sources.registryStatus).toBe('fresh');
   });
 
-  it('lookup_official_identity con el padrón caído: sin aprobación y con el error informado', async () => {
-    await setup(fakeProviders({ fetchImpl: fakeRdapFetch({ bcraDown: true }).impl }));
-    const { structuredContent } = await callTool('lookup_official_identity', { hostname: 'www.bna.com.ar' });
+  it('lookup_official_identity con el BCU caído: sin aprobación y con el error informado', async () => {
+    await setup(fakeProviders({ fetchImpl: fakeRdapFetch({ bcuDown: true }).impl }));
+    const { structuredContent } = await callTool('lookup_official_identity', { hostname: 'www.itau.com.uy' });
     expect(structuredContent).toMatchObject({ coverage: 'unavailable', errors: ['registry_unavailable'], data: { official: null } });
   });
 
@@ -115,7 +116,7 @@ describe('servidor MCP privado', () => {
   it('valida los argumentos (sin valores de formulario)', async () => {
     await setup();
     const page = { ...emptyPage, forms: [{ method: 'post', action: null, fields: [{ type: 'password', value: 'secreto' }] }] };
-    const res = await rpc('tools/call', { name: 'analyze_page_structure', arguments: { url: 'https://www.ejemplo.com.ar/', page } });
+    const res = await rpc('tools/call', { name: 'analyze_page_structure', arguments: { url: 'https://www.ejemplo.com/', page } });
     const body = res.json();
     expect(body.result?.isError ?? Boolean(body.error)).toBe(true);
     expect(JSON.stringify(body)).not.toContain('"secreto"');
