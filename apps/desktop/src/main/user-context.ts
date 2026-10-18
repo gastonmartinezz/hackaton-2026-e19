@@ -17,8 +17,14 @@ export interface SystemInfo {
   country: string | null;
 }
 
-/** Una localidad no lleva números de 3 o más cifras ("25 de Mayo" sí pasa); una dirección o un código postal, sí. */
-const ADDRESS_LIKE = /\d{3,}/;
+/**
+ * Una localidad no lleva números ni palabras de dirección; una dirección, una
+ * esquina o un código postal, sí. Los únicos números aceptados son los de
+ * nombres de fecha ("25 de Mayo", "Partido de 9 de Julio").
+ */
+const DATE_NAME = /(?<![\p{L}\p{N}])\d{1,2} de \p{L}+/gu;
+const ADDRESS_WORDS =
+  /(?<![\p{L}\p{N}])(?:calle|avenida|avda|av|pasaje|pje|esquina|esq|piso|dpto|depto|nro|n[°º]|manzana|mz|lote|y)(?![\p{L}\p{N}])/iu;
 
 export function buildUserContext(profile: Profile, system: SystemInfo): UserContext | undefined {
   const region = place(profile.region);
@@ -37,9 +43,13 @@ export function buildUserContext(profile: Profile, system: SystemInfo): UserCont
   return Object.keys(context).length > 0 ? context : undefined;
 }
 
+/**
+ * El nombre de una persona no se puede distinguir del de un lugar ("Florencio
+ * Varela", "José C. Paz"): para eso está el aviso del campo en la pantalla.
+ */
 function place(raw: string): string {
   const label = sanitizeLabel(raw, 80);
-  return ADDRESS_LIKE.test(label) ? '' : label;
+  return /\d/.test(label.replace(DATE_NAME, '')) || ADDRESS_WORDS.test(label) ? '' : label;
 }
 
 /** Lo que entrega el sistema no se controla: si no cumple el contrato, no se envía. */

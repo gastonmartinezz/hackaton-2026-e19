@@ -2,7 +2,8 @@
  * Preferencias locales en un JSON versionado dentro de userData. Sin secretos.
  * También guarda los datos de la pantalla inicial: solo salen del equipo
  * dentro de /v1/interpret (ver user-context.ts).
- * Un archivo corrupto o de otra versión vuelve a los valores por defecto.
+ * Un archivo corrupto o de otra versión vuelve a los valores por defecto; uno
+ * que no se pudo leer (permisos, disco) no se pisa.
  */
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -47,6 +48,10 @@ function nearestScale(value: unknown): unknown {
 export class PrefsStore {
   #prefs: Prefs = DEFAULT_PREFS;
   #writing: Promise<void> = Promise.resolve();
+  /** El archivo existe pero no se pudo leer: no se escribe hasta poder leerlo. */
+  #unreadable = false;
+  /** Cambios de esta sesión mientras el archivo no se pudo leer. */
+  #pending: Partial<Omit<Prefs, 'version'>> = {};
   readonly #file: string;
 
   constructor(directory: string) {
@@ -59,20 +64,48 @@ export class PrefsStore {
 
   async load(): Promise<Prefs> {
     try {
-      const parsed = PrefsSchema.safeParse(JSON.parse(await readFile(this.#file, 'utf8')));
-      this.#prefs = parsed.success ? parsed.data : DEFAULT_PREFS;
+      this.#prefs = (await this.#read()) ?? DEFAULT_PREFS;
+      this.#unreadable = false;
     } catch {
       this.#prefs = DEFAULT_PREFS;
+      this.#unreadable = true;
     }
     return this.#prefs;
   }
 
+  /** null si el archivo no existe o está corrupto; lanza si no se pudo leer (permisos, disco). */
+  async #read(): Promise<Prefs | null> {
+    let raw: string;
+    try {
+      raw = await readFile(this.#file, 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw error;
+    }
+    try {
+      const parsed = PrefsSchema.safeParse(JSON.parse(raw));
+      return parsed.success ? parsed.data : null;
+    } catch {
+      return null;
+    }
+  }
+
   update(patch: Partial<Omit<Prefs, 'version'>>): Promise<void> {
     this.#prefs = PrefsSchema.parse({ ...this.#prefs, ...patch });
-    const snapshot = JSON.stringify(this.#prefs, null, 2);
+    if (this.#unreadable) this.#pending = { ...this.#pending, ...patch };
     // Escrituras en serie y atómicas (archivo temporal + rename). Un fallo
     // anterior no debe frenar las siguientes: solo lo recibe quien lo causó.
     this.#writing = this.#writing.catch(() => undefined).then(async () => {
+      if (this.#unreadable) {
+        // Si al arrancar no se pudo leer el archivo, se vuelve a leer antes de
+        // escribir: los valores por defecto no deben pisar las condiciones
+        // aceptadas ni los datos guardados. Si sigue sin leerse, no se escribe.
+        const saved = (await this.#read()) ?? DEFAULT_PREFS;
+        this.#prefs = PrefsSchema.parse({ ...saved, ...this.#pending });
+        this.#unreadable = false;
+        this.#pending = {};
+      }
+      const snapshot = JSON.stringify(this.#prefs, null, 2);
       await mkdir(dirname(this.#file), { recursive: true });
       const tmp = `${this.#file}.tmp`;
       await writeFile(tmp, snapshot, 'utf8');

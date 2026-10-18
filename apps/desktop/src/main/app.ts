@@ -447,8 +447,18 @@ export class AppController {
       }
       case 'saveProfile': {
         const { country, region, city, ageRange } = command;
-        await this.options.prefs.update({ termsAccepted: TERMS_VERSION, profile: { country, region, city, ageRange } });
-        this.#publish();
+        const { termsAccepted, profile } = this.options.prefs.value;
+        try {
+          await this.options.prefs.update({ termsAccepted: TERMS_VERSION, profile: { country, region, city, ageRange } });
+        } catch {
+          // Lo que no quedó en disco tampoco vale en memoria: sin guardar no hay
+          // condiciones aceptadas. La pantalla recibe el error y no se cierra.
+          await this.options.prefs.update({ termsAccepted, profile }).catch(() => undefined);
+          log('prefs.save_failed');
+          throw new Error('PREFS_SAVE_FAILED');
+        } finally {
+          this.#publish();
+        }
         return;
       }
       case 'resetChat':
