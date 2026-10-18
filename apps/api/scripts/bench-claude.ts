@@ -3,7 +3,7 @@
 // costo y corrección. Casos uruguayos sin datos personales. Llama a la API real y a los
 // sitios (gasta dinero):
 //
-//   BENCH_ENV_FILE=apps/api/.env pnpm --filter @hackaton/api bench:claude [repeticiones] [interpret|nextStep]
+//   BENCH_ENV_FILE=apps/api/.env pnpm --filter @hackaton/api bench:claude [repeticiones] [interpret|nextStep] [sin-busqueda]
 //
 // Lee ANTHROPIC_API_KEY del entorno o de BENCH_ENV_FILE y nunca la imprime. Usa los servicios
 // reales (InterpretService con el verificador de URLs, NextStepService).
@@ -27,6 +27,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
 }
 const REPS = Number(process.argv[2] ?? 2);
 const ONLY = process.argv[3] as AiTask | undefined;
+const NO_SEARCH = process.argv[4] === 'sin-busqueda';
 const CONCURRENCY = 4;
 const OWNER = 'bench';
 
@@ -291,7 +292,7 @@ async function runNextStep(variant: Variant) {
 }
 
 const results: Array<Record<string, unknown> & { failures: string[] }> = [];
-for (const variant of variants.filter((v) => !ONLY || v.task === ONLY)) {
+for (const variant of variants.filter((v) => (!ONLY || v.task === ONLY) && !(NO_SEARCH && v.webSearch))) {
   process.stderr.write(`${variant.task} · ${variant.label}…\n`);
   results.push(variant.task === 'interpret' ? await runInterpret(variant) : await runNextStep(variant));
 }
