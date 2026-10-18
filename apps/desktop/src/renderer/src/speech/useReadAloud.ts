@@ -1,5 +1,5 @@
 /**
- * Leer en voz alta un texto de Mostrame. Nunca suena solo: siempre lo inicia
+ * Leer en voz alta un texto de Guíame. Nunca suena solo: siempre lo inicia
  * la persona, y se puede detener. Si el texto cambia (otra instrucción) o el
  * componente se desmonta (se cierra la tarjeta o se sale de la ayuda), se corta.
  *

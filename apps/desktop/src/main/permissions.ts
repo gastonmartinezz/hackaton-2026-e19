@@ -1,5 +1,5 @@
 /**
- * Permisos de la interfaz propia de Mostrame. Todo se rechaza salvo el
+ * Permisos de la interfaz propia de Guíame. Todo se rechaza salvo el
  * micrófono: el dictado del buscador (ventana) y responder con la voz qué
  * opción se quiere (ventana o tarjeta flotante). Solo audio (nunca cámara ni
  * pantalla), solo desde el documento principal de la interfaz propia y solo

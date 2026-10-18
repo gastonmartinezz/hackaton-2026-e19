@@ -1,9 +1,9 @@
 /**
  * Responder con la voz qué opción se quiere (modo voz). Después de que
- * Mostrame termina de leer una lista de opciones, abre el micrófono, pasa lo
+ * Guíame termina de leer una lista de opciones, abre el micrófono, pasa lo
  * dicho a texto (/v1/transcribe) y lo compara en el cliente con las opciones
  * visibles (matchChoice). Al reconocerla, anuncia «Elegiste «…».» y ejecuta
- * exactamente lo mismo que tocar ese botón de Mostrame (nunca del sitio).
+ * exactamente lo mismo que tocar ese botón de Guíame (nunca del sitio).
  *
  * - Solo con el modo voz activo y solo cuando termina la lectura (`trigger`):
  *   nunca se abre el micrófono sin modo voz.
@@ -29,7 +29,7 @@ export interface VoiceChoice extends ChoiceSpec {
 
 /**
  * TEMPORAL — textos de la respuesta por voz (no están en
- * design/textos.es.json). Pendientes de aprobación de diseño.
+ * las pantallas v2.2). Pendientes de aprobación de diseño.
  */
 export const ANSWER_TEXTS = {
   listening: 'Te escucho. Decí cuál querés.',
@@ -53,7 +53,7 @@ type Phase =
   | { kind: 'idle' }
   | { kind: 'listening' }
   | { kind: 'transcribing' }
-  /** Mostrame dice algo y después sigue: vuelve a escuchar o ejecuta la opción. */
+  /** Guíame dice algo y después sigue: vuelve a escuchar o ejecuta la opción. */
   | { kind: 'prompt'; text: string; key: number; then: { listen: true } | { run: number } };
 
 export function useVoiceAnswer(choices: VoiceChoice[], { active, trigger, deps = defaultDeps }: { active: boolean; trigger: number; deps?: VoiceAnswerDeps }) {

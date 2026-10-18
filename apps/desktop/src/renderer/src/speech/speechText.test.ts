@@ -33,7 +33,7 @@ describe('qué se lee', () => {
     expect(guideSpeech(guide({ instruction: 'Hacé clic en el botón «Sacar turno».' }))).toBe('Hacé clic en el botón «Sacar turno».');
   });
 
-  it('en un campo (08) suma «Esto lo escribís vos…»', () => {
+  it('en un campo (08) suma «Lo escribís vos…»', () => {
     expect(guideSpeech(guide({ instruction: 'Escribí tu número en «Documento»', targetField: true }))).toBe(
       `Escribí tu número en «Documento». ${SPEECH_TEXTS.fieldNote}`,
     );
@@ -56,19 +56,17 @@ describe('qué se lee', () => {
     expect(guideSpeech(guide({ instruction: null }))).toBe('');
   });
 
-  it('la pregunta del inicio (02) con sus respuestas, «No estoy seguro» y el porqué', () => {
+  it('la pregunta del inicio (02) con sus respuestas, «No sé bien» y el porqué', () => {
     expect(questionSpeech({ text: '¿Qué documento querés renovar?', answers: ['Cédula', 'Pasaporte'], reason: 'Cada uno se hace en un sitio distinto.' })).toBe(
-      '¿Qué documento querés renovar? Podés elegir: Cédula, Pasaporte o No estoy seguro. Cada uno se hace en un sitio distinto.',
+      '¿Qué documento querés renovar? Podés elegir: Cédula, Pasaporte o No sé bien. Cada uno se hace en un sitio distinto.',
     );
-    expect(questionSpeech({ text: '¿En qué país?', answers: [], reason: null })).toBe('¿En qué país? Podés elegir: No estoy seguro.');
+    expect(questionSpeech({ text: '¿En qué país?', answers: [], reason: null })).toBe('¿En qué país? Podés elegir: No sé bien.');
   });
 
-  it('la recomendación (10): motivo y sitio, sin la dirección', () => {
-    const text = recommendationSpeech('Este es el sitio que mejor se ajusta.', { title: 'Agenda de Identificación Civil', reason: 'Ahí se sacan los turnos.' });
-    expect(text).toBe(
-      'Este es el sitio que mejor se ajusta. Sitio recomendado: Agenda de Identificación Civil. Por qué te lo recomiendo: Ahí se sacan los turnos. Podés elegir «Ir con ayuda» o «Solo abrir el sitio».',
-    );
-    const withOthers = recommendationSpeech('Mirá.', { title: 'A', reason: 'R.' }, ['Sitio B', 'Sitio C']);
+  it('la recomendación (10): título, sitio y motivo, sin la dirección', () => {
+    const text = recommendationSpeech(SPEECH_TEXTS.recommendTitle, { title: 'Agenda de Identificación Civil', reason: 'Ahí se sacan los turnos.' });
+    expect(text).toBe('Te recomiendo este sitio. Agenda de Identificación Civil. Ahí se sacan los turnos. Podés elegir «Ir con ayuda» o «Solo abrir el sitio».');
+    const withOthers = recommendationSpeech(SPEECH_TEXTS.recommendTitle, { title: 'A', reason: 'R.' }, ['Sitio B', 'Sitio C']);
     expect(withOthers.endsWith('Otras opciones: Sitio B o Sitio C.')).toBe(true);
   });
 

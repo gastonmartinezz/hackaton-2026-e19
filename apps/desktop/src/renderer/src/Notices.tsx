@@ -14,7 +14,7 @@ export function Notices({ state }: { state: AppState }) {
           <p>{n.text}</p>
           <div className="row">
             {n.actions.map((action) => (
-              <Button key={action} variant="quiet" onClick={() => send({ type: 'resolveNotice', noticeId: n.id, action })}>
+              <Button key={action} variant="secondary" onClick={() => send({ type: 'resolveNotice', noticeId: n.id, action })}>
                 {LABELS[action]}
               </Button>
             ))}

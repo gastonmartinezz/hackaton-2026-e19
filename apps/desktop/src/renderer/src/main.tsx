@@ -1,5 +1,5 @@
 import '@asistente/ui/tokens.css';
-import '@asistente/ui/mostrame.css';
+import '@asistente/ui/guiame.css';
 import './app.css';
 import './site-check.css';
 import { StrictMode } from 'react';

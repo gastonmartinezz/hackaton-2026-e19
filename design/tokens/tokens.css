@@ -1,0 +1,67 @@
+/* Guíame v2.2 · design tokens. Fuente de verdad: tokens.json */
+@font-face { font-family: 'Poppins'; src: url('../assets/fonts/Poppins-Light.ttf') format('truetype'); font-weight: 300; font-display: swap; }
+@font-face { font-family: 'Poppins'; src: url('../assets/fonts/Poppins-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Poppins'; src: url('../assets/fonts/Poppins-Medium.ttf') format('truetype'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Poppins'; src: url('../assets/fonts/Poppins-SemiBold.ttf') format('truetype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Poppins'; src: url('../assets/fonts/Poppins-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+
+:root {
+  --g-ink: #0B1B3F;
+  --g-ink-secondary: #47557A;
+  --g-border-control: #7A8CC9;
+  --g-line: #DCE4FA;
+  --g-surface: #FFFFFF;
+  --g-surface-soft: #F2F5FF;
+  --g-action-soft: #E6EDFF;
+  --g-brand: #1D4ED8;
+  --g-brand-dark: #1638B8;
+  --g-brand-light: #3B74FF;
+  --g-brand-azure: #1F8BFF;
+  --g-success: #13693D; --g-success-soft: #E0F2E7;
+  --g-warning: #7A4D00; --g-warning-soft: #FFF0CC;
+  --g-error: #B42318;
+
+  --g-gradient-action: linear-gradient(135deg, #3B74FF 0%, #1D4ED8 55%, #1638B8 100%);
+  --g-gradient-bar: linear-gradient(90deg, #3A9BFF 0%, #2B86FF 50%, #1F74F0 100%);
+  --g-gradient-card-head: linear-gradient(180deg, #EAF3FF 0%, #FFFFFF 100%);
+  --g-gradient-ground: linear-gradient(180deg, #FFFFFF 0%, #F1F5FF 38%, #C9D8FF 72%, #5B8BFF 92%, #2F6BFF 100%);
+
+  --g-font: 'Poppins', 'Segoe UI', system-ui, sans-serif;
+  --g-size-instruction: 32px;
+  --g-size-heading-card: 31px;
+  --g-size-heading-question: 34px;
+  --g-size-support: 22px;
+  --g-size-min: 20px;
+
+  --g-radius-control: 18px;
+  --g-radius-card: 28px;
+  --g-shadow-card: 0 0 0 1px rgba(29,78,216,0.16), 0 0 0 10px rgba(59,116,255,0.16), 0 48px 90px -24px rgba(22,56,184,0.60);
+  --g-shadow-primary: 0 14px 28px -12px rgba(22,56,184,0.75);
+  --g-card-width: 520px;
+}
+
+.g-bar { height: 76px; background: var(--g-gradient-bar); color: #FFFFFF; box-shadow: 0 10px 30px -12px rgba(22,56,184,0.55); position: relative; z-index: 3; }
+.g-bar__logo { height: 38px; width: auto; } /* assets/logo/guiame-blanco.png (sin ojos, v2.2) */
+
+.g-card { position: absolute; z-index: 5; top: 100px; right: 24px; width: var(--g-card-width); background: #FFFFFF; border-radius: var(--g-radius-card); box-shadow: var(--g-shadow-card); overflow: hidden; }
+.g-card__head { display: flex; align-items: center; gap: 12px; padding: 16px 16px 16px 24px; background: var(--g-gradient-card-head); color: var(--g-ink); border-bottom: 1px solid var(--g-line); }
+
+.g-primary { min-height: 64px; border: 0; border-radius: var(--g-radius-control); background: var(--g-gradient-action); color: #FFFFFF; font: 600 22px/1.2 var(--g-font); box-shadow: var(--g-shadow-primary); }
+.g-secondary { min-height: 58px; border: 2px solid var(--g-border-control); border-radius: var(--g-radius-control); background: #FFFFFF; color: var(--g-ink); font: 600 21px/1.2 var(--g-font); }
+
+/* Resaltado del control del sitio: anillo blanco + azul del logo */
+.g-highlight { position: relative; z-index: 2; padding: 4px; border: 3px solid #FFFFFF; border-radius: 12px; box-shadow: 0 0 0 4px var(--g-brand-azure), 0 0 0 12px rgba(31,139,255,0.25); }
+.g-highlight__label { position: absolute; padding: 6px 14px; border-radius: 8px; background: linear-gradient(135deg, #3BA3FF 0%, #1D4ED8 100%); color: #FFFFFF; font: 600 20px/1.2 var(--g-font); white-space: nowrap; box-shadow: 0 0 0 3px #FFFFFF, 0 12px 26px -8px rgba(22,56,184,0.75); }
+
+/* Velo sobre el sitio: la capa Guíame es protagonista */
+.g-site-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(11,27,63,0.08) 0%, rgba(11,27,63,0.16) 55%, rgba(22,56,184,0.30) 100%); }
+
+.g-ground { background-color: #FFFFFF; background-image: radial-gradient(circle, rgba(29,78,216,0.10) 1.3px, transparent 1.6px), var(--g-gradient-ground); background-size: 32px 32px, 100% 100%; background-position: 16px 16px, 0 0; }
+
+/* Botón de voz «Hablar» (v2.2): píldora dentro del buscador y de los campos de respuesta.
+   Texto visible «Hablar» + ícono mic blanco; aria-label «Hablar: decirlo en voz alta». Alto = alto del campo. */
+.g-voice { display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0; box-sizing: border-box; height: 52px; padding: 0 22px 0 18px; border: 0; border-radius: 999px; background: linear-gradient(135deg, #3B74FF 0%, #1D4ED8 55%, #1638B8 100%); color: #FFFFFF; font: 600 19px/1 var(--g-font); box-shadow: 0 0 0 4px #DCE6FF, 0 10px 22px -10px rgba(22,56,184,0.75); cursor: pointer; }
+.g-voice--home { height: 56px; font-size: 20px; }
+.g-voice svg { stroke: #FFFFFF; stroke-width: 2.25; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

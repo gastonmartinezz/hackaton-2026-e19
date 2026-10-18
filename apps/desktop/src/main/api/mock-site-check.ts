@@ -43,7 +43,7 @@ export const MOCK_SOURCES = {
   bcra: { name: 'Padrón de entidades financieras del BCRA, simulado', url: 'https://www.bcra.gob.ar/', reviewedAt: '2026-10-01T12:00:00Z' },
   gobAr: { name: 'Reglas del dominio .gob.ar de NIC Argentina, simulado', url: 'https://nic.ar/', reviewedAt: '2026-09-15T12:00:00Z' },
   gubUy: { name: 'Reglas del dominio .gub.uy, simulado', url: 'https://www.gub.uy/', reviewedAt: '2026-09-20T12:00:00Z' },
-  catalog: { name: 'Lista de sitios oficiales de Mostrame, simulada', reviewedAt: '2026-10-10T12:00:00Z' },
+  catalog: { name: 'Lista de sitios oficiales de Guíame, simulada', reviewedAt: '2026-10-10T12:00:00Z' },
 } as const;
 
 const FRAUD: ReadonlySet<ReasonCode> = new Set([

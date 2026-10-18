@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Componentes · Guíame v2.0</title>
+
+<style>
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Light.ttf') format('truetype');font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-SemiBold.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:swap}
+body{margin:0}
+a{color:#1D4ED8}a:hover{color:#1738A8}
+button{font-family:inherit;color:inherit;cursor:pointer}
+</style>
+<meta name="viewport" content="width=1440">
+</head>
+<body>
+
+<div style="width: 1440px; height: 1400px; position: relative; overflow: hidden; background-color: #FFFFFF; background-image: radial-gradient(circle, rgba(29,78,216,0.08) 1.3px, transparent 1.6px), linear-gradient(180deg, #FFFFFF 0%, #F4F7FF 40%, #E6EDFF 100%); background-size: 32px 32px, 100% 100%; background-position: 16px 16px, 0 0; color: #0B1B3F; font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif">
+
+  <h1 style="position: absolute; top: 28px; left: 48px; margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 43px; line-height: 1.15; white-space: nowrap">Componentes · Guíame v2.0</h1>
+
+  <!-- (a) BARRA: SELLOS Y BOTÓN AYUDA, sobre el gradiente real de la barra -->
+  <h2 style="position: absolute; top: 100px; left: 48px; margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 31px; line-height: 1.2">Barra</h2>
+
+  <div style="position: absolute; top: 150px; left: 48px; width: 840px; box-sizing: border-box; padding: 12px; background: linear-gradient(90deg, #3A9BFF 0%, #2B86FF 50%, #1F74F0 100%); border-radius: 24px; box-shadow: 0 10px 30px -12px rgba(22,56,184,0.55); display: flex; flex-direction: column; gap: 12px">
+    <!-- Sitio oficial -->
+    <div style="height: 54px; box-sizing: border-box; border: 0; border-radius: 999px; background: #FFFFFF; color: #0B1B3F; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6); display: flex; align-items: center; gap: 10px; padding: 0 8px 0 22px; font-size: 22px">
+      <span style="color: #47557A; white-space: nowrap">Estás en</span>
+      <span style="white-space: nowrap"><span style="color: #47557A">agenda.</span><strong style="font-weight: 600">ejemplo.gub.uy</strong></span>
+      <span style="margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px; border-radius: 999px; background: #E0F2E7; color: #13693D; font-size: 19px; font-weight: 600; white-space: nowrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#13693D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>Sitio oficial</span>
+    </div>
+    <!-- Tienda elegida -->
+    <div style="height: 54px; box-sizing: border-box; border: 0; border-radius: 999px; background: #FFFFFF; color: #0B1B3F; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6); display: flex; align-items: center; gap: 10px; padding: 0 8px 0 22px; font-size: 22px">
+      <span style="color: #47557A; white-space: nowrap">Estás en</span>
+      <span style="white-space: nowrap"><span style="color: #47557A">tiendamac.</span><strong style="font-weight: 600">ejemplo.com.uy</strong></span>
+      <span style="margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 6px; height: 38px; box-sizing: border-box; padding: 0 12px; border-radius: 999px; background: #F2F5FF; border: 2px solid #7A8CC9; color: #0B1B3F; font-size: 19px; font-weight: 600; white-space: nowrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#47557A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></svg>La tienda que elegiste</span>
+    </div>
+    <!-- No verificado -->
+    <div style="height: 54px; box-sizing: border-box; border: 0; border-radius: 999px; background: #FFFFFF; color: #0B1B3F; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6); display: flex; align-items: center; gap: 10px; padding: 0 8px 0 22px; font-size: 22px">
+      <span style="color: #47557A; white-space: nowrap">Estás en</span>
+      <span style="white-space: nowrap"><span style="color: #47557A">tiendamac-ofertas.</span><strong style="font-weight: 600">ejemplo.shop</strong></span>
+      <span style="margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px; border-radius: 999px; background: #FFF0CC; color: #7A4D00; font-size: 19px; font-weight: 600; white-space: nowrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7A4D00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>No verificado</span>
+    </div>
+  </div>
+
+  <!-- Estados de «Ayuda», tal como aparecen en las pantallas -->
+  <div style="position: absolute; top: 150px; left: 912px; width: 480px; height: 210px; box-sizing: border-box; padding: 12px 24px; background: linear-gradient(90deg, #3A9BFF 0%, #2B86FF 50%, #1F74F0 100%); border-radius: 24px; box-shadow: 0 10px 30px -12px rgba(22,56,184,0.55); display: flex; flex-direction: column; justify-content: center; gap: 12px">
+    <div style="height: 54px; display: flex; align-items: center; gap: 16px">
+      <span style="width: 116px; flex-shrink: 0; font-size: 19px; font-weight: 500; color: #FFFFFF">Cerrada</span>
+      <button aria-pressed="false" style="height: 54px; box-sizing: border-box; padding: 0 18px; border-radius: 18px; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 10px; border: 2px solid #FFFFFF; background: #FFFFFF; color: #1D4ED8"><svg width="24" height="24" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="#1D4ED8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 30 L54 12 L36 52 L30 34 Z" stroke-linejoin="round"/></g></svg>Ayuda</button>
+    </div>
+    <div style="height: 54px; display: flex; align-items: center; gap: 16px">
+      <span style="width: 116px; flex-shrink: 0; font-size: 19px; font-weight: 500; color: #FFFFFF">Abierta</span>
+      <button aria-pressed="true" style="height: 54px; box-sizing: border-box; padding: 0 18px; border-radius: 18px; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 10px; border: 2px solid #FFFFFF; background: rgba(255,255,255,0.20); color: #FFFFFF"><svg width="24" height="24" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 30 L54 12 L36 52 L30 34 Z" stroke-linejoin="round"/></g></svg>Ayuda</button>
+    </div>
+    <div style="height: 54px; display: flex; align-items: center; gap: 16px">
+      <span style="width: 116px; flex-shrink: 0; font-size: 19px; font-weight: 500; color: #FFFFFF">En pausa</span>
+      <button aria-pressed="false" style="height: 54px; box-sizing: border-box; padding: 0 18px; border-radius: 18px; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 10px; border: 2px dashed rgba(255,255,255,0.85); background: transparent; color: #FFFFFF"><svg width="24" height="24" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 30 L54 12 L36 52 L30 34 Z" stroke-linejoin="round"/></g></svg>Ayuda (en pausa)</button>
+    </div>
+  </div>
+
+  <!-- (b) TARJETA DE 520 PX: ANATOMÍA -->
+  <h2 style="position: absolute; top: 388px; left: 48px; margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 31px; line-height: 1.2">Tarjeta</h2>
+
+  <div style="position: absolute; top: 440px; left: 48px; width: 656px; display: grid; grid-template-columns: 124px 520px; column-gap: 12px">
+    <div aria-hidden="true" style="grid-column: 2; grid-row: 1 / 6; box-sizing: border-box; background: #FFFFFF; border: 0; border-radius: 28px; box-shadow: 0 0 0 1px rgba(29,78,216,0.16), 0 0 0 10px rgba(59,116,255,0.16), 0 48px 90px -24px rgba(22,56,184,0.60)"></div>
+
+    <span style="grid-row: 1; grid-column: 1; align-self: center; text-align: right; padding-right: 4px; font-size: 19px; line-height: 1.3; color: #47557A">Encabezado</span>
+    <div style="grid-column: 2; grid-row: 1; position: relative; display: flex; align-items: center; gap: 12px; padding: 16px 16px 16px 24px; border-radius: 28px 28px 0 0; background: linear-gradient(180deg, #EAF3FF 0%, #FFFFFF 100%); color: #0B1B3F; border-bottom: 1px solid #DCE4FA">
+      <img src="../assets/logo/guiame-icono.png" alt="" style="width: 38px; height: 38px; flex-shrink: 0">
+      <span style="font-size: 22px; font-weight: 600; letter-spacing: -0.01em">Renovar la cédula</span>
+      <button style="margin-left: auto; height: 48px; padding: 0 12px; border: 0; background: transparent; color: #FFFFFF; border-radius: 18px; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>Achicar</button>
+    </div>
+
+    <span style="grid-row: 2; grid-column: 1; align-self: center; text-align: right; padding-right: 4px; font-size: 19px; line-height: 1.3; color: #47557A">Instrucción</span>
+    <div style="grid-column: 2; grid-row: 2; position: relative; padding: 28px 28px 8px">
+      <p style="margin: 0; font-size: 32px; line-height: 1.3; font-weight: 600; text-wrap: pretty">Elegí una oficina en <span style="background: #E6EDFF; color: #1D4ED8; border-radius: 8px; padding: 0 6px">«Oficina»</span>.</p>
+    </div>
+
+    <span style="grid-row: 3; grid-column: 1; align-self: center; text-align: right; padding-right: 4px; font-size: 19px; line-height: 1.3; color: #47557A">Apoyo</span>
+    <div style="grid-column: 2; grid-row: 3; position: relative; padding: 8px 28px">
+      <p style="margin: 0; font-size: 22px; line-height: 1.45; color: #47557A">La que te quede más cerca.</p>
+    </div>
+
+    <span style="grid-row: 4; grid-column: 1; align-self: center; text-align: right; padding-right: 4px; font-size: 19px; line-height: 1.3; color: #47557A">Progreso</span>
+    <div style="grid-column: 2; grid-row: 4; position: relative; padding: 16px 28px 24px">
+      <p style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 20px; color: #47557A"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Vas bien: ya hiciste 1 paso.</p>
+    </div>
+
+    <span style="grid-row: 5; grid-column: 1; align-self: center; text-align: right; padding-right: 4px; font-size: 19px; line-height: 1.3; color: #47557A">Pie</span>
+    <div style="grid-column: 2; grid-row: 5; position: relative; background: #F2F5FF; border-top: 1px solid #DCE4FA; border-radius: 0 0 28px 28px; padding: 16px 24px 20px; display: flex; flex-direction: column; gap: 12px">
+      <button style="height: 58px; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 21px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B1B3F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Volver un paso</button>
+      <button style="height: 58px; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 21px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B1B3F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>Salir de la ayuda</button>
+    </div>
+  </div>
+
+  <!-- (e) BOTONES -->
+  <h2 style="position: absolute; top: 388px; left: 744px; margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 31px; line-height: 1.2">Botones</h2>
+
+  <div style="position: absolute; top: 440px; left: 744px; width: 648px; display: grid; grid-template-columns: 330px 294px; column-gap: 24px; align-items: start">
+    <div style="display: flex; flex-direction: column; gap: 20px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 19px; color: #47557A">Principal (una por vista)</span>
+        <button style="height: 64px; width: 100%; border: 0; background: linear-gradient(135deg, #3B74FF 0%, #1D4ED8 55%, #1638B8 100%); color: #FFFFFF; box-shadow: 0 14px 28px -12px rgba(22,56,184,0.75); border-radius: 18px; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Ya lo escribí</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 19px; color: #47557A">Secundario</span>
+        <button style="height: 58px; width: 100%; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 21px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B1B3F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Volver un paso</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 19px; color: #47557A">Opción en la tarjeta</span>
+        <button style="height: 64px; width: 100%; box-sizing: border-box; padding: 0 10px 0 12px; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 21px; line-height: 1.2; font-weight: 600; display: flex; align-items: center; gap: 8px; text-align: left"><span aria-hidden="true" style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; background: #E6EDFF; color: #1D4ED8; font-size: 19px; font-weight: 700; line-height: 1; padding-top: 2px; box-sizing: border-box; display: flex; align-items: center; justify-content: center">1</span><span style="flex: 1; min-width: 0; text-wrap: balance">Sacar un turno nuevo</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B1B3F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 20px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 19px; color: #47557A">Respuesta</span>
+        <button style="height: 72px; width: 100%; box-sizing: border-box; padding: 0 24px; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 14px; text-align: left"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2F6BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>Sí, en Uruguay</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 19px; color: #47557A">No sé bien</span>
+        <button style="height: 72px; width: 100%; box-sizing: border-box; padding: 0 24px; border: 2px dashed #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 24px; font-weight: 600; color: #47557A; display: flex; align-items: center; gap: 14px; text-align: left"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#47557A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>No sé bien</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 19px; color: #47557A">Enlace</span>
+        <a href="#" style="font-size: 21px">Ver otras opciones</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- (d) CITA «LA PÁGINA DICE» -->
+  <h2 style="position: absolute; top: 800px; left: 744px; margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 31px; line-height: 1.2">Cita</h2>
+
+  <figure style="position: absolute; top: 852px; left: 744px; width: 648px; box-sizing: border-box; margin: 0; background: #FFFFFF; border: 2px solid #DCE4FA; border-radius: 18px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px">
+    <figcaption style="font-size: 20px; color: #47557A">La página dice</figcaption>
+    <blockquote style="margin: 0; font-family: 'Poppins', sans-serif; font-variant-numeric: tabular-nums; font-size: 22px; line-height: 1.4; color: #0B1B3F">«Debe seleccionar una oficina.»</blockquote>
+  </figure>
+
+  <!-- (c) BLOQUES DE ESTADO -->
+  <h2 style="position: absolute; top: 976px; left: 48px; margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 31px; line-height: 1.2">Bloques de estado</h2>
+
+  <div style="position: absolute; top: 1028px; left: 48px; width: 816px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start">
+    <!-- Éxito -->
+    <div style="background: #E0F2E7; border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px">
+      <div style="display: flex; align-items: flex-start; gap: 12px">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#13693D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+        <h3 style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 31px; line-height: 1.15; color: #13693D">Listo: tu turno quedó reservado.</h3>
+      </div>
+      <p style="margin: 0; font-size: 22px; line-height: 1.4; color: #0B1B3F">Lo hiciste vos.</p>
+    </div>
+    <!-- Aviso -->
+    <div style="background: #FFF0CC; border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px">
+      <div style="display: flex; align-items: flex-start; gap: 12px">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#7A4D00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <h3 style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 31px; line-height: 1.15; color: #7A4D00">La página marcó un error</h3>
+      </div>
+      <p style="margin: 0; font-size: 22px; line-height: 1.4; color: #0B1B3F">No pasa nada.</p>
+    </div>
+    <!-- Error de Guíame -->
+    <div style="background: #FFFFFF; border: 2px solid #B42318; border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px">
+      <div style="display: flex; align-items: flex-start; gap: 12px">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+        <h3 style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 31px; line-height: 1.15; color: #0B1B3F">No pude leer esta página</h3>
+      </div>
+      <p style="margin: 0; font-size: 22px; line-height: 1.4; color: #0B1B3F">Fue un problema mío, no tuyo. La página sigue funcionando.</p>
+    </div>
+    <!-- ¿Pudiste terminar? -->
+    <div style="background: #FFFFFF; border: 2px dashed #7A8CC9; border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px">
+      <h3 style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 31px; line-height: 1.15; color: #0B1B3F">¿Pudiste terminar?</h3>
+      <p style="margin: 0; font-size: 22px; line-height: 1.4; color: #0B1B3F">No vi una confirmación en la página.</p>
+    </div>
+  </div>
+
+  <!-- (f) RESALTADO -->
+  <h2 style="position: absolute; top: 976px; left: 904px; margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 31px; line-height: 1.2">Resaltado</h2>
+
+  <div style="position: absolute; top: 1028px; left: 904px; width: 488px; display: grid; grid-template-columns: 224px 248px; column-gap: 16px; row-gap: 28px; font-family: Arial, Helvetica, sans-serif; color: #222222">
+    <!-- Rótulo arriba: no hay texto encima -->
+    <div style="display: flex; flex-direction: column; gap: 14px">
+      <span style="font-family: 'Poppins', sans-serif; font-size: 19px; color: #47557A">Rótulo arriba</span>
+      <div style="padding: 54px 0 0 8px">
+        <div style="display: inline-block; position: relative; padding: 4px; border: 3px solid #FFFFFF; border-radius: 12px; box-shadow: 0 0 0 4px #1F8BFF, 0 0 0 12px rgba(31,139,255,0.25)">
+          <button style="display: block; height: 40px; padding: 0 22px; border: 0; border-radius: 4px; background: #2563A8; color: #FFFFFF; font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 700">Sacar turno</button>
+          <div aria-hidden="true" style="position: absolute; left: -7px; bottom: calc(100% + 12px); background: linear-gradient(135deg, #3BA3FF 0%, #1D4ED8 100%); color: #FFFFFF; font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 600; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 0 3px #FFFFFF, 0 12px 26px -8px rgba(22,56,184,0.75); white-space: nowrap">Acá</div>
+        </div>
+      </div>
+    </div>
+    <!-- Rótulo abajo: hay texto encima -->
+    <div style="display: flex; flex-direction: column; gap: 14px">
+      <span style="font-family: 'Poppins', sans-serif; font-size: 19px; color: #47557A">Rótulo abajo</span>
+      <div style="padding-left: 8px">
+        <p style="margin: 0 0 14px; font-size: 14px; line-height: 1.3">Revise su reserva antes de confirmar.</p>
+        <div style="display: inline-block; position: relative; padding: 4px; border: 3px solid #FFFFFF; border-radius: 12px; box-shadow: 0 0 0 4px #1F8BFF, 0 0 0 12px rgba(31,139,255,0.25); margin-bottom: 54px">
+          <button style="display: block; height: 40px; padding: 0 22px; border: 0; border-radius: 4px; background: #2563A8; color: #FFFFFF; font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 700">Confirmar reserva</button>
+          <div aria-hidden="true" style="position: absolute; left: -7px; top: calc(100% + 12px); background: linear-gradient(135deg, #3BA3FF 0%, #1D4ED8 100%); color: #FFFFFF; font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 600; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 0 3px #FFFFFF, 0 12px 26px -8px rgba(22,56,184,0.75); white-space: nowrap">Acá</div>
+        </div>
+      </div>
+    </div>
+    <!-- Rótulo a la derecha: campo, el anillo rodea etiqueta + campo -->
+    <div style="grid-column: 1 / 3; display: flex; flex-direction: column; gap: 14px">
+      <span style="font-family: 'Poppins', sans-serif; font-size: 19px; color: #47557A">Rótulo a la derecha</span>
+      <div style="padding-left: 8px; display: flex">
+        <div style="position: relative; padding: 4px; border: 3px solid #FFFFFF; border-radius: 12px; box-shadow: 0 0 0 4px #1F8BFF, 0 0 0 12px rgba(31,139,255,0.25); display: flex; flex-direction: column; gap: 4px">
+          <label for="demo-documento" style="font-size: 14px; font-weight: 700; white-space: nowrap">Número de documento</label>
+          <input id="demo-documento" type="text" value="" style="width: 200px; height: 34px; box-sizing: border-box; border: 1px solid #8A97A6; border-radius: 3px; background: #FFFFFF; padding: 0 8px; font-family: Arial, Helvetica, sans-serif; font-size: 14px">
+          <div aria-hidden="true" style="position: absolute; left: calc(100% + 16px); top: 50%; transform: translateY(-50%); background: linear-gradient(135deg, #3BA3FF 0%, #1D4ED8 100%); color: #FFFFFF; font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 600; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 0 3px #FFFFFF, 0 12px 26px -8px rgba(22,56,184,0.75); white-space: nowrap">Acá</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

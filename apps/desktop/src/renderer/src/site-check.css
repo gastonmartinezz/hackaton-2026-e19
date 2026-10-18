@@ -1,91 +1,82 @@
 /*
- * Protección de sitios en la ventana principal: indicador en la píldora «Estás
- * en», panel anclado a la barra y advertencia de riesgo alto. Todos los valores
- * salen de design/tokens.css. El color nunca es la única señal: siempre hay
- * ícono y texto.
+ * Protección de sitios en la ventana principal: el sello en la píldora «Estás
+ * en» (R6), el panel anclado a la barra y la advertencia de riesgo alto. Los
+ * valores salen de @asistente/ui/tokens.css (diseño v2.2). El color nunca es la
+ * única señal: siempre hay ícono y texto.
  */
 
-/* ---------- Indicador (dentro de .omni, después del dominio) ---------- */
+/* ---------- Sello (dentro de .omni, después del dominio) ---------- */
 .omni .where {
   flex: 1 1 auto;
 }
+/* Píldora de 19px/600 a la derecha de «Estás en» (docs/02 › Barra del navegador). */
 .site-badge {
   flex: none;
-  align-self: stretch;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: var(--target-min);
+  gap: 6px;
+  min-height: var(--h-badge);
   min-width: var(--target-min);
-  /* Ocupa el extremo derecho de la píldora, al ras del borde. */
-  margin-right: calc(-1 * var(--space-4));
-  padding: 0 var(--space-4) 0 var(--space-3);
-  border: none;
-  border-left: var(--border-w) solid var(--color-border);
-  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
-  background: var(--color-sunken);
-  color: var(--color-ink);
+  padding: 0 var(--space-3);
+  border: var(--border-w-strong) solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--g-surface-soft);
+  color: var(--g-ink);
   font: inherit;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-badge);
   font-weight: var(--fw-semibold);
   line-height: 1.1;
   white-space: nowrap;
   cursor: pointer;
 }
 .site-badge:hover {
-  background: var(--color-primary-soft);
+  border-color: var(--g-border-control);
 }
 .omni .site-badge .ic {
   color: inherit;
 }
+/* Neutro: como «La tienda que elegiste» (fondo suave y borde). */
+.site-badge[data-tone='neutral'] {
+  border-color: var(--g-border-control);
+}
 .site-badge[data-tone='positive'] {
-  background: var(--color-success-soft);
-  color: var(--color-success);
+  background: var(--g-success-soft);
+  color: var(--g-success);
 }
 .site-badge[data-tone='warning'] {
-  background: var(--color-warning-soft);
-  color: var(--color-warning);
+  background: var(--g-warning-soft);
+  color: var(--g-warning);
 }
 .site-badge[data-tone='danger'] {
-  background: var(--color-danger);
-  color: var(--color-on-primary);
+  background: var(--g-error);
+  color: var(--g-on-brand);
 }
 .site-badge[data-state='checking'],
 .site-badge[data-state='local'] {
-  color: var(--color-muted);
+  color: var(--g-ink-secondary);
 }
 .site-badge[aria-expanded='true'] {
-  box-shadow: inset 0 calc(-1 * var(--border-w-strong)) 0 currentColor;
+  border-color: currentColor;
 }
-
 
 /* ---------- Panel anclado a la barra ---------- */
 .site-check-band {
+  position: relative;
+  z-index: 2;
   flex: none;
-  padding: var(--space-2) var(--space-5);
-  background: var(--color-sunken);
-  border-bottom: var(--border-w) solid var(--color-border);
+  padding: var(--space-3) var(--space-5);
+  background: var(--g-surface-soft);
+  border-bottom: var(--border-w) solid var(--g-line);
 }
 .site-check-panel {
   width: min(calc(560px + var(--s1) * 200px), calc(100vw - 2 * var(--space-5)));
   max-width: calc(100vw - 2 * var(--space-5));
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-4) var(--space-5) var(--space-5);
-  background: var(--color-bg);
-  border: var(--border-w) solid var(--color-border-strong);
-  border-top: var(--card-strip) solid var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-}
-.site-check-panel[data-tone='positive'] {
-  border-top-color: var(--color-success);
-}
-.site-check-panel[data-tone='warning'] {
-  border-top-color: var(--color-warning);
-}
-.site-check-panel[data-tone='danger'] {
-  border-top-color: var(--color-danger);
+  padding: 20px var(--space-6) var(--space-5);
+  border-radius: var(--g-radius-card);
+  background: var(--g-surface);
+  box-shadow: var(--g-shadow-card-view);
 }
 .site-check-panel p,
 .site-check-dialog p {
@@ -97,26 +88,19 @@
   gap: var(--space-3);
   min-width: 0;
 }
-.site-check-head .title {
+.site-check-head .hc-title {
   flex: 1;
   min-width: 0;
-  margin: 0;
-  font-family: var(--font-display);
-  font-variation-settings: var(--font-display-settings);
-  font-weight: var(--fw-display);
-  font-size: var(--fs-xl);
-  line-height: var(--lh-tight);
 }
 .site-check-panel[data-tone='positive'] .site-check-head > .ic {
-  color: var(--color-success);
+  color: var(--g-success);
 }
 .site-check-panel[data-tone='warning'] .site-check-head > .ic {
-  color: var(--color-warning);
+  color: var(--g-warning);
 }
 .site-check-panel[data-tone='danger'] .site-check-head > .ic,
-.site-check-dialog .site-check-head > .ic,
-.site-check-dialog .title {
-  color: var(--color-danger);
+.site-check-dialog .site-check-head > .ic {
+  color: var(--g-error);
 }
 .site-check-actions {
   display: flex;
@@ -125,10 +109,12 @@
 }
 .site-check-details summary {
   cursor: pointer;
-  font-weight: var(--fw-semibold);
-  color: var(--color-primary);
   min-height: var(--target-min);
   padding: var(--space-3) 0;
+  color: var(--g-brand);
+  font-size: var(--fs-secondary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 .site-check-details ul {
   margin: 0 0 var(--space-3);
@@ -137,8 +123,8 @@
   gap: var(--space-2);
 }
 .site-check-ai {
-  color: var(--color-muted);
-  font-size: var(--fs-sm);
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-min);
 }
 
 /* ---------- Advertencia de riesgo alto (ocupa el lugar del sitio) ---------- */
@@ -149,29 +135,32 @@
   display: grid;
   place-items: start center;
   padding: var(--space-7) var(--space-5);
-  background: var(--color-danger-soft);
+  background: var(--g-surface-soft);
 }
+/* Bloque de error de docs/02 en tamaño de diálogo: blanco, borde rojo y halo. */
 .site-check-dialog {
-  width: min(calc(560px + var(--s1) * 200px), 100%);
+  width: min(calc(640px + var(--s1) * 200px), 100%);
   display: grid;
   gap: var(--space-4);
   padding: var(--space-6);
-  background: var(--color-bg);
-  border: var(--border-w-strong) solid var(--color-danger);
-  border-top: var(--card-strip) solid var(--color-danger);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-raised);
+  border: var(--border-w-strong) solid var(--g-error);
+  border-radius: var(--g-radius-card);
+  background: var(--g-surface);
+  box-shadow: var(--g-shadow-card);
 }
-.site-check-dialog .site-check-head .ic {
-  width: var(--icon-lg);
-  height: var(--icon-lg);
+.site-check-dialog .muted {
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-min);
+}
+.site-check-dialog .btn-link {
+  justify-self: start;
 }
 
 /*
- * La píldora «Estás en» suma el indicador. El dominio principal nunca se corta:
+ * La píldora «Estás en» suma el sello. El dominio principal nunca se corta:
  * cuando falta lugar se oculta primero «Estás en», después la conexión no segura
  * queda solo con su ícono (el texto sigue para lectores de pantalla y el aviso
- * completo está en la tarjeta) y el texto del indicador pasa a dos líneas.
+ * completo está en la tarjeta) y el texto del sello pasa a dos líneas.
  */
 .omni {
   container-type: inline-size;
@@ -183,16 +172,19 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  color: var(--g-warning);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
 }
 .insecure-icon {
   display: none;
 }
-@container (max-width: 760px) {
+@container (max-width: 560px) {
   .omni .k-estas {
     display: none;
   }
 }
-@container (max-width: 660px) {
+@container (max-width: 480px) {
   .insecure-icon {
     display: inline-flex;
   }
@@ -205,7 +197,7 @@
     white-space: nowrap;
   }
 }
-@container (max-width: 560px) {
+@container (max-width: 400px) {
   .site-badge-label {
     white-space: normal;
     max-width: 6.5em;
@@ -214,7 +206,7 @@
   }
 }
 
-/* ---------- Indicador en la franja (cuando no entra en la píldora) ---------- */
+/* ---------- Sello en la franja (cuando no entra en la píldora) ---------- */
 .site-badge-probe {
   position: absolute;
   visibility: hidden;
@@ -229,11 +221,8 @@
   justify-items: start;
 }
 .site-check-strip .site-badge {
-  margin-right: 0;
-  border: var(--border-w-strong) solid currentColor;
-  border-radius: var(--radius-pill);
   min-height: var(--target-min);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-min);
 }
 .site-check-strip .site-badge-label {
   white-space: nowrap;

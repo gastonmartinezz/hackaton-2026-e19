@@ -1,5 +1,5 @@
 /**
- * Modo voz: con el modo activo, Mostrame lee solo lo que escribe apenas
+ * Modo voz: con el modo activo, Guíame lee solo lo que escribe apenas
  * aparece. La preferencia se guarda entre sesiones:
  * - `auto` (por defecto): se prende al buscar dictando, para ese recorrido
  *   (hasta volver al Inicio).
@@ -11,10 +11,10 @@ import type { UiCommand, VoiceMode } from '../shared/ipc';
 
 /**
  * TEMPORAL — texto del aviso si no se pudo guardar el interruptor «Voz» (no
- * está en design/textos.es.json). Pendiente de aprobación de diseño.
+ * está en las pantallas v2.2). Pendiente de aprobación de diseño.
  */
 export const VOICE_MODE_TEXTS = {
-  saveFailed: 'No pude cambiar «Voz». Fue un problema de mi lado, no tuyo. Probá de nuevo.',
+  saveFailed: 'No pude cambiar «Voz». Fue un problema mío, no tuyo. Probá de nuevo.',
 } as const;
 
 export class VoiceModeState {

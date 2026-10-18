@@ -16,7 +16,7 @@ mac:
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
-    NSMicrophoneUsageDescription: Mostrame usa el micrófono solo cuando tocás «Hablar», para escribir en el buscador lo que decís.
+    NSMicrophoneUsageDescription: Guíame usa el micrófono solo cuando tocás «Hablar» o, con «Voz» prendida, para que elijas una opción hablando.
 win:
   target: nsis
 linux:

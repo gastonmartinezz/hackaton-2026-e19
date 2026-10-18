@@ -28,7 +28,7 @@ export interface ApiClient {
   /** POST /v1/transcribe: dictado del buscador, con `wav` ya revisado (shared/wav.ts). */
   transcribe(wav: Uint8Array, signal: AbortSignal): Promise<TranscribeResponse>;
   /**
-   * POST /v1/speak: lee en voz alta un texto de Mostrame. Resuelve cuando el
+   * POST /v1/speak: lee en voz alta un texto de Guíame. Resuelve cuando el
    * servidor aceptó (200 con `audio/mpeg`) y devuelve el MP3 en pedazos a
    * medida que llega, para empezar a reproducir antes de que termine. Los
    * errores previos rechazan la promesa; los del medio los tira el iterador.

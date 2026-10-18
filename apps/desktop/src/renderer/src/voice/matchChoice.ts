@@ -19,7 +19,7 @@ export interface ChoiceSpec {
   label: string;
   /** Otras formas de nombrarlo (por ejemplo, el título del sitio). */
   aliases?: string[];
-  /** `more`: «Ver otras opciones»; `unsure`: «No estoy seguro». */
+  /** `more`: «Ver otras opciones»; `unsure`: «No sé bien». */
   kind?: 'more' | 'unsure';
   /** No se nombró al leer la lista: se puede elegir por su nombre, pero no cuenta para «la tercera». */
   unnumbered?: boolean;

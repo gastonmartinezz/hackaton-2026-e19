@@ -196,7 +196,7 @@ describe('Chat · respuestas sugeridas (TEMPORAL, campos pendientes del contrato
     expect(questionExtras({})).toEqual({ answers: [], reason: null });
   });
 
-  it('el mock no insiste después de «No estoy seguro»', () => {
+  it('el mock no insiste después de «No sé bien»', () => {
     const sites = [
       { title: 'A', url: 'https://a.example', reason: 'a' },
       { title: 'B', url: 'https://b.example', reason: 'b' },

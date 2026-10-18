@@ -1,19 +1,19 @@
 /**
- * Tarjeta flotante de ayuda (pantallas 04 a 21). Vive en su propia vista sobre
- * el sitio (main/help-card.ts): mide lo que dibuja y lo informa con
+ * Tarjeta flotante de ayuda (R4; pantallas 04 a 21). Vive en su propia vista
+ * sobre el sitio (main/help-card.ts): mide lo que dibuja y lo informa con
  * `cardLayout` para que el proceso principal la ubique sin tapar el control.
  */
-import { BrandSymbol, Button, Icon, LoadingDots } from '@asistente/ui';
+import { BrandIcon, Button, Icon, LoadingDots } from '@asistente/ui';
 import { Fragment, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { AppState, CardMode, OptionView } from '../../shared/ipc';
 import { Notices } from './Notices';
 import { GuidePausedNotice } from './SiteCheck';
 import { SpeakButton } from './speech/SpeakButton';
-import { guideSpeech, optionsReadKey, optionsSpeech, stepSpeechKey } from './speech/speechText';
-import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
+import { guideSpeech, optionsReadKey, optionsSpeech, SPEECH_TEXTS, stepSpeechKey } from './speech/speechText';
 import { send, useAppState } from './useAppState';
+import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
 
-/** Margen transparente de la vista para la sombra (CARD_SHADOW en main/help-card.ts). */
+/** Margen transparente de la vista para el halo (CARD_SHADOW en main/help-card.ts). */
 const SHADOW = 16;
 
 export function HelpCard() {
@@ -52,10 +52,9 @@ export function HelpCard() {
   if (mode === 'toast') {
     return (
       <div className="card-host" ref={hostRef}>
-        <div className="mm-toast" role="status">
-          <Icon name="log-out" />
-          <span className="txt">Saliste de la ayuda. La página sigue igual.</span>
-          <Button variant="secondary" icon="sparkles" onClick={() => send({ type: 'analyzePage' })}>
+        <div className="hc-toast" role="status">
+          <p className="txt">Saliste de la ayuda. La página sigue igual.</p>
+          <Button variant="secondary" icon="navigation" onClick={() => send({ type: 'analyzePage' })}>
             Volver a la ayuda
           </Button>
         </div>
@@ -66,20 +65,19 @@ export function HelpCard() {
   if (mode === 'pill') {
     return (
       <div className="card-host" ref={hostRef}>
-        <div className="mm-pill" role="region" aria-label="Ayuda de Mostrame, achicada">
-          <BrandSymbol />
-          <span className="txt">
-            <b>Ahora:</b> {guide.instruction}
+        <div className="hc-pill" role="region" aria-label="Ayuda de Guíame, achicada">
+          <span className="strip" aria-hidden="true">
+            <BrandIcon />
           </span>
+          <p className="txt">{withControlNames(guide.instruction ?? '')}</p>
           <Button
-            variant="primary"
-            icon="chevron-up"
+            variant="secondary"
             onClick={() => {
               setMinimized(false);
               setExpandedFor(guide.announceKey);
             }}
           >
-            Abrir
+            Ver la ayuda
           </Button>
         </div>
       </div>
@@ -96,46 +94,30 @@ export function HelpCard() {
   });
   return (
     <div className="card-host" ref={hostRef}>
-      <aside
-        className={`mm-card ${body.tone ? `tone-${body.tone}` : ''}`}
-        aria-label="Ayuda de Mostrame"
-        style={{ maxHeight: state.layout.card.maxHeight || undefined }}
-      >
-        <div className="mm-card-head">
-          <span className="who">
-            <BrandSymbol />
-            Mostrame
-          </span>
-          <span className="spacer" />
+      <aside className="hc" aria-label="Ayuda de Guíame" style={{ maxHeight: state.layout.card.maxHeight || undefined }}>
+        <div className="hc-head">
+          <BrandIcon />
+          {/* El objetivo va en el encabezado, sin «Tu objetivo» (R3, R4). */}
+          <span className="hc-goal">{guide.goal && guide.phase !== 'idle' ? guide.goal : 'Guíame'}</span>
           {guide.phase === 'waitingForUser' && !state.siteCheck.guidePaused ? (
             <Button variant="quiet" icon="minus" onClick={() => setMinimized(true)}>
               Achicar
             </Button>
           ) : null}
         </div>
-        {guide.goal && guide.phase !== 'idle' ? (
-          <p className="mm-goal">
-            Tu objetivo: <b>{guide.goal}</b>
-          </p>
-        ) : null}
-        <div className="mm-card-body">
+        <div className="hc-body">
           <Notices state={state} />
           <PageProblems state={state} />
           {body.content}
         </div>
         {body.foot === 'none' ? null : (
-          <nav className="mm-card-foot" aria-label="Controles de la ayuda">
+          <nav className="hc-foot" aria-label="Controles de la ayuda">
             {body.foot === 'full' ? (
-              <>
-                <Button icon="rotate-ccw" disabled={guide.phase !== 'waitingForUser'} onClick={() => send({ type: 'repeat' })}>
-                  Repetir
-                </Button>
-                <Button icon="arrow-left" onClick={() => send({ type: 'stepBack' })}>
-                  Volver un paso
-                </Button>
-              </>
+              <Button variant="secondary" block icon="arrow-left" onClick={() => send({ type: 'stepBack' })}>
+                Volver un paso
+              </Button>
             ) : null}
-            <Button icon="log-out" onClick={() => send({ type: 'exitHelp' })}>
+            <Button variant="secondary" block icon="log-out" onClick={() => send({ type: 'exitHelp' })}>
               Salir de la ayuda
             </Button>
           </nav>
@@ -164,8 +146,7 @@ function cardMode(state: AppState, minimized: boolean, expandedFor: number | nul
 
 interface Body {
   content: ReactNode;
-  tone?: 'success' | 'error' | 'ask' | 'warn';
-  /** full: Repetir, Volver un paso y Salir; exit: solo Salir; none: sin pie. */
+  /** full: Volver un paso y Salir de la ayuda; exit: solo Salir; none: sin pie (R4). */
   foot: 'full' | 'exit' | 'none';
 }
 
@@ -179,10 +160,10 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
       return {
         foot: 'exit',
         content: (
-          <section className="mm-section" role="status">
+          <section className="hc-section" role="status">
             <LoadingDots />
-            <h2 className="title">Estoy mirando la página…</h2>
-            <p className="lead-s">Busco qué se puede hacer acá. Mientras tanto, podés leerla con calma.</p>
+            <h2 className="instr">Estoy mirando la página…</h2>
+            <p className="support">Esto lleva unos segundos.</p>
           </section>
         ),
       };
@@ -195,78 +176,68 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
       return {
         foot: 'full',
         content: (
-          <section className="mm-section" role="status">
+          <section className="hc-section" role="status">
             <LoadingDots />
-            <h2 className="title">Estoy fijándome si funcionó…</h2>
-            <p className="lead-s">La página cambió después de tu clic. Ya te digo qué sigue.</p>
-            <DoneList done={guide.done} />
+            <h2 className="instr">Estoy fijándome si funcionó…</h2>
+            <p className="support">Dame un segundo.</p>
+            <Progress count={guide.done.length} />
           </section>
         ),
       };
 
     case 'waitingForUser':
-      if (state.siteCheck.guidePaused) return { tone: 'error', foot: 'exit', content: <GuidePausedNotice /> };
+      if (state.siteCheck.guidePaused) return { foot: 'exit', content: <GuidePausedNotice /> };
       return { foot: 'full', content: <CurrentStep state={state} /> };
 
     case 'completed':
       return guide.evidence
-        ? { tone: 'success', foot: 'none', content: <Completed evidence={guide.evidence} speech={guideSpeech(guide)} auto={state.voice.active} contentKey={`listo:${guide.contentKey}`} /> }
-        : { tone: 'ask', foot: 'none', content: <DidYouFinish speech={guideSpeech(guide)} auto={state.voice.active} contentKey={`terminaste:${guide.contentKey}`} /> };
+        ? { foot: 'none', content: <Completed evidence={guide.evidence} speech={guideSpeech(guide)} auto={state.voice.active} contentKey={`listo:${guide.contentKey}`} /> }
+        : { foot: 'exit', content: <DidYouFinish speech={guideSpeech(guide)} auto={state.voice.active} contentKey={`terminaste:${guide.contentKey}`} /> };
 
     case 'unsupported':
       return {
-        foot: 'none',
+        foot: 'exit',
         content: (
-          <section className="status unsupported" role="status">
-            <div className="head">
-              <Icon name="circle-slash" size="lg" />
-              <h2 className="title">En esta página no puedo ayudarte.</h2>
-            </div>
-            <p>{guide.message ?? 'Está hecha de una forma que no puedo leer. No es un error tuyo.'}</p>
-            <div className="actions">
-              {nav.canGoBack ? (
-                <Button variant="primary" block icon="arrow-left" onClick={() => send({ type: 'back' })}>
-                  Volver a la página anterior
-                </Button>
-              ) : null}
-              <Button variant="secondary" block icon="external-link" onClick={() => send({ type: 'openCurrentExternally' })}>
-                Abrir fuera de Mostrame
+          <section className="hc-section" role="status">
+            <Icon name="circle-slash" size="lg" />
+            <h2 className="hc-title">Acá no puedo guiarte</h2>
+            <p className="support">{guide.message ?? 'Está hecha de una forma que no puedo leer. No es un error tuyo.'}</p>
+            {nav.canGoBack ? (
+              <Button variant="primary" block icon="arrow-left" onClick={() => send({ type: 'back' })}>
+                Volver a la página anterior
               </Button>
-            </div>
-            <p className="muted tip">Fuera de Mostrame ya no te voy a poder guiar.</p>
+            ) : null}
+            <Button variant="secondary" block icon="external-link" onClick={() => send({ type: 'openCurrentExternally' })}>
+              Abrir fuera de Guíame
+            </Button>
+            <p className="panel-note">Fuera de Guíame ya no te voy a poder guiar.</p>
           </section>
         ),
       };
 
     case 'error':
       return {
-        tone: 'error',
-        foot: 'none',
+        foot: 'exit',
         content: (
-          <section className="status error" role="alert">
-            <div className="head">
+          <>
+            <section className="status error" role="alert">
               <Icon name="triangle-alert" size="lg" />
-              <h2 className="title">No pude leer esta página.</h2>
-            </div>
-            <p>Fue un problema de mi lado, no tuyo. La página funciona igual y podés seguir usándola.</p>
-            <div className="actions">
-              <Button variant="primary" block icon="refresh-cw" onClick={() => send({ type: 'retry' })}>
-                Intentar de nuevo
-              </Button>
-              <Button variant="secondary" block onClick={() => send({ type: 'exitHelp' })}>
-                Seguir sin ayuda
-              </Button>
-            </div>
-          </section>
+              <h2 className="hc-title">No pude leer esta página</h2>
+              <p>Fue un problema mío, no tuyo. La página sigue funcionando.</p>
+            </section>
+            <Button variant="primary" block icon="refresh-cw" onClick={() => send({ type: 'retry' })}>
+              Probar de nuevo
+            </Button>
+          </>
         ),
       };
 
     default:
-      return { content: <p>{guide.message}</p>, foot: 'exit' };
+      return { content: <p className="support">{guide.message}</p>, foot: 'exit' };
   }
 }
 
-/** 05: hasta 3 opciones de la página. */
+/** 05: hasta 3 opciones de la página, sin descripciones (R3). */
 function Options({ state, visit, onMore }: { state: AppState; visit: number; onMore: () => void }) {
   const { primary, secondary } = state.guide;
   // Modo voz: al terminar de leer las opciones, se puede contestar hablando.
@@ -278,20 +249,18 @@ function Options({ state, visit, onMore }: { state: AppState; visit: number; onM
   ];
   return (
     <>
-      <div>
-        <div className="speak-row">
-          <h2 className="title">¿Qué querés hacer acá?</h2>
-          <SpeakButton
-            text={optionsSpeech(
-              primary.map((o) => o.title),
-              secondary.length > 0,
-            )}
-            auto={state.voice.active}
-            contentKey={optionsReadKey(state.guide.contentKey, visit)}
-            onDone={(outcome) => outcome === 'ended' && setReadDone((n) => n + 1)}
-          />
-        </div>
-        <p className="lead-s">Encontré estas opciones en esta página.</p>
+      <div className="hc-section">
+        <h2 className="hc-title">{SPEECH_TEXTS.optionsTitle}</h2>
+        <p className="support">Encontré estas opciones en esta página.</p>
+        <SpeakButton
+          text={optionsSpeech(
+            primary.map((o) => o.title),
+            secondary.length > 0,
+          )}
+          auto={state.voice.active}
+          contentKey={optionsReadKey(state.guide.contentKey, visit)}
+          onDone={(outcome) => outcome === 'ended' && setReadDone((n) => n + 1)}
+        />
       </div>
       <ul className="option-list" aria-label="Opciones de esta página">
         {primary.map((o, i) => (
@@ -300,14 +269,10 @@ function Options({ state, visit, onMore }: { state: AppState; visit: number; onM
           </li>
         ))}
       </ul>
-      <button type="button" className="linkish" onClick={onMore}>
+      <Button variant="link" className="back-link" onClick={onMore}>
         Ver otras opciones
-      </button>
+      </Button>
       <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} />
-      <p className="panel-note">
-        <Icon name="lock" />
-        <span>Mostrame no recibe lo que escribís en la página.</span>
-      </p>
     </>
   );
 }
@@ -325,44 +290,39 @@ function MoreOptions({ state, onBack }: { state: AppState; onBack: () => void })
   };
   return (
     <>
-      <h2 className="title">Otras cosas que podés hacer acá</h2>
+      <Button variant="quiet" icon="arrow-left" className="back-link" onClick={onBack}>
+        Volver a las 3 opciones
+      </Button>
+      <h2 className="hc-title">Otras cosas que se pueden hacer</h2>
       {secondary.length > 0 ? (
-        <ul className="mm-sec-list" aria-label="Otras opciones de esta página">
+        <ul className="option-list" aria-label="Otras opciones de esta página">
           {secondary.map((o) => (
             <li key={o.id}>
-              <OptionButton option={o} lead={<Icon name="arrow-right" />} />
+              <OptionButton option={o} />
             </li>
           ))}
         </ul>
       ) : null}
-      <div className="mm-divider" />
-      <form className="mm-section" onSubmit={submit}>
-        <label htmlFor="ask-page" className="lead-s">
+      <form className="hc-section" onSubmit={submit}>
+        <label htmlFor="ask-page" className="support">
           ¿No está lo que buscás? Contame qué querés hacer.
         </label>
-        <div className="mm-ask-row">
+        <div className="ask-row">
           <input id="ask-page" className="field" placeholder="Por ejemplo: cambiar la oficina" value={text} onChange={(e) => setText(e.target.value)} maxLength={500} />
-          <Button variant="primary" icon="send" type="submit">
+          <Button variant="secondary" icon="send" type="submit">
             Enviar
           </Button>
         </div>
       </form>
-      <button type="button" className="linkish" onClick={onBack}>
-        <Icon name="arrow-left" size="sm" />
-        Volver a las 3 principales
-      </button>
     </>
   );
 }
 
-function OptionButton({ option, lead }: { option: OptionView; lead: ReactNode }) {
+function OptionButton({ option, lead }: { option: OptionView; lead?: ReactNode }) {
   return (
     <button type="button" className="option" onClick={() => send({ type: 'selectOption', optionId: option.id })}>
       {lead}
-      <span>
-        <span className="t">{option.title}</span>
-        {option.description ? <span className="d">{option.description}</span> : null}
-      </span>
+      <span className="t">{option.title}</span>
       <Icon name="chevron-right" />
     </button>
   );
@@ -374,95 +334,79 @@ function CurrentStep({ state }: { state: AppState }) {
   const field = guide.targetField;
   // En un campo no hay clic que observar sin leer lo escrito: la persona avisa.
   const confirm = field || guide.waitFor === 'userConfirmation';
+  const support =
+    guide.targetVisible === false
+      ? 'No veo el lugar en pantalla. Probá desplazarte por la página.'
+      : field
+        ? null
+        : guide.targetVisible
+          ? 'Te lo marqué con un borde azul. Te espero.'
+          : 'Te espero. Cuando hagas clic, sigo con vos.';
   return (
-    <section className="mm-section" aria-label="Paso actual">
-      <div className="now-row">
-        <p className="now">
-          <Icon name="arrow-right" />
-          Ahora
-        </p>
-        {/* Leer en voz alta (opcional, S11): solo si la persona lo pide; se corta al cambiar de instrucción. */}
-        <SpeakButton text={guideSpeech(guide)} auto={state.voice.active} contentKey={stepSpeechKey(guide)} />
-      </div>
-      {/* Única región que anuncia instrucciones; Repetir cambia la clave y se vuelve a anunciar. No mueve el foco. */}
+    <section className="hc-section" aria-label="Paso actual">
+      {/* Única región que anuncia instrucciones; cambia la clave al volver a mostrarla. No mueve el foco. */}
       <div aria-live="polite" key={guide.announceKey}>
         <p className="instr">{withControlNames(guide.instruction ?? '')}</p>
       </div>
+      {support ? <p className="support">{support}</p> : null}
+      {/* Leer en voz alta (opcional, S11): solo si la persona lo pide o con el modo voz; se corta al cambiar de instrucción. */}
+      <SpeakButton text={guideSpeech(guide)} auto={state.voice.active} contentKey={stepSpeechKey(guide)} />
       {field ? (
-        <p className="mm-callout">
+        <p className="soft-box">
           <Icon name="lock" />
-          <span>
-            <b>Esto lo escribís vos.</b> Mostrame no lo ve ni lo guarda.
-          </span>
+          <span>{SPEECH_TEXTS.fieldNote}</span>
         </p>
-      ) : guide.targetVisible ? (
-        <p className="help">Te lo marqué en la página con un borde amarillo y negro.</p>
       ) : null}
-      {guide.targetVisible === false ? <p className="help">No veo el lugar en pantalla. Probá desplazarte por la página.</p> : null}
       {confirm ? (
         <Button variant="primary" block icon="check" onClick={() => send({ type: 'confirmDone' })}>
-          {field ? 'Listo, ya lo escribí' : 'Ya lo hice'}
+          {field ? 'Ya lo escribí' : 'Ya lo hice'}
         </Button>
-      ) : (
-        <>
-          <p className="waiting">
-            <span className="pulse" aria-hidden="true" />
-            <span>Te espero. Cuando hagas clic, sigo con vos.</span>
-          </p>
-          {guide.targetVisible ? null : (
-            <Button variant="secondary" block onClick={() => send({ type: 'confirmDone' })}>
-              Ya lo hice
-            </Button>
-          )}
-        </>
+      ) : guide.targetVisible ? null : (
+        <Button variant="secondary" block icon="check" onClick={() => send({ type: 'confirmDone' })}>
+          Ya lo hice
+        </Button>
       )}
-      <DoneList done={guide.done} />
+      <Progress count={guide.done.length} />
     </section>
   );
 }
 
-/** «Ya hiciste»: solo los pasos pasados (nunca «Paso X de Y» ni lo que falta). */
-function DoneList({ done }: { done: string[] }) {
-  if (done.length === 0) return null;
+/** «Vas bien: ya hiciste N pasos.» Solo acciones hechas en el sitio; sin línea con 0 (R5). */
+function Progress({ count }: { count: number }) {
+  if (count === 0) return null;
   return (
-    <section className="done-list" aria-label="Ya hiciste">
-      <h3>Ya hiciste</h3>
-      <ul>
-        {done.map((item, i) => (
-          <li key={`${i}-${item}`}>
-            <Icon name="check" />
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <p className="progress">
+      <Icon name="check" size="sm" />
+      Vas bien: ya hiciste {count} {count === 1 ? 'paso' : 'pasos'}.
+    </p>
   );
 }
 
 /** 09: «Listo» solo con evidencia de la página, citada tal cual. */
 function Completed({ evidence, speech, auto, contentKey }: { evidence: string; speech: string; auto: boolean; contentKey: string }) {
   return (
-    <section className="status success" role="status">
-      <div className="head">
-        <Icon name="circle-check" size="lg" />
-        {/* TODO(textos): «completada.titulo» pide «Listo: {resultado}.»; el backend todavía no manda el resultado. */}
-        <h2 className="title">Listo.</h2>
-        {/* Se lee «Listo.» sin la cita de la página. */}
-        <SpeakButton text={speech} auto={auto} contentKey={contentKey} />
-      </div>
-      <p className="evidence">
-        <Icon name="check" size="sm" />
-        <span>La página dice «{evidence}».</span>
-      </p>
-      <div className="actions">
-        <Button variant="primary" block onClick={() => send({ type: 'stepBack' })}>
-          Hacer otra cosa
-        </Button>
-        <Button variant="secondary" block onClick={() => send({ type: 'finishHelp' })}>
-          Quedarme en esta página
-        </Button>
-      </div>
-    </section>
+    <>
+      <section className="status success" role="status">
+        <div className="head">
+          <Icon name="circle-check" size="lg" />
+          {/* TODO(copy): la pantalla 09 dice «Listo: {resultado}.»; el backend todavía no manda el resultado. */}
+          <h2 className="hc-title">Listo.</h2>
+        </div>
+        <figure className="quote">
+          <figcaption>La página dice</figcaption>
+          <blockquote>«{evidence}»</blockquote>
+        </figure>
+        <p>Lo hiciste vos.</p>
+      </section>
+      {/* Se lee «Listo.» sin la cita de la página. */}
+      <SpeakButton text={speech} auto={auto} contentKey={contentKey} />
+      <Button variant="primary" block onClick={() => send({ type: 'stepBack' })}>
+        Hacer otra cosa
+      </Button>
+      <Button variant="link" className="back-link" onClick={() => send({ type: 'finishHelp' })}>
+        Quedarme en esta página
+      </Button>
+    </>
   );
 }
 
@@ -471,46 +415,48 @@ function DidYouFinish({ speech, auto, contentKey }: { speech: string; auto: bool
   const [notYet, setNotYet] = useState(false);
   if (notYet) {
     const reasons = [
-      { icon: 'arrow-right', text: 'Creo que me falta un paso', command: { type: 'resumeGuide' } },
-      // TODO(13): todavía no se cita el error de la página; Mostrame vuelve a mirarla.
-      { icon: 'triangle-alert', text: 'La página me mostró un error', command: { type: 'resumeGuide' } },
-      { icon: 'rotate-ccw', text: 'Quiero empezar de nuevo', command: { type: 'stepBack' } },
+      { text: 'Me falta un paso', command: { type: 'resumeGuide' } },
+      // TODO(13): todavía no se cita el error de la página; Guíame vuelve a mirarla.
+      { text: 'La página mostró un error', command: { type: 'resumeGuide' } },
+      { text: 'Quiero empezar de nuevo', command: { type: 'stepBack' } },
     ] as const;
     return (
-      <section className="mm-section" role="status">
-        <h2 className="title">Sigamos. ¿Qué pasó?</h2>
-        <p className="lead-s">Elegí lo que más se parece. Con eso te digo el próximo paso.</p>
-        <ul className="mm-sec-list" aria-label="Qué pasó">
+      <section className="hc-section" role="status">
+        <h2 className="hc-title">Sigamos. ¿Qué pasó?</h2>
+        <ul className="option-list" aria-label="Qué pasó">
           {reasons.map((r) => (
             <li key={r.text}>
               <button type="button" className="option" onClick={() => send(r.command)}>
-                <Icon name={r.icon} />
                 <span className="t">{r.text}</span>
                 <Icon name="chevron-right" />
               </button>
             </li>
           ))}
+          <li>
+            {/* Sin saber qué pasó, Guíame vuelve a mirar la página. */}
+            <button type="button" className="option unsure" onClick={() => send({ type: 'resumeGuide' })}>
+              <Icon name="circle-help" />
+              <span className="t">{SPEECH_TEXTS.unsure}</span>
+            </button>
+          </li>
         </ul>
       </section>
     );
   }
   return (
-    <section className="status ask" role="status">
-      <div className="head">
-        <Icon name="circle-help" size="lg" />
-        <h2 className="title">¿Pudiste terminar?</h2>
-        <SpeakButton text={speech} auto={auto} contentKey={contentKey} />
-      </div>
-      <p>La página cambió, pero no sé si terminaste. Fijate si la página lo confirma.</p>
-      <div className="actions">
-        <Button variant="primary" block onClick={() => send({ type: 'finishHelp' })}>
-          Sí, terminé
-        </Button>
-        <Button variant="secondary" block onClick={() => setNotYet(true)}>
-          Todavía no
-        </Button>
-      </div>
-    </section>
+    <>
+      <section className="status ask" role="status">
+        <h2 className="hc-title">¿Pudiste terminar?</h2>
+        <p className="support">No vi una confirmación en la página.</p>
+      </section>
+      <SpeakButton text={speech} auto={auto} contentKey={contentKey} />
+      <Button variant="secondary" block icon="check" onClick={() => send({ type: 'finishHelp' })}>
+        Sí, terminé
+      </Button>
+      <Button variant="secondary" block icon="clock" onClick={() => setNotYet(true)}>
+        Todavía no
+      </Button>
+    </>
   );
 }
 
@@ -520,7 +466,7 @@ function PageProblems({ state }: { state: AppState }) {
   return (
     <>
       {nav.secure ? null : (
-        <p className="mm-callout warn" role="alert">
+        <p className="callout" role="alert">
           <Icon name="shield-alert" />
           <span>
             <b>Conexión no segura.</b> No escribas datos personales en esta página.
@@ -531,8 +477,8 @@ function PageProblems({ state }: { state: AppState }) {
         <div className="notice" data-tone="error" role="alert">
           <p>{nav.error}</p>
           <div className="row">
-            <Button icon="refresh-cw" onClick={() => send({ type: 'reload' })}>
-              Intentar de nuevo
+            <Button variant="secondary" icon="refresh-cw" onClick={() => send({ type: 'reload' })}>
+              Probar de nuevo
             </Button>
           </div>
         </div>

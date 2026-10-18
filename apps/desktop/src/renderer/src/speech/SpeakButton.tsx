@@ -1,8 +1,8 @@
 /**
- * «Escuchar» / «Detener»: lee en voz alta un texto de Mostrame. El nombre
+ * «Escuchar» / «Detener»: lee en voz alta un texto de Guíame. El nombre
  * accesible cambia con el estado (sin aria-pressed, para no decir «Detener,
  * presionado»). No mueve el foco. Los errores van con role="alert", sin culpa.
- * Design/icons no trae un ícono de parlante: por ahora solo texto.
+ * No está en las pantallas v2.2: píldora secundaria con el parlante de Lucide.
  */
 import { Button } from '@asistente/ui';
 import { SPEECH_TEXTS } from './speechText';
@@ -38,7 +38,7 @@ export function SpeakButton({
   const error = state.kind === 'error' ? (state.reason === 'busy' ? SPEECH_TEXTS.busy : SPEECH_TEXTS.failed) : null;
   return (
     <div className="speak">
-      <Button variant="quiet" className="speak-btn" data-active={active || undefined} onClick={toggle}>
+      <Button variant="secondary" icon={active ? 'square' : 'volume-2'} className="speak-btn" data-active={active || undefined} onClick={toggle}>
         {active ? SPEECH_TEXTS.stop : SPEECH_TEXTS.listen}
       </Button>
       {error ? (

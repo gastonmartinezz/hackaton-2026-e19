@@ -6,7 +6,7 @@
   "exports": {
     ".": "./src/index.tsx",
     "./tokens.css": "./src/tokens.css",
-    "./mostrame.css": "./src/mostrame.css"
+    "./guiame.css": "./src/guiame.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

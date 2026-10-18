@@ -10,7 +10,10 @@ import type { SiteCheckAction, SiteCheckPanelCopy, SiteCheckTone, SiteIndicatorK
 
 const Id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
-/** Tamaño de letra de Mostrame (design/tokens.css): 1.2 es la base del producto. */
+/** Respuesta fija del botón «No sé bien» (R11): el backend no insiste y recomienda. */
+export const UNSURE_ANSWER = 'No sé bien';
+
+/** Tamaño de letra de Guíame (@asistente/ui/tokens.css): 1.2 es la base del producto. */
 export const TEXT_SCALES = [1.2, 1.45, 1.75] as const;
 export type TextScale = (typeof TEXT_SCALES)[number];
 export const DEFAULT_TEXT_SCALE: TextScale = 1.2;
@@ -39,7 +42,7 @@ export const UI_TRANSCRIBE_CHANNEL = 'ui:transcribe';
 export type TranscribeErrorReason = 'busy' | 'off' | 'failed';
 export type TranscribeResult = { status: 'ok'; text: string } | { status: 'empty' } | { status: 'error'; reason: TranscribeErrorReason };
 
-/** Leer en voz alta: texto de Mostrame → MP3. Desde la ventana o la tarjeta. */
+/** Leer en voz alta: texto de Guíame → MP3. Desde la ventana o la tarjeta. */
 export const UI_SPEAK_CHANNEL = 'ui:speak';
 /** «Detener»: corta la descarga en curso (la reproducción la corta la interfaz). */
 export const UI_SPEAK_STOP_CHANNEL = 'ui:speak-stop';
@@ -95,7 +98,7 @@ export const SpeakRequestSchema = z.strictObject({ id: Id, text: z.string().min(
 
 export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ready') }),
-  /** `guide: false` es «Solo ir al sitio»: se abre el destino sin la guía. Por defecto, «Mostrame cómo». */
+  /** `guide: false`: se abre el destino sin la guía (una dirección escrita, directo). El inicio v2.2 solo tiene «Guíame» (con guía). */
   /** `dictated`: la búsqueda salió del dictado (prende el modo voz si la preferencia es `auto`). */
   z.strictObject({ type: z.literal('submitIntent'), text: z.string().trim().min(1).max(500), guide: z.boolean().optional(), dictated: z.literal(true).optional() }),
   z.strictObject({ type: z.literal('openCandidate'), candidateId: Id, guide: z.boolean().optional() }),
@@ -195,7 +198,7 @@ export interface AppState {
   guideEnabled: boolean;
   layout: { topBarHeight: number; card: CardLayout };
   prefs: { textScale: number; aiEnabledForSite: boolean; voiceMode: VoiceMode };
-  /** Modo voz activo ahora: Mostrame lee solo lo que escribe apenas aparece. */
+  /** Modo voz activo ahora: Guíame lee solo lo que escribe apenas aparece. */
   voice: { active: boolean };
   /** Datos de la pantalla inicial. Sin condiciones aceptadas, la app muestra esa pantalla. */
   profile: {
@@ -229,7 +232,7 @@ export interface AppState {
     answered: string[];
     /** Pregunta pendiente con respuestas sugeridas, si el backend las mandó. */
     question: { text: string; answers: string[]; reason: string | null } | null;
-    /** La última respuesta fue «No estoy seguro»: los sitios son una recomendación. */
+    /** La última respuesta fue «No sé bien»: los sitios son una recomendación. */
     unsure: boolean;
     goal: string | null;
     candidates: CandidateView[];
@@ -287,9 +290,9 @@ export interface AsistenteBridge {
   onState(listener: (state: AppState) => void): () => void;
   /** Pasa a texto un WAV PCM16 mono de 16 kHz. Nunca envía la búsqueda. */
   transcribe(wav: ArrayBuffer): Promise<TranscribeResult>;
-  /** Lee en voz alta un texto de Mostrame (nunca datos de la página). Devuelve el MP3. */
+  /** Lee en voz alta un texto de Guíame (nunca datos de la página). Devuelve el MP3. */
   /**
-   * Lee en voz alta un texto de Mostrame (nunca datos de la página). Los
+   * Lee en voz alta un texto de Guíame (nunca datos de la página). Los
    * pedazos del MP3 llegan a `onAudio` a medida que el servidor los manda.
    */
   speak(text: string, onAudio: (event: SpeechAudioEvent) => void): Promise<SpeakResult>;

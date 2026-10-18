@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>01 Inicio</title>
+
+<style>
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Light.ttf') format('truetype');font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-SemiBold.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:swap}
+body{margin:0}
+a{color:#1D4ED8}a:hover{color:#1738A8}
+button{font-family:inherit;color:inherit;cursor:pointer}
+</style>
+<meta name="viewport" content="width=1440">
+</head>
+<body>
+
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background-color: #FFFFFF; background-image: radial-gradient(circle, rgba(29,78,216,0.10) 1.3px, transparent 1.6px), linear-gradient(180deg, #FFFFFF 0%, #F1F5FF 38%, #C9D8FF 72%, #5B8BFF 92%, #2F6BFF 100%); background-size: 32px 32px, 100% 100%; background-position: 16px 16px, 0 0; color: #0B1B3F; font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif">
+
+  <!-- BARRA: en Inicio solo logo y tamaño de letra -->
+  <header style="height: 76px; box-sizing: border-box; padding: 0 24px; background: linear-gradient(90deg, #3A9BFF 0%, #2B86FF 50%, #1F74F0 100%); border-bottom: 0; color: #FFFFFF; box-shadow: 0 10px 30px -12px rgba(22,56,184,0.55); position: relative; z-index: 3; display: flex; align-items: center; justify-content: space-between">
+    <img src="../assets/logo/guiame-blanco.png" alt="Guíame" style="height: 38px; width: auto; margin-right: 4px; flex-shrink: 0">
+    <button style="height: 54px; box-sizing: border-box; padding: 0 14px; border: 0; background: transparent; border-radius: 18px; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 8px"><span aria-hidden="true" style="font-size: 16px; font-weight: 600">A<span style="font-size: 22px">A</span></span>Tamaño de letra</button>
+  </header>
+
+  <!-- UNA SOLA COSA: decir qué querés hacer -->
+  <main style="position: absolute; top: 76px; left: 0; right: 0; bottom: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px">
+    <img src="../assets/logo/guiame-icono.png" alt="" style="width: 78px; height: 78px; flex-shrink: 0">
+    <h1 style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 48px; line-height: 1.15; text-align: center">¿Qué querés hacer hoy?</h1>
+
+    <form role="search" action="#" style="width: 820px; height: 76px; box-sizing: border-box; border: 2px solid #1D4ED8; border-radius: 18px; background: #FFFFFF; box-shadow: 0 0 0 4px #E6EDFF; display: flex; align-items: center; gap: 14px; padding: 0 12px 0 28px">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#47557A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <label for="que-hacer" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap">Qué querés hacer</label>
+      <input id="que-hacer" type="search" value="renovar documento" placeholder="Escribilo con tus palabras" style="flex: 1; min-width: 0; height: 56px; border: 0; outline: none; background: transparent; font-family: inherit; font-size: 26px; color: #0B1B3F">
+      <button type="button" aria-label="Hablar: decirlo en voz alta" style="height: 56px; box-sizing: border-box; flex-shrink: 0; padding: 0 22px 0 18px; border: 0; background: linear-gradient(135deg, #3B74FF 0%, #1D4ED8 55%, #1638B8 100%); color: #FFFFFF; border-radius: 999px; box-shadow: 0 0 0 4px #DCE6FF, 0 10px 22px -10px rgba(22,56,184,0.75); font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>Hablar</button>
+    </form>
+
+    <div style="display: flex; flex-direction: column; align-items: center">
+      <button style="height: 64px; box-sizing: border-box; padding: 0 36px; border: 0; background: linear-gradient(135deg, #3B74FF 0%, #1D4ED8 55%, #1638B8 100%); color: #FFFFFF; box-shadow: 0 14px 28px -12px rgba(22,56,184,0.75); border-radius: 18px; font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 12px"><svg width="26" height="26" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 30 L54 12 L36 52 L30 34 Z" stroke-linejoin="round"/></g></svg>Guíame</button>
+    </div>
+  </main>
+
+</div>
+
+</body>
+</html>

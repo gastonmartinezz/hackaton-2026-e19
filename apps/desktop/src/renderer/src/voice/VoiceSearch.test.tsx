@@ -26,11 +26,11 @@ const render = (node: React.ReactNode) => act(() => root.render(node));
 const button = () => container.querySelector<HTMLButtonElement>('button.mic')!;
 
 describe('MicButton', () => {
-  it('en reposo: solo el ícono, con nombre accesible y sin presionar', () => {
+  it('en reposo: «Hablar» visible, nombre accesible «Hablar: decirlo en voz alta» y sin presionar', () => {
     render(<MicButton status={{ kind: 'idle' }} onToggle={() => {}} />);
     expect(button().getAttribute('aria-pressed')).toBe('false');
-    expect(button().textContent?.trim()).toBe(VOICE_TEXTS.speak);
-    expect(button().querySelector('.sr-only')?.textContent).toBe(VOICE_TEXTS.speak);
+    expect(button().textContent?.trim()).toBe(`${VOICE_TEXTS.speak}${VOICE_TEXTS.speakDescription}`);
+    expect(button().querySelector('.sr-only')?.textContent).toBe(VOICE_TEXTS.speakDescription);
     expect(button().querySelector('.ic')?.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -72,7 +72,7 @@ describe('VoiceMessages', () => {
   });
 
   it('los errores van con role="alert" y sin culpa', () => {
-    expect(show({ kind: 'error', reason: 'failed' }).alert?.textContent).toContain('Fue un problema de mi lado, no tuyo');
+    expect(show({ kind: 'error', reason: 'failed' }).alert?.textContent).toContain('Fue un problema mío, no tuyo');
     expect(show({ kind: 'mic', problem: 'denied' }).alert?.textContent).toBe(VOICE_TEXTS.denied);
     expect(show({ kind: 'mic', problem: 'missing' }).alert?.textContent).toContain('escribir');
   });

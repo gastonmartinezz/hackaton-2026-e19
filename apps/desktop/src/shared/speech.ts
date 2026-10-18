@@ -1,6 +1,6 @@
 /**
  * Leer en voz alta (POST /v1/speak): qué texto se manda. Solo texto escrito
- * por Mostrame (instrucción, pregunta, motivo). Nunca valores de formularios
+ * por Guíame (instrucción, pregunta, motivo). Nunca valores de formularios
  * ni citas textuales de la página (por ejemplo la evidencia de «Listo»), que
  * pueden traer datos personales. Funciones puras, usadas por la interfaz y
  * revisadas de nuevo en el proceso principal.
@@ -26,7 +26,7 @@ export function clipForSpeech(text: string, max = SPEAK_MAX_CHARS): string {
   return (lastSpace > 0 ? cut.slice(0, lastSpace) : clean.slice(0, max)).trim();
 }
 
-/** Une frases de Mostrame y descarta las vacías. */
+/** Une frases de Guíame y descarta las vacías. */
 export function joinSpeech(...parts: Array<string | null | undefined | false>): string {
   return clipForSpeech(
     parts

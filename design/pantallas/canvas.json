@@ -1,0 +1,485 @@
+{
+"v": 3,
+"createdOnFiles": {
+"v": 1,
+"at": "2026-10-17T21:30:00Z"
+},
+"title": "Guíame · Pantallas v2.0",
+"launch": {
+"view": "canvas"
+},
+"pages": [],
+"boards": {
+"Main.dc.html": {
+"x": 0,
+"y": 0,
+"w": 1440,
+"h": 1400,
+"title": "Auditoría v1.6 (antecedente)"
+},
+"Componentes.dc.html": {
+"x": 1520,
+"y": 0,
+"w": 1440,
+"h": 1400,
+"title": "Componentes v2.0"
+},
+"A-01-inicio.dc.html": {
+"x": 0,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "01 Inicio"
+},
+"A-02-que-documento.dc.html": {
+"x": 1520,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "02 ¿Qué documento?"
+},
+"A-03-pais.dc.html": {
+"x": 3040,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "03 ¿Es en Uruguay?"
+},
+"A-04-abriendo.dc.html": {
+"x": 4560,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "04 Abriendo el sitio"
+},
+"A-05-opciones.dc.html": {
+"x": 6080,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "05 ¿Qué querés hacer acá?"
+},
+"A-06-guia.dc.html": {
+"x": 7600,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "06 Sacar turno"
+},
+"A-07-verificando.dc.html": {
+"x": 9120,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "07 Verificando"
+},
+"A-07B-oficina.dc.html": {
+"x": 10640,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "07B Oficina"
+},
+"A-07C-horario.dc.html": {
+"x": 12160,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "07C Horario"
+},
+"A-07D-continuar.dc.html": {
+"x": 13680,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "07D Continuar"
+},
+"A-14-pregunta-guia.dc.html": {
+"x": 15200,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "14 Para mí"
+},
+"A-08-dato.dc.html": {
+"x": 16720,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "08 Número de documento"
+},
+"A-08B-nacimiento.dc.html": {
+"x": 18240,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "08B Fecha de nacimiento"
+},
+"A-08C-continuar.dc.html": {
+"x": 19760,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "08C Continuar"
+},
+"A-08D-confirmar.dc.html": {
+"x": 21280,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "08D Confirmar reserva"
+},
+"A-09-listo.dc.html": {
+"x": 22800,
+"y": 1780,
+"w": 1440,
+"h": 900,
+"title": "09 Listo"
+},
+"A-10-no-se-bien.dc.html": {
+"x": 0,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "10 No sé bien"
+},
+"A-11-otras-opciones.dc.html": {
+"x": 1520,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "11 Otras opciones"
+},
+"A-12-achicada.dc.html": {
+"x": 3040,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "12 Tarjeta achicada"
+},
+"A-13-error-pagina.dc.html": {
+"x": 4560,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "13 Error de la página"
+},
+"A-15-pausa.dc.html": {
+"x": 6080,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "15 Pausa"
+},
+"A-16-pudiste.dc.html": {
+"x": 7600,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "16 ¿Pudiste terminar?"
+},
+"A-17-todavia-no.dc.html": {
+"x": 9120,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "17 Todavía no"
+},
+"A-18-paso-faltante.dc.html": {
+"x": 10640,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "18 Paso que faltaba"
+},
+"N-32-cierre.dc.html": {
+"x": 12160,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "32 Cierre sin evidencia"
+},
+"A-19-error-mostrame.dc.html": {
+"x": 13680,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "19 Error de Guíame"
+},
+"A-20-no-soportada.dc.html": {
+"x": 15200,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "20 No soportada"
+},
+"A-21-salio.dc.html": {
+"x": 16720,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "21 Salió de la ayuda"
+},
+"A-22-volver-inicio.dc.html": {
+"x": 18240,
+"y": 3060,
+"w": 1440,
+"h": 900,
+"title": "22 ¿Volver al inicio?"
+},
+"N-25-iniciar-sesion.dc.html": {
+"x": 0,
+"y": 4340,
+"w": 1440,
+"h": 900,
+"title": "25 Usuario"
+},
+"N-25B-contrasena.dc.html": {
+"x": 1520,
+"y": 4340,
+"w": 1440,
+"h": 900,
+"title": "25B Contraseña"
+},
+"N-25C-ingresar.dc.html": {
+"x": 3040,
+"y": 4340,
+"w": 1440,
+"h": 900,
+"title": "25C Ingresar"
+},
+"N-26-codigo.dc.html": {
+"x": 4560,
+"y": 4340,
+"w": 1440,
+"h": 900,
+"title": "26 Código"
+},
+"N-26B-verificar.dc.html": {
+"x": 6080,
+"y": 4340,
+"w": 1440,
+"h": 900,
+"title": "26B Verificar"
+},
+"B-C01-busqueda.dc.html": {
+"x": 0,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C01 Búsqueda"
+},
+"B-C02-que-hacer.dc.html": {
+"x": 1520,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C02 ¿Qué querés hacer?"
+},
+"B-C03-nueva-usada.dc.html": {
+"x": 3040,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C03 ¿Nueva o usada?"
+},
+"B-C04-tiendas.dc.html": {
+"x": 4560,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C04 Tienda recomendada"
+},
+"B-C04B-abriendo.dc.html": {
+"x": 6080,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C04B Abriendo la tienda"
+},
+"B-C05-opciones-producto.dc.html": {
+"x": 7600,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C05 ¿Es esta?"
+},
+"B-C06-carrito.dc.html": {
+"x": 9120,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C06 Agregar al carrito"
+},
+"B-C07-revisar-carrito.dc.html": {
+"x": 10640,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C07 Revisar carrito"
+},
+"B-C08-direccion.dc.html": {
+"x": 12160,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C08 Dirección"
+},
+"B-C08B-continuar-pago.dc.html": {
+"x": 13680,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C08B Continuar al pago"
+},
+"B-C09-pago.dc.html": {
+"x": 15200,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C09 Número de tarjeta"
+},
+"B-C09C-codigo.dc.html": {
+"x": 16720,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C09C Código de seguridad"
+},
+"B-C09B-revisar-pedido.dc.html": {
+"x": 18240,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C09B Revisar pedido"
+},
+"B-C10-confirmar.dc.html": {
+"x": 19760,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C10 Confirmar compra"
+},
+"B-C11-confirmada.dc.html": {
+"x": 21280,
+"y": 5620,
+"w": 1440,
+"h": 900,
+"title": "C11 Compra confirmada"
+},
+"N-C12-pago-rechazado.dc.html": {
+"x": 0,
+"y": 6900,
+"w": 1440,
+"h": 900,
+"title": "C12 Pago rechazado"
+},
+"N-C15-sitio-dudoso.dc.html": {
+"x": 1520,
+"y": 6900,
+"w": 1440,
+"h": 900,
+"title": "C15 Sitio no verificado"
+}
+},
+"order": [
+"Main.dc.html",
+"Componentes.dc.html",
+"A-01-inicio.dc.html",
+"A-02-que-documento.dc.html",
+"A-03-pais.dc.html",
+"A-04-abriendo.dc.html",
+"A-05-opciones.dc.html",
+"A-06-guia.dc.html",
+"A-07-verificando.dc.html",
+"A-07B-oficina.dc.html",
+"A-07C-horario.dc.html",
+"A-07D-continuar.dc.html",
+"A-14-pregunta-guia.dc.html",
+"A-08-dato.dc.html",
+"A-08B-nacimiento.dc.html",
+"A-08C-continuar.dc.html",
+"A-08D-confirmar.dc.html",
+"A-09-listo.dc.html",
+"A-10-no-se-bien.dc.html",
+"A-11-otras-opciones.dc.html",
+"A-12-achicada.dc.html",
+"A-13-error-pagina.dc.html",
+"A-15-pausa.dc.html",
+"A-16-pudiste.dc.html",
+"A-17-todavia-no.dc.html",
+"A-18-paso-faltante.dc.html",
+"N-32-cierre.dc.html",
+"A-19-error-mostrame.dc.html",
+"A-20-no-soportada.dc.html",
+"A-21-salio.dc.html",
+"A-22-volver-inicio.dc.html",
+"N-25-iniciar-sesion.dc.html",
+"N-25B-contrasena.dc.html",
+"N-25C-ingresar.dc.html",
+"N-26-codigo.dc.html",
+"N-26B-verificar.dc.html",
+"B-C01-busqueda.dc.html",
+"B-C02-que-hacer.dc.html",
+"B-C03-nueva-usada.dc.html",
+"B-C04-tiendas.dc.html",
+"B-C04B-abriendo.dc.html",
+"B-C05-opciones-producto.dc.html",
+"B-C06-carrito.dc.html",
+"B-C07-revisar-carrito.dc.html",
+"B-C08-direccion.dc.html",
+"B-C08B-continuar-pago.dc.html",
+"B-C09-pago.dc.html",
+"B-C09C-codigo.dc.html",
+"B-C09B-revisar-pedido.dc.html",
+"B-C10-confirmar.dc.html",
+"B-C11-confirmada.dc.html",
+"N-C12-pago-rechazado.dc.html",
+"N-C15-sitio-dudoso.dc.html"
+],
+"notes": {
+"t0": {
+"x": 0,
+"y": -260,
+"text": "Guíame v2.0 · Simple",
+"kind": "title1",
+"maxW": 2960
+},
+"t1": {
+"x": 0,
+"y": 1520,
+"text": "Recorrido A · camino principal (renovar la cédula)",
+"kind": "title1",
+"maxW": 24240
+},
+"t2": {
+"x": 0,
+"y": 2800,
+"text": "Recorrido A · desvíos",
+"kind": "title1",
+"maxW": 19680
+},
+"t3": {
+"x": 0,
+"y": 4080,
+"text": "Ingreso con usuario (después de 06, si la página lo pide)",
+"kind": "title1",
+"maxW": 7520
+},
+"t4": {
+"x": 0,
+"y": 5360,
+"text": "Recorrido B · compra online",
+"kind": "title1",
+"maxW": 22720
+},
+"t5": {
+"x": 0,
+"y": 6640,
+"text": "Recorrido B · desvíos",
+"kind": "title1",
+"maxW": 2960
+}
+},
+"designSystems": []
+}
