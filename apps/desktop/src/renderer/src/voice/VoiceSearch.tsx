@@ -1,37 +1,39 @@
 /**
- * Micrófono del buscador de inicio (pantalla 01) y sus mensajes. Solo
+ * Botón «Hablar» del buscador (01, 02, 03, 10) y sus mensajes. Solo
  * presentación: el estado sale de useVoiceInput.
  */
 import { Icon, LoadingDots } from '@asistente/ui';
 import type { VoiceStatus } from './useVoiceInput';
 
 /**
- * TEMPORAL — design/textos.es.json no trae textos para el dictado. Provisorios
- * con voseo y las reglas de voz de CLAUDE.md §6; pendientes de aprobación de
- * diseño. Cuando estén aprobados, pasarlos al JSON y tomarlos de ahí.
+ * «Hablar» y su nombre accesible salen de docs/02 (v2.2). El resto es
+ * TEMPORAL: las pantallas no traen textos para el dictado (la 33, «escuchando»,
+ * no está diseñada). Provisorios con voseo y las reglas de voz de CLAUDE.md §6;
+ * pendientes de aprobación de diseño.
  */
 export const VOICE_TEXTS = {
   speak: 'Hablar',
+  /** Completa el nombre accesible: «Hablar: decirlo en voz alta» (WCAG 2.5.3). */
+  speakDescription: ': decirlo en voz alta',
   stop: 'Terminar',
   starting: 'Preparando el micrófono…',
   listening: 'Te escucho. Cuando termines, tocá «Terminar» o quedate unos segundos en silencio.',
   transcribing: 'Estoy pasando lo que dijiste a texto…',
   heard: (text: string) => `Entendí: «${text}». Ahora busco dónde se hace.`,
   empty: 'No te escuché bien. Probá de nuevo más cerca del micrófono, o escribilo en el buscador.',
-  failed: 'No pude pasar tu voz a texto. Fue un problema de mi lado, no tuyo. Probá de nuevo o escribilo en el buscador.',
+  failed: 'No pude pasar tu voz a texto. Fue un problema mío, no tuyo. Probá de nuevo o escribilo en el buscador.',
   busy: 'Estoy recibiendo muchos pedidos. Esperá un momento y probá de nuevo, o escribilo en el buscador.',
   off: 'Hablar no está disponible por ahora. Podés escribir lo que buscás en el buscador.',
   denied: 'No tengo permiso para usar el micrófono. Podés darlo en la configuración del equipo, o escribir en el buscador.',
   missing: 'No encuentro un micrófono en este equipo. Podés escribir lo que buscás en el buscador.',
-  micFailed: 'No pude usar el micrófono. Fue un problema de mi lado, no tuyo. Podés escribir lo que buscás en el buscador.',
+  micFailed: 'No pude usar el micrófono. Fue un problema mío, no tuyo. Podés escribir lo que buscás en el buscador.',
 } as const;
 
 const listening = (status: VoiceStatus) => status.kind === 'listening' || status.kind === 'starting';
 
 /**
- * Botón dentro de la píldora del buscador. En reposo muestra solo el ícono
- * (como 01) con su nombre para lectores de pantalla; escuchando, el texto
- * «Terminar» queda visible. Mientras transcribe no se deshabilita (el foco no
+ * Píldora «Hablar» dentro del buscador, con el texto siempre visible (v2.2).
+ * Escuchando dice «Terminar». Mientras transcribe no se deshabilita (el foco no
  * se pierde): queda `aria-disabled` y no hace nada.
  */
 export function MicButton({ status, onToggle, blocked = false }: { status: VoiceStatus; onToggle: () => void; blocked?: boolean }) {
@@ -45,13 +47,19 @@ export function MicButton({ status, onToggle, blocked = false }: { status: Voice
       aria-pressed={pressed}
       aria-disabled={working || undefined}
       aria-describedby="voice-msg"
-      title={pressed ? VOICE_TEXTS.stop : VOICE_TEXTS.speak}
       onClick={() => {
         if (!working) onToggle();
       }}
     >
       <Icon name="mic" />
-      <span className={pressed ? 'mic-label' : 'sr-only'}>{pressed ? VOICE_TEXTS.stop : VOICE_TEXTS.speak}</span>
+      {pressed ? (
+        <span className="mic-label">{VOICE_TEXTS.stop}</span>
+      ) : (
+        <span className="mic-label">
+          {VOICE_TEXTS.speak}
+          <span className="sr-only">{VOICE_TEXTS.speakDescription}</span>
+        </span>
+      )}
     </button>
   );
 }

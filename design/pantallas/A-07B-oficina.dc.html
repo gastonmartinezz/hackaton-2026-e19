@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>07B Elegir oficina</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Light.ttf') format('truetype');font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-SemiBold.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:swap}
+body{margin:0}
+a{color:#1D4ED8}a:hover{color:#1738A8}
+button{font-family:inherit;color:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #FFFFFF; color: #0B1B3F; font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif">
+
+  <!-- BARRA DEL NAVEGADOR: logo · Inicio · Atrás · dónde estás + sello · Ayuda · Tamaño de letra -->
+  <header style="height: 76px; box-sizing: border-box; padding: 0 24px; background: linear-gradient(90deg, #3A9BFF 0%, #2B86FF 50%, #1F74F0 100%); border-bottom: 0; color: #FFFFFF; box-shadow: 0 10px 30px -12px rgba(22,56,184,0.55); position: relative; z-index: 3; display: flex; align-items: center; gap: 12px">
+    <img src="../assets/logo/guiame-blanco.png" alt="Guíame" style="height: 38px; width: auto; margin-right: 4px; flex-shrink: 0">
+    <nav aria-label="Navegación" style="display: flex; gap: 4px">
+      <button aria-label="Inicio" style="width: 52px; height: 52px; border: 0; background: transparent; border-radius: 18px; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+      <button aria-label="Atrás" style="width: 52px; height: 52px; border: 0; background: transparent; border-radius: 18px; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
+    </nav>
+    <div style="flex: 1; min-width: 0; height: 54px; box-sizing: border-box; border: 0; border-radius: 999px; background: #FFFFFF; color: #0B1B3F; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6); display: flex; align-items: center; gap: 10px; padding: 0 8px 0 22px; font-size: 22px">
+      <span style="color: #47557A; white-space: nowrap">Estás en</span>
+      <span style="white-space: nowrap"><span style="color: #47557A">agenda.</span><strong style="font-weight: 600">ejemplo.gub.uy</strong></span>
+      <span style="margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px; border-radius: 999px; background: #E0F2E7; color: #13693D; font-size: 19px; font-weight: 600; white-space: nowrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#13693D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>Sitio oficial</span>
+    </div>
+    <button aria-pressed="true" style="height: 54px; box-sizing: border-box; padding: 0 18px; border: 2px solid #FFFFFF; background: rgba(255,255,255,0.20); color: #FFFFFF; border-radius: 18px; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 10px"><svg width="24" height="24" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 30 L54 12 L36 52 L30 34 Z" stroke-linejoin="round"/></g></svg>Ayuda</button>
+    <button style="height: 54px; box-sizing: border-box; padding: 0 14px; border: 0; background: transparent; border-radius: 18px; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 8px"><span aria-hidden="true" style="font-size: 16px; font-weight: 600">A<span style="font-size: 22px">A</span></span>Tamaño de letra</button>
+  </header>
+
+  <!-- SITIO EXTERNO DE EJEMPLO (ficticio): misma página de 07, resaltado en «Oficina» -->
+  <div style="position: absolute; top: 76px; left: 0; right: 0; bottom: 0; font-family: Arial, Helvetica, sans-serif"><div aria-hidden="true" style="position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(11,27,63,0.08) 0%, rgba(11,27,63,0.16) 55%, rgba(22,56,184,0.30) 100%)"></div>
+    <div style="height: 64px; background: #1D3F66; color: #FFFFFF; display: flex; align-items: center; gap: 14px; padding: 0 28px">
+      <div style="width: 40px; height: 40px; border-radius: 50%; background: #FFFFFF; color: #1D3F66; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center">IC</div>
+      <div style="display: flex; flex-direction: column; gap: 2px"><strong style="font-size: 17px">Identificación Civil</strong><span style="font-size: 13px">Sitio de ejemplo · no es un organismo real</span></div>
+    </div>
+    <div style="height: 40px; background: #E8EDF3; border-bottom: 1px solid #CBD5E1; display: flex; align-items: center; gap: 28px; padding: 0 28px; font-size: 15px; color: #1D3F66"><span>Inicio</span><span>Trámites</span><span>Agenda</span><span>Oficinas</span><span>Preguntas frecuentes</span><span>Contacto</span></div>
+    <div style="padding: 28px 44px; width: 760px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; color: #222222">
+      <div style="font-size: 13px; color: #555555">Inicio › Agenda › Reservar turno</div>
+      <h1 style="margin: 0; font-size: 28px; color: #1D3F66">Reservar turno</h1>
+      <div style="font-size: 14px; color: #555555">Paso 1 de 3</div>
+
+      <!-- Resaltado: el anillo rodea etiqueta + selector; «Acá» a la derecha -->
+      <div style="margin-top: 6px; align-self: flex-start; position: relative; z-index: 2; padding: 4px; border: 3px solid #FFFFFF; border-radius: 12px; box-shadow: 0 0 0 4px #1F8BFF, 0 0 0 12px rgba(31,139,255,0.25); display: flex; flex-direction: column; gap: 6px">
+        <label for="oficina" style="font-size: 15px; font-weight: 700">Oficina</label>
+        <select id="oficina" style="width: 420px; height: 40px; box-sizing: border-box; border: 1px solid #8A97A6; border-radius: 3px; background: #FFFFFF; padding: 0 10px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; color: #555555"><option value="">Seleccione…</option><option value="centro">Oficina Centro</option><option value="cordon">Oficina Cordón</option><option value="pocitos">Oficina Pocitos</option></select>
+        <div aria-hidden="true" style="position: absolute; left: calc(100% + 16px); top: 50%; transform: translateY(-50%); background: linear-gradient(135deg, #3BA3FF 0%, #1D4ED8 100%); color: #FFFFFF; font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 600; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 0 3px #FFFFFF, 0 12px 26px -8px rgba(22,56,184,0.75); white-space: nowrap">Acá</div>
+      </div>
+
+      <fieldset style="margin: 8px 0 0; padding: 0; border: 0; min-width: 0">
+        <legend style="padding: 0; margin-bottom: 8px; font-size: 15px; font-weight: 700">Turnos disponibles</legend>
+        <div style="width: 420px; border: 1px solid #CBD5E1; border-radius: 4px; display: flex; flex-direction: column">
+          <div style="height: 44px; padding: 0 14px; border-bottom: 1px solid #E1E6EC; display: flex; align-items: center; gap: 10px; font-size: 16px"><input id="t1" type="radio" name="turno" value="1" style="width: 18px; height: 18px; margin: 0"><label for="t1">Miércoles 4 de noviembre · 10:30</label></div>
+          <div style="height: 44px; padding: 0 14px; border-bottom: 1px solid #E1E6EC; display: flex; align-items: center; gap: 10px; font-size: 16px"><input id="t2" type="radio" name="turno" value="2" style="width: 18px; height: 18px; margin: 0"><label for="t2">Miércoles 4 de noviembre · 11:00</label></div>
+          <div style="height: 44px; padding: 0 14px; display: flex; align-items: center; gap: 10px; font-size: 16px"><input id="t3" type="radio" name="turno" value="3" style="width: 18px; height: 18px; margin: 0"><label for="t3">Jueves 5 de noviembre · 9:00</label></div>
+        </div>
+      </fieldset>
+
+      <div style="margin-top: 10px">
+        <button style="height: 40px; padding: 0 22px; border: 0; border-radius: 4px; background: #2563A8; color: #FFFFFF; font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 700">Continuar</button>
+      </div>
+    </div>
+    <div style="position: absolute; left: 16px; bottom: 10px; font-size: 13px; color: #555555">Sitio externo de ejemplo</div>
+  </div>
+
+  <!-- TARJETA FLOTANTE SIMPLE: una instrucción, una línea de apoyo, progreso, pie guiado -->
+  <aside aria-label="Ayuda de Guíame" style="position: absolute; z-index: 5; top: 100px; right: 24px; width: 520px; box-sizing: border-box; display: flex; flex-direction: column; background: #FFFFFF; border: 0; border-radius: 28px; box-shadow: 0 0 0 1px rgba(29,78,216,0.16), 0 0 0 10px rgba(59,116,255,0.16), 0 48px 90px -24px rgba(22,56,184,0.60); overflow: hidden">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 16px 16px 16px 24px; background: linear-gradient(180deg, #EAF3FF 0%, #FFFFFF 100%); color: #0B1B3F; border-bottom: 1px solid #DCE4FA">
+      <img src="../assets/logo/guiame-icono.png" alt="" style="width: 38px; height: 38px; flex-shrink: 0">
+      <span style="font-size: 22px; font-weight: 600; letter-spacing: -0.01em">Renovar la cédula</span>
+      <button style="margin-left: auto; height: 48px; padding: 0 12px; border: 0; background: transparent; border-radius: 18px; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>Achicar</button>
+    </div>
+    <div style="padding: 28px 28px 24px; display: flex; flex-direction: column; gap: 16px">
+      <p style="margin: 0; font-size: 32px; line-height: 1.3; font-weight: 600; text-wrap: pretty">Elegí una oficina en <span style="background: #E6EDFF; color: #1D4ED8; border-radius: 8px; padding: 0 6px">«Oficina»</span>.</p>
+      <p style="margin: 0; font-size: 22px; line-height: 1.45; color: #47557A">La que te quede más cerca.</p>
+      <p style="margin: 8px 0 0; display: flex; align-items: center; gap: 10px; font-size: 20px; color: #47557A"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Vas bien: ya hiciste 1 paso.</p>
+    </div>
+    <div style="background: #F2F5FF; border-top: 1px solid #DCE4FA; padding: 16px 24px 20px; display: flex; flex-direction: column; gap: 12px">
+      <button style="height: 58px; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 21px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B1B3F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Volver un paso</button>
+      <button style="height: 58px; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 21px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B1B3F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>Salir de la ayuda</button>
+    </div>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

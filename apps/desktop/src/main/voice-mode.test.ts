@@ -74,7 +74,7 @@ describe('changeVoiceMode: primero se guarda, después se aplica', () => {
 
   it('el aviso es breve, sin culpa y nombra el control', () => {
     expect(VOICE_MODE_TEXTS.saveFailed).toContain('«Voz»');
-    expect(VOICE_MODE_TEXTS.saveFailed).toContain('Fue un problema de mi lado, no tuyo');
+    expect(VOICE_MODE_TEXTS.saveFailed).toContain('Fue un problema mío, no tuyo');
   });
 });
 

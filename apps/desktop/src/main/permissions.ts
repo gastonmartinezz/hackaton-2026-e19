@@ -1,7 +1,7 @@
 /**
- * Permisos de la interfaz propia de Mostrame. Todo se rechaza salvo el
+ * Permisos de la interfaz propia de Guíame. Todo se rechaza salvo el
  * micrófono para el dictado del buscador: solo audio (nunca cámara ni
- * pantalla), solo desde el documento principal de la ventana de Mostrame y
+ * pantalla), solo desde el documento principal de la ventana de Guíame y
  * solo con su propio origen. La vista del sitio tiene su propia sesión y
  * sigue rechazando todo (site-view.ts); la tarjeta flotante tampoco lo pide.
  */

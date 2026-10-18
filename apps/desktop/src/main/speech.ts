@@ -1,5 +1,5 @@
 /**
- * Leer en voz alta: la interfaz pide un texto de Mostrame y el proceso
+ * Leer en voz alta: la interfaz pide un texto de Guíame y el proceso
  * principal lo pasa a audio con POST /v1/speak. El MP3 llega en streaming y
  * se reenvía a la vista en pedazos (`SpeechSink`) para que empiece a sonar
  * apenas llegan los primeros datos.
@@ -111,7 +111,7 @@ export class Speaker {
   }
 }
 
-/** Una vista propia de Mostrame (la ventana o la tarjeta), como la ve el hub. */
+/** Una vista propia de Guíame (la ventana o la tarjeta), como la ve el hub. */
 export interface SpeechView {
   send(channel: string): void;
   isDestroyed(): boolean;

@@ -20,6 +20,7 @@ import type {
   TranscribeResponse,
 } from '@hackaton/contracts';
 import { SpeakRequest } from '@hackaton/contracts';
+import { UNSURE_ANSWER } from '../../shared/ipc';
 import { isTranscribableWav, rms, wavSamples } from '../../shared/wav';
 import { ApiFailure, type ApiClient } from './client';
 
@@ -198,8 +199,8 @@ export function interpretMock(request: InterpretRequest, sites: SiteOption[]): M
     if (options.length >= 2) return { type: 'options', message: 'Encontré estos sitios. Elegí uno para abrirlo.', options };
   }
   if (matches.length === 1) return { type: 'redirect', message: `Te llevo a ${matches[0]!.title}.`, url: matches[0]!.url };
-  // «No estoy seguro»: no se insiste, se recomiendan sitios.
-  if (normalize(users.at(-1)?.content ?? '') === 'no estoy seguro')
+  // «No sé bien»: no se insiste, se recomiendan sitios.
+  if (normalize(users.at(-1)?.content ?? '') === normalize(UNSURE_ANSWER))
     return { type: 'options', message: 'Por lo que buscaste, estos sitios son los que mejor se ajustan.', options: sites.slice(0, 5) };
   if (users.length >= 3) return { type: 'options', message: 'No estoy seguro; estos sitios pueden servirte.', options: sites.slice(0, 5) };
   if (users.length > 1) return { type: 'question', message: '¿Podés contarme un poco más?' };

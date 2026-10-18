@@ -5,7 +5,7 @@ const DEV = 'http://localhost:5173/';
 const own = { permission: 'media', mediaTypes: ['audio'], fromWindow: true, isMainFrame: true, requestingUrl: 'http://localhost:5173/' };
 
 describe('permisos de la interfaz propia', () => {
-  it('permite el micrófono solo (audio) desde la ventana de Mostrame', () => {
+  it('permite el micrófono solo (audio) desde la ventana de Guíame', () => {
     expect(allowMicrophoneRequest(own, DEV)).toBe(true);
     expect(allowMicrophoneRequest({ ...own, requestingUrl: 'file:///app/out/renderer/index.html' }, null)).toBe(true);
   });

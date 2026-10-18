@@ -8,7 +8,7 @@ export function useAppState(): AppState | null {
     void window.asistente.command({ type: 'ready' });
     return unsubscribe;
   }, []);
-  // Los tamaños de design/tokens.css dependen de este atributo.
+  // Los tamaños de @asistente/ui/tokens.css dependen de este atributo.
   useEffect(() => {
     if (state) document.documentElement.dataset.textScale = String(state.prefs.textScale);
   }, [state?.prefs.textScale]);

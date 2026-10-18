@@ -42,10 +42,10 @@ import { buildUserContext, type SystemInfo } from './user-context';
 import { Transcriber } from './voice';
 import { changeVoiceMode, isDictatedSearch, VOICE_MODE_TEXTS, VoiceModeState } from './voice-mode';
 
-/** Igual que --chrome-h y --card-w de design/tokens.css, y el ancho de la tarjeta achicada. */
-const chromeHeight = (scale: number) => Math.round(72 + (scale - 1) * 16);
-const cardWidth = (scale: number) => Math.round(400 + (scale - 1) * 200);
-const pillWidth = (scale: number) => Math.round(560 + (scale - 1) * 200);
+/** Igual que --h-bar y --card-w de @asistente/ui/tokens.css (R4, R6): 76 y 520 a 1.2×. La achicada (12) mide lo mismo. */
+const chromeHeight = (scale: number) => Math.round(76 + (scale - 1.2) * 16);
+const cardWidth = (scale: number) => Math.round(520 + (scale - 1.2) * 240);
+const pillWidth = cardWidth;
 /** Opciones y guía dentro de la página (POST /v1/options y /v1/next-step). */
 const GUIDE_ENABLED = true;
 const PRIMARY_OPTIONS = 3;
@@ -79,13 +79,13 @@ export class AppController {
   readonly #card: HelpCardView;
   readonly #transcriber: Transcriber;
   readonly #speech: SpeechHub;
-  /** Modo voz: lectura automática de lo que escribe Mostrame. */
+  /** Modo voz: lectura automática de lo que escribe Guíame. */
   readonly #voiceMode: VoiceModeState;
   #cardLayout: CardLayout = { placement: 'top', maxHeight: 0 };
   #siteVisible = false;
   /** La persona tocó «Salir de la ayuda» en esta página (pantalla 21). */
   #helpExited = false;
-  /** «Mostrame cómo» (true) o «Solo ir al sitio» (false) para el próximo destino. */
+  /** «Guíame» o «Ir con ayuda» (true), o «Solo abrir el sitio» (false), para el próximo destino. */
   #wantGuide = true;
   #notices: Array<Notice & { url?: string | undefined }> = [];
   #publishScheduled = false;
@@ -96,10 +96,10 @@ export class AppController {
       height: 860,
       minWidth: 900,
       minHeight: 600,
-      title: 'Mostrame',
+      title: 'Guíame',
       show: false,
-      // --color-bg de design/tokens.css: evita un destello blanco al abrir.
-      backgroundColor: '#FBF7F0',
+      // --g-surface de design/tokens/tokens.css: evita un destello al abrir.
+      backgroundColor: '#FFFFFF',
       webPreferences: {
         preload: options.uiPreloadPath,
         sandbox: true,
@@ -288,7 +288,8 @@ export class AppController {
 
   #chatProgress() {
     const [first, ...rest] = this.#chat.messages.filter((m) => m.from === 'user').map((m) => m.text);
-    return { query: first ?? null, answered: rest.filter((t) => t !== UNSURE_ANSWER), unsure: rest.at(-1) === UNSURE_ANSWER };
+    // «No sé bien» también queda como respuesta dada (10).
+    return { query: first ?? null, answered: rest, unsure: rest.at(-1) === UNSURE_ANSWER };
   }
 
   /** Agrupa cambios en una sola publicación por vuelta del event loop. */
@@ -448,7 +449,7 @@ export class AppController {
         // Buscar dictando prende el modo voz para este recorrido (si la preferencia es `auto`).
         if (isDictatedSearch(command, this.#chat.busy) && this.#voiceMode.dictated()) this.#publish();
         if (command.guide !== undefined) this.#wantGuide = command.guide;
-        // «Solo ir al sitio» con una dirección escrita: se abre directo.
+        // Sin guía y con una dirección escrita: se abre directo.
         const url = command.guide === false ? parseAddressInput(command.text) : null;
         if (url) this.#showSite(url);
         else await this.#chat.submit(command.text);
@@ -554,7 +555,7 @@ export class AppController {
       case 'retry':
         this.#assistant.retry();
         return;
-      // TODO(UI final): setAiForSite no tiene control en la UI de Mostrame todavía.
+      // TODO(UI final): setAiForSite no tiene control en la UI de Guíame todavía.
       case 'setVoiceMode': {
         // Primero se guarda; si falla, no cambia nada y se avisa en la interfaz (el comando llega con `void`).
         await changeVoiceMode(this.#voiceMode, command.mode, {

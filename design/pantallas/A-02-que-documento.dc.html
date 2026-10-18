@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>02 Qué documento</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Light.ttf') format('truetype');font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-SemiBold.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Poppins';src:url('../assets/fonts/Poppins-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:swap}
+body{margin:0}
+a{color:#1D4ED8}a:hover{color:#1738A8}
+button{font-family:inherit;color:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background-color: #FFFFFF; background-image: radial-gradient(circle, rgba(29,78,216,0.10) 1.3px, transparent 1.6px), linear-gradient(180deg, #FFFFFF 0%, #F1F5FF 38%, #C9D8FF 72%, #5B8BFF 92%, #2F6BFF 100%); background-size: 32px 32px, 100% 100%; background-position: 16px 16px, 0 0; color: #0B1B3F; font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif">
+
+  <header style="height: 76px; box-sizing: border-box; padding: 0 24px; background: linear-gradient(90deg, #3A9BFF 0%, #2B86FF 50%, #1F74F0 100%); border-bottom: 0; color: #FFFFFF; box-shadow: 0 10px 30px -12px rgba(22,56,184,0.55); position: relative; z-index: 3; display: flex; align-items: center; justify-content: space-between">
+    <img src="../assets/logo/guiame-blanco.png" alt="Guíame" style="height: 38px; width: auto; margin-right: 4px; flex-shrink: 0">
+    <button style="height: 54px; box-sizing: border-box; padding: 0 14px; border: 0; background: transparent; border-radius: 18px; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 8px"><span aria-hidden="true" style="font-size: 16px; font-weight: 600">A<span style="font-size: 22px">A</span></span>Tamaño de letra</button>
+  </header>
+
+  <main style="position: absolute; top: 76px; left: 0; right: 0; bottom: 0; padding-top: 56px; display: flex; flex-direction: column; align-items: center; gap: 28px">
+    <!-- Buscador con lo que escribió -->
+    <form role="search" action="#" style="width: 880px; height: 72px; box-sizing: border-box; border: 2px solid #7A8CC9; border-radius: 18px; background: #FFFFFF; display: flex; align-items: center; gap: 14px; padding: 0 12px 0 28px">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#47557A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <label for="q2" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap">Qué querés hacer</label>
+      <input id="q2" type="search" value="renovar documento" style="flex: 1; min-width: 0; height: 56px; border: 0; outline: none; background: transparent; font-family: inherit; font-size: 24px; color: #0B1B3F">
+      <button type="button" aria-label="Hablar: decirlo en voz alta" style="height: 52px; box-sizing: border-box; flex-shrink: 0; padding: 0 22px 0 18px; border: 0; background: linear-gradient(135deg, #3B74FF 0%, #1D4ED8 55%, #1638B8 100%); color: #FFFFFF; border-radius: 999px; box-shadow: 0 0 0 4px #DCE6FF, 0 10px 22px -10px rgba(22,56,184,0.75); font-size: 19px; font-weight: 600; display: flex; align-items: center; gap: 10px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>Hablar</button>
+    </form>
+
+    <!-- Tarjeta de pregunta: una pregunta, 3 respuestas + No sé bien -->
+    <section aria-labelledby="preg" style="width: 880px; box-sizing: border-box; background: #FFFFFF; border: 0; border-radius: 28px; box-shadow: 0 0 0 1px rgba(29,78,216,0.16), 0 0 0 10px rgba(59,116,255,0.16), 0 48px 90px -24px rgba(22,56,184,0.60); padding: 36px 40px 40px; display: flex; flex-direction: column; gap: 12px">
+      <h2 id="preg" style="margin: 0; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: -0.025em; font-size: 34px; line-height: 1.2">¿Qué documento querés renovar?</h2>
+      <p style="margin: 0; font-size: 21px; color: #47557A">Cada uno se renueva en un sitio distinto.</p>
+      <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+        <button style="height: 72px; box-sizing: border-box; padding: 0 24px; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 14px; text-align: left"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2F6BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M14 10h4"/><path d="M14 14h4"/></svg>Cédula de identidad</button>
+        <button style="height: 72px; box-sizing: border-box; padding: 0 24px; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 14px; text-align: left"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2F6BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M8 17h8"/></svg>Pasaporte</button>
+        <button style="height: 72px; box-sizing: border-box; padding: 0 24px; border: 2px solid #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 14px; text-align: left"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2F6BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M9 17h6"/></svg>Libreta de conducir</button>
+        <button style="height: 72px; box-sizing: border-box; padding: 0 24px; border: 2px dashed #7A8CC9; background: #FFFFFF; border-radius: 18px; font-size: 24px; font-weight: 600; color: #47557A; display: flex; align-items: center; gap: 14px; text-align: left"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#47557A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>No sé bien</button>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

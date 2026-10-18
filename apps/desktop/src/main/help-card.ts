@@ -1,5 +1,5 @@
 /**
- * Tarjeta flotante de ayuda (handoff §4.6). Es una vista propia encima del
+ * Tarjeta flotante de ayuda (R4). Es una vista propia encima del
  * sitio, como el popup de una extensión: la página no puede taparla, leerla ni
  * imitarla. Fuera de la tarjeta, los clics siguen yendo al sitio.
  *
@@ -10,7 +10,7 @@
 import { WebContentsView } from 'electron';
 import type { CardLayout, CardMode, TargetRect } from '../shared/ipc';
 
-/** --card-gap de design/tokens.css: distancia al borde de la vista del sitio. */
+/** --card-gap de @asistente/ui/tokens.css: distancia al borde de la vista del sitio (R4). */
 export const CARD_GAP = 24;
 /** Margen transparente alrededor de la tarjeta para que se vea su sombra. */
 export const CARD_SHADOW = 16;
@@ -69,7 +69,7 @@ export class HelpCardView {
     const width = Math.min(sizes.cardWidth, Math.round(area.width * 0.42));
     const maxHeight = Math.max(0, area.height - CARD_GAP * 2);
     const right = area.x + area.width - CARD_GAP;
-    const { placement, top, bottom } = placeCard(area, width, Math.min(this.#cardHeight, maxHeight), target);
+    const { placement, top, bottom, hit } = placeCard(area, width, Math.min(this.#cardHeight, maxHeight), target);
     const layout: CardLayout = { placement, maxHeight };
 
     if (!visible || this.#mode === 'none' || this.#height === 0) {
@@ -81,9 +81,12 @@ export class HelpCardView {
     if (this.#mode === 'card') {
       box = { ...(placement === 'bottom' ? bottom : top), height };
     } else {
-      // Achicada (12) o aviso al salir (21): una línea abajo a la derecha.
+      // Achicada (12): arriba a la derecha, donde estaba la tarjeta; abajo si ahí
+      // tapa el control. Aviso al salir (21): abajo a la derecha.
       const pill = Math.min(sizes.pillWidth, Math.round(area.width * 0.6));
-      box = { x: right - pill, y: area.y + area.height - CARD_GAP - height, width: pill, height };
+      const upper: Rect = { x: right - pill, y: area.y + CARD_GAP, width: pill, height };
+      const lower: Rect = { ...upper, y: area.y + area.height - CARD_GAP - height };
+      box = this.#mode === 'pill' && !(hit && intersects(upper, hit)) ? upper : lower;
     }
     this.view.setBounds({
       x: Math.round(box.x - CARD_SHADOW),
@@ -108,7 +111,7 @@ export function placeCard(area: Rect, width: number, height: number, target: (Ta
   const label = target?.field ? 120 : 0;
   const hit = target ? { x: target.x + area.x - 12, y: target.y + area.y - 56, width: target.width + 24 + label, height: target.height + 68 } : null;
   const placement: CardLayout['placement'] = !hit || !intersects(top, hit) ? 'top' : !intersects(bottom, hit) ? 'bottom' : 'compact';
-  return { placement, top, bottom };
+  return { placement, top, bottom, hit };
 }
 
 function intersects(a: Rect, b: Rect): boolean {

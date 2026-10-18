@@ -94,7 +94,7 @@ export function useVoiceInput(onText: (text: string) => void, { blocked = false,
       onTextRef.current(result.text);
       const submit = onSubmitRef.current;
       if (!submit) return setStatus({ kind: 'idle' });
-      // Se busca solo, por el mismo camino que «Mostrame cómo». «Entendí…» sale solo si se envió.
+      // Se busca solo, por el mismo camino que «Guíame». «Entendí…» sale solo si se envió.
       submit(result.text);
       setStatus({ kind: 'heard', text: result.text });
     } else if (result.status === 'empty') setStatus({ kind: 'empty' });
