@@ -160,3 +160,20 @@ export function mockSiteCheck(raw: SiteCheckRequest): SiteCheckResponse {
       });
   }
 }
+
+/** Sin backend real ni demo: ninguna verificación disponible, así que el indicador muestra «No pudimos verificarlo». */
+export function unverifiedSiteCheck(request: SiteCheckRequest): SiteCheckResponse {
+  const now = new Date();
+  return {
+    navigationId: request.navigationId,
+    contentVersion: request.contentVersion,
+    analysisId: `mock-${randomUUID().slice(0, 8)}`,
+    status: 'unavailable',
+    identity: { status: 'unknown' },
+    risk: 'unknown',
+    reasons: [],
+    coverage: { reputation: 'unavailable', identity: 'unavailable', content: 'unavailable', registration: 'unavailable', connection: 'unavailable' },
+    checkedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + 60_000).toISOString(),
+  };
+}

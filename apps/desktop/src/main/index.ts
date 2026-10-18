@@ -57,7 +57,8 @@ if (!app.requestSingleInstanceLock()) {
         fixturesOrigin = server.origin;
         closeFixtures = server.close;
       }
-      api = new MockApiClient({ fixturesOrigin });
+      // Fuera de desarrollo el simulador nunca inventa «Sitio oficial» (bancos de demostración).
+      api = new MockApiClient({ fixturesOrigin, demoSiteCheck: config.isDev });
       log('app.backend', { mock: true });
     } else {
       api = new HttpApiClient({ baseUrl: config.apiBaseUrl!, token: config.apiToken });

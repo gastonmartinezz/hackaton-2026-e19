@@ -21,12 +21,17 @@ import type {
   SiteOption,
 } from '@hackaton/contracts';
 import { ApiFailure, type ApiClient } from './client';
-import { mockSiteCheck, mockSiteCheckDelay } from './mock-site-check';
+import { mockSiteCheck, mockSiteCheckDelay, unverifiedSiteCheck } from './mock-site-check';
 
 export interface MockOptions {
   /** Origen del servidor local de páginas de prueba, si está activo. */
   fixturesOrigin: string | null;
   latencyMs?: number;
+  /**
+   * Respuestas de demostración de Protección de sitios («Sitio oficial» para bancos inventados, etc.). Solo en
+   * desarrollo: una versión empaquetada sin backend responde «No pudimos verificarlo» y nunca inventa oficialidad.
+   */
+  demoSiteCheck?: boolean;
 }
 
 interface MockSession {
@@ -70,6 +75,10 @@ export class MockApiClient implements ApiClient {
 
   /** Protección de sitios: estados según el hostname de las páginas de demostración. */
   async siteCheck(request: SiteCheckRequest, signal: AbortSignal): Promise<SiteCheckResponse> {
+    if (this.config.demoSiteCheck === false) {
+      await this.#wait(signal, 0);
+      return unverifiedSiteCheck(request);
+    }
     await this.#wait(signal, mockSiteCheckDelay(request.hostname));
     return mockSiteCheck(request);
   }
