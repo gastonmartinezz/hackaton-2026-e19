@@ -40,8 +40,6 @@ export interface SiteCheckPanelCopy {
 
 export interface SiteCheckCopy {
   label: string;
-  /** Nombre del ícono; el texto acompaña siempre. */
-  icon: Exclude<SiteIndicatorKind, 'none'>;
   tone: SiteCheckTone;
   panel: SiteCheckPanelCopy;
 }
@@ -279,7 +277,7 @@ export function siteCheckCopy(
         };
     }
   })();
-  return { label, icon: kind, tone: TONES[kind], panel };
+  return { label, tone: TONES[kind], panel };
 }
 
 /** Texto para el anuncio accesible de un cambio de estado relevante. */
