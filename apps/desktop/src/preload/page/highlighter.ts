@@ -45,6 +45,10 @@ const MARGIN = 7;
 const BADGE_GAP = 16;
 const BADGE_HEIGHT = 36;
 const BADGE_WIDTH = 72;
+/** Separación mínima del rótulo con los bordes de la ventana. */
+const EDGE = 4;
+/** Espera después del último desplazamiento antes de volver a medir. */
+const SETTLE_MS = 150;
 
 export type HighlightResult = 'shown' | 'notVisible';
 
@@ -55,6 +59,9 @@ export class Highlighter {
   #target: Element | null = null;
   #resize: ResizeObserver | null = null;
   #raf = 0;
+  /** Lugar del rótulo elegido midiendo la página; mientras se desplaza solo se verifica que siga entrando. */
+  #place: Placement | null = null;
+  #settle: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private readonly doc: Document) {}
 
@@ -66,12 +73,13 @@ export class Highlighter {
     if (!isDisplayed(target)) return 'notVisible';
     this.#ensureHost();
     this.#target = target;
+    this.#place = null;
     if (scroll) {
       const reduced = this.doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true;
       target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
     }
     this.#listen();
-    this.#position();
+    this.#position(true);
     return 'shown';
   }
 
@@ -109,8 +117,12 @@ export class Highlighter {
     if (!this.#host.isConnected) this.doc.documentElement.append(this.#host);
   }
 
-  #position = (): void => {
-    this.#raf = 0;
+  /**
+   * Ubica el anillo y el rótulo. Medir qué contenido tapa el rótulo fuerza
+   * layout: se hace al mostrar y cuando la página deja de moverse, no en cada
+   * cuadro del desplazamiento.
+   */
+  #position(measure: boolean): void {
     const target = this.#target;
     if (!target || !this.#frame || !this.#badge) return;
     if (!target.isConnected || !isDisplayed(target)) {
@@ -129,17 +141,27 @@ export class Highlighter {
     // Rótulo (R8): arriba a la izquierda; a la derecha si es un campo (no tapa
     // su etiqueta); abajo si arriba no entra o tapa texto. Nunca tapa texto.
     const view = this.doc.defaultView;
+    const viewport = { width: view?.innerWidth ?? Infinity, height: view?.innerHeight ?? Infinity };
     const size = { width: this.#badge.offsetWidth || BADGE_WIDTH, height: this.#badge.offsetHeight || BADGE_HEIGHT };
-    const place = labelPlacement(target, rect, view?.innerWidth ?? Infinity, (box) => coveredContent(this.doc, box), size);
-    this.#badge.dataset.place = place;
-    const position = badgePosition(place, rect, size);
+    if (measure) this.#place = labelPlacement(target, rect, viewport, (box) => coveredContent(this.doc, box), size);
+    else if (!this.#place || !placementFits(this.#place, rect, size, viewport)) this.#place = labelPlacement(target, rect, viewport, undefined, size);
+    this.#badge.dataset.place = this.#place;
+    const position = badgePosition(this.#place, rect, size, viewport);
     Object.assign(this.#badge.style, { display: 'block', left: `${position.left}px`, top: `${position.top}px` });
+  }
+
+  #frameUpdate = (): void => {
+    this.#raf = 0;
+    this.#position(false);
   };
 
   #schedule = (): void => {
     const view = this.doc.defaultView;
-    if (!view || this.#raf) return;
-    this.#raf = view.requestAnimationFrame(this.#position);
+    if (!view) return;
+    if (!this.#raf) this.#raf = view.requestAnimationFrame(this.#frameUpdate);
+    // Cuando la página deja de moverse, se vuelve a medir qué tapa el rótulo.
+    clearTimeout(this.#settle);
+    this.#settle = setTimeout(() => this.#position(true), SETTLE_MS);
   };
 
   #listen(): void {
@@ -161,6 +183,8 @@ export class Highlighter {
     this.#resize = null;
     if (this.#raf) view?.cancelAnimationFrame(this.#raf);
     this.#raf = 0;
+    clearTimeout(this.#settle);
+    this.#settle = undefined;
   }
 }
 
@@ -179,73 +203,109 @@ interface Box {
   width: number;
   height: number;
 }
+interface Size {
+  width: number;
+  height: number;
+}
+interface Viewport {
+  width: number;
+  height: number;
+}
 
 /**
  * Dónde va el rótulo. En orden de R8 (al costado en campos, arriba, abajo) se
- * elige el primer lugar que entra en la pantalla y no tapa contenido de la
- * página; si todos tapan algo, el que menos tapa. `covered` cuenta cuánto
+ * elige el primer lugar que entra entero en la ventana y no tapa contenido de
+ * la página; si todos tapan algo, el que menos tapa. `covered` cuenta cuánto
  * contenido queda debajo de un lugar (sin medirlo, se elige solo por espacio).
+ * Si ningún lugar entra, el de arriba o el de abajo, según dónde haya más lugar.
  */
 export function labelPlacement(
   target: Element,
   rect: DOMRect,
-  viewportWidth: number,
+  viewport: Viewport,
   covered: (box: Box) => number = () => 0,
-  size = { width: BADGE_WIDTH, height: BADGE_HEIGHT },
+  size: Size = { width: BADGE_WIDTH, height: BADGE_HEIGHT },
 ): Placement {
   const order: Placement[] = isField(target) ? ['side', 'above', 'below'] : ['above', 'below', 'side'];
-  const fits = (place: Placement) => {
-    const box = badgePosition(place, rect, size);
-    if (place === 'side') return box.left + size.width < viewportWidth;
-    return place === 'below' || box.top > 0;
-  };
   let best: { place: Placement; score: number } | null = null;
-  for (const place of order.filter(fits)) {
-    const score = covered({ ...badgePosition(place, rect, size), ...size });
+  for (const place of order.filter((p) => placementFits(p, rect, size, viewport))) {
+    const score = covered({ ...badgePosition(place, rect, size, viewport), ...size });
     if (score === 0) return place;
     if (!best || score < best.score) best = { place, score };
   }
-  return best?.place ?? 'below';
-}
-
-function badgePosition(place: Placement, rect: DOMRect, size: { width: number; height: number }): { left: number; top: number } {
-  const position =
-    place === 'side'
-      ? { left: rect.right + MARGIN + BADGE_GAP, top: rect.top + rect.height / 2 - size.height / 2 }
-      : place === 'above'
-        ? { left: rect.left - MARGIN, top: rect.top - MARGIN - BADGE_GAP - size.height }
-        : { left: rect.left - MARGIN, top: rect.bottom + MARGIN + BADGE_GAP };
-  return { left: Math.max(4, position.left), top: position.top };
+  return best?.place ?? (rect.top > viewport.height - rect.bottom ? 'above' : 'below');
 }
 
 /**
- * Cuántos puntos de una grilla sobre `box` caen en texto o en un control de la
- * página. El overlay no intercepta clics (pointer-events: none), así que no se
- * mide a sí mismo.
+ * El rótulo entra entero en la ventana en ese lugar. Al costado alcanza con
+ * que entre a lo ancho: su altura se acomoda dentro de la ventana (badgePosition).
+ */
+export function placementFits(place: Placement, rect: DOMRect, size: Size, viewport: Viewport): boolean {
+  const { left, top } = rawPosition(place, rect, size);
+  if (place === 'side') return left + size.width <= viewport.width - EDGE;
+  return top >= EDGE && top + size.height <= viewport.height - EDGE;
+}
+
+/** Posición en la ventana; arriba y abajo se corren para no salirse por los costados. */
+export function badgePosition(place: Placement, rect: DOMRect, size: Size, viewport: Viewport): { left: number; top: number } {
+  const { left, top } = rawPosition(place, rect, size);
+  const clamp = (value: number, max: number) => Math.max(EDGE, Math.min(value, max - EDGE));
+  return { left: clamp(left, viewport.width - size.width), top: clamp(top, viewport.height - size.height) };
+}
+
+function rawPosition(place: Placement, rect: DOMRect, size: Size): { left: number; top: number } {
+  if (place === 'side') return { left: rect.right + MARGIN + BADGE_GAP, top: rect.top + rect.height / 2 - size.height / 2 };
+  if (place === 'above') return { left: rect.left - MARGIN, top: rect.top - MARGIN - BADGE_GAP - size.height };
+  return { left: rect.left - MARGIN, top: rect.bottom + MARGIN + BADGE_GAP };
+}
+
+const CONTENT = 'a, button, input, select, textarea, label, img, svg, video, canvas, iframe, frame, [role="button"], [role="link"], [contenteditable="true"]';
+
+/**
+ * Cuántos puntos de una grilla de 5 × 3 sobre `box` caen en texto o en un
+ * control de la página (separados menos que una línea de texto). Entra en los
+ * shadow roots abiertos; un iframe o un componente con shadow root cerrado
+ * cuenta como contenido. El overlay no intercepta clics (pointer-events: none),
+ * así que no se mide a sí mismo.
  */
 function coveredContent(doc: Document, box: Box): number {
-  const caret = (doc as Document & { caretRangeFromPoint?: (x: number, y: number) => Range | null }).caretRangeFromPoint;
   if (typeof doc.elementFromPoint !== 'function') return 0;
   let hits = 0;
-  for (const fx of [0.1, 0.5, 0.9]) {
-    for (const fy of [0.2, 0.8]) {
+  for (const fx of [0.08, 0.3, 0.5, 0.7, 0.92]) {
+    for (const fy of [0.15, 0.5, 0.85]) {
       const x = box.left + box.width * fx;
       const y = box.top + box.height * fy;
-      const element = doc.elementFromPoint(x, y);
-      if (!element) continue;
-      if (element.closest('a, button, input, select, textarea, label, img, svg, video, [role="button"], [role="link"]')) {
-        hits++;
-        continue;
-      }
-      const range = caret?.call(doc, x, y);
-      const node = range?.startContainer;
-      if (node?.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) continue;
-      const text = doc.createRange();
-      text.selectNodeContents(node);
-      if ([...text.getClientRects()].some((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) hits++;
+      const element = deepElementFromPoint(doc, x, y);
+      if (element && (element.closest(CONTENT) || isOpaqueComponent(element) || hasTextAt(doc, element, x, y))) hits++;
     }
   }
   return hits;
+}
+
+function deepElementFromPoint(doc: Document, x: number, y: number): Element | null {
+  let element = doc.elementFromPoint(x, y);
+  while (element?.shadowRoot) {
+    const inner = element.shadowRoot.elementFromPoint(x, y);
+    if (!inner || inner === element) break;
+    element = inner;
+  }
+  return element;
+}
+
+/** Componente con shadow root cerrado: no se puede mirar adentro, se trata como contenido. */
+function isOpaqueComponent(element: Element): boolean {
+  return element.localName.includes('-') && !element.shadowRoot;
+}
+
+/** El punto cae sobre un texto propio del elemento (sus nodos de texto, no los de sus hijos). */
+function hasTextAt(doc: Document, element: Element, x: number, y: number): boolean {
+  for (const node of element.childNodes) {
+    if (node.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) continue;
+    const range = doc.createRange();
+    range.selectNodeContents(node);
+    if ([...range.getClientRects()].some((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) return true;
+  }
+  return false;
 }
 
 function isDisplayed(element: Element): boolean {
