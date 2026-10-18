@@ -139,13 +139,14 @@ describe('POST /v1/interpret', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it('rechaza una URL que no es http(s)', async () => {
+  it('nunca devuelve una URL que no es https: la cambia por una pregunta', async () => {
     app = await testApp({
       model: interpretReturning({ type: 'redirect', message: 'Te llevo.', url: 'javascript:alert(1)', options: [], ...internal }),
     });
     const res = await post('/v1/interpret', payload);
-    expect(res.statusCode).toBe(502);
-    expect(res.json().error.code).toBe('AI_INVALID_RESPONSE');
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ type: 'question' });
+    expect(JSON.stringify(res.json())).not.toContain('javascript:');
   });
 
   it('devuelve SESSION_NOT_FOUND con una sesión inexistente', async () => {

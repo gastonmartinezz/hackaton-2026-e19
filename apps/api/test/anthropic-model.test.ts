@@ -114,6 +114,7 @@ describe('AnthropicModel', () => {
         outputTokens: 80,
         cacheReadInputTokens: 900,
         cacheCreationInputTokens: 0,
+        webSearches: 0,
       },
       'claude call',
     ]);
@@ -144,5 +145,56 @@ describe('AnthropicModel', () => {
       code: 'AI_UNAVAILABLE',
       retryable: true,
     });
+  });
+
+  it('con búsqueda web agrega la herramienta sin país y reanuda un turno pausado', async () => {
+    const calls: any[] = [];
+    const replies = [
+      { stop_reason: 'pause_turn', content: [{ type: 'server_tool_use', id: 's1', name: 'web_search', input: {} }] },
+      { stop_reason: 'end_turn', content: [{ type: 'text', text: '{"ok":true}' }] },
+    ];
+    const client = {
+      beta: {
+        messages: {
+          parse: async (params: any) => {
+            // Copia: el modelo agrega mensajes al mismo arreglo entre llamadas.
+            calls.push({ ...params, messages: [...params.messages] });
+            const reply = replies[calls.length - 1]!;
+            return {
+              model: params.model,
+              stop_reason: reply.stop_reason,
+              content: reply.content,
+              parsed_output: reply.stop_reason === 'end_turn' ? { ok: true } : null,
+              usage: { input_tokens: 10, output_tokens: 5, server_tool_use: { web_search_requests: 1 } },
+            };
+          },
+        },
+      },
+    } as unknown as Anthropic;
+    const { logger, entries } = recordingLogger();
+    const result = await new AnthropicModel(config(), logger, client).generate({
+      ...request(),
+      webSearch: { maxUses: 3, userLocation: { city: 'Montevideo', timezone: 'America/Montevideo' } },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(calls[0].tools).toEqual([
+      {
+        type: 'web_search_20260209',
+        name: 'web_search',
+        max_uses: 3,
+        user_location: { type: 'approximate', city: 'Montevideo', timezone: 'America/Montevideo' },
+      },
+    ]);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].messages).toHaveLength(2);
+    expect(calls[1].messages[1]).toEqual({ role: 'assistant', content: replies[0]!.content });
+    expect(entries[0]?.[0]).toMatchObject({ webSearches: 2, inputTokens: 20, outputTokens: 10 });
+  });
+
+  it('sin búsqueda web no manda herramientas', async () => {
+    const { client, calls } = fakeClient();
+    await new AnthropicModel(config(), recordingLogger().logger, client).generate(request());
+    expect(calls[0]).not.toHaveProperty('tools');
   });
 });

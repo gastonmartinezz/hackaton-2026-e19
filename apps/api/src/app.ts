@@ -13,6 +13,7 @@ import { MockModel } from './modules/ai/mock-model.js';
 import type { StructuredModel } from './modules/ai/model.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 import { InterpretService } from './modules/interpret/interpret.service.js';
+import { UrlGuard } from './modules/interpret/url-guard.js';
 import { interpretRoutes } from './modules/interpret/interpret.routes.js';
 import { NextStepService } from './modules/next-step/next-step.service.js';
 import { nextStepRoutes } from './modules/next-step/next-step.routes.js';
@@ -31,6 +32,7 @@ import { OpenAITranscriptionProvider } from './modules/transcribe/openai-provide
 import type { TranscriptionProvider } from './modules/transcribe/provider.js';
 import { transcribeRoutes } from './modules/transcribe/transcribe.routes.js';
 import { TranscribeService } from './modules/transcribe/transcribe.service.js';
+import { UrlVerifier } from './modules/urls/url-verifier.js';
 import { registerAuth } from './plugins/auth.js';
 
 export interface AppDeps {
@@ -39,6 +41,8 @@ export interface AppDeps {
   transcriber?: TranscriptionProvider | null;
   /** null: texto a voz apagado. Si no se pasa, sale de TTS_PROVIDER. */
   speaker?: SpeechProvider | null;
+  /** Verificador de URLs de interpret (en pruebas, uno sin red). */
+  urlVerifier?: UrlVerifier;
   /** Cliente de OpenAI (en pruebas, uno falso). Si no se pasa, se crea con OPENAI_API_KEY cuando hace falta. */
   openai?: OpenAI;
 }
@@ -134,7 +138,20 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
   );
 
   await app.register(healthRoutes, { sttStatus: () => transcribeService.status, ttsStatus: () => speakService.status });
-  await app.register(interpretRoutes, { service: new InterpretService(model, sessions) });
+  const urlVerifier =
+    deps.urlVerifier ??
+    new UrlVerifier({
+      timeoutMs: config.URL_CHECK_TIMEOUT_MS,
+      maxRedirects: config.URL_CHECK_MAX_REDIRECTS,
+      cacheTtlMs: config.URL_CHECK_CACHE_TTL_MS,
+      // S03: http solo con una razón visible para la persona; hoy no hay, así que solo https.
+      allowHttp: false,
+    });
+  const interpretService = new InterpretService(model, sessions, new UrlGuard(urlVerifier), {
+    webSearch: config.INTERPRET_WEB_SEARCH === 'on',
+    webSearchMaxUses: config.INTERPRET_WEB_SEARCH_MAX_USES,
+  });
+  await app.register(interpretRoutes, { service: interpretService });
   await app.register(optionsRoutes, { service: new OptionsService(model, sessions) });
   await app.register(nextStepRoutes, { service: new NextStepService(model, sessions) });
   await app.register(transcribeRoutes, {

@@ -11,6 +11,9 @@ import { PROMPT_VERSION } from './prompts.js';
 /** Beta del parámetro `fallbacks: "default"` (reintento del lado del servidor ante un rechazo del clasificador). */
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
+/** Veces que se reanuda un turno pausado por la búsqueda web antes de darlo por fallido. */
+const MAX_PAUSE_CONTINUATIONS = 2;
+
 /**
  * Modelos que admiten `fallbacks: "default"`. Claude Haiku 5.5 no tiene fallback
  * del lado del servidor: ahí no se manda el parámetro y un rechazo queda en AI_REFUSED.
@@ -56,43 +59,68 @@ export class AnthropicModel implements StructuredModel {
     const { model, effort } = taskSettings(this.config, request.task);
     const fallbacks = this.config.CLAUDE_FALLBACKS === 'default' && FALLBACK_MODELS.has(model);
     const startedAt = performance.now();
+    const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: buildDataBlock(request.input) }];
+    const totals = { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearches: 0 };
 
-    const response = await this.client.beta.messages
-      .parse({
-        model,
-        // Incluye los tokens del thinking adaptativo: con poco margen la respuesta se corta.
-        max_tokens: this.config.CLAUDE_MAX_TOKENS,
-        // El system prompt de cada tarea es fijo: se cachea (junto con el esquema de salida, que va antes en el prefijo).
-        // Los datos de la persona van en el mensaje, después del punto de caché.
-        system: [{ type: 'text', text: request.system, cache_control: { type: 'ephemeral' } }],
-        messages: [{ role: 'user', content: buildDataBlock(request.input) }],
-        output_config: { effort, format: betaZodOutputFormat(request.schema) },
-        ...(fallbacks ? { betas: [FALLBACK_BETA], fallbacks: 'default' as const } : {}),
-      })
-      .catch((error: unknown) => {
-        this.log.warn(
-          { task: request.task, model, effort, latencyMs: Math.round(performance.now() - startedAt), errorName: errorName(error) },
-          'claude call failed',
-        );
-        throw mapSdkError(error);
-      });
+    const call = () =>
+      this.client.beta.messages
+        .parse({
+          model,
+          // Incluye los tokens del thinking adaptativo: con poco margen la respuesta se corta.
+          max_tokens: this.config.CLAUDE_MAX_TOKENS,
+          // El system prompt de cada tarea es fijo: se cachea (junto con las herramientas y el esquema de salida,
+          // que van antes en el prefijo). Los datos de la persona van en el mensaje, después del punto de caché.
+          system: [{ type: 'text', text: request.system, cache_control: { type: 'ephemeral' } }],
+          messages,
+          output_config: { effort, format: betaZodOutputFormat(request.schema) },
+          ...(request.webSearch
+            ? {
+                tools: [
+                  {
+                    type: 'web_search_20260209' as const,
+                    name: 'web_search' as const,
+                    max_uses: request.webSearch.maxUses,
+                    user_location: { type: 'approximate' as const, ...request.webSearch.userLocation },
+                  },
+                ],
+              }
+            : {}),
+          ...(fallbacks ? { betas: [FALLBACK_BETA], fallbacks: 'default' as const } : {}),
+        })
+        .catch((error: unknown) => {
+          this.log.warn(
+            { task: request.task, model, effort, latencyMs: Math.round(performance.now() - startedAt), errorName: errorName(error) },
+            'claude call failed',
+          );
+          throw mapSdkError(error);
+        });
 
-    const usage = response.usage;
+    let response = await call();
+    for (let turn = 0; ; turn++) {
+      const usage = response.usage;
+      totals.inputTokens += usage.input_tokens;
+      totals.outputTokens += usage.output_tokens;
+      totals.cacheReadInputTokens += usage.cache_read_input_tokens ?? 0;
+      totals.cacheCreationInputTokens += usage.cache_creation_input_tokens ?? 0;
+      totals.webSearches += usage.server_tool_use?.web_search_requests ?? 0;
+      // Con herramientas del servidor (búsqueda web), la API puede pausar el turno: se reenvía tal cual para que siga.
+      if (response.stop_reason !== 'pause_turn' || turn >= MAX_PAUSE_CONTINUATIONS) break;
+      messages.push({ role: 'assistant', content: response.content as Anthropic.Beta.BetaContentBlockParam[] });
+      response = await call();
+    }
+
     // Solo números y metadatos: nunca el prompt, la entrada ni la salida.
     this.log.info(
       {
         task: request.task,
         model,
         servedBy: response.model,
-        fallback: (usage.iterations ?? []).some((entry) => entry.type === 'fallback_message'),
+        fallback: (response.usage.iterations ?? []).some((entry) => entry.type === 'fallback_message'),
         effort,
         promptVersion: PROMPT_VERSION,
         stopReason: response.stop_reason,
         latencyMs: Math.round(performance.now() - startedAt),
-        inputTokens: usage.input_tokens,
-        outputTokens: usage.output_tokens,
-        cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
-        cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
+        ...totals,
       },
       'claude call',
     );
@@ -100,7 +128,7 @@ export class AnthropicModel implements StructuredModel {
     if (response.stop_reason === 'refusal') {
       throw new AppError('AI_REFUSED', 'El modelo no puede ayudar con esta solicitud');
     }
-    if (response.stop_reason === 'max_tokens' || response.parsed_output == null) {
+    if (response.stop_reason === 'max_tokens' || response.stop_reason === 'pause_turn' || response.parsed_output == null) {
       throw new AppError('AI_INVALID_RESPONSE', 'Respuesta del modelo incompleta o inválida');
     }
     return response.parsed_output as z.infer<S>;
