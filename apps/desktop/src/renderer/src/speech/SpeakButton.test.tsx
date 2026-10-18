@@ -389,6 +389,65 @@ describe('modo voz: lectura automática', () => {
     expect(deps.speak).not.toHaveBeenCalled();
   });
 
+  it('si la lectura automática falla (ocupado, error), el contenido no queda marcado como leído', async () => {
+    for (const reason of ['busy', 'failed'] as const) {
+      autoRead.last = '';
+      const { deps } = fakeDeps({ status: 'error', reason });
+      render(<SpeakButton text={`Hola ${reason}`} deps={deps} auto />);
+      await flush();
+      act(() => root.render(null));
+      deps.speak.mockResolvedValue({ status: 'ok' });
+      render(<SpeakButton text={`Hola ${reason}`} deps={deps} auto />);
+      await flush();
+      expect(deps.speak).toHaveBeenCalledTimes(2);
+      act(() => root.render(null));
+    }
+  });
+
+  it('voz del sistema sin voces (noVoices): el contenido se vuelve a leer cuando reaparece', async () => {
+    speechSource.mode = 'system';
+    const { deps } = fakeDeps();
+    deps.systemSpeak.mockResolvedValueOnce('noVoices');
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    act(() => root.render(null));
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    expect(deps.systemSpeak).toHaveBeenCalledTimes(2);
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.stop);
+  });
+
+  it('si la vista se cierra mientras espera las voces del sistema, el contenido se vuelve a leer después', async () => {
+    speechSource.mode = 'system';
+    const { deps, system } = fakeDeps();
+    let resolveVoices: (p: Playback | SystemSpeechProblem) => void = () => {};
+    deps.systemSpeak.mockImplementationOnce(() => new Promise((r) => (resolveVoices = r)));
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    act(() => root.render(null));
+    await act(async () => resolveVoices(system.playback));
+    expect(system.playback.stop).toHaveBeenCalled(); // la que llegó tarde no suena
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    expect(deps.systemSpeak).toHaveBeenCalledTimes(2);
+  });
+
+  it('«Repetir» con el mismo texto corta la lectura propia en curso: nunca dos voces', async () => {
+    const first = fakePlayback();
+    const second = fakePlayback();
+    const { deps } = fakeDeps();
+    deps.openMp3Stream.mockReturnValueOnce({ mode: 'progressive', playback: first.playback, push: vi.fn(), end: vi.fn(), fail: vi.fn() });
+    deps.openMp3Stream.mockReturnValueOnce({ mode: 'progressive', playback: second.playback, push: vi.fn(), end: vi.fn(), fail: vi.fn() });
+    render(<SpeakButton text="Hacé clic en «Sacar turno»." deps={deps} auto contentKey={1} />);
+    await flush();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.stop);
+    render(<SpeakButton text="Hacé clic en «Sacar turno»." deps={deps} auto contentKey={2} />);
+    await flush();
+    expect(first.playback.stop).toHaveBeenCalled();
+    expect(second.playback.stop).not.toHaveBeenCalled();
+    expect(deps.speak).toHaveBeenCalledTimes(2);
+  });
+
   it('una lectura automática cortada al desmontarse se puede volver a leer (StrictMode en desarrollo)', async () => {
     const { deps } = fakeDeps();
     let resolve: (r: SpeakResult) => void = () => {};

@@ -74,6 +74,12 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
   const [, setSourceVersion] = useState(0);
   const playback = useRef<Playback | null>(null);
   const attempt = useRef(0);
+  /**
+   * Lectura automática en curso: qué contenido y con qué intento. El contenido
+   * se marca como leído recién cuando empieza a sonar (`play`); si falla o se
+   * corta antes (sin voces, ocupado, la vista se cierra mientras espera), no.
+   */
+  const autoAttempt = useRef<{ key: string; id: number } | null>(null);
   /** Hay una descarga en curso en el proceso principal (hasta el último pedazo). */
   const pending = useRef(false);
 
@@ -105,6 +111,8 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
       return;
     }
     playback.current = started;
+    // Empezó a sonar de verdad: recién ahora ese contenido cuenta como leído.
+    if (autoAttempt.current?.id === id) autoRead.last = autoAttempt.current.key;
     setState({ kind: 'playing' });
     void started.done.then((result) => {
       if (id !== attempt.current) return;
@@ -139,6 +147,8 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
     const value = text.trim();
     if (!value || speechSource.mode === 'none') return;
     for (const other of localReaders) if (other !== cutFromOutside) other();
+    // También la lectura propia en curso (por ejemplo «Repetir» con el mismo texto): nunca dos voces.
+    if (playback.current || pending.current) silence();
     const id = ++attempt.current;
     setState({ kind: 'loading' });
     if (speechSource.mode === 'system') return readWithSystem(id, value);
@@ -178,14 +188,14 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
   }, [active, start, stop]);
 
   // Modo voz: cada contenido nuevo se lee una vez, apenas aparece.
-  const autoKey = useRef('');
   useEffect(() => {
     if (!auto || !text.trim() || speechSource.mode === 'none') return;
     const key = `${contentKey}|${text}`;
+    // Ya sonó, o ya se está intentando leer en esta vista.
     if (autoRead.last === key) return;
-    autoRead.last = key;
-    autoKey.current = key;
+    if (autoAttempt.current?.key === key && autoAttempt.current.id === attempt.current) return;
     void start();
+    autoAttempt.current = { key, id: attempt.current };
   }, [auto, text, contentKey, start]);
 
   // Apagar el modo voz corta lo que esté sonando.
@@ -214,9 +224,6 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
   // Otra instrucción, o la vista se cierra: se corta lo que estaba sonando.
   useEffect(
     () => () => {
-      // Una lectura automática cortada a la mitad (se cerró la vista, o el doble montaje de
-      // StrictMode en desarrollo) se puede volver a leer si el mismo contenido vuelve a aparecer.
-      if ((playback.current || pending.current) && autoRead.last === autoKey.current) autoRead.last = '';
       if (pending.current) deps.stopSpeaking();
       silence();
       setState({ kind: 'idle' });
