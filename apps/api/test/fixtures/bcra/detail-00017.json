@@ -1,0 +1,57 @@
+{
+ "success": true,
+ "fecha_actualizacion": {
+  "mes": "julio",
+  "anio": "2026",
+  "texto": "julio de 2026"
+ },
+ "entidad": {
+  "codigo": "00017",
+  "nombre": "BANCO BBVA ARGENTINA S.A.",
+  "cuit": "30-50000319-3",
+  "mes_cierre_balance": "diciembre",
+  "tipo": "Casa Matriz",
+  "direccion": "RECONQUISTA 199 - CABA ZONA NORTE - CABA",
+  "telefono": "008003330303",
+  "fax": "",
+  "sitio_web": "www.bbva.com.ar",
+  "email": "proteccionalusuario-arg@bbva.com",
+  "asociado_1": "ABA",
+  "asociado_2": "",
+  "grupo_institucional": "Bancos Locales de Capital Extranjero",
+  "logo_url": "https://www.bcra.gob.ar/archivos/Imagenes/logosbancos/00017.png",
+  "calificaciones": [
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   }
+  ],
+  "fecha_evaluacion": "",
+  "enlaces": {
+   "responsables": "/entidades-financieras-responsables?entidad=00017&nom=BANCO+BBVA+ARGENTINA+S.A.",
+   "directivos": "/entidades-financieras-directivos?bco=00017&nom=BANCO+BBVA+ARGENTINA+S.A.",
+   "accionistas": "/entidades-financieras-accionistas?bco=00017&nom=BANCO+BBVA+ARGENTINA+S.A.",
+   "auditores": "/entidades-financieras-auditores?bco=00017&nom=BANCO+BBVA+ARGENTINA+S.A.",
+   "estados_contables": "/entidades-financieras-estados-contables?bco=00017&nom=BANCO+BBVA+ARGENTINA+S.A.",
+   "situacion_deudores": "/entidades-financieras-situacion-deudores?bco=00017&nom=BANCO+BBVA+ARGENTINA+S.A.",
+   "indicadores": "/entidades-financieras-indicadores-economicos?bco=00017&nom=BANCO+BBVA+ARGENTINA+S.A.",
+   "informacion_estructura": "/entidades-financieras-informacion-estructura?bco=00017&nom=BANCO+BBVA+ARGENTINA+S.A.&Tit=0",
+   "filiales_cajeros": "/entidades-financieras-filiales-y-cajeros?bco=00017&nom=BANCO+BBVA+ARGENTINA+S.A.&Tit=7",
+   "info_trimestral_2017": "/entidades-financieras-informacion-trimestral?bco=00017&nom=BANCO+BBVA+ARGENTINA+S.A.",
+   "info_trimestral_2018": "/entidades-financieras-informacion-trimestral-2018?bco=00017"
+  }
+ },
+ "lang": "es"
+}

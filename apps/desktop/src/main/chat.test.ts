@@ -23,6 +23,7 @@ function setupWith(userContext: () => UserContext | undefined, ...responses: Rep
       return { ...next, sessionId: request.sessionId ?? `s-${sent.length}` };
     }),
     options: vi.fn(),
+    siteCheck: vi.fn(),
     nextStep: vi.fn(),
     transcribe: vi.fn(),
     speak: vi.fn(),
@@ -145,6 +146,7 @@ describe('Chat (/v1/interpret)', () => {
         return { sessionId: request.sessionId ?? 's-nueva', type: 'question' as const, message: '¿Qué?' };
       }),
       options: vi.fn(),
+      siteCheck: vi.fn(),
       nextStep: vi.fn(),
       transcribe: vi.fn(),
       speak: vi.fn(),

@@ -7,6 +7,7 @@ Monorepo pnpm. La especificación está en `especificacion-plataforma.md`. La se
 | `apps/api` | Servidor Fastify: Claude, voz (OpenAI o Whisper local), validación, sesiones, límites y logs | Agustin |
 | `packages/contracts` | Contratos v1 (Zod + JSON Schema) | Compartido front/backend, cambios solo por acuerdo |
 | `docs/api.md` | Guía de la API para el front | Agustin |
+| `docs/proteccion-sitios.md` | Protección de sitios: qué se valida hoy, cuándo y con qué fuentes | Agustin |
 
 Endpoints: `GET /health`, `POST /v1/interpret`, `POST /v1/options`, `POST /v1/next-step`, `POST /v1/transcribe` (voz a texto) y `POST /v1/speak` (texto a voz). El detalle está en `docs/api.md`.
 

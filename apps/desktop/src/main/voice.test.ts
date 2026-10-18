@@ -10,7 +10,7 @@ const base = new URL('https://api.ejemplo.test');
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 function fakeApi(transcribe: ApiClient['transcribe']): ApiClient {
-  return { isMock: true, interpret: vi.fn(), options: vi.fn(), nextStep: vi.fn(), transcribe, speak: vi.fn() };
+  return { isMock: true, interpret: vi.fn(), options: vi.fn(), nextStep: vi.fn(), transcribe, speak: vi.fn(), siteCheck: vi.fn() };
 }
 
 let logs: string[];

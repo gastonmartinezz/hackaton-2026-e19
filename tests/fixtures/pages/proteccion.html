@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Protección de sitios — Demostración</title></head>
+<body>
+  <main>
+    <h1>Protección de sitios (páginas de demostración)</h1>
+    <p>Solo con el backend simulado en desarrollo: los nombres <code>*.example</code>, <code>*.mostrame-demo.gob.ar</code> y <code>*.mostrame-demo.gub.uy</code> resuelven a este servidor local.
+       Esta misma página está en 127.0.0.1, así que se muestra como «Página local, sin revisar».</p>
+    <ul id="demos"></ul>
+  </main>
+  <script>
+    const port = location.port ? `:${location.port}` : '';
+    const demos = [
+      ['Sitio oficial: entidad del registro del Banco Central', 'banco-demo.example', 'banco.html'],
+      ['Sitio oficial: dirección del Estado argentino (.gob.ar)', 'tramites.mostrame-demo.gob.ar', 'horarios.html'],
+      ['Sitio oficial: dirección del Estado uruguayo (.gub.uy)', 'tramites.mostrame-demo.gub.uy', 'horarios.html'],
+      ['Sitio oficial: empresa uruguaya de la lista revisada', 'usina-uy.example', 'horarios.html'],
+      ['Sin alertas detectadas', 'sin-alertas.example', 'horarios.html'],
+      ['Sin alertas que cambia a Atención (ruta SPA y formulario nuevo)', 'sin-alertas.example', 'cambiante.html'],
+      ['Atención', 'atencion.example', 'urgente.html'],
+      ['Posible estafa: imita a un banco (aviso desde la dirección)', 'bancodemo-acceso.example', 'banco-falso.html'],
+      ['Posible estafa: lista de malware, sin suplantación', 'premio-gratis.example', 'premio.html'],
+      ['No pudimos verificarlo: falla del servicio', 'falla.example', 'horarios.html'],
+      ['No pudimos verificarlo: revisión parcial', 'parcial.example', 'horarios.html'],
+      ['Revisión lenta (6 segundos)', 'lenta.example', 'horarios.html'],
+      ['Sin respuesta (vence el tiempo máximo)', 'sin-respuesta.example', 'horarios.html'],
+    ];
+    const list = document.getElementById('demos');
+    for (const [label, host, page] of demos) {
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = `http://${host}${port}/${page}`;
+      link.textContent = label;
+      item.append(link);
+      list.append(item);
+    }
+  </script>
+</body>
+</html>

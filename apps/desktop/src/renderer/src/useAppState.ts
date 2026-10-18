@@ -18,3 +18,8 @@ export function useAppState(): AppState | null {
 export function send(command: UiCommand): void {
   void window.asistente.command(command);
 }
+
+/** Como `send`, pero espera al proceso principal: rechaza si el comando falló. */
+export function request(command: UiCommand): Promise<void> {
+  return window.asistente.command(command);
+}

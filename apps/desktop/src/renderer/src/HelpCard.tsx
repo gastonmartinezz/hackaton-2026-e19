@@ -7,6 +7,7 @@ import { BrandSymbol, Button, Icon, LoadingDots } from '@asistente/ui';
 import { Fragment, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { AppState, CardMode, OptionView } from '../../shared/ipc';
 import { Notices } from './Notices';
+import { GuidePausedNotice } from './SiteCheck';
 import { SpeakButton } from './speech/SpeakButton';
 import { guideSpeech, optionsReadKey, optionsSpeech, stepSpeechKey } from './speech/speechText';
 import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
@@ -106,7 +107,7 @@ export function HelpCard() {
             Mostrame
           </span>
           <span className="spacer" />
-          {guide.phase === 'waitingForUser' ? (
+          {guide.phase === 'waitingForUser' && !state.siteCheck.guidePaused ? (
             <Button variant="quiet" icon="minus" onClick={() => setMinimized(true)}>
               Achicar
             </Button>
@@ -153,6 +154,8 @@ function cardMode(state: AppState, minimized: boolean, expandedFor: number | nul
   }
   if (!prefs.aiEnabledForSite) return 'none';
   if (guide.phase === 'waitingForUser') {
+    // Indicación pausada por riesgo alto: la tarjeta completa explica por qué (nunca la píldora con la instrucción).
+    if (state.siteCheck.guidePaused) return 'card';
     const forced = state.layout.card.placement === 'compact' && expandedFor !== guide.announceKey;
     if (minimized || forced) return 'pill';
   }
@@ -202,6 +205,7 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
       };
 
     case 'waitingForUser':
+      if (state.siteCheck.guidePaused) return { tone: 'error', foot: 'exit', content: <GuidePausedNotice /> };
       return { foot: 'full', content: <CurrentStep state={state} /> };
 
     case 'completed':

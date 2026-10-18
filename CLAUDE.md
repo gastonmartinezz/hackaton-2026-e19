@@ -57,7 +57,7 @@ Este archivo trae las reglas de diseño de Mostrame para quien implemente la int
   - Nunca mostrar ni registrar valores de formularios, contraseñas, documentos ni tarjetas.
   - Al guiar a un campo, mostrar «Esto lo escribís vos. Mostrame no lo ve ni lo guarda.».
 - **Antiestafa:**
-  - Sello «Sitio oficial» solo con el campo `official` del backend; nunca por HTTPS.
+  - Sello «Sitio oficial» solo cuando `siteIndicatorState()` del contrato devuelve `official` (identidad verificada por una fuente de autoridad); nunca por HTTPS ni por la IA.
   - El candado va en muted.
   - Antes de pagar, comprobar que la persona sigue en el dominio elegido (`C09`).
 - **Acción irreversible** (`C10`): aviso en warning, total citado y «no hay apuro».

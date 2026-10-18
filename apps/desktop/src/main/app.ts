@@ -27,8 +27,10 @@ import {
   type NoticeAction,
   type SpeakResult,
   type TranscribeResult,
+  type SiteCheckView,
   type UiCommand,
 } from '../shared/ipc';
+import { announcementText, CONTINUE_ACTION, siteCheckCopy } from '../shared/site-check-copy';
 import { ApiSession, type ApiClient } from './api/client';
 import { Assistant } from './assistant';
 import { Chat, UNSURE_ANSWER } from './chat';
@@ -37,6 +39,8 @@ import { log } from './log';
 import { PageBridge } from './page-bridge';
 import { allowMicrophoneCheck, allowMicrophoneRequest } from './permissions';
 import type { PrefsStore } from './prefs';
+import { SiteProtection } from './site-protection/coordinator';
+import { checkEligibility } from './site-protection/eligibility';
 import { SiteView } from './site-view';
 import { SpeechHub } from './speech';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
@@ -89,6 +93,11 @@ export class AppController {
   #helpExited = false;
   /** «Mostrame cómo» (true) o «Solo ir al sitio» (false) para el próximo destino. */
   #wantGuide = true;
+  readonly #protection: SiteProtection;
+  /** Alto de la franja de protección debajo de la barra (la mide la interfaz). */
+  #overlayHeight = 0;
+  /** Hosts con «Posible estafa» o «Atención» en esta sesión: «Salir de este sitio» no vuelve a ellos. */
+  readonly #riskyHosts = new Set<string>();
   #notices: Array<Notice & { url?: string | undefined }> = [];
   #publishScheduled = false;
 
@@ -134,6 +143,11 @@ export class AppController {
     // Una sola lectura en toda la app: el hub avisa a la ventana y a la tarjeta.
     this.#speech = new SpeechHub(options.api, () => [this.window.webContents, this.#card.contents]);
     this.#voiceMode = new VoiceModeState(options.prefs.value.voiceMode);
+    this.#protection = new SiteProtection({
+      api: options.api,
+      summarize: (navigationId, contentVersion) => this.#bridge.summarize(navigationId, contentVersion),
+      onChange: () => this.#onProtectionChange(),
+    });
     this.#wireSite();
 
     ipcMain.handle(UI_COMMAND_CHANNEL, (event, raw: unknown) => this.#onCommand(event, raw));
@@ -198,24 +212,96 @@ export class AppController {
 
   /* --------------------------------- Estado -------------------------------- */
 
-  /** El sitio ocupa todo el ancho debajo de la barra; la tarjeta flota encima. */
+  /**
+   * El sitio ocupa todo el ancho debajo de la barra; la tarjeta flota encima.
+   * Protección de sitios: el panel anclado a la barra empuja el sitio (y la
+   * tarjeta) hacia abajo, y la advertencia de riesgo alto oculta ambos. Las
+   * vistas nativas quedan encima de la interfaz propia: así el contenido web
+   * nunca tapa el indicador ni los avisos.
+   */
   #layout(): void {
     const scale = this.options.prefs.value.textScale;
     const [width = 0, height = 0] = this.window.getContentSize();
-    const top = chromeHeight(scale);
+    const protection = this.#protection.snapshot;
+    const chrome = chromeHeight(scale);
+    // Franja de protección debajo de la barra (indicador cuando no entra en la píldora y/o panel abierto).
+    const overlay = this.#siteVisible ? Math.min(this.#overlayHeight, Math.max(0, height - chrome - 120)) : 0;
+    const top = chrome + overlay;
     const area = { x: 0, y: top, width, height: Math.max(0, height - top) };
+    const siteShown = this.#siteVisible && !protection.warningOpen;
     this.#site.view.setBounds(area);
-    this.#site.view.setVisible(this.#siteVisible);
+    this.#site.view.setVisible(siteShown);
     const layout = this.#card.layout(
       area,
       { cardWidth: cardWidth(scale), pillWidth: pillWidth(scale) },
       this.#assistant.target?.rect ? { ...this.#assistant.target.rect, field: this.#assistant.target.field } : null,
-      this.#siteVisible,
+      siteShown,
     );
     if (layout.placement !== this.#cardLayout.placement || layout.maxHeight !== this.#cardLayout.maxHeight) {
       this.#cardLayout = layout;
       this.#publish();
     }
+  }
+
+  #onProtectionChange(): void {
+    const highRisk = this.#protection.highRisk;
+    const host = this.#protection.target?.hostname;
+    const kind = this.#protection.snapshot.kind;
+    if (host && (kind === 'possible_scam' || kind === 'attention')) this.#riskyHosts.add(host);
+    this.#assistant.setRiskHold(highRisk);
+    this.#layout();
+    this.#publish();
+  }
+
+  #siteCheckView(): SiteCheckView {
+    const snap = this.#protection.snapshot;
+    const kind = this.#siteVisible ? snap.kind : 'none';
+    if (kind === 'none') {
+      return { indicator: 'none', label: null, tone: 'neutral', panel: null, panelOpen: false, warning: null, announcement: null, guidePaused: false };
+    }
+    const hostname = this.#protection.target?.hostname ?? null;
+    const copy = siteCheckCopy(kind, snap.response, hostname);
+    const announced = snap.announcement?.kind;
+    return {
+      indicator: kind,
+      label: copy.label,
+      tone: copy.tone,
+      panel: copy.panel,
+      panelOpen: snap.panelOpen,
+      warning: snap.warningOpen ? { ...siteCheckCopy('possible_scam', snap.response, hostname).panel, continueAction: CONTINUE_ACTION } : null,
+      announcement:
+        snap.announcement && announced && announced !== 'none' && announced !== 'checking'
+          ? { id: snap.announcement.id, text: announcementText(announced, snap.response) }
+          : null,
+      guidePaused: this.#assistant.paused,
+    };
+  }
+
+  /** «Salir de este sitio»: la página anterior válida (otro sitio, sin riesgo alto) o el inicio. */
+  #leaveSite(): void {
+    const riskyDomain = this.#protection.target?.registrableDomain ?? null;
+    const acceptable = (url: string) => {
+      const target = checkEligibility(url);
+      if (target.kind === 'none') return false;
+      if (target.kind !== 'eligible') return true;
+      return !this.#riskyHosts.has(target.hostname) && target.registrableDomain !== riskyDomain;
+    };
+    // Aviso temprano (fase dirección): la página riesgosa todavía no se mostró.
+    if (this.#site.loading) {
+      this.#site.contents.stop();
+      this.#site.navigating = false;
+      const committed = this.#site.url;
+      if (committed !== 'about:blank' && acceptable(committed)) {
+        log('site_check.leave', { back: false, stayed: true });
+        this.#protection.navigationStarted(committed);
+        this.#protection.pageLoaded(committed);
+        return;
+      }
+    }
+    const index = this.#site.findBack(acceptable);
+    log('site_check.leave', { back: index >= 0 });
+    if (index >= 0) this.#site.goToIndex(index);
+    else void this.#run({ type: 'home' });
   }
 
   #guideAllowed(): boolean {
@@ -258,6 +344,7 @@ export class AppController {
         url: url === 'about:blank' ? '' : url,
         domain: parsed?.hostname ?? '',
         secure: parsed ? parsed.protocol === 'https:' || isLoopback(parsed) : true,
+        encrypted: parsed?.protocol === 'https:',
         loading: this.#site.loading,
         canGoBack: this.#siteVisible && history.canGoBack(),
         canGoForward: this.#siteVisible && history.canGoForward(),
@@ -295,6 +382,7 @@ export class AppController {
         partialPage: this.#assistant.partialPage,
       },
       notices: this.#notices.map(({ url: _url, ...notice }) => notice),
+      siteCheck: this.#siteCheckView(),
     };
   }
 
@@ -330,13 +418,19 @@ export class AppController {
 
   #wireSite(): void {
     const site = this.#site;
-    site.on('navigationStarted', () => {
+    site.on('navigationStarted', ({ url }) => {
       this.#helpExited = false;
+      this.#bridge.cancelSummaries();
+      this.#protection.navigationStarted(url);
       this.#assistant.navigationStarted();
     });
-    site.on('navigated', ({ sameDocument }) => {
+    site.on('navigationRedirected', ({ url }) => this.#protection.navigationStarted(url));
+    site.on('navigated', ({ url, sameDocument }) => {
+      if (sameDocument) this.#protection.routeChanged(url);
+      else this.#protection.pageLoaded(url);
       this.#assistant.navigated({ sameDocument, aiEnabled: this.#guideAllowed() });
     });
+    site.on('loadFailed', () => this.#protection.loadFailed());
     site.on('stateChanged', () => this.#publish());
     site.on('popup', ({ url }) => {
       const domain = new URL(url).hostname;
@@ -362,6 +456,7 @@ export class AppController {
     this.#bridge.on('changed', (message) => this.#assistant.pageChanged(message));
     this.#bridge.on('interaction', ({ elementId }) => this.#assistant.interaction(elementId));
     this.#bridge.on('validationError', () => this.#assistant.validationError());
+    this.#bridge.on('signature', () => this.#protection.contentChanged());
   }
 
   /** Destino elegido en el chat: al cargar, la guía analiza la página con ese objetivo. */
@@ -468,8 +563,18 @@ export class AppController {
       }
       case 'saveProfile': {
         const { country, region, city, ageRange } = command;
-        await this.options.prefs.update({ termsAccepted: TERMS_VERSION, profile: { country, region, city, ageRange } });
-        this.#publish();
+        const { termsAccepted, profile } = this.options.prefs.value;
+        try {
+          await this.options.prefs.update({ termsAccepted: TERMS_VERSION, profile: { country, region, city, ageRange } });
+        } catch {
+          // Lo que no quedó en disco tampoco vale en memoria: sin guardar no hay
+          // condiciones aceptadas. La pantalla recibe el error y no se cierra.
+          await this.options.prefs.update({ termsAccepted, profile }).catch(() => undefined);
+          log('prefs.save_failed');
+          throw new Error('PREFS_SAVE_FAILED');
+        } finally {
+          this.#publish();
+        }
         return;
       }
       case 'resetChat':
@@ -521,6 +626,7 @@ export class AppController {
         this.#chat.reset();
         this.#wantGuide = true;
         this.#siteVisible = false;
+        this.#protection.clear();
         this.#helpExited = false;
         this.#site.clear();
         this.#notices = [];
@@ -609,6 +715,23 @@ export class AppController {
       }
       case 'openCurrentExternally':
         if (this.#siteVisible) await openExternally(this.#site.url);
+        return;
+      case 'siteCheckPanel':
+        this.#protection.setPanelOpen(command.open);
+        return;
+      case 'siteCheckRetry':
+        this.#protection.retry();
+        return;
+      case 'siteCheckContinue':
+        this.#protection.continueAnyway();
+        return;
+      case 'siteCheckLeave':
+        this.#protection.setPanelOpen(false);
+        this.#leaveSite();
+        return;
+      case 'siteCheckOverlay':
+        this.#overlayHeight = command.height;
+        this.#layout();
         return;
     }
   }

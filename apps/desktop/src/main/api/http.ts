@@ -9,6 +9,7 @@ import {
   InterpretResponse,
   NextStepResponse,
   OptionsResponse,
+  SiteCheckResponse,
   SPEAK_CONTENT_TYPE,
   SpeakRequest,
   TRANSCRIBE_CONTENT_TYPE,
@@ -34,7 +35,11 @@ const MAX_WAV_BODY_BYTES = TRANSCRIBE_MAX_BYTES;
 const MAX_SPEECH_AUDIO_BYTES = 4 * 1024 * 1024;
 
 type ReadBody = (response: Response) => Promise<unknown>;
+/** Tiempo máximo y reintentos propios de un camino (por ejemplo, /v1/site-check). */
+type SendOverrides = { timeoutMs?: number; retries?: number };
 const readJson: ReadBody = (response) => response.json().catch(() => null);
+/** Tiempo máximo de /v1/site-check; vencido, el indicador pasa a «No pudimos verificarlo». */
+export const SITE_CHECK_TIMEOUT_MS = 15_000;
 
 export interface HttpClientOptions {
   baseUrl: URL;
@@ -82,14 +87,22 @@ export class HttpApiClient implements ApiClient {
     return stream as AsyncIterable<Uint8Array>;
   }
 
+  /**
+   * La revisión del sitio no puede hacer esperar a la persona: tiempo máximo
+   * propio y sin reintentos automáticos (el coordinador decide y ofrece «Intentar de nuevo»).
+   */
+  async siteCheck(request: Parameters<ApiClient['siteCheck']>[0], signal: AbortSignal) {
+    return this.#parse(SiteCheckResponse, await this.#post('/v1/site-check', request, signal, { timeoutMs: SITE_CHECK_TIMEOUT_MS, retries: 0 }));
+  }
+
   #parse<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {
     const parsed = schema.safeParse(body);
     if (!parsed.success) throw new ApiFailure('INVALID_RESPONSE', false);
     return parsed.data;
   }
 
-  async #post(path: string, payload: unknown, signal: AbortSignal): Promise<unknown> {
-    return this.#send(path, JSON.stringify(payload), 'application/json', MAX_BODY_BYTES, signal);
+  async #post(path: string, payload: unknown, signal: AbortSignal, overrides: SendOverrides = {}): Promise<unknown> {
+    return this.#send(path, JSON.stringify(payload), 'application/json', MAX_BODY_BYTES, signal, readJson, 'application/json', overrides);
   }
 
   /** Cada camino trae su límite: 512 KiB para JSON y 960 044 bytes para el WAV. */
@@ -101,10 +114,11 @@ export class HttpApiClient implements ApiClient {
     signal: AbortSignal,
     readOk: ReadBody = readJson,
     accept = 'application/json',
+    overrides: SendOverrides = {},
   ): Promise<unknown> {
     const size = typeof body === 'string' ? Buffer.byteLength(body) : body.byteLength;
     if (size > maxBytes) throw new ApiFailure('PAYLOAD_TOO_LARGE', false);
-    const retries = this.config.retries ?? 1;
+    const retries = overrides.retries ?? this.config.retries ?? 1;
     for (let attempt = 0; ; attempt++) {
       const started = Date.now();
       try {
@@ -118,7 +132,7 @@ export class HttpApiClient implements ApiClient {
           method: 'POST',
           headers,
           body,
-          signal: AbortSignal.any([signal, AbortSignal.timeout(this.config.timeoutMs ?? 100_000)]),
+          signal: AbortSignal.any([signal, AbortSignal.timeout(overrides.timeoutMs ?? this.config.timeoutMs ?? 100_000)]),
         });
         log('api.response', { status: response.status, ms: Date.now() - started, attempt });
         if (response.ok) return await readOk(response);
