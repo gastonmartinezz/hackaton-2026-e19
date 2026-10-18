@@ -60,7 +60,15 @@ export type SiteOption = z.infer<typeof SiteOption>;
 
 export const InterpretResponse = z.discriminatedUnion('type', [
   z.strictObject({ sessionId: SessionId, type: z.literal('redirect'), message: ShortText(500), url: WebUrl }),
-  z.strictObject({ sessionId: SessionId, type: z.literal('question'), message: ShortText(500) }),
+  z.strictObject({
+    sessionId: SessionId,
+    type: z.literal('question'),
+    message: ShortText(500),
+    /** Respuestas posibles para mostrar como botones (sin «No sé bien», que agrega el front). */
+    answers: z.array(ShortText(60)).min(2).max(4).optional(),
+    /** Por qué se pregunta, en una frase que ve la persona. */
+    reason: ShortText(200).optional(),
+  }),
   z.strictObject({
     sessionId: SessionId,
     type: z.literal('options'),

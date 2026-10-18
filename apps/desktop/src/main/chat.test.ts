@@ -1,8 +1,7 @@
-import type { InterpretRequest, InterpretResponse, UserContext } from '@hackaton/contracts';
+import { InterpretResponse, type InterpretRequest, type UserContext } from '@hackaton/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiFailure, ApiSession, type ApiClient } from './api/client';
 import { interpretMock } from './api/mock';
-import { questionExtras } from './api/pending-contract';
 import { Chat, UNSURE_ANSWER } from './chat';
 
 type Reply = DistributiveOmit<InterpretResponse, 'sessionId'> | ApiFailure;
@@ -186,14 +185,12 @@ describe('interpretMock (backend simulado del cliente)', () => {
   });
 });
 
-describe('Chat · respuestas sugeridas (TEMPORAL, campos pendientes del contrato)', () => {
-  it('guarda la pregunta con sus respuestas y su motivo, e ignora formas inválidas', () => {
-    expect(questionExtras({ answers: ['Cédula', 'Pasaporte'], reason: 'Cada documento va a un sitio distinto.' })).toEqual({
-      answers: ['Cédula', 'Pasaporte'],
-      reason: 'Cada documento va a un sitio distinto.',
-    });
-    expect(questionExtras({ answers: ['Una sola'] })).toEqual({ answers: [], reason: null });
-    expect(questionExtras({})).toEqual({ answers: [], reason: null });
+describe('Chat · respuestas sugeridas de la pregunta', () => {
+  it('el contrato acepta la pregunta con sus respuestas y su porqué, y rechaza formas inválidas', () => {
+    const base = { sessionId: 's-1', type: 'question', message: '¿Qué documento?' };
+    expect(InterpretResponse.safeParse({ ...base, answers: ['Cédula', 'Pasaporte'], reason: 'Cada documento va a un sitio distinto.' }).success).toBe(true);
+    expect(InterpretResponse.safeParse(base).success).toBe(true);
+    expect(InterpretResponse.safeParse({ ...base, answers: ['Una sola'] }).success).toBe(false);
   });
 
   it('el mock no insiste después de «No sé bien»', () => {

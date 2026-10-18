@@ -94,7 +94,7 @@ export class InterpretService {
         ? { sessionId, type: 'redirect', message: output.message, url: output.url }
         : output.type === 'options'
           ? { sessionId, type: 'options', message: output.message, options: output.options }
-          : { sessionId, type: 'question', message: output.message };
+          : { sessionId, type: 'question', message: output.message, ...questionExtras(output) };
 
     // Se valida contra el contrato: por ejemplo, rechaza URLs que no son http(s).
     const parsed = InterpretResponse.safeParse(candidate);
@@ -149,4 +149,23 @@ export class InterpretService {
     }
     return marked;
   }
+}
+
+/**
+ * Respuestas sugeridas y porqué de una pregunta, solo si sirven como botones:
+ * entre 2 y 4, cortas, sin repetidas y sin «No sé» (el front ya lo ofrece).
+ */
+function questionExtras(output: InterpretOutput): { answers?: string[]; reason?: string } {
+  const seen = new Set<string>();
+  const answers = output.answers
+    .map((answer) => answer.trim())
+    .filter((answer) => {
+      const key = answer.toLocaleLowerCase('es');
+      if (!answer || answer.length > 60 || seen.has(key) || /^no s[eé](?!\p{L})/iu.test(answer)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 4);
+  const reason = output.why?.trim().slice(0, 200);
+  return { ...(answers.length >= 2 ? { answers } : {}), ...(reason ? { reason } : {}) };
 }

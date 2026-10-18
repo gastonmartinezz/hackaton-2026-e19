@@ -11,7 +11,7 @@ import { auth, fakeVerifier, recordingLogger, testApp } from './helpers.js';
 let app: FastifyInstance;
 afterEach(() => app?.close());
 
-const internal = { goal: 'Agendarse para la cédula', reason: 'Trámite de la DNIC.' };
+const internal = { goal: 'Agendarse para la cédula', reason: 'Trámite de la DNIC.', answers: [] as string[], why: null };
 const redirect = (url: string): InterpretOutput => ({ type: 'redirect', message: 'Te llevo.', url, options: [], ...internal });
 const options = (...urls: string[]): InterpretOutput => ({
   type: 'options',
@@ -250,7 +250,7 @@ describe('interpret: la página tiene que ser de lo que pidió la persona', () =
     [primeraVez]: 'Documento Nacional de Identidad - Primera Vez | Trámites',
     [renovacion]: 'Documento Nacional de Identidad - Renovación | Trámites',
   };
-  const redirectTo = (url: string) => ({ type: 'redirect' as const, message: 'Te llevo.', url, options: [], goal: 'renovar la cédula de identidad', reason: 'x' });
+  const redirectTo = (url: string) => ({ type: 'redirect' as const, message: 'Te llevo.', url, options: [], answers: [], why: null, goal: 'renovar la cédula de identidad', reason: 'x' });
   /** pageCheck que rechaza «Primera Vez» cuando el objetivo es renovar, como haría Claude. */
   const pageCheck = (input: { pages: Array<{ url: string; title: string }> }) => ({
     pages: input.pages.map(({ url, title }) => ({ url, matches: !/primera vez/i.test(title), reason: 'x' })),
@@ -288,6 +288,40 @@ describe('interpret: la página tiene que ser de lo que pidió la persona', () =
     const response = await service.interpret({ messages: [{ role: 'user', content: 'x' }] }, 'token');
     expect(response).toMatchObject({ type: 'redirect', url: primeraVez });
     expect(seen).toEqual([]);
+    sessions.close();
+  });
+});
+
+describe('interpret: preguntas con respuestas sugeridas', () => {
+  const ask = (answers: string[], why: string | null) => ({
+    type: 'question' as const,
+    message: '¿Querés renovar la cédula, sacarla por primera vez o pedir un duplicado?',
+    url: null,
+    options: [],
+    answers,
+    why,
+    goal: 'cédula',
+    reason: 'x',
+  });
+
+  it('manda las respuestas (sin «No sé», repetidas ni largas) y el porqué', async () => {
+    const model = new MockModel({ ...defaultMockHandlers, interpret: () => ask(['Renovarla', 'Sacarla por primera vez', 'renovarla', 'No sé', 'Pedir un duplicado'], 'Así encuentro la página justa.') });
+    const sessions = new SessionStore(60_000);
+    const response = await new InterpretService(model, sessions, new UrlGuard(fakeVerifier())).interpret({ messages: [{ role: 'user', content: 'la cédula' }] }, 'token');
+    expect(response).toMatchObject({
+      type: 'question',
+      answers: ['Renovarla', 'Sacarla por primera vez', 'Pedir un duplicado'],
+      reason: 'Así encuentro la página justa.',
+    });
+    sessions.close();
+  });
+
+  it('con menos de dos respuestas útiles no manda answers (queda la pregunta abierta)', async () => {
+    const model = new MockModel({ ...defaultMockHandlers, interpret: () => ask(['Renovarla'], null) });
+    const sessions = new SessionStore(60_000);
+    const response = await new InterpretService(model, sessions, new UrlGuard(fakeVerifier())).interpret({ messages: [{ role: 'user', content: 'la cédula' }] }, 'token');
+    expect(response).not.toHaveProperty('answers');
+    expect(response).not.toHaveProperty('reason');
     sessions.close();
   });
 });

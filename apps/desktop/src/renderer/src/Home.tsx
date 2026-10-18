@@ -199,7 +199,8 @@ function Question({ state }: { state: AppState }) {
           </button>
         </li>
       </ul>
-      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} onMessage={setVoiceMessage} />
+      {/* Si contesta con sus palabras algo que no es una de las respuestas, eso es su respuesta: va al buscador. */}
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} onMessage={setVoiceMessage} onFreeText={answer} />
     </section>
   );
 }
@@ -288,7 +289,14 @@ function Recommendation({ state }: { state: AppState }) {
           </ul>
         </div>
       ) : null}
-      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} onMessage={setVoiceMessage} />
+      <VoiceAnswer
+        choices={choices}
+        active={state.voice.active}
+        trigger={readDone}
+        onMessage={setVoiceMessage}
+        // Si pide otra cosa con sus palabras, se busca de nuevo con eso (el buscador conserva el recorrido).
+        onFreeText={(text) => send({ type: 'submitIntent', text: text.slice(0, MAX_QUERY).trim(), guide: true })}
+      />
     </section>
   );
 }

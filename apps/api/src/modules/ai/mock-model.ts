@@ -48,6 +48,8 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
           message: '¿Me contás un poco más qué querés hacer?',
           url: null,
           options: [],
+          answers: ['Sacar un turno', 'Hacer un trámite'],
+          why: 'Así encuentro la página justa.',
           goal: 'Sin definir',
           reason: 'Falta información.',
         }
@@ -56,6 +58,8 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
           message: 'Te llevo a este sitio.',
           url: 'https://www.example.com/',
           options: [],
+          answers: [],
+          why: null,
           goal: 'Objetivo simulado',
           reason: 'Respuesta simulada.',
         },
