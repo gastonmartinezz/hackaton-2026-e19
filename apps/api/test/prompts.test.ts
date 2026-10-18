@@ -51,4 +51,11 @@ describe('prompts', () => {
     expect(SYSTEM_PROMPTS.options).toContain('su title conserva lo que la distingue');
     expect(SYSTEM_PROMPTS.match).toContain('si pide renovar y la opción es sacarlo por primera vez, no corresponde');
   });
+
+  it('las listas traen sus opciones y la variante del trámite se nombra exacta', () => {
+    for (const prompt of [SYSTEM_PROMPTS.options, SYSTEM_PROMPTS.nextStep]) {
+      expect(prompt).toContain('Una lista (select) trae adentro sus opciones');
+      expect(prompt).toContain('«Elegí «Documento Nacional de Identidad - Renovación» en «Trámite».»');
+    }
+  });
 });

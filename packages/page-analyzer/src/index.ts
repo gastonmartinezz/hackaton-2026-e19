@@ -228,6 +228,8 @@ export function extractSnapshot(doc: Document, options: ExtractOptions): Extract
     const inputType = inputTypeOf(element);
     if (inputType) entry.inputType = inputType;
     if (isRequired(element)) entry.required = true;
+    const choices = choicesOf(element);
+    if (choices.length > 0) entry.choices = choices;
     const sectionId = nearestSectionId(element, elementIds);
     if (sectionId) entry.sectionId = sectionId;
     elements.push(entry);
@@ -383,6 +385,21 @@ function inputTypeOf(element: Element): string | undefined {
   if (element.localName !== 'input') return undefined;
   const type = (element.getAttribute('type') ?? 'text').toLowerCase();
   return INPUT_TYPES.has(type) ? type : 'text';
+}
+
+/**
+ * Opciones de una lista nativa, depuradas: el texto que escribió el sitio, sin
+ * repetidas ni vacías. Nunca cuál está elegida (ni `selected` ni `.value`).
+ */
+function choicesOf(element: Element): string[] {
+  if (element.localName !== 'select') return [];
+  const seen = new Set<string>();
+  for (const option of Array.from((element as HTMLSelectElement).options)) {
+    if (seen.size >= LIMITS.choices) break;
+    const text = sanitizeLabel(option.label || option.text, LIMITS.choiceLength);
+    if (text) seen.add(text);
+  }
+  return [...seen];
 }
 
 /** Solo atributos del sitio: nunca se mira lo que la persona escribió. */

@@ -173,6 +173,29 @@ describe('HTML sintético para /v1/options', () => {
     for (const secret of SECRETS) expect(html).not.toContain(secret);
   });
 
+  it('manda las opciones de una lista (texto del sitio), nunca cuál está elegida', () => {
+    document.body.innerHTML = `
+      <label>Trámite <select id="t">
+        <option value="">Elegí un trámite</option>
+        <option value="1">Documento Nacional de Identidad - Primera Vez</option>
+        <option value="2" selected>Documento Nacional de Identidad - Renovación</option>
+      </select></label>
+      <label>DNI <select><option selected>30123456</option></select></label>
+      <label>Correo <select><option>marta.gomez@correo.com</option></select></label>`;
+    const { snapshot } = extract();
+    const tramite = snapshot.elements.find((e) => e.label === 'Trámite')!;
+    expect(tramite.choices).toEqual(['Elegí un trámite', 'Documento Nacional de Identidad - Primera Vez', 'Documento Nacional de Identidad - Renovación']);
+    const html = snapshotToHtml(snapshot);
+    const parsed = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+    const options = [...parsed.querySelectorAll('select[aria-label="Trámite"] option')];
+    expect(options.map((o) => o.textContent)).toContain('Documento Nacional de Identidad - Renovación');
+    // Nunca cuál está elegida, ni valores ni datos personales.
+    expect(html).not.toContain('selected');
+    expect(html).not.toContain('value=');
+    expect(findLeaks(snapshot, SECRETS)).toEqual([]);
+    expect(PageSnapshotSchema.safeParse(snapshot).success).toBe(true);
+  });
+
   it('escapa etiquetas con caracteres de HTML', () => {
     document.body.innerHTML = '<button aria-label="&lt;b&gt;Ir&lt;/b&gt; &quot;ya&quot;">x</button>';
     const html = snapshotToHtml(extract().snapshot);
