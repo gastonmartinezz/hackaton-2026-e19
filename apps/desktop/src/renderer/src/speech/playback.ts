@@ -4,6 +4,7 @@
  * del sistema en español. Nada se guarda: el audio vive en memoria y se libera
  * al terminar.
  */
+import type { SpeechDiagnostic } from '../../../shared/ipc';
 
 export interface Playback {
   /** Termina sola (`ended`), por un error (`failed`) o al detenerla (`stopped`). */
@@ -238,18 +239,42 @@ export type SystemSpeechProblem = 'noSpanishVoice' | 'noVoices';
  * ninguna en español (no va a haber); `noVoices`: no llegaron las voces (puede
  * ser momentáneo).
  */
-export async function systemSpeak(text: string, voicesTimeoutMs = VOICES_TIMEOUT_MS): Promise<Playback | SystemSpeechProblem> {
+export async function systemSpeak(
+  text: string,
+  voicesTimeoutMs = VOICES_TIMEOUT_MS,
+  report: (data: SpeechDiagnostic) => void = () => {},
+): Promise<Playback | SystemSpeechProblem> {
+  const started = performance.now();
   const voices = await systemVoices(voicesTimeoutMs);
-  if (voices.length === 0) return 'noVoices';
+  const spanishVoices = voices.filter((v) => lang(v) === 'es' || lang(v).startsWith('es-')).length;
   const voice = pickSpanishVoice(voices);
-  if (!voice) return 'noSpanishVoice';
+  // Diagnóstico sin contenido: cuántas voces, cuántas en español, cuánto se esperó y cuál se eligió.
+  const base = { voices: voices.length, spanishVoices, waitMs: Math.round(performance.now() - started), chosenLang: voice?.lang ?? null } as const;
+  if (voices.length === 0) {
+    report({ ...base, outcome: 'noVoices', event: 'none', errorType: null });
+    return 'noVoices';
+  }
+  if (!voice) {
+    report({ ...base, outcome: 'noSpanishVoice', event: 'none', errorType: null });
+    return 'noSpanishVoice';
+  }
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.voice = voice;
   utterance.lang = voice.lang;
   let finish: (result: 'ended' | 'failed' | 'stopped') => void = () => {};
   const done = new Promise<'ended' | 'failed' | 'stopped'>((resolve) => (finish = resolve));
-  utterance.addEventListener('end', () => finish('ended'));
-  utterance.addEventListener('error', () => finish('failed'));
+  const event = (name: 'start' | 'end' | 'error', errorType: string | null = null) => report({ ...base, outcome: 'ok', event: name, errorType });
+  utterance.addEventListener('start', () => event('start'));
+  utterance.addEventListener('end', () => {
+    event('end');
+    finish('ended');
+  });
+  utterance.addEventListener('error', (e) => {
+    const type = (e as SpeechSynthesisErrorEvent).error;
+    // `interrupted`/`canceled` son «Detener» u otra lectura: no es una falla.
+    if (type !== 'interrupted' && type !== 'canceled') event('error', /^[a-z-]{1,40}$/.test(type) ? type : 'other');
+    finish(type === 'interrupted' || type === 'canceled' ? 'stopped' : 'failed');
+  });
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
   return {

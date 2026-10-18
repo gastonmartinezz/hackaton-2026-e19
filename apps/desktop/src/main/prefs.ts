@@ -8,7 +8,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { AgeRange, CountryCode } from '@hackaton/contracts';
 import { z } from 'zod';
-import { DEFAULT_TEXT_SCALE, TEXT_SCALES } from '../shared/ipc';
+import { DEFAULT_TEXT_SCALE, TEXT_SCALES, VOICE_MODES } from '../shared/ipc';
 
 /** Lo que la persona cuenta de sí misma en la pantalla inicial. Todo opcional. */
 const ProfileSchema = z.object({
@@ -28,6 +28,8 @@ const PrefsSchema = z.object({
   /** Versión de las condiciones de uso aceptadas; null si nunca las aceptó. */
   termsAccepted: z.string().max(40).nullable().default(null),
   profile: ProfileSchema.default({ country: null, region: '', city: '', ageRange: null }),
+  /** Modo voz: `auto` (se prende al dictar), `on` u `off`. Un valor desconocido vuelve a `auto`. */
+  voiceMode: z.enum(VOICE_MODES).catch('auto').default('auto'),
 });
 export type Prefs = z.infer<typeof PrefsSchema>;
 
@@ -37,6 +39,7 @@ export const DEFAULT_PREFS: Prefs = {
   aiDisabledOrigins: [],
   termsAccepted: null,
   profile: { country: null, region: '', city: '', ageRange: null },
+  voiceMode: 'auto',
 };
 
 function nearestScale(value: unknown): unknown {

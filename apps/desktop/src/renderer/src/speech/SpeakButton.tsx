@@ -8,8 +8,9 @@ import { Button } from '@asistente/ui';
 import { SPEECH_TEXTS } from './speechText';
 import { useReadAloud, type ReadAloudDeps } from './useReadAloud';
 
-export function SpeakButton({ text, deps }: { text: string; deps?: ReadAloudDeps }) {
-  const { state, active, toggle, available } = useReadAloud(text, deps);
+/** `auto`: modo voz activo, lee solo apenas aparece. `contentKey`: «Repetir» lo vuelve a leer. */
+export function SpeakButton({ text, deps, auto = false, contentKey }: { text: string; deps?: ReadAloudDeps; auto?: boolean; contentKey?: string | number }) {
+  const { state, active, toggle, available } = useReadAloud(text, deps, { auto, contentKey });
   if (!available) {
     // Se explica una sola vez, en el botón que se tocó; después el botón ya no se ofrece.
     return state.kind === 'unavailable' ? (

@@ -6,7 +6,7 @@ import type { SpeakResult, SpeechAudioEvent } from '../../../shared/ipc';
 import { pickSpanishVoice, systemVoices, type Mp3Stream, type Playback, type SystemSpeechProblem } from './playback';
 import { SpeakButton } from './SpeakButton';
 import { SPEECH_TEXTS } from './speechText';
-import { speechSource, type ReadAloudDeps } from './useReadAloud';
+import { autoRead, speechSource, type ReadAloudDeps } from './useReadAloud';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -14,6 +14,7 @@ let container: HTMLElement;
 let root: Root;
 beforeEach(() => {
   speechSource.mode = 'server';
+  autoRead.last = '';
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -324,6 +325,81 @@ describe('SpeakButton', () => {
   it('sin texto no se muestra', () => {
     render(<SpeakButton text="  " deps={fakeDeps().deps} />);
     expect(button()).toBeNull();
+  });
+});
+
+describe('modo voz: lectura automática', () => {
+  it('con el modo activo lee solo apenas aparece, una sola vez (no en cada render)', async () => {
+    const { deps } = fakeDeps();
+    render(<SpeakButton text="Hacé clic en «Sacar turno»." deps={deps} auto />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledOnce();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.stop);
+    render(<SpeakButton text="Hacé clic en «Sacar turno»." deps={deps} auto />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledOnce();
+  });
+
+  it('el mismo contenido que ya se leyó no se vuelve a leer al volver a mostrarse', async () => {
+    const { deps, mp3 } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    await act(async () => mp3.end());
+    act(() => root.render(null));
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledOnce();
+  });
+
+  it('un contenido nuevo corta el anterior y se lee', async () => {
+    const { deps, mp3 } = fakeDeps();
+    render(<SpeakButton text="Primera instrucción" deps={deps} auto />);
+    await flush();
+    render(<SpeakButton text="Segunda instrucción" deps={deps} auto />);
+    await flush();
+    expect(mp3.playback.stop).toHaveBeenCalled();
+    expect(deps.speak.mock.calls.map(([t]) => t)).toEqual(['Primera instrucción', 'Segunda instrucción']);
+  });
+
+  it('«Repetir» (otra contentKey) vuelve a leer el mismo texto', async () => {
+    const { deps } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} auto contentKey={1} />);
+    await flush();
+    render(<SpeakButton text="Hola" deps={deps} auto contentKey={2} />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledTimes(2);
+  });
+
+  it('apagar el modo corta lo que suena', async () => {
+    const { deps, mp3 } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    render(<SpeakButton text="Hola" deps={deps} auto={false} />);
+    await flush();
+    expect(mp3.playback.stop).toHaveBeenCalled();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.listen);
+  });
+
+  it('con el modo apagado no lee solo: solo «Escuchar» manual', async () => {
+    const { deps } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await flush();
+    render(<SpeakButton text="Otra" deps={deps} />);
+    await flush();
+    expect(deps.speak).not.toHaveBeenCalled();
+  });
+
+  it('una lectura automática cortada al desmontarse se puede volver a leer (StrictMode en desarrollo)', async () => {
+    const { deps } = fakeDeps();
+    let resolve: (r: SpeakResult) => void = () => {};
+    deps.speak.mockImplementationOnce(() => new Promise<SpeakResult>((r) => (resolve = r)));
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    act(() => root.render(null));
+    await act(async () => resolve({ status: 'ok' }));
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledTimes(2);
   });
 });
 

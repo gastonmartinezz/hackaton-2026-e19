@@ -9,11 +9,15 @@
  * la voz del sistema.
  *
  * Con la voz apagada en el servidor (`off`) se usa la voz del sistema en
- * español; si tampoco hay, el botón deja de ofrecerse.
+ * español; si tampoco hay, el botón deja de ofrecerse (después de avisarlo).
+ *
+ * Modo voz (`auto`): lee solo cada contenido nuevo apenas aparece, una sola
+ * vez (no en cada render); un contenido nuevo corta el anterior y apagar el
+ * modo corta lo que suena. Con el modo apagado, solo «Escuchar» manual.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SpeakResult, SpeechAudioEvent } from '../../../shared/ipc';
-import { openMp3Stream, systemSpeak, warmUpVoices, type Mp3Stream, type Playback, type SystemSpeechProblem } from './playback';
+import { openMp3Stream, systemSpeak, VOICES_TIMEOUT_MS, warmUpVoices, type Mp3Stream, type Playback, type SystemSpeechProblem } from './playback';
 
 export type ReadAloudState =
   | { kind: 'idle' }
@@ -42,7 +46,7 @@ const defaultDeps: ReadAloudDeps = {
   stopSpeaking: () => window.asistente.stopSpeaking(),
   onCut: (listener) => window.asistente.onSpeechCut(listener),
   openMp3Stream,
-  systemSpeak: (text) => systemSpeak(text),
+  systemSpeak: (text) => systemSpeak(text, VOICES_TIMEOUT_MS, (data) => window.asistente.speechDiagnostic(data)),
   warmUpVoices,
 };
 
@@ -52,10 +56,20 @@ const defaultDeps: ReadAloudDeps = {
  */
 export const speechSource: { mode: 'server' | 'system' | 'none' } = { mode: 'server' };
 
+/** Último contenido leído solo en esta vista: cada contenido se lee una vez. */
+export const autoRead = { last: '' };
+
 /** Lecturas de esta vista: al empezar una, se callan las otras. */
 const localReaders = new Set<() => void>();
 
-export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
+export interface ReadAloudOptions {
+  /** Modo voz activo: leer solo apenas aparece. */
+  auto?: boolean;
+  /** Distingue el mismo texto mostrado de nuevo (por ejemplo «Repetir»). */
+  contentKey?: string | number;
+}
+
+export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { auto = false, contentKey = '' }: ReadAloudOptions = {}) {
   const [state, setState] = useState<ReadAloudState>({ kind: 'idle' });
   const [, setSourceVersion] = useState(0);
   const playback = useRef<Playback | null>(null);
@@ -95,6 +109,8 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
     void started.done.then((result) => {
       if (id !== attempt.current) return;
       playback.current = null;
+      // Terminó de sonar: no queda nada por descargar ni por cortar.
+      pending.current = false;
       setState(result === 'failed' ? { kind: 'error', reason: 'failed' } : { kind: 'idle' });
     });
   }, []);
@@ -161,6 +177,27 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
     else void start();
   }, [active, start, stop]);
 
+  // Modo voz: cada contenido nuevo se lee una vez, apenas aparece.
+  const autoKey = useRef('');
+  useEffect(() => {
+    if (!auto || !text.trim() || speechSource.mode === 'none') return;
+    const key = `${contentKey}|${text}`;
+    if (autoRead.last === key) return;
+    autoRead.last = key;
+    autoKey.current = key;
+    void start();
+  }, [auto, text, contentKey, start]);
+
+  // Apagar el modo voz corta lo que esté sonando.
+  const wasAuto = useRef(auto);
+  useEffect(() => {
+    if (wasAuto.current && !auto) {
+      autoRead.last = '';
+      cutFromOutside();
+    }
+    wasAuto.current = auto;
+  }, [auto, cutFromOutside]);
+
   // Las voces del sistema tardan en cargar: se piden al mostrar el botón.
   useEffect(() => deps.warmUpVoices(), [deps]);
 
@@ -177,6 +214,9 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
   // Otra instrucción, o la vista se cierra: se corta lo que estaba sonando.
   useEffect(
     () => () => {
+      // Una lectura automática cortada a la mitad (se cerró la vista, o el doble montaje de
+      // StrictMode en desarrollo) se puede volver a leer si el mismo contenido vuelve a aparecer.
+      if ((playback.current || pending.current) && autoRead.last === autoKey.current) autoRead.last = '';
       if (pending.current) deps.stopSpeaking();
       silence();
       setState({ kind: 'idle' });

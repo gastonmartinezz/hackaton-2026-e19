@@ -483,6 +483,12 @@ body {
   font-size: var(--fs-sm);
   text-align: center;
 }
+/* Interruptor «Voz» de la barra: prendido se ve marcado (estado fijo, sin animación). */
+.btn-chrome.voice-toggle[aria-pressed='true'] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
 /* Leer en voz alta (S11): «Escuchar» / «Detener» al lado del rótulo o del título. */
 .now-row,
 .speak-row {

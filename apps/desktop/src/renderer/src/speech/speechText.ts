@@ -26,6 +26,9 @@ export const SPEECH_TEXTS = {
   completed: 'Listo.',
   didYouFinish: '¿Pudiste terminar? La página cambió, pero no sé si terminaste. Fijate si la página lo confirma.',
   unsure: 'No estoy seguro',
+  optionsTitle: '¿Qué querés hacer acá?',
+  /** Visible como «Encontré estas opciones en esta página.»; acá se le suma la lista. */
+  optionsLead: 'Encontré estas opciones en esta página',
   recommended: 'Sitio recomendado',
   why: 'Por qué te lo recomiendo',
 } as const;
@@ -41,6 +44,13 @@ export function guideSpeech(guide: Pick<AppState['guide'], 'phase' | 'instructio
     default:
       return '';
   }
+}
+
+/** Tarjeta (05): la pregunta y las opciones de la página (sin «Ver otras opciones»). */
+export function optionsSpeech(titles: string[]): string {
+  if (titles.length === 0) return '';
+  const list = titles.length > 1 ? `${titles.slice(0, -1).join(', ')} o ${titles.at(-1)}` : titles[0];
+  return joinSpeech(SPEECH_TEXTS.optionsTitle, `${SPEECH_TEXTS.optionsLead}: ${list}`);
 }
 
 /** Inicio (02, 03): la pregunta, las respuestas sugeridas y el porqué. */

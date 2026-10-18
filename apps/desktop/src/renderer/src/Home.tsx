@@ -142,7 +142,7 @@ function Question({ state }: { state: AppState }) {
           <BrandSymbol />
           Para llevarte directo al sitio justo, necesito un dato.
         </p>
-        <SpeakButton text={questionSpeech(question)} />
+        <SpeakButton text={questionSpeech(question)} auto={state.voice.active} />
       </div>
       {answered.length > 0 ? (
         <ul className="ask-done" aria-label="Lo que ya me contaste">
@@ -202,7 +202,7 @@ function Recommendation({ state }: { state: AppState }) {
           <BrandSymbol />
           <span>{intro}</span>
         </p>
-        <SpeakButton text={recommendationSpeech(intro, first)} />
+        <SpeakButton text={recommendationSpeech(intro, first)} auto={state.voice.active} />
       </div>
       <SiteCard candidate={first} recommended />
       {others.length > 0 ? (

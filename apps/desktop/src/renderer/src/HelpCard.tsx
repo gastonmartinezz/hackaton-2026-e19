@@ -8,7 +8,7 @@ import { Fragment, useLayoutEffect, useRef, useState, type FormEvent, type React
 import type { AppState, CardMode, OptionView } from '../../shared/ipc';
 import { Notices } from './Notices';
 import { SpeakButton } from './speech/SpeakButton';
-import { guideSpeech } from './speech/speechText';
+import { guideSpeech, optionsSpeech } from './speech/speechText';
 import { send, useAppState } from './useAppState';
 
 /** Margen transparente de la vista para la sombra (CARD_SHADOW en main/help-card.ts). */
@@ -196,8 +196,8 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
 
     case 'completed':
       return guide.evidence
-        ? { tone: 'success', foot: 'none', content: <Completed evidence={guide.evidence} speech={guideSpeech(guide)} /> }
-        : { tone: 'ask', foot: 'none', content: <DidYouFinish speech={guideSpeech(guide)} /> };
+        ? { tone: 'success', foot: 'none', content: <Completed evidence={guide.evidence} speech={guideSpeech(guide)} auto={state.voice.active} /> }
+        : { tone: 'ask', foot: 'none', content: <DidYouFinish speech={guideSpeech(guide)} auto={state.voice.active} /> };
 
     case 'unsupported':
       return {
@@ -258,7 +258,10 @@ function Options({ state, onMore }: { state: AppState; onMore: () => void }) {
   return (
     <>
       <div>
-        <h2 className="title">¿Qué querés hacer acá?</h2>
+        <div className="speak-row">
+          <h2 className="title">¿Qué querés hacer acá?</h2>
+          <SpeakButton text={optionsSpeech(primary.map((o) => o.title))} auto={state.voice.active} />
+        </div>
         <p className="lead-s">Encontré estas opciones en esta página.</p>
       </div>
       <ul className="option-list" aria-label="Opciones de esta página">
@@ -349,7 +352,7 @@ function CurrentStep({ state }: { state: AppState }) {
           Ahora
         </p>
         {/* Leer en voz alta (opcional, S11): solo si la persona lo pide; se corta al cambiar de instrucción. */}
-        <SpeakButton text={guideSpeech(guide)} />
+        <SpeakButton text={guideSpeech(guide)} auto={state.voice.active} contentKey={guide.announceKey} />
       </div>
       {/* Única región que anuncia instrucciones; Repetir cambia la clave y se vuelve a anunciar. No mueve el foco. */}
       <div aria-live="polite" key={guide.announceKey}>
@@ -407,7 +410,7 @@ function DoneList({ done }: { done: string[] }) {
 }
 
 /** 09: «Listo» solo con evidencia de la página, citada tal cual. */
-function Completed({ evidence, speech }: { evidence: string; speech: string }) {
+function Completed({ evidence, speech, auto }: { evidence: string; speech: string; auto: boolean }) {
   return (
     <section className="status success" role="status">
       <div className="head">
@@ -415,7 +418,7 @@ function Completed({ evidence, speech }: { evidence: string; speech: string }) {
         {/* TODO(textos): «completada.titulo» pide «Listo: {resultado}.»; el backend todavía no manda el resultado. */}
         <h2 className="title">Listo.</h2>
         {/* Se lee «Listo.» sin la cita de la página. */}
-        <SpeakButton text={speech} />
+        <SpeakButton text={speech} auto={auto} />
       </div>
       <p className="evidence">
         <Icon name="check" size="sm" />
@@ -434,7 +437,7 @@ function Completed({ evidence, speech }: { evidence: string; speech: string }) {
 }
 
 /** 16 y 17: sin evidencia no hay festejo; se pregunta y, si falta algo, se sigue. */
-function DidYouFinish({ speech }: { speech: string }) {
+function DidYouFinish({ speech, auto }: { speech: string; auto: boolean }) {
   const [notYet, setNotYet] = useState(false);
   if (notYet) {
     const reasons = [
@@ -466,7 +469,7 @@ function DidYouFinish({ speech }: { speech: string }) {
       <div className="head">
         <Icon name="circle-help" size="lg" />
         <h2 className="title">¿Pudiste terminar?</h2>
-        <SpeakButton text={speech} />
+        <SpeakButton text={speech} auto={auto} />
       </div>
       <p>La página cambió, pero no sé si terminaste. Fijate si la página lo confirma.</p>
       <div className="actions">

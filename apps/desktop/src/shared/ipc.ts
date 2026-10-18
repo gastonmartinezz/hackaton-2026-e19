@@ -14,6 +14,10 @@ export const TEXT_SCALES = [1.2, 1.45, 1.75] as const;
 export type TextScale = (typeof TEXT_SCALES)[number];
 export const DEFAULT_TEXT_SCALE: TextScale = 1.2;
 
+/** Modo voz guardado: `auto` se prende al dictar, `on` siempre, `off` nunca (ver main/voice-mode.ts). */
+export const VOICE_MODES = ['auto', 'on', 'off'] as const;
+export type VoiceMode = (typeof VOICE_MODES)[number];
+
 /** Cambiarla cuando cambie el texto de las condiciones: se vuelven a pedir. */
 export const TERMS_VERSION = '2026-10-17';
 
@@ -38,6 +42,24 @@ export type TranscribeResult = { status: 'ok'; text: string } | { status: 'empty
 export const UI_SPEAK_CHANNEL = 'ui:speak';
 /** «Detener»: corta la descarga en curso (la reproducción la corta la interfaz). */
 export const UI_SPEAK_STOP_CHANNEL = 'ui:speak-stop';
+/**
+ * Diagnóstico de la voz del sistema (respaldo): solo datos sin contenido, para
+ * el log técnico del proceso principal.
+ */
+export const UI_SPEECH_DIAGNOSTIC_CHANNEL = 'ui:speech-diagnostic';
+export const SpeechDiagnosticSchema = z.strictObject({
+  voices: z.number().int().min(0).max(10_000),
+  spanishVoices: z.number().int().min(0).max(10_000),
+  waitMs: z.number().int().min(0).max(120_000),
+  /** `lang` de la voz elegida (por ejemplo es-MX), o null. */
+  chosenLang: z.string().regex(/^[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*$/).max(20).nullable(),
+  outcome: z.enum(['ok', 'noVoices', 'noSpanishVoice']),
+  /** Eventos de la lectura: start, end, error (con su tipo). */
+  event: z.enum(['none', 'start', 'end', 'error']),
+  errorType: z.string().regex(/^[a-z-]{1,40}$/).nullable(),
+});
+export type SpeechDiagnostic = z.infer<typeof SpeechDiagnosticSchema>;
+
 /** Del proceso principal a las vistas: otra vista empezó a leer o se detuvo todo; cortar lo que suena. */
 export const UI_SPEECH_CUT_CHANNEL = 'ui:speech-cut';
 /**
@@ -79,6 +101,8 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('finishHelp') }),
   z.strictObject({ type: z.literal('retry') }),
   z.strictObject({ type: z.literal('setTextScale'), scale: z.union(TEXT_SCALES.map((s) => z.literal(s))) }),
+  /** Interruptor «Voz» de la barra: deja la preferencia en `on` u `off`. */
+  z.strictObject({ type: z.literal('setVoiceMode'), mode: z.enum(['on', 'off']) }),
   z.strictObject({ type: z.literal('setAiForSite'), enabled: z.boolean() }),
   z.strictObject({ type: z.literal('resolveNotice'), noticeId: Id, action: z.enum(['openHere', 'openExternal', 'dismiss']) }),
   z.strictObject({ type: z.literal('openCurrentExternally') }),
@@ -145,7 +169,9 @@ export interface AppState {
   /** Opciones y guía dentro de la página. */
   guideEnabled: boolean;
   layout: { topBarHeight: number; card: CardLayout };
-  prefs: { textScale: number; aiEnabledForSite: boolean };
+  prefs: { textScale: number; aiEnabledForSite: boolean; voiceMode: VoiceMode };
+  /** Modo voz activo ahora: Mostrame lee solo lo que escribe apenas aparece. */
+  voice: { active: boolean };
   /** Datos de la pantalla inicial. Sin condiciones aceptadas, la app muestra esa pantalla. */
   profile: {
     termsAccepted: boolean;
@@ -224,6 +250,8 @@ export interface AsistenteBridge {
   stopSpeaking(): void;
   /** Otra vista empezó a leer o se detuvo todo: cortar lo que suena acá. */
   onSpeechCut(listener: () => void): () => void;
+  /** Diagnóstico sin contenido de la voz del sistema (va al log técnico). */
+  speechDiagnostic(data: SpeechDiagnostic): void;
 }
 
 /* ---------------------------- Página externa ---------------------------- */
