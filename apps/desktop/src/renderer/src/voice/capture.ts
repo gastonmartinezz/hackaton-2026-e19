@@ -5,7 +5,10 @@
  * error.
  */
 import { downmix, encodeWav, fitDuration, rms, WAV_SAMPLE_RATE } from '../../../shared/wav';
-import { SilenceDetector } from './silence';
+import { SilenceDetector, type SilenceVerdict } from './silence';
+
+/** Por qué cortó solo: habló y se quedó en silencio, nunca habló, o llegó a 30 s. */
+export type AutoStopReason = Exclude<SilenceVerdict, 'continue'>;
 
 /** Por qué no se pudo abrir el micrófono. */
 export type MicProblem = 'denied' | 'missing' | 'failed';
@@ -34,8 +37,8 @@ export class VoiceCapture {
   readonly #timer: ReturnType<typeof setInterval>;
   #closed = false;
 
-  /** Pide el micrófono (solo audio) y empieza a grabar. `onAutoStop`: silencio o 30 s. */
-  static async open(onAutoStop: () => void): Promise<VoiceCapture> {
+  /** Pide el micrófono (solo audio) y empieza a grabar. `onAutoStop`: 5 s de silencio, sin habla o 30 s. */
+  static async open(onAutoStop: (reason: AutoStopReason) => void): Promise<VoiceCapture> {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') throw new MicError('missing');
     let stream: MediaStream;
     try {
@@ -54,7 +57,7 @@ export class VoiceCapture {
     }
   }
 
-  private constructor(stream: MediaStream, onAutoStop: () => void) {
+  private constructor(stream: MediaStream, onAutoStop: (reason: AutoStopReason) => void) {
     this.#stream = stream;
     const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find((t) => MediaRecorder.isTypeSupported(t));
     this.#recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -69,9 +72,10 @@ export class VoiceCapture {
     const detector = new SilenceDetector();
     this.#timer = setInterval(() => {
       analyser.getFloatTimeDomainData(frame);
-      if (detector.push(rms(frame), performance.now()) !== 'continue') {
+      const verdict = detector.push(rms(frame), performance.now());
+      if (verdict !== 'continue') {
         clearInterval(this.#timer);
-        onAutoStop();
+        onAutoStop(verdict);
       }
     }, POLL_MS);
     this.#recorder.start();

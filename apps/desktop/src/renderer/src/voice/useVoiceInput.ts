@@ -1,7 +1,10 @@
 /**
  * Estado del dictado del buscador. Tocar el micrófono empieza a escuchar;
- * tocarlo de nuevo (o 2,5 s de silencio, o 30 s) termina. El texto vuelve por
- * `onText` para que la persona lo revise: nunca se envía la búsqueda.
+ * tocarlo de nuevo («Terminar»), 5 s seguidos de silencio o 30 s terminan.
+ * Si la persona no habló nada en los primeros 5 s, corta con «no te escuché»
+ * sin mandar audio. El texto vuelve por `onText` (queda visible en el
+ * buscador) y, si hay texto, se envía solo por `onSubmit` (decisión de
+ * producto: el dictado busca sin otro toque). Con texto vacío no se envía.
  *
  * - `blocked` (búsqueda en curso): no se puede empezar a escuchar y, si había
  *   una captura o una transcripción en curso, se cancela y se cierran las
@@ -11,7 +14,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TranscribeErrorReason, TranscribeResult } from '../../../shared/ipc';
-import { MicError, VoiceCapture, type MicProblem } from './capture';
+import { MicError, VoiceCapture, type AutoStopReason, type MicProblem } from './capture';
 
 export type VoiceStatus =
   | { kind: 'idle' }
@@ -19,7 +22,7 @@ export type VoiceStatus =
   | { kind: 'starting' }
   | { kind: 'listening' }
   | { kind: 'transcribing' }
-  /** El texto ya está en el buscador. */
+  /** El texto ya está en el buscador y se mandó a buscar. */
   | { kind: 'heard'; text: string }
   /** No se entendió nada (o fue demasiado corto). */
   | { kind: 'empty' }
@@ -27,7 +30,7 @@ export type VoiceStatus =
   | { kind: 'mic'; problem: MicProblem };
 
 export interface VoiceDeps {
-  open(onAutoStop: () => void): Promise<Pick<VoiceCapture, 'finish' | 'close'>>;
+  open(onAutoStop: (reason: AutoStopReason) => void): Promise<Pick<VoiceCapture, 'finish' | 'close'>>;
   transcribe(wav: ArrayBuffer): Promise<TranscribeResult>;
 }
 
@@ -42,13 +45,25 @@ const defaultDeps: VoiceDeps = {
   transcribe: (wav) => window.asistente.transcribe(wav),
 };
 
-export function useVoiceInput(onText: (text: string) => void, { blocked = false, deps = defaultDeps }: { blocked?: boolean; deps?: VoiceDeps } = {}) {
+export interface VoiceInputOptions {
+  /** Búsqueda en curso: no se escucha y se corta lo que hubiera. */
+  blocked?: boolean;
+  /** Envío automático del texto dictado (no se llama con texto vacío ni con `blocked`). */
+  onSubmit?: (text: string) => void;
+  deps?: VoiceDeps;
+}
+
+export function useVoiceInput(onText: (text: string) => void, { blocked = false, onSubmit, deps = defaultDeps }: VoiceInputOptions = {}) {
   const [status, setStatus] = useState<VoiceStatus>({ kind: 'idle' });
   const capture = useRef<Pick<VoiceCapture, 'finish' | 'close'> | null>(null);
   /** Cambia en cada intento: descarta resultados de intentos viejos o cancelados. */
   const attempt = useRef(0);
   const onTextRef = useRef(onText);
   onTextRef.current = onText;
+  const onSubmitRef = useRef(onSubmit);
+  onSubmitRef.current = onSubmit;
+  const blockedRef = useRef(blocked);
+  blockedRef.current = blocked;
 
   const finish = useCallback(async () => {
     const current = capture.current;
@@ -74,6 +89,8 @@ export function useVoiceInput(onText: (text: string) => void, { blocked = false,
     if (result.status === 'ok') {
       onTextRef.current(result.text);
       setStatus({ kind: 'heard', text: result.text });
+      // Se busca solo, por el mismo camino que «Mostrame cómo»; nunca con una búsqueda en curso.
+      if (!blockedRef.current && result.text.trim()) onSubmitRef.current?.(result.text);
     } else if (result.status === 'empty') setStatus({ kind: 'empty' });
     else {
       if (result.reason === 'off') voiceAvailability.off = true;
@@ -85,8 +102,10 @@ export function useVoiceInput(onText: (text: string) => void, { blocked = false,
     const id = ++attempt.current;
     setStatus({ kind: 'starting' });
     try {
-      const opened = await deps.open(() => {
-        if (id === attempt.current) void finish();
+      const opened = await deps.open((reason) => {
+        if (id !== attempt.current) return;
+        if (reason === 'noSpeech') return quiet();
+        void finish();
       });
       if (id !== attempt.current) {
         opened.close();
@@ -99,13 +118,31 @@ export function useVoiceInput(onText: (text: string) => void, { blocked = false,
     }
   }, [deps, finish]);
 
-  /** Corta sin transcribir y vuelve al reposo (al enviar la búsqueda o al salir). */
+  /** No habló nada en los primeros 5 s: «no te escuché», sin mandar audio. */
+  const quiet = useCallback(() => {
+    attempt.current++;
+    capture.current?.close();
+    capture.current = null;
+    setStatus({ kind: 'empty' });
+  }, []);
+
+  /** Corta sin transcribir y vuelve al reposo (al salir del buscador). */
   const cancel = useCallback(() => {
     attempt.current++;
     capture.current?.close();
     capture.current = null;
     setStatus({ kind: 'idle' });
   }, []);
+
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  /**
+   * Corta solo si está escuchando o transcribiendo (al enviar a mano o al
+   * empezar una búsqueda). El aviso «Entendí…» queda para que se lea.
+   */
+  const cancelActive = useCallback(() => {
+    if (['starting', 'listening', 'transcribing'].includes(statusRef.current.kind)) cancel();
+  }, [cancel]);
 
   /** El botón del micrófono: empieza o termina. Mientras transcribe o con `blocked`, no hace nada. */
   const toggle = useCallback(() => {
@@ -117,8 +154,8 @@ export function useVoiceInput(onText: (text: string) => void, { blocked = false,
 
   // Búsqueda en curso: se corta lo que hubiera (captura o transcripción).
   useEffect(() => {
-    if (blocked) cancel();
-  }, [blocked, cancel]);
+    if (blocked) cancelActive();
+  }, [blocked, cancelActive]);
 
   // Al desmontar se cierran las pistas del micrófono.
   useEffect(
@@ -130,5 +167,5 @@ export function useVoiceInput(onText: (text: string) => void, { blocked = false,
     [],
   );
 
-  return { status, toggle, cancel, available: !voiceAvailability.off };
+  return { status, toggle, cancel, cancelActive, available: !voiceAvailability.off };
 }

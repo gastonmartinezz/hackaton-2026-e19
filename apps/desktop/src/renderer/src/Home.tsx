@@ -4,8 +4,8 @@
  *   alcanza, el proceso principal abre el sitio directo.
  * - 02/03: si falta un dato, una pregunta por vez debajo del buscador.
  * - 10: con varios sitios (o «No estoy seguro»), el más afín y alternativas.
- * - Micrófono (01): dictar la búsqueda. El texto vuelve al buscador para que
- *   la persona lo revise; nunca se envía solo.
+ * - Micrófono (01): dictar la búsqueda. Lo entendido queda en el buscador y
+ *   se busca solo, como «Mostrame cómo».
  */
 import { BrandSymbol, Button, Icon, LoadingDots, Logo } from '@asistente/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -32,7 +32,14 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
   const inputRef = useRef<HTMLInputElement>(null);
   // El texto dictado reemplaza lo escrito; el foco queda donde estaba. Con una
   // búsqueda en curso no se puede escuchar y se corta lo que hubiera.
-  const voice = useVoiceInput((heard) => setText(heard.slice(0, MAX_QUERY)), { blocked: busy });
+  const voice = useVoiceInput((heard) => setText(heard.slice(0, MAX_QUERY)), {
+    blocked: busy,
+    // Dictado (decisión de producto): lo entendido queda visible en el buscador y se busca
+    // solo, por el mismo camino que «Mostrame cómo» (con ayuda). «Solo ir al sitio» manda
+    // `guide: false`: abre una dirección escrita directo y, si no es una dirección, abre el
+    // destino sin la guía.
+    onSubmit: (heard) => send({ type: 'submitIntent', text: heard.slice(0, MAX_QUERY).trim(), guide: true }),
+  });
   const voiceBusy = voice.status.kind === 'transcribing';
 
   // Con pregunta o recomendación, el buscador conserva lo que la persona buscó.
@@ -50,7 +57,7 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
     event?.preventDefault();
     const value = text.trim();
     if (!value || busy || voiceBusy || (mode !== 'search' && value === chat.query)) return;
-    cancelVoice();
+    voice.cancelActive();
     send({ type: 'submitIntent', text: value, guide });
   };
 

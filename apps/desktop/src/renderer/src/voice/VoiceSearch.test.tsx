@@ -3,7 +3,7 @@ import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscribeResult } from '../../../shared/ipc';
-import { MicError } from './capture';
+import { MicError, type AutoStopReason } from './capture';
 import { MicButton, VOICE_TEXTS, VoiceMessages } from './VoiceSearch';
 import { useVoiceInput, voiceAvailability, type VoiceDeps, type VoiceStatus } from './useVoiceInput';
 
@@ -79,9 +79,9 @@ describe('VoiceMessages', () => {
 });
 
 /** El buscador mínimo: campo + micrófono, como en Home (`busy` = búsqueda en curso). */
-function Harness({ deps, busy = false }: { deps: VoiceDeps; busy?: boolean }) {
+function Harness({ deps, busy = false, onSubmit }: { deps: VoiceDeps; busy?: boolean; onSubmit?: (text: string) => void }) {
   const [text, setText] = useState('');
-  const voice = useVoiceInput(setText, { deps, blocked: busy });
+  const voice = useVoiceInput(setText, { deps, blocked: busy, onSubmit });
   return (
     <>
       <input aria-label="buscador" value={text} onChange={(e) => setText(e.target.value)} />
@@ -93,20 +93,21 @@ function Harness({ deps, busy = false }: { deps: VoiceDeps; busy?: boolean }) {
 
 function fakeDeps(result: TranscribeResult, wav: ArrayBuffer | null = new ArrayBuffer(8)) {
   const capture = { finish: vi.fn(async () => wav), close: vi.fn() };
-  let autoStop: () => void = () => {};
+  let autoStop: (reason: AutoStopReason) => void = () => {};
   const deps: VoiceDeps = {
-    open: vi.fn(async (onAutoStop: () => void) => ((autoStop = onAutoStop), capture)),
+    open: vi.fn(async (onAutoStop: (reason: AutoStopReason) => void) => ((autoStop = onAutoStop), capture)),
     transcribe: vi.fn(async () => result),
   };
-  return { deps, capture, autoStop: () => autoStop() };
+  return { deps, capture, autoStop: (reason: AutoStopReason = 'silence') => autoStop(reason) };
 }
 
 const flush = () => act(async () => {});
 
 describe('useVoiceInput', () => {
-  it('escuchar → terminar → el texto queda en el buscador, sin enviar ni mover el foco', async () => {
+  it('escuchar → «Terminar» → el texto queda visible en el buscador y se busca solo, sin mover el foco', async () => {
     const { deps, capture } = fakeDeps({ status: 'ok', text: 'horarios de la biblioteca' });
-    render(<Harness deps={deps} />);
+    const onSubmit = vi.fn();
+    render(<Harness deps={deps} onSubmit={onSubmit} />);
     button().focus();
     await act(async () => button().click());
     expect(button().getAttribute('aria-pressed')).toBe('true');
@@ -117,7 +118,71 @@ describe('useVoiceInput', () => {
     expect(document.activeElement).toBe(button());
     expect(button().getAttribute('aria-pressed')).toBe('false');
     expect(capture.finish).toHaveBeenCalledOnce();
-    expect(container.querySelector('[aria-live="polite"]')?.textContent).toContain('Revisalo');
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith('horarios de la biblioteca');
+    expect(container.querySelector('[aria-live="polite"]')?.textContent).toBe(VOICE_TEXTS.heard('horarios de la biblioteca'));
+  });
+
+  it('tras 5 s de silencio corta solo, pone el texto y lo busca', async () => {
+    const fake = fakeDeps({ status: 'ok', text: 'renovar la cédula' });
+    const onSubmit = vi.fn();
+    render(<Harness deps={fake.deps} onSubmit={onSubmit} />);
+    await act(async () => button().click());
+    await act(async () => fake.autoStop('silence'));
+    await flush();
+    expect(container.querySelector('input')!.value).toBe('renovar la cédula');
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith('renovar la cédula');
+  });
+
+  it('sin hablar en los primeros 5 s: «no te escuché», sin mandar audio ni buscar', async () => {
+    const fake = fakeDeps({ status: 'ok', text: 'no tiene que llegar' });
+    const onSubmit = vi.fn();
+    render(<Harness deps={fake.deps} onSubmit={onSubmit} />);
+    await act(async () => button().click());
+    await act(async () => fake.autoStop('noSpeech'));
+    await flush();
+    expect(fake.capture.close).toHaveBeenCalled();
+    expect(fake.capture.finish).not.toHaveBeenCalled();
+    expect(fake.deps.transcribe).not.toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(container.querySelector('[aria-live="polite"]')?.textContent).toBe(VOICE_TEXTS.empty);
+  });
+
+  it('texto vacío del servidor: «no te escuché» y no se busca', async () => {
+    const { deps } = fakeDeps({ status: 'empty' });
+    const onSubmit = vi.fn();
+    render(<Harness deps={deps} onSubmit={onSubmit} />);
+    await act(async () => button().click());
+    await act(async () => button().click());
+    await flush();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(container.querySelector('[aria-live="polite"]')?.textContent).toBe(VOICE_TEXTS.empty);
+  });
+
+  it('no busca solo si ya hay una búsqueda en curso', async () => {
+    let resolve: (r: TranscribeResult) => void = () => {};
+    const { deps } = fakeDeps({ status: 'ok', text: 'x' });
+    deps.transcribe = vi.fn(() => new Promise<TranscribeResult>((r) => (resolve = r)));
+    const onSubmit = vi.fn();
+    render(<Harness deps={deps} onSubmit={onSubmit} />);
+    await act(async () => button().click());
+    await act(async () => button().click());
+    render(<Harness deps={deps} onSubmit={onSubmit} busy />);
+    await act(async () => resolve({ status: 'ok', text: 'tarde' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('al empezar la búsqueda que disparó el dictado, el aviso «Entendí…» queda', async () => {
+    const { deps } = fakeDeps({ status: 'ok', text: 'turno médico' });
+    let busy = false;
+    const onSubmit = vi.fn(() => (busy = true));
+    render(<Harness deps={deps} onSubmit={onSubmit} />);
+    await act(async () => button().click());
+    await act(async () => button().click());
+    await flush();
+    render(<Harness deps={deps} onSubmit={onSubmit} busy={busy} />);
+    await flush();
+    expect(container.querySelector('[aria-live="polite"]')?.textContent).toBe(VOICE_TEXTS.heard('turno médico'));
+    expect(button().getAttribute('aria-disabled')).toBe('true');
   });
 
   it('corta solo (silencio o 30 s)', async () => {
