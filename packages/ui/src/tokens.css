@@ -66,9 +66,12 @@
   --h-search: calc(72px + var(--s1) * 16px);
   --h-search-home: calc(76px + var(--s1) * 16px);
   --h-badge: calc(38px + var(--s1) * 12px);
+  --h-recent: calc(60px + var(--s1) * 16px); /* acceso del historial (01, v2.4) */
   --icon-sm: calc(22px * var(--k));
   --icon-md: calc(26px * var(--k));
   --icon-lg: calc(40px * var(--k));
+  --icon-recent: calc(24px * var(--k)); /* ícono del acceso del historial */
+  --icon-recent-box: calc(44px * var(--k)); /* su cuadrado */
   --logo-bar: 38px;
   --logo-card: 38px;
   --logo-pill: 40px;
@@ -86,6 +89,8 @@
   --radius-chip: 8px; /* nombre del control, píldoras de respuestas dadas */
   --radius-box: 24px; /* caja de espera o privacidad */
   --radius-pill: 999px;
+  --radius-recent: 16px; /* acceso del historial (01, v2.4) */
+  --radius-recent-icon: 14px; /* cuadrado de su ícono */
 
   /* ---------- Bordes ---------- */
   --border-w: 1px;
@@ -94,6 +99,7 @@
   /* ---------- Colores que el diseño usa sin variable ---------- */
   --g-on-brand: var(--g-surface); /* texto e íconos sobre azul */
   --g-voice-halo: #DCE6FF; /* halo del botón «Hablar» (docs/02) */
+  --g-recent-icon-bg: #EAF1FF; /* cuadrado del ícono de los accesos del historial (docs/02 v2.4) */
   --g-bar-pressed: rgba(255, 255, 255, 0.2); /* «Ayuda» abierta (R7) */
   --g-scrim: rgba(11, 27, 63, 0.45); /* detrás de un diálogo (docs/02) */
   --g-shadow-bar: 0 10px 30px -12px rgba(22, 56, 184, 0.55);

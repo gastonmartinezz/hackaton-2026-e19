@@ -27,14 +27,16 @@ describe('Opciones rápidas del inicio', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('cada sitio es un ul > li > button con su nombre y lo abre por su origen', () => {
+  it('cada sitio es un nav «Lo que hiciste antes» > ul > li > button con su nombre y lo abre por su origen', () => {
     const sites = [
       { origin: 'https://agenda.ejemplo.gub.uy', domain: 'agenda.ejemplo.gub.uy' },
       { origin: 'https://www.tiendamac.ejemplo.com.uy', domain: 'tiendamac.ejemplo.com.uy' },
     ];
     act(() => root.render(<FrequentSites sites={sites} />));
-    const buttons = [...container.querySelectorAll<HTMLButtonElement>('ul > li > button')];
-    expect(buttons.map((b) => b.textContent)).toEqual(['agenda.ejemplo.gub.uy', 'tiendamac.ejemplo.com.uy']);
+    const buttons = [...container.querySelectorAll<HTMLButtonElement>('nav[aria-label="Lo que hiciste antes"] > ul > li > button')];
+    // El ícono es decorativo: el nombre accesible es solo el texto visible.
+    expect(container.querySelector('.home-recent-icon .ic')?.getAttribute('aria-hidden')).toBe('true');
+    expect(buttons.map((b) => b.textContent?.trim())).toEqual(['agenda.ejemplo.gub.uy', 'tiendamac.ejemplo.com.uy']);
     act(() => buttons[1]!.click());
     expect(command).toHaveBeenLastCalledWith({ type: 'openFrequentSite', origin: 'https://www.tiendamac.ejemplo.com.uy' });
   });

@@ -9,8 +9,8 @@ import { z } from 'zod';
 
 /** Cuántos sitios se recuerdan; al pasarse, se olvida el menos usado. */
 export const MAX_STORED_SITES = 50;
-/** Cuántos se ofrecen en el inicio. */
-export const MAX_SHOWN_SITES = 4;
+/** Cuántos se ofrecen en el inicio (accesos del historial, v2.4). */
+export const MAX_SHOWN_SITES = 3;
 
 export const FrequentSiteSchema = z.object({
   origin: z
