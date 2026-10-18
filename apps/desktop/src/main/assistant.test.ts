@@ -185,7 +185,9 @@ describe('Assistant', () => {
     expect(last.completedSteps).toHaveLength(4);
     expect(last.completedSteps[0]!.field).toMatchObject({ sensitive: false });
     // Sale solo el sitio (origen), nunca la ruta, la consulta ni lo que escribió la persona.
-    expect(findLeaks(rec.sent, ['Marta Gómez', '30123456', 'Centro', 'Marta', '/formulario', 'formulario.html', 'nombre='])).toEqual([]);
+    expect(findLeaks(rec.sent, ['Marta Gómez', '30123456', 'Marta', '/formulario', 'formulario.html', 'nombre='])).toEqual([]);
+    // Las opciones de la lista («Centro», «Norte») son texto del sitio y sí salen; cuál eligió la persona, nunca.
+    for (const request of rec.sent) expect(request.html).not.toMatch(/selected|value=/);
     expect(options.metadata?.page?.origin).toBe('http://127.0.0.1:4321');
   });
 

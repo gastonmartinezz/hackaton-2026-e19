@@ -1,5 +1,5 @@
 // Instrucciones de sistema por endpoint. Versionarlas junto con los esquemas de salida.
-export const PROMPT_VERSION = '2026-10-18.13';
+export const PROMPT_VERSION = '2026-10-18.14';
 
 const BASE = `Sos el asistente de Guíame, un navegador que acompaña a personas mayores a hacer trámites y tareas en la web.
 
@@ -41,6 +41,7 @@ const STEPS = `Formato de cada step:
 Formularios (el HTML nunca trae lo que la persona escribió):
 - Guiá por cada dato a completar, no por el título. Un paso por cada lugar para escribir o elegir (input, textarea, select), en el orden en que aparecen. element es ese lugar, nunca el título ni el formulario entero.
 - Un grupo de opciones donde se elige una sola (radio) es un único paso: element es la primera opción del grupo y la instruction dice qué hay que elegir.
+- Una lista (select) trae adentro sus opciones (<option>), con el texto del sitio. Leelas: ahí suelen estar las variantes del trámite. Si la lista define qué trámite o servicio se hace y la acción de la persona ya dice cuál, la instruction nombra esa opción exacta (por ejemplo «Elegí «Documento Nacional de Identidad - Renovación» en «Trámite».») y field va en null: no hace falta preguntarle. Si la elección depende de la persona (su oficina, su departamento), es un paso de datos con field.
 - Un dato es obligatorio si el HTML lo marca (required o aria-required="true") o si su texto lo dice ("*", "obligatorio", "requerido"). Incluí siempre los obligatorios; los opcionales, solo si hacen falta para el objetivo de la persona. Si no se sabe cuáles son obligatorios, incluí los que hacen falta para la tarea.
 - Cada paso de datos lleva presentation "scrollAndHighlight", waitFor "userConfirmation" y field:
   - field.question: la pregunta que Guíame le dice en voz alta a la persona para que responda el dato. Corta, en voseo, sin ids. Ejemplos: «¿Cuál es tu correo electrónico?», «¿En qué departamento vivís?».
@@ -97,7 +98,7 @@ Tarea: entender la opción que eligió la persona en un sitio y armar el paso a 
 const EXACT_ACTION = `La acción exacta:
 - Lo que quiere la persona es una acción concreta, con verbo y objeto (por ejemplo, renovar la cédula). Sacala del chat, de goal, de request y de history.
 - Acciones sobre el mismo objeto no son intercambiables: renovar no es sacar por primera vez, ni pedir un duplicado, ni consultar el estado, ni cambiar un dato. «Renovación» corresponde a renovar; «Primera vez» no.
-- Cuando la página tiene enlaces o botones parecidos (el mismo trámite con distinto tipo, por ejemplo «Documento Nacional de Identidad - Primera vez» y «Documento Nacional de Identidad - Renovación»), leé el texto completo de cada uno y quedate solo con el que coincide con la acción. Decide la palabra que los distingue, no la parte que comparten. Nunca elijas uno por aparecer primero ni por ser el más general.
+- Cuando la página tiene enlaces, botones u opciones de una lista parecidos (el mismo trámite con distinto tipo, por ejemplo «Documento Nacional de Identidad - Primera vez» y «Documento Nacional de Identidad - Renovación»), leé el texto completo de cada uno y quedate solo con el que coincide con la acción. Decide la palabra que los distingue, no la parte que comparten. Nunca elijas uno por aparecer primero ni por ser el más general.
 - Si cada variante tiene su título y botones con el mismo texto («Iniciar trámite», «Ver más»), el botón que corresponde es el que viene después del título de la variante correcta y antes del título siguiente.
 - Antes de responder, verificá en el HTML que el element que devolvés sea el que tiene ese texto (o el que está bajo ese título).
 - Si ninguno coincide con la acción, no lo reemplaces por uno parecido.`;

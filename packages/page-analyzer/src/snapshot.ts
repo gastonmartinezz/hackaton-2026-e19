@@ -13,6 +13,9 @@ export const SNAPSHOT_LIMITS = {
   originLength: 200,
   elements: 300,
   titleLength: 200,
+  /** Opciones de una lista que se mandan (las escribió el sitio). */
+  choices: 40,
+  choiceLength: 80,
 } as const;
 
 const Id = z
@@ -30,6 +33,11 @@ export const PageElementSchema = z.strictObject({
   enabled: z.boolean(),
   /** El sitio marca el dato como obligatorio (required o aria-required). Nunca el valor. */
   required: z.boolean().optional(),
+  /**
+   * Textos de las opciones de una lista (los escribió el sitio, depurados).
+   * Nunca cuál está elegida.
+   */
+  choices: z.array(z.string().min(1).max(SNAPSHOT_LIMITS.choiceLength)).max(SNAPSHOT_LIMITS.choices).optional(),
   sectionId: Id.optional(),
 });
 export type PageElement = z.infer<typeof PageElementSchema>;
@@ -101,9 +109,11 @@ export function snapshotToHtml(snapshot: PageSnapshot): string {
       case 'heading':
         return `<h2 ${attrs.join(' ')}>${escape(element.label)}</h2>`;
       case 'combobox':
-      case 'listbox':
+      case 'listbox': {
         if (element.label) attrs.push(`aria-label="${escape(element.label)}"`);
-        return `<select ${attrs.join(' ')}></select>`;
+        const options = (element.choices ?? []).map((choice) => `<option>${escape(choice)}</option>`).join('');
+        return `<select ${attrs.join(' ')}>${options}</select>`;
+      }
       default:
         return `<div role="${escape(element.role)}" ${attrs.join(' ')}>${escape(element.label)}</div>`;
     }
