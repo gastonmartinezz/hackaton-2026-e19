@@ -8,6 +8,10 @@ html,
 body {
   background: transparent;
 }
+/* La vista nunca se desplaza entera: lo que no entra se desplaza dentro del panel. */
+html {
+  overflow: hidden;
+}
 #root {
   height: auto;
 }

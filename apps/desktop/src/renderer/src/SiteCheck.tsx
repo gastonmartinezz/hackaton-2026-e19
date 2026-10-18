@@ -53,7 +53,7 @@ export const NO_SITE_CHECK: SiteCheckView = {
 function closePanel(): void {
   send({ type: 'siteCheckPanel', open: false, restoreFocus: true });
   // Si el indicador está en este mismo documento, el foco vuelve ya; si no, lo pide el proceso principal.
-  document.getElementById(INDICATOR_ID)?.focus();
+  document.getElementById(INDICATOR_ID)?.focus({ preventScroll: true });
 }
 
 function runAction(action: SiteCheckAction): void {
@@ -88,7 +88,7 @@ export function SiteCheckIndicator({ view, controlsPanel = false }: { view: Site
   useEffect(() => {
     if (view.focusIndicator === focusKey.current) return;
     focusKey.current = view.focusIndicator;
-    ref.current?.focus();
+    ref.current?.focus({ preventScroll: true });
   }, [view.focusIndicator]);
 
   if (view.indicator === 'none' || !view.label) return null;
@@ -126,10 +126,15 @@ function Details({ panel }: { panel: SiteCheckPanelCopy }) {
   return (
     <details
       className="site-check-details"
-      // Al abrir, los motivos quedan a la vista aunque el panel tenga que desplazarse por dentro.
+      // Al abrir, los motivos quedan a la vista aunque el panel tenga que desplazarse por dentro
+      // (solo se desplaza el cuerpo del panel, nunca la vista entera).
       onToggle={(event) => {
         const details = event.currentTarget;
-        if (details.open) details.scrollIntoView?.({ block: 'nearest' });
+        const scroller = details.closest('.hc-body');
+        if (!details.open || !scroller) return;
+        const d = details.getBoundingClientRect();
+        const s = scroller.getBoundingClientRect();
+        if (d.bottom > s.bottom) scroller.scrollTop += Math.min(d.bottom - s.bottom, d.top - s.top);
       }}
     >
       {/* Enlace discreto con chevron Lucide (sin el triángulo del navegador). */}
@@ -475,7 +480,8 @@ export function SiteCheckPanel({ view }: { view: SiteCheckView }) {
   const open = isPanelOpen(view);
 
   useEffect(() => {
-    if (open) ref.current?.querySelector<HTMLElement>('h2')?.focus();
+    // Sin desplazar la vista flotante mientras todavía se está ajustando a su contenido.
+    if (open) ref.current?.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
   }, [open, view.indicator]);
 
   if (!open || !view.panel || view.indicator === 'none') return null;
