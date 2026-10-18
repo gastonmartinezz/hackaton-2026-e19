@@ -3,7 +3,7 @@
 // No se permite en producción.
 import type { TranscriptionProvider } from './provider.js';
 
-export const MOCK_TRANSCRIPTION = 'Quiero renovar mi documento';
+export const MOCK_TRANSCRIPTION = 'Quiero renovar la cédula de identidad';
 
 export class MockTranscriptionProvider implements TranscriptionProvider {
   readonly status = 'ready' as const;

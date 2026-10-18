@@ -4,11 +4,11 @@ Monorepo pnpm. La especificación está en `especificacion-plataforma.md`. La se
 
 | Ruta | Contenido | Responsable |
 |---|---|---|
-| `apps/api` | Servidor Fastify: Claude, validación, sesiones, límites y logs | Agustin |
+| `apps/api` | Servidor Fastify: Claude, voz (OpenAI o Whisper local), validación, sesiones, límites y logs | Agustin |
 | `packages/contracts` | Contratos v1 (Zod + JSON Schema) | Compartido front/backend, cambios solo por acuerdo |
 | `docs/api.md` | Guía de la API para el front | Agustin |
 
-Endpoints: `GET /health`, `POST /v1/interpret`, `POST /v1/options` y `POST /v1/next-step`. El detalle está en `docs/api.md`.
+Endpoints: `GET /health`, `POST /v1/interpret`, `POST /v1/options`, `POST /v1/next-step`, `POST /v1/transcribe` (voz a texto) y `POST /v1/speak` (texto a voz). El detalle está en `docs/api.md`.
 
 ## Requisitos
 
@@ -29,7 +29,11 @@ pnpm contracts:schemas   # regenera packages/contracts/schemas/v1/*.json
 
 `dev:desktop:api` toma el puerto y el primer token de `API_ACCESS_TOKENS` de `apps/api/.env`, y los pasa como `ASISTENTE_API_URL` y `ASISTENTE_API_TOKEN`. Si esas variables ya están definidas, se respetan.
 
-En desarrollo, `AI_PROVIDER=mock` permite trabajar sin clave de Anthropic. Para usar Claude, definir `AI_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`. El modelo se elige con `CLAUDE_MODEL` y el esfuerzo con `CLAUDE_EFFORT`.
+En desarrollo, `AI_PROVIDER=mock` permite trabajar sin clave de Anthropic. Para usar Claude, definir `AI_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`. El modelo se elige con `CLAUDE_MODEL` y el esfuerzo con `CLAUDE_EFFORT`, o por tarea con `CLAUDE_MODEL_INTERPRET`, `CLAUDE_EFFORT_NEXT_STEP`, etc.
+
+La voz también tiene modo simulado: `STT_PROVIDER=mock` y `TTS_PROVIDER=mock` (los de `.env.example`). Para la voz real con OpenAI, definir `OPENAI_API_KEY` y `STT_PROVIDER=openai` / `TTS_PROVIDER=openai`.
+
+Benchmark de latencia de Claude (llama a la API real): `BENCH_ENV_FILE=apps/api/.env pnpm --filter @hackaton/api bench:claude`.
 
 En desarrollo y tests, el paquete de contratos se resuelve desde `src` mediante la condición `source`, sin build previo. En producción se usa `dist`.
 
@@ -39,7 +43,7 @@ En desarrollo y tests, el paquete de contratos se resuelve desde `src` mediante 
 
 La API se despliega en Railway desde GitHub. La configuración está en `railway.json`:
 
-- **Build:** imagen Docker con `apps/api/Dockerfile`. Instala y compila solo `@hackaton/api` y sus dependencias del workspace, y descarga el modelo de Whisper que usa `/v1/transcribe`.
+- **Build:** imagen Docker con `apps/api/Dockerfile`. Instala y compila solo `@hackaton/api` y sus dependencias del workspace. Por defecto no trae el modelo de Whisper: la voz va por OpenAI y en el servidor no corre ningún modelo.
 - **Arranque:** `node dist/server.js`, el `CMD` de la imagen.
 - **Chequeo de salud:** `/health`.
 
@@ -52,11 +56,13 @@ Preparación en el panel de Railway, una sola vez:
    - `AI_PROVIDER=anthropic`
    - `ANTHROPIC_API_KEY`
    - `API_ACCESS_TOKENS`
-   - `STT_PROVIDER=local`, que activa la voz a texto.
+   - `OPENAI_API_KEY`
+   - `STT_PROVIDER=openai` y `TTS_PROVIDER=openai`, que activan la voz.
+   - Los `CLAUDE_*` por tarea recomendados en `docs/railway.md` para bajar la latencia.
 
    `PORT` lo define Railway y `NODE_ENV=production` ya viene en la imagen.
 3. En **Settings → Networking**, generar el dominio público.
-4. Dejar una sola réplica, con al menos 2 vCPU y 2 GB de memoria.
+4. Dejar una sola réplica. Alcanza con 1 vCPU y 512 MB (Whisper local, opcional, pide 2 vCPU y 2 GB).
 
 El detalle de variables, recursos y la prueba local de la imagen está en [`docs/railway.md`](docs/railway.md).
 
@@ -92,6 +98,8 @@ El script crea lo que falte y es seguro repetirlo:
 
 Después sube el último commit (`git archive HEAD`), compila, reinicia la API e imprime la URL. Los cambios sin commit no se suben.
 
+La política solo permite `api.anthropic.com`, así que en Tenki la voz por OpenAI no funciona (dejar `STT_PROVIDER` y `TTS_PROVIDER` en `off`, o `STT_PROVIDER=local`).
+
 La clave de Anthropic nunca entra al sandbox. El `.env` del sandbox lleva el marcador `secrets://ANTHROPIC_API_KEY` y Tenki lo reemplaza por la clave real fuera de la VM. El reemplazo se hace solo en los `POST` a `api.anthropic.com/v1/` que permite la política.
 
 Para usar la app de escritorio contra el sandbox, definir:
@@ -101,6 +109,6 @@ Para usar la app de escritorio contra el sandbox, definir:
 
 El log está en `/home/tenki/api.log` y se ve con `tenki sandbox exec --session asistente-api -c 'tail -50 api.log'`. El proceso no sobrevive a un reinicio del agente de Tenki. Si la URL deja de responder, alcanza con volver a correr el script.
 
-- Los secretos (`ANTHROPIC_API_KEY`, `API_ACCESS_TOKENS`) quedan solo en el servidor. Nunca van en el cliente.
+- Los secretos (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `API_ACCESS_TOKENS`) quedan solo en el servidor. Nunca van en el cliente.
 - En producción, el servidor no arranca en modo `mock`.
 - Las sesiones (empiezan en `/v1/interpret` y siguen en `/v1/options` y `/v1/next-step`) están en memoria: vencen a los 30 minutos sin uso y se pierden si el servidor se reinicia.
