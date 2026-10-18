@@ -6,10 +6,14 @@ import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { Limits } from '@hackaton/contracts';
 import { minimizeIntent, sanitizeOrigin } from '@asistente/privacy';
-import { BrowserWindow, ipcMain, shell, systemPreferences, type IpcMainInvokeEvent } from 'electron';
+import { BrowserWindow, ipcMain, shell, systemPreferences, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import {
   TERMS_VERSION,
   UI_COMMAND_CHANNEL,
+  SpeakRequestSchema,
+  UI_SPEAK_AUDIO_CHANNEL,
+  UI_SPEAK_CHANNEL,
+  UI_SPEAK_STOP_CHANNEL,
   UI_STATE_CHANNEL,
   UI_TRANSCRIBE_CHANNEL,
   UiCommandSchema,
@@ -17,6 +21,7 @@ import {
   type CardLayout,
   type Notice,
   type NoticeAction,
+  type SpeakResult,
   type TranscribeResult,
   type UiCommand,
 } from '../shared/ipc';
@@ -29,6 +34,7 @@ import { PageBridge } from './page-bridge';
 import { allowMicrophoneCheck, allowMicrophoneRequest } from './permissions';
 import type { PrefsStore } from './prefs';
 import { SiteView } from './site-view';
+import { SpeechHub } from './speech';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
 import { buildUserContext, type SystemInfo } from './user-context';
 import { Transcriber } from './voice';
@@ -69,6 +75,7 @@ export class AppController {
   readonly #chat: Chat;
   readonly #card: HelpCardView;
   readonly #transcriber: Transcriber;
+  readonly #speech: SpeechHub;
   #cardLayout: CardLayout = { placement: 'top', maxHeight: 0 };
   #siteVisible = false;
   /** La persona tocó «Salir de la ayuda» en esta página (pantalla 21). */
@@ -117,16 +124,26 @@ export class AppController {
     );
     this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
     this.#transcriber = new Transcriber(options.api);
+    // Una sola lectura en toda la app: el hub avisa a la ventana y a la tarjeta.
+    this.#speech = new SpeechHub(options.api, () => [this.window.webContents, this.#card.contents]);
     this.#wireSite();
 
     ipcMain.handle(UI_COMMAND_CHANNEL, (event, raw: unknown) => this.#onCommand(event, raw));
     ipcMain.handle(UI_TRANSCRIBE_CHANNEL, (event, raw: unknown) => this.#onTranscribe(event, raw));
+    ipcMain.handle(UI_SPEAK_CHANNEL, (event, raw: unknown) => this.#onSpeak(event, raw));
+    const stopSpeaking = (event: IpcMainEvent) => {
+      if (this.#isOwnUi(event)) this.#speech.stop(event.sender);
+    };
+    ipcMain.on(UI_SPEAK_STOP_CHANNEL, stopSpeaking);
     this.window.on('resize', () => this.#layout());
     this.window.once('ready-to-show', () => this.window.show());
     this.window.on('closed', () => {
       ipcMain.removeHandler(UI_COMMAND_CHANNEL);
       ipcMain.removeHandler(UI_TRANSCRIBE_CHANNEL);
+      ipcMain.removeHandler(UI_SPEAK_CHANNEL);
+      ipcMain.removeListener(UI_SPEAK_STOP_CHANNEL, stopSpeaking);
       this.#transcriber.cancel();
+      this.#speech.stopAll();
       this.#bridge.dispose();
     });
   }
@@ -351,6 +368,23 @@ export class AppController {
     );
   }
 
+  /** La ventana o la tarjeta, desde su documento principal. */
+  #isOwnUi(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
+    return (event.sender === this.window.webContents || event.sender === this.#card.contents) && event.senderFrame === event.sender.mainFrame;
+  }
+
+  /** Leer en voz alta: desde la ventana o la tarjeta, con condiciones aceptadas. */
+  async #onSpeak(event: IpcMainInvokeEvent, raw: unknown): Promise<SpeakResult> {
+    const request = SpeakRequestSchema.safeParse(raw);
+    if (!this.#isOwnUi(event) || !this.#termsAccepted() || !request.success) return { status: 'error', reason: 'failed' };
+    const { id, text } = request.data;
+    const sender = event.sender;
+    // Los pedazos van solo a la vista que pidió la lectura, con su id.
+    return this.#speech.speak(sender, text, (audio) => {
+      if (!sender.isDestroyed()) sender.send(UI_SPEAK_AUDIO_CHANNEL, { id, ...audio });
+    });
+  }
+
   /** Dictado del buscador: solo desde la ventana (no la tarjeta) y con condiciones aceptadas. */
   async #onTranscribe(event: IpcMainInvokeEvent, raw: unknown): Promise<TranscribeResult> {
     if (event.sender !== this.window.webContents || event.senderFrame !== event.sender.mainFrame || !this.#termsAccepted()) {
@@ -437,6 +471,7 @@ export class AppController {
         this.#site.reload();
         return;
       case 'home':
+        this.#speech.stopAll();
         this.#assistant.exit();
         this.#chat.reset();
         this.#wantGuide = true;
@@ -469,6 +504,7 @@ export class AppController {
         this.#assistant.back();
         return;
       case 'exitHelp':
+        this.#speech.stopAll();
         this.#helpExited = this.#assistant.state.phase !== 'idle';
         this.#assistant.exit();
         this.#publish();

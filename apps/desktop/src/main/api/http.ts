@@ -9,6 +9,8 @@ import {
   InterpretResponse,
   NextStepResponse,
   OptionsResponse,
+  SPEAK_CONTENT_TYPE,
+  SpeakRequest,
   TRANSCRIBE_CONTENT_TYPE,
   TRANSCRIBE_MAX_BYTES,
   TranscribeResponse,
@@ -28,6 +30,11 @@ const MAX_BODY_BYTES = 512 * 1024;
  * TRANSCRIBE_MAX_BYTES (960 044 bytes, un WAV de 30 s).
  */
 const MAX_WAV_BODY_BYTES = TRANSCRIBE_MAX_BYTES;
+/** MP3 máximo que se acepta de /v1/speak (600 caracteres son menos de un minuto de voz). */
+const MAX_SPEECH_AUDIO_BYTES = 4 * 1024 * 1024;
+
+type ReadBody = (response: Response) => Promise<unknown>;
+const readJson: ReadBody = (response) => response.json().catch(() => null);
 
 export interface HttpClientOptions {
   baseUrl: URL;
@@ -64,6 +71,17 @@ export class HttpApiClient implements ApiClient {
     return this.#parse(TranscribeResponse, await this.#send('/v1/transcribe', new Uint8Array(wav), TRANSCRIBE_CONTENT_TYPE, MAX_WAV_BODY_BYTES, signal));
   }
 
+  /**
+   * El MP3 llega en streaming: se devuelve en pedazos apenas el servidor
+   * acepta. El texto y el audio no se guardan ni se loguean.
+   */
+  async speak(request: SpeakRequest, signal: AbortSignal): Promise<AsyncIterable<Uint8Array>> {
+    const parsed = SpeakRequest.safeParse(request);
+    if (!parsed.success) throw new ApiFailure('BAD_REQUEST', false);
+    const stream = await this.#send('/v1/speak', JSON.stringify(parsed.data), 'application/json', MAX_BODY_BYTES, signal, readSpeechStream, SPEAK_CONTENT_TYPE);
+    return stream as AsyncIterable<Uint8Array>;
+  }
+
   #parse<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {
     const parsed = schema.safeParse(body);
     if (!parsed.success) throw new ApiFailure('INVALID_RESPONSE', false);
@@ -75,7 +93,15 @@ export class HttpApiClient implements ApiClient {
   }
 
   /** Cada camino trae su límite: 512 KiB para JSON y 960 044 bytes para el WAV. */
-  async #send(path: string, body: string | Uint8Array<ArrayBuffer>, contentType: string, maxBytes: number, signal: AbortSignal): Promise<unknown> {
+  async #send(
+    path: string,
+    body: string | Uint8Array<ArrayBuffer>,
+    contentType: string,
+    maxBytes: number,
+    signal: AbortSignal,
+    readOk: ReadBody = readJson,
+    accept = 'application/json',
+  ): Promise<unknown> {
     const size = typeof body === 'string' ? Buffer.byteLength(body) : body.byteLength;
     if (size > maxBytes) throw new ApiFailure('PAYLOAD_TOO_LARGE', false);
     const retries = this.config.retries ?? 1;
@@ -84,7 +110,7 @@ export class HttpApiClient implements ApiClient {
       try {
         const headers: Record<string, string> = {
           'content-type': contentType,
-          accept: 'application/json',
+          accept,
           'x-request-id': randomUUID().replace(/-/g, ''),
         };
         if (this.config.token) headers.authorization = `Bearer ${this.config.token}`;
@@ -95,8 +121,8 @@ export class HttpApiClient implements ApiClient {
           signal: AbortSignal.any([signal, AbortSignal.timeout(this.config.timeoutMs ?? 100_000)]),
         });
         log('api.response', { status: response.status, ms: Date.now() - started, attempt });
+        if (response.ok) return await readOk(response);
         const json: unknown = await response.json().catch(() => null);
-        if (response.ok) return json;
         const error = ApiError.safeParse(json);
         throw error.success
           ? new ApiFailure(error.data.error.code, error.data.error.retryable)
@@ -108,6 +134,38 @@ export class HttpApiClient implements ApiClient {
         await delay(400 * 2 ** attempt + Math.random() * 200, signal);
       }
     }
+  }
+}
+
+/**
+ * MP3 de /v1/speak: se revisa el tipo y el tamaño declarado antes de
+ * entregarlo, y el tamaño real mientras llega (no vacío, máximo 4 MB).
+ */
+async function readSpeechStream(response: Response): Promise<AsyncIterable<Uint8Array>> {
+  if (!(response.headers.get('content-type') ?? '').toLowerCase().startsWith(SPEAK_CONTENT_TYPE)) throw new ApiFailure('INVALID_RESPONSE', false);
+  const declared = Number(response.headers.get('content-length') ?? 0);
+  if (declared > MAX_SPEECH_AUDIO_BYTES || !response.body) throw new ApiFailure('INVALID_RESPONSE', false);
+  return speechChunks(response.body);
+}
+
+async function* speechChunks(body: ReadableStream<Uint8Array>): AsyncGenerator<Uint8Array> {
+  const reader = body.getReader();
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read().catch((error: unknown) => {
+        throw error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError') ? new ApiFailure('ABORTED', false) : new ApiFailure('NETWORK', false);
+      });
+      if (done) break;
+      if (!value || value.byteLength === 0) continue;
+      total += value.byteLength;
+      if (total > MAX_SPEECH_AUDIO_BYTES) throw new ApiFailure('INVALID_RESPONSE', false);
+      yield value;
+    }
+    if (total === 0) throw new ApiFailure('INVALID_RESPONSE', false);
+  } finally {
+    // Si se corta (Detener, otra lectura, error), se libera la conexión.
+    await reader.cancel().catch(() => undefined);
   }
 }
 

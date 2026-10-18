@@ -34,6 +34,26 @@ export const UI_TRANSCRIBE_CHANNEL = 'ui:transcribe';
 export type TranscribeErrorReason = 'busy' | 'off' | 'failed';
 export type TranscribeResult = { status: 'ok'; text: string } | { status: 'empty' } | { status: 'error'; reason: TranscribeErrorReason };
 
+/** Leer en voz alta: texto de Mostrame → MP3. Desde la ventana o la tarjeta. */
+export const UI_SPEAK_CHANNEL = 'ui:speak';
+/** «Detener»: corta la descarga en curso (la reproducción la corta la interfaz). */
+export const UI_SPEAK_STOP_CHANNEL = 'ui:speak-stop';
+/** Del proceso principal a las vistas: otra vista empezó a leer o se detuvo todo; cortar lo que suena. */
+export const UI_SPEECH_CUT_CHANNEL = 'ui:speech-cut';
+/**
+ * `busy`: el servidor pide esperar; `off`: voz apagada en el servidor (la
+ * interfaz usa la voz del sistema); `stopped`: se cortó a pedido; `failed`:
+ * cualquier otro problema.
+ */
+export type SpeakErrorReason = 'busy' | 'off' | 'stopped' | 'failed';
+/** `ok`: el servidor aceptó y el audio empieza a llegar por UI_SPEAK_AUDIO_CHANNEL. */
+export type SpeakResult = { status: 'ok' } | { status: 'error'; reason: SpeakErrorReason };
+/** Del proceso principal a la vista que pidió la lectura: el MP3 en pedazos, en orden. */
+export const UI_SPEAK_AUDIO_CHANNEL = 'ui:speak-audio';
+export type SpeechAudioEvent = { type: 'chunk'; chunk: Uint8Array } | { type: 'end' } | { type: 'error'; reason: 'stopped' | 'failed' };
+/** Pedido de lectura: `id` lo elige la vista para reconocer sus pedazos. */
+export const SpeakRequestSchema = z.strictObject({ id: Id, text: z.string().min(1).max(2_000) });
+
 export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ready') }),
   /** `guide: false` es «Solo ir al sitio»: se abre el destino sin la guía. Por defecto, «Mostrame cómo». */
@@ -194,6 +214,16 @@ export interface AsistenteBridge {
   onState(listener: (state: AppState) => void): () => void;
   /** Pasa a texto un WAV PCM16 mono de 16 kHz. Nunca envía la búsqueda. */
   transcribe(wav: ArrayBuffer): Promise<TranscribeResult>;
+  /** Lee en voz alta un texto de Mostrame (nunca datos de la página). Devuelve el MP3. */
+  /**
+   * Lee en voz alta un texto de Mostrame (nunca datos de la página). Los
+   * pedazos del MP3 llegan a `onAudio` a medida que el servidor los manda.
+   */
+  speak(text: string, onAudio: (event: SpeechAudioEvent) => void): Promise<SpeakResult>;
+  /** «Detener» (o «voy a leer con la voz del sistema»): corta la descarga y avisa a la otra vista. */
+  stopSpeaking(): void;
+  /** Otra vista empezó a leer o se detuvo todo: cortar lo que suena acá. */
+  onSpeechCut(listener: () => void): () => void;
 }
 
 /* ---------------------------- Página externa ---------------------------- */
