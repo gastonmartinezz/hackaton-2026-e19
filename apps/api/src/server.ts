@@ -23,4 +23,4 @@ process.once('SIGINT', () => void shutdown('SIGINT'));
 
 await app.listen({ host: config.HOST, port: config.PORT });
 if (mcp) await mcp.listen({ host: config.MCP_HOST, port: config.MCP_PORT });
-app.log.info({ aiProvider: config.AI_PROVIDER, reputationProvider: config.REPUTATION_PROVIDER, mcp: Boolean(mcp) }, 'api ready');
+app.log.info({ aiProvider: config.AI_PROVIDER, reputationProvider: config.REPUTATION_PROVIDER, sttProvider: config.STT_PROVIDER, mcp: Boolean(mcp) }, 'api ready');

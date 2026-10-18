@@ -39,7 +39,7 @@ describe('infraestructura', () => {
     app = await testApp();
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ status: 'ok' });
+    expect(res.json()).toEqual({ status: 'ok', stt: 'off' });
   });
 
   it('rechaza solicitudes sin token con el formato de error estable', async () => {

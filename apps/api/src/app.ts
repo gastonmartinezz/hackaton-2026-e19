@@ -22,6 +22,11 @@ import { SessionStore } from './modules/sessions/session-store.js';
 import { createSiteCheckService, type SiteCheckOverrides } from './modules/site-check/factory.js';
 import { siteCheckRoutes } from './modules/site-check/site-check.routes.js';
 import type { SiteCheckService } from './modules/site-check/site-check.service.js';
+import { LocalWhisperProvider } from './modules/transcribe/local-provider.js';
+import { MockTranscriptionProvider } from './modules/transcribe/mock-provider.js';
+import type { TranscriptionProvider } from './modules/transcribe/provider.js';
+import { transcribeRoutes } from './modules/transcribe/transcribe.routes.js';
+import { TranscribeService } from './modules/transcribe/transcribe.service.js';
 import { registerAuth } from './plugins/auth.js';
 
 declare module 'fastify' {
@@ -37,6 +42,20 @@ export interface AppDeps {
   siteCheck?: SiteCheckOverrides;
   /** Destino de logs en pruebas (para verificar que no se registran datos sensibles). */
   logStream?: Writable;
+  /** null: voz a texto apagada. Si no se pasa, sale de STT_PROVIDER. */
+  transcriber?: TranscriptionProvider | null;
+}
+
+function createTranscriber(config: AppConfig, app: FastifyInstance): TranscriptionProvider | null {
+  switch (config.STT_PROVIDER) {
+    case 'off':
+      return null;
+    case 'mock':
+      return new MockTranscriptionProvider();
+    case 'local':
+      // Empieza a cargar el modelo en segundo plano; el servidor arranca igual.
+      return new LocalWhisperProvider(config, app.log);
+  }
 }
 
 const CLIENT_REQUEST_ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -95,10 +114,22 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
   const sessions = new SessionStore(config.SESSION_TTL_MINUTES * 60_000);
   app.addHook('onClose', async () => sessions.close());
 
-  await app.register(healthRoutes);
+  const transcriber = deps.transcriber !== undefined ? deps.transcriber : createTranscriber(config, app);
+  app.addHook('onClose', async () => transcriber?.close?.());
+  const transcribeService = new TranscribeService(
+    transcriber,
+    { timeoutMs: config.STT_TIMEOUT_MS, concurrency: config.STT_CONCURRENCY, maxQueued: config.STT_QUEUE_MAX },
+    app.log,
+  );
+
+  await app.register(healthRoutes, { sttStatus: () => transcribeService.status });
   await app.register(interpretRoutes, { service: new InterpretService(model, sessions) });
   await app.register(optionsRoutes, { service: new OptionsService(model, sessions) });
   await app.register(nextStepRoutes, { service: new NextStepService(model, sessions) });
+  await app.register(transcribeRoutes, {
+    service: transcribeService,
+    rateLimit: { max: config.STT_RATE_LIMIT_MAX, timeWindow: config.RATE_LIMIT_WINDOW_MS },
+  });
 
   const { service: siteCheck, authority } = createSiteCheckService(config, model, deps.siteCheck);
   app.decorate('siteCheck', siteCheck);

@@ -14,6 +14,7 @@ const exported = {
   NextStepResponse: contracts.NextStepResponse,
   SiteCheckRequest: contracts.SiteCheckRequest,
   SiteCheckResponse: contracts.SiteCheckResponse,
+  TranscribeResponse: contracts.TranscribeResponse,
   ApiError: contracts.ApiError,
 };
 

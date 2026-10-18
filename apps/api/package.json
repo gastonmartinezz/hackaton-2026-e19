@@ -11,7 +11,8 @@
     "build": "tsc -p tsconfig.build.json && node -e \"require('node:fs').cpSync('src/modules/site-check/data', 'dist/modules/site-check/data', { recursive: true })\"",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "stt:prefetch": "node dist/modules/transcribe/prefetch-model.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.135.0",
@@ -19,6 +20,7 @@
     "@fastify/swagger": "9.9.2",
     "@fastify/swagger-ui": "6.1.2",
     "@hackaton/contracts": "workspace:*",
+    "@huggingface/transformers": "4.3.1",
     "@modelcontextprotocol/sdk": "1.31.0",
     "fastify": "5.12.7",
     "fastify-type-provider-zod": "7.0.0",
