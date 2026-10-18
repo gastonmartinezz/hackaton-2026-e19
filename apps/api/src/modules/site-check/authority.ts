@@ -32,7 +32,6 @@ export interface OfficialMatch {
   /** Zona o dominio que autoriza al host. */
   matched: string;
   source: { name: string; url?: string; reviewedAt: string };
-  detail: string;
 }
 
 /** Organización que un texto dice ser, con las claves de quién la autoriza. */
@@ -138,7 +137,6 @@ export class AuthorityView {
         organization: entry ? entry.organization : this.institutionName(institution),
         matched: match.key,
         source: { name: BCU_SOURCE_NAME, url: institution.sourceUrl, reviewedAt: this.registry.snapshot.fetchedAt },
-        detail: `${match.key} es el sitio que el BCU publica para ${institution.name}`,
       };
     }
     if (entry) {
@@ -148,7 +146,6 @@ export class AuthorityView {
         organization: entry.organization,
         matched: domain.domain,
         source: { name: entry.source.name, ...(entry.source.url ? { url: entry.source.url } : {}), reviewedAt: asDateTime(entry.reviewedAt) },
-        detail: `${domain.domain} figura en el catálogo curado (${entry.catalog})`,
       };
     }
     const zone = findZone(this.sources.zones, hostname);
@@ -158,7 +155,6 @@ export class AuthorityView {
         organization: zone.organization,
         matched: zone.suffix,
         source: { name: zone.source.name, ...(zone.source.url ? { url: zone.source.url } : {}), reviewedAt: asDateTime(zone.reviewedAt) },
-        detail: `Zona .${zone.suffix} reservada al Estado (${zone.origin})`,
       };
     }
     return null;
@@ -272,15 +268,6 @@ export class AuthorityView {
 
   zoneReferences(): ZoneReference[] {
     return this.sources.zones.map((z) => ({ suffix: z.suffix, organization: z.organization }));
-  }
-
-  /** Versiones y estado de las fuentes, para la evidencia y las limitaciones. */
-  describe(): { versions: string[]; registry: string } {
-    const snapshot = this.registry.snapshot;
-    const registry = snapshot
-      ? `${BCU_SOURCE_NAME}: ${snapshot.institutions.length} instituciones con sitio web (${snapshot.skipped.length} sin sitio utilizable o no activas), descargado ${snapshot.fetchedAt}${this.registry.status === 'stale' ? ' (copia vieja: no aprueba)' : ''}`
-      : `${BCU_SOURCE_NAME}: no disponible (${this.registry.error ?? 'sin copia'})`;
-    return { versions: this.sources.versions, registry };
   }
 }
 

@@ -25,11 +25,11 @@ export interface RegistrationData {
   server: string;
 }
 
-const LIMITATION = 'La antigüedad del dominio es solo una señal de apoyo: un dominio antiguo no garantiza que el sitio sea confiable.';
-
 /**
  * Registro de dominios por RDAP. El servidor de cada TLD sale del bootstrap oficial de IANA:
  * nunca se consulta un servidor elegido por la solicitud. Solo se envía el dominio registrable.
+ * La antigüedad es solo una señal de apoyo: un dominio antiguo no garantiza que el sitio sea confiable.
+ * `.uy` no publica RDAP: para dominios uruguayos la cobertura queda `unavailable` (`no_rdap_service`).
  */
 export class RdapClient {
   private readonly cache = new TtlCache<SourceResult<RegistrationData>>();
@@ -48,9 +48,8 @@ export class RdapClient {
 
   lookup(domain: string): Promise<SourceResult<RegistrationData>> {
     const checkedAt = new Date(this.now).toISOString();
-    if (!this.options.enabled) {
-      return Promise.resolve(unavailable('RDAP', checkedAt, ['disabled'], ['Consulta RDAP deshabilitada (SITE_CHECK_RDAP=false).']));
-    }
+    // SITE_CHECK_RDAP=false
+    if (!this.options.enabled) return Promise.resolve(unavailable(['disabled']));
     return this.cache.getOrLoad(
       cacheKey('rdap', domain),
       async () => {
@@ -58,7 +57,7 @@ export class RdapClient {
           this.budget.take();
           return await withTimeout(this.options.timeoutMs, (signal) => this.query(domain, checkedAt, signal));
         } catch (error) {
-          return unavailable<RegistrationData>('RDAP', checkedAt, [errorKind(error)], [LIMITATION]);
+          return unavailable<RegistrationData>([errorKind(error)]);
         }
       },
       (result) => result.ttlMs,
@@ -68,14 +67,11 @@ export class RdapClient {
   private async query(domain: string, checkedAt: string, signal: AbortSignal): Promise<SourceResult<RegistrationData>> {
     const tld = domain.slice(domain.lastIndexOf('.') + 1);
     const base = (await this.services(signal)).get(tld);
-    if (!base) {
-      return unavailable('RDAP', checkedAt, ['no_rdap_service'], [`El TLD .${tld} no publica un servicio RDAP en el bootstrap de IANA.`, LIMITATION]);
-    }
+    // El TLD no publica un servicio RDAP en el bootstrap de IANA (.uy, por ejemplo).
+    if (!base) return unavailable(['no_rdap_service']);
     const server = new URL(base).hostname;
     const response = await this.fetch(`${base}domain/${encodeURIComponent(domain)}`, signal);
-    if (response.status === 404) {
-      return { ...unavailable<RegistrationData>(`RDAP (${server})`, checkedAt, ['not_found'], [LIMITATION]), coverage: 'partial' };
-    }
+    if (response.status === 404) return { ...unavailable<RegistrationData>(['not_found']), coverage: 'partial' };
     if (!response.ok) throw new ProviderHttpError(response.status);
     const body = RdapDomain.parse(await response.json());
 
@@ -86,13 +82,10 @@ export class RdapClient {
 
     const registeredMs = registeredAt ? Date.parse(registeredAt) : Number.NaN;
     const recent = Number.isFinite(registeredMs) && this.now - registeredMs < RECENT_MS;
-    const limitations = registeredAt ? [LIMITATION] : ['El registro no informa la fecha de alta.', LIMITATION];
     return {
-      source: `RDAP (${server})`,
-      checkedAt,
+      // Sin fecha de alta, el registro queda parcial.
       coverage: registeredAt ? 'complete' : 'partial',
       ttlMs: DOMAIN_TTL_MS,
-      limitations,
       errors: [],
       data: { domain, registeredAt, registrar, server },
       findings: recent

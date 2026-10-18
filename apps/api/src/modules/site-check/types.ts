@@ -13,14 +13,12 @@ export interface Finding {
   impersonatedOrganization?: string;
 }
 
-/** Resultado de una verificación: fuente, fecha, alcance (cobertura), limitaciones y errores. */
+/** Resultado de una fuente externa (RDAP, inspección de conexión): alcance, vigencia, errores, dato y hallazgos. */
 export interface SourceResult<T> {
-  source: string;
-  checkedAt: string;
   coverage: CoverageLevel;
   /** Vigencia del dato según la fuente. 0 si falló (no se guarda en caché). */
   ttlMs: number;
-  limitations: string[];
+  /** Motivo técnico de una falla o de un resultado parcial (`timeout`, `rate_limited`, `http_503`…). */
   errors: string[];
   data: T | null;
   findings: Finding[];
@@ -44,6 +42,6 @@ export class ProviderHttpError extends Error {
   }
 }
 
-export function unavailable<T>(source: string, checkedAt: string, errors: string[], limitations: string[] = []): SourceResult<T> {
-  return { source, checkedAt, coverage: 'unavailable', ttlMs: 0, limitations, errors, data: null, findings: [] };
+export function unavailable<T>(errors: string[]): SourceResult<T> {
+  return { coverage: 'unavailable', ttlMs: 0, errors, data: null, findings: [] };
 }

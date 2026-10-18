@@ -17,11 +17,10 @@ describe('RDAP', () => {
     expect(fetch.calls).toHaveLength(2);
   });
 
-  it('un TLD sin servicio RDAP queda unavailable con la limitación explicada', async () => {
+  it('un TLD sin servicio RDAP (.uy) queda unavailable con el motivo', async () => {
     const rdap = new RdapClient({ ...limits, enabled: true, fetchImpl: fakeRdapFetch().impl });
     const result = await rdap.lookup('ejemplo.uy');
-    expect(result).toMatchObject({ coverage: 'unavailable', errors: ['no_rdap_service'] });
-    expect(result.limitations[0]).toMatch(/\.uy/);
+    expect(result).toMatchObject({ coverage: 'unavailable', errors: ['no_rdap_service'], data: null, findings: [] });
   });
 
   it('con el tope por minuto alcanzado queda unavailable sin consultar', async () => {

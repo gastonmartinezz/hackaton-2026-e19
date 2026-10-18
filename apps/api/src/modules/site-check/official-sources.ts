@@ -96,21 +96,15 @@ export interface GovernmentZone {
   country: string;
   source: SourceRef;
   reviewedAt: string;
-  /** Archivo del que salió (para la evidencia). */
-  origin: string;
 }
 
+/** Entrada de un catálogo curado: lo que se usa para decidir oficialidad y mostrar su fuente. */
 export interface CatalogEntry {
   id: string;
   organization: string;
-  category: string;
-  country: string;
   domains: Array<{ domain: string; scope: 'exact' | 'subdomains' }>;
   source: SourceRef;
-  sourceType: string;
   reviewedAt: string;
-  /** Archivo y versión del catálogo. */
-  catalog: string;
 }
 
 export interface ClaimGroup {
@@ -140,8 +134,6 @@ export interface OfficialSources {
   discarded: Map<string, string>;
   /** Palabras de uso corriente (heurística de dominios parecidos, no fuente de autoridad). */
   commonWords: Set<string>;
-  /** Versiones cargadas, para la evidencia ("government-zones 2026-10-17.1", "official-sites.uy …"). */
-  versions: string[];
 }
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
@@ -172,11 +164,10 @@ export function loadOfficialSources(
       .sort()
       .map((name) => join(dataDir, name));
 
-  const sources: OfficialSources = { zones: [], entries: [], claims: [], discarded: new Map(), commonWords: new Set(), versions: [] };
+  const sources: OfficialSources = { zones: [], entries: [], claims: [], discarded: new Map(), commonWords: new Set() };
 
   try {
     const claims = ClaimsFile.parse(readJson(claimsPath));
-    sources.versions.push(`government-claims ${claims.version}`);
     sources.claims.push(
       ...claims.claims.map(({ country, organization, names, acronyms, contextNames, context }) => ({ country, organization, names, acronyms, contextNames, context })),
     );
@@ -198,13 +189,10 @@ export function loadOfficialSources(
       throw describeError(path, error);
     }
     const catalog = `${path.split(/[\\/]/).pop()} ${file.version}`;
-    sources.versions.push(catalog);
     for (const zone of file.zones) {
-      sources.zones.push({ ...zone, country: file.country, reviewedAt: file.reviewedAt, origin: catalog });
+      sources.zones.push({ ...zone, country: file.country, reviewedAt: file.reviewedAt });
     }
-    for (const entry of file.entries) {
-      sources.entries.push({ ...entry, country: file.country, catalog });
-    }
+    sources.entries.push(...file.entries);
     for (const item of file.discarded) {
       const discarded = Discarded.safeParse(item);
       if (!discarded.success) continue;

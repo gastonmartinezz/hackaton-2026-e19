@@ -13,12 +13,12 @@ import type { StructuredModel } from '../ai/model.js';
 import { SYSTEM_PROMPTS } from '../ai/prompts.js';
 import { SiteCheckOutput } from '../ai/schemas.js';
 import { buildReasons, CATEGORY, computeRisk, isEnough } from './aggregate.js';
-import type { AuthorityService, AuthorityView, OfficialMatch } from './authority.js';
+import type { AuthorityService, OfficialMatch } from './authority.js';
 import { withTimeout } from './cache.js';
-import type { ConnectionData, ConnectionInspector } from './connection.js';
+import type { ConnectionInspector } from './connection.js';
 import { describeHost, type HostInfo } from './domain.js';
 import { lookalikeSignals } from './lookalike.js';
-import { analyzePage, compareBrand, type BrandComparison, type PageAnalysis } from './page-rules.js';
+import { analyzePage, compareBrand, type PageAnalysis } from './page-rules.js';
 import type { RdapClient, RegistrationData } from './rdap.js';
 import { sanitizePage, sanitizeUrl } from './sanitize.js';
 import { errorKind, type Finding, type SourceResult } from './types.js';
@@ -28,15 +28,6 @@ const CONTENT_TTL_MS = 10 * 60_000;
 const INCOMPLETE_TTL_MS = 60_000;
 const IDENTITY_SOURCE = 'Fuentes de autoridad';
 const AI_SOURCE = 'Análisis con IA';
-
-export interface IdentityData {
-  hostname: string;
-  registrableDomain: string | null;
-  /** Fuente de autoridad que hace oficial al host (zona de gobierno, registro del BCU o catálogo curado). */
-  official: OfficialMatch | null;
-  /** Versiones de las fuentes locales y estado del registro del BCU usado. */
-  sources: { versions: string[]; registry: string; registryStatus: 'fresh' | 'stale' | 'unavailable' };
-}
 
 export interface SiteCheckDeps {
   authority: AuthorityService;
@@ -48,137 +39,24 @@ export interface SiteCheckDeps {
   now?: () => number;
 }
 
-/** Hosts locales, privados o internos: nunca llegan a proveedores. */
-const internalResult = <T>(source: string, checkedAt: string): SourceResult<T> => ({
-  source,
-  checkedAt,
-  coverage: 'not_applicable',
-  ttlMs: 0,
-  limitations: ['Las direcciones locales, privadas o internas no se analizan con servicios externos.'],
-  errors: ['internal_host'],
-  data: null,
-  findings: [],
-});
-
-const IDENTITY_LIMITATIONS = [
-  '«Oficial» solo sale de una autoridad: zonas de dominio reservadas al Estado, el registro de instituciones del Banco Central del Uruguay (BCU) o un catálogo curado con fuente por entrada. La IA, HTTPS, rankings o la antigüedad nunca lo otorgan.',
-  'Que un sitio no figure en esas fuentes no significa que sea falso.',
-  'Un sitio oficial comprometido sigue siendo oficial: por eso cualquier riesgo tiene prioridad.',
-];
-
 /**
  * Protección de sitios. Las validaciones esenciales corren siempre acá, en el servicio. La IA solo
  * identifica la organización declarada y los pedidos de la página; esa organización se contrasta
  * con las fuentes de autoridad. Nunca otorga identidad oficial ni baja el riesgo.
+ *
+ * «Oficial» solo sale de una autoridad: zonas reservadas al Estado uruguayo, el registro de
+ * instituciones del BCU o el catálogo curado. Que un sitio no figure ahí no significa que sea falso,
+ * y un sitio oficial comprometido sigue siendo oficial: por eso cualquier riesgo tiene prioridad.
  */
 export class SiteCheckService {
   constructor(private readonly deps: SiteCheckDeps) {}
 
-  private nowIso(): string {
-    return new Date((this.deps.now ?? Date.now)()).toISOString();
-  }
-
-  /** `lookup_official_identity`: fuentes de autoridad + señales de imitación del dominio. */
-  async identity(hostname: string, view?: AuthorityView): Promise<SourceResult<IdentityData>> {
-    const checkedAt = this.nowIso();
-    const host = describeHost(hostname);
-    if (host.internal) return internalResult(IDENTITY_SOURCE, checkedAt);
-    const authority = view ?? (await this.deps.authority.view());
-    const official = authority.official(host.hostname);
-    const findings: Finding[] = official
-      ? []
-      : lookalikeSignals(host, authority.references(), authority.zoneReferences()).map((signal) => ({
-          code: signal.code,
-          source: IDENTITY_SOURCE,
-          checkedAt,
-          observedBy: 'service',
-          detail: signal.detail.slice(0, 300),
-          ...(signal.organization ? { impersonatedOrganization: signal.organization.slice(0, 120) } : {}),
-        }));
-    const described = authority.describe();
-    const coverage = authority.coverage(host.hostname);
-    return {
-      source: official ? official.source.name : IDENTITY_SOURCE,
-      checkedAt,
-      coverage,
-      ttlMs: coverage === 'complete' ? CONTENT_TTL_MS : 0,
-      limitations: [...IDENTITY_LIMITATIONS, described.registry],
-      errors: authority.registry.status === 'fresh' || coverage === 'complete' ? [] : [`registry_${authority.registry.status}`],
-      data: {
-        hostname: host.hostname,
-        registrableDomain: host.registrableDomain,
-        official,
-        sources: { versions: described.versions, registry: described.registry, registryStatus: authority.registry.status },
-      },
-      findings,
-    };
-  }
-
-  /** `get_domain_registration`. Se consulta siempre el dominio registrable, nunca el host completo. */
-  registration(hostname: string): Promise<SourceResult<RegistrationData>> {
-    const host = describeHost(hostname);
-    if (host.internal) return Promise.resolve(internalResult('RDAP', this.nowIso()));
-    if (host.isIp || !host.registrableDomain) {
-      return Promise.resolve({ ...internalResult<RegistrationData>('RDAP', this.nowIso()), limitations: ['Las direcciones IP no tienen registro de dominio.'], errors: [] });
-    }
-    return this.deps.rdap.lookup(host.registrableDomain);
-  }
-
-  /** `inspect_connection`. */
-  connection(rawUrl: string): Promise<SourceResult<ConnectionData>> {
-    const url = this.safeUrl(rawUrl);
-    if (describeHost(url.hostname).internal) return Promise.resolve(internalResult('Inspección de conexión', this.nowIso()));
-    return this.deps.connection.inspect(url);
-  }
-
-  /** `analyze_page_structure`. El resumen se vuelve a sanitizar antes de aplicar reglas. */
-  async page(rawUrl: string, page: PageSummary, view?: AuthorityView): Promise<SourceResult<PageAnalysis>> {
-    const url = this.safeUrl(rawUrl);
-    const checkedAt = this.nowIso();
-    const host = describeHost(url.hostname);
-    const authority = view ?? (await this.deps.authority.view());
-    const official = !host.internal && authority.official(host.hostname) !== null;
-    const analysis = analyzePage(sanitizePage(page), url, host, authority, official, checkedAt);
-    return {
-      source: 'Reglas de contenido',
-      checkedAt,
-      coverage: 'complete',
-      ttlMs: CONTENT_TTL_MS,
-      limitations: ['Analiza el resumen que envió el navegador de la persona; no ve el código de la página ni lo que cambia después.'],
-      errors: [],
-      data: analysis,
-      findings: analysis.findings,
-    };
-  }
-
-  /** `compare_brand_identity`. */
-  async brand(hostname: string, declaredBrand: string, view?: AuthorityView): Promise<SourceResult<BrandComparison>> {
-    const checkedAt = this.nowIso();
-    const host = describeHost(hostname);
-    if (host.internal) return internalResult(IDENTITY_SOURCE, checkedAt);
-    const authority = view ?? (await this.deps.authority.view());
-    const comparison = compareBrand(declaredBrand, host, authority, checkedAt);
-    return {
-      source: IDENTITY_SOURCE,
-      checkedAt,
-      coverage: authority.registry.status === 'fresh' ? 'complete' : 'partial',
-      ttlMs: CONTENT_TTL_MS,
-      limitations: [
-        'La marca declarada por el sitio nunca prueba su identidad; solo se usa para detectar imitaciones.',
-        'Se reconocen organismos del Estado uruguayo, instituciones del registro del BCU y organizaciones de los catálogos curados.',
-        authority.describe().registry,
-      ],
-      errors: [],
-      data: comparison,
-      findings: comparison.findings,
-    };
-  }
-
   /** POST /v1/site-check. */
   async check(request: SiteCheckRequest, log: FastifyBaseLogger): Promise<SiteCheckResponse> {
     const startedAt = performance.now();
-    const checkedAt = this.nowIso();
-    const url = this.safeUrl(request.url);
+    const checkedAt = new Date((this.deps.now ?? Date.now)()).toISOString();
+    const url = sanitizeUrl(request.url);
+    if (!url) throw new AppError('BAD_REQUEST', 'URL inválida');
     const host = describeHost(url.hostname);
     const phase = request.page ? 'content' : 'address';
     const base = { navigationId: request.navigationId, contentVersion: request.contentVersion, analysisId: `sc-${randomUUID()}`, checkedAt };
@@ -198,43 +76,57 @@ export class SiteCheckService {
 
     const [authority, registration, connection] = await Promise.all([
       this.deps.authority.view(),
-      this.registration(host.hostname),
-      this.connection(url.toString()),
+      this.registration(host),
+      // La URL ya está depurada (sin query, fragmento ni secretos).
+      this.deps.connection.inspect(url),
     ]);
-    const identity = await this.identity(host.hostname, authority);
-    const official = identity.data?.official ?? null;
-    const findings: Finding[] = [...identity.findings, ...registration.findings, ...connection.findings];
+
+    // Identidad: fuentes de autoridad y, si el host no es oficial, señales de imitación del dominio.
+    const official = authority.official(host.hostname);
+    const identityCoverage = authority.coverage(host.hostname);
+    const findings: Finding[] = official
+      ? []
+      : lookalikeSignals(host, authority.references(), authority.zoneReferences()).map((signal) => ({
+          code: signal.code,
+          source: IDENTITY_SOURCE,
+          checkedAt,
+          observedBy: 'service',
+          detail: signal.detail.slice(0, 300),
+          ...(signal.organization ? { impersonatedOrganization: signal.organization.slice(0, 120) } : {}),
+        }));
+    findings.push(...registration.findings, ...connection.findings);
     if (url.protocol === 'http:') {
       findings.push({ code: 'NO_HTTPS', source: 'Dirección', checkedAt, observedBy: 'user_browser', detail: 'La página no usa una conexión cifrada (https)' });
     }
 
-    let page: SourceResult<PageAnalysis> | undefined;
     let explanation: string | undefined;
     let contentCoverage: CoverageLevel = 'pending';
     if (request.page) {
+      // El backend vuelve a depurar el resumen: lo que sale de acá llega a la IA.
       const sanitized = sanitizePage(request.page);
-      page = await this.page(url.toString(), sanitized, authority);
-      contentCoverage = page.coverage;
-      findings.push(...page.findings);
-      if (sanitized.declaredBrand) findings.push(...compareBrand(sanitized.declaredBrand, host, authority, checkedAt).findings);
-      let asksCredentials = page.data?.sensitiveKinds.includes('password') ?? false;
+      // TODO: las reglas reciben el resumen depurado dos veces, como antes de esta limpieza. La segunda pasada
+      // oculta el resto del texto después de «Contraseña:» (ya sin saltos de línea) y con él frases de amenaza.
+      const analysis = analyzePage(sanitizePage(sanitized), url, host, authority, official !== null, checkedAt);
+      contentCoverage = 'complete';
+      findings.push(...analysis.findings);
+      if (!official && sanitized.declaredBrand) findings.push(...compareBrand(sanitized.declaredBrand, host, authority, checkedAt));
+      let asksCredentials = analysis.sensitiveKinds.includes('password');
 
       if (this.deps.model) {
         // Lo que la IA recibe tiene que reflejar la cobertura real: sin identidad completa el riesgo es «unknown»
         // y el prompt le prohíbe tranquilizar.
-        const preCoverage = { identity: identity.coverage, content: page.coverage, registration: registration.coverage, connection: connection.coverage };
+        const preCoverage = { identity: identityCoverage, content: contentCoverage, registration: registration.coverage, connection: connection.coverage };
         const preComplete = [preCoverage.identity, preCoverage.content].every(isEnough);
         const rulesRisk = computeRisk(new Set(findings.map((f) => f.code)), preComplete);
-        const ai = await this.interpret(log, { host, risk: rulesRisk, coverage: preCoverage, official, findings, page: sanitized, analysis: page.data! });
+        const ai = await this.interpret(log, { host, risk: rulesRisk, coverage: preCoverage, official, findings, page: sanitized, analysis });
         if (!ai) {
           // Sin la identificación de la IA el análisis de contenido queda incompleto: nunca favorable.
           contentCoverage = 'partial';
         } else {
           explanation = ai.explanation || undefined;
-          if (ai.declaredOrganization) {
+          if (!official && ai.declaredOrganization && !findings.some((f) => f.code === 'BRAND_IMPERSONATION')) {
             const hint = { kind: ai.organizationKind, country: ai.country };
-            const brand = compareBrand(ai.declaredOrganization, host, authority, checkedAt, { hint, source: AI_SOURCE, observedBy: 'service' });
-            if (!findings.some((f) => f.code === 'BRAND_IMPERSONATION')) findings.push(...brand.findings);
+            findings.push(...compareBrand(ai.declaredOrganization, host, authority, checkedAt, { hint, source: AI_SOURCE, observedBy: 'service' }));
           }
           if (!official && (ai.requests.payment || ai.requests.verificationCodes) && !findings.some((f) => f.code === 'SENSITIVE_DATA_REQUEST')) {
             const what = [ai.requests.payment ? 'pagos o datos de tarjeta' : '', ai.requests.verificationCodes ? 'códigos de verificación' : ''].filter(Boolean).join(' y ');
@@ -252,20 +144,21 @@ export class SiteCheckService {
     }
 
     const coverage: SiteCheckCoverage = {
-      identity: identity.coverage,
+      identity: identityCoverage,
       content: contentCoverage,
       registration: registration.coverage,
       connection: connection.coverage,
     };
     // Obligatorias para un estado favorable: identidad y contenido (ver siteIndicatorState).
-    const mandatory: CoverageLevel[] = page ? [coverage.identity, coverage.content] : [coverage.identity];
+    const mandatory: CoverageLevel[] = request.page ? [coverage.identity, coverage.content] : [coverage.identity];
     const mandatoryComplete = mandatory.every(isEnough);
     const risk: SiteRisk = computeRisk(new Set(findings.map((f) => f.code)), mandatoryComplete);
 
-    const status = !page ? 'pending' : mandatoryComplete ? 'complete' : 'partial';
-    const sources = [identity, registration, connection, ...(page ? [page] : [])];
+    const status = !request.page ? 'pending' : mandatoryComplete ? 'complete' : 'partial';
+    // Vence con la fuente externa más corta, como mucho a los 10 min, y al minuto si algo quedó incompleto o falta el contenido.
     const incomplete = Object.values(coverage).some((level) => level === 'unavailable' || level === 'partial');
-    const ttl = Math.min(...sources.filter((s) => s.ttlMs > 0).map((s) => s.ttlMs), CONTENT_TTL_MS, incomplete || !page ? INCOMPLETE_TTL_MS : Number.POSITIVE_INFINITY);
+    const sourceTtls = [registration, connection].filter((s) => s.ttlMs > 0).map((s) => s.ttlMs);
+    const ttl = Math.min(...sourceTtls, CONTENT_TTL_MS, incomplete || !request.page ? INCOMPLETE_TTL_MS : Number.POSITIVE_INFINITY);
     const impersonated = findings.find((f) => f.impersonatedOrganization)?.impersonatedOrganization;
 
     return this.finish(log, phase, startedAt, {
@@ -280,6 +173,14 @@ export class SiteCheckService {
       ...(explanation ? { explanation } : {}),
       expiresAt: new Date(Date.parse(checkedAt) + ttl).toISOString(),
     });
+  }
+
+  /** Se consulta siempre el dominio registrable, nunca el host completo. Una IP no tiene registro de dominio. */
+  private registration(host: HostInfo): Promise<SourceResult<RegistrationData>> {
+    if (host.isIp || !host.registrableDomain) {
+      return Promise.resolve({ coverage: 'not_applicable', ttlMs: 0, errors: [], data: null, findings: [] });
+    }
+    return this.deps.rdap.lookup(host.registrableDomain);
   }
 
   /** Valida contra el contrato y registra solo datos técnicos: nunca URLs, dominios ni contenido. */
@@ -338,11 +239,5 @@ export class SiteCheckService {
       log.warn({ errorName: errorKind(error) }, 'site check ai failed');
       return null;
     }
-  }
-
-  private safeUrl(raw: string): URL {
-    const url = sanitizeUrl(raw);
-    if (!url) throw new AppError('BAD_REQUEST', 'URL inválida');
-    return url;
   }
 }

@@ -39,7 +39,7 @@ const PAYMENTS_SITE = `${ORIGIN}/Sistema-de-Pagos/`;
 const PAYMENTS_PAGES = `${PAYMENTS_SITE}Paginas/`;
 const PAYMENTS_LIST = 'Datos Generales';
 
-export const bcuFichaUrl = (nroinst: string) => `${SSF_PAGES}InformacionInstitucion.aspx?nroinst=${nroinst}`;
+const bcuFichaUrl = (nroinst: string) => `${SSF_PAGES}InformacionInstitucion.aspx?nroinst=${nroinst}`;
 
 /**
  * Listas de la SSF con instituciones que atienden a personas: las mismas de las que salieron las
@@ -47,7 +47,7 @@ export const bcuFichaUrl = (nroinst: string) => `${SSF_PAGES}InformacionInstituc
  * intermediarios de valores, las calificadoras, la bolsa, las instituciones financieras externas, los
  * proveedores de activos virtuales y los representantes de entidades extranjeras.
  */
-export const SSF_LISTS = [
+const SSF_LISTS = [
   { page: 'bancos_Instituciones_Lst.aspx', kind: 'Banco' },
   { page: 'casas_Financieras_Lst.aspx', kind: 'Casa financiera' },
   { page: 'coo_Int_Fin_Lst.aspx', kind: 'Cooperativa de intermediación financiera' },
@@ -238,7 +238,7 @@ const decodeHtml = (text: string) =>
  * Instituciones de una lista de la SSF (tabla `grdInstituciones`, o `grdInstitucionesGrp` cuando está
  * agrupada, como la de bancos). Sin esa tabla, el formato cambió.
  */
-export function parseSsfList(html: string): Array<z.infer<typeof SsfListItem>> {
+function parseSsfList(html: string): Array<z.infer<typeof SsfListItem>> {
   const table = /<table\b[^>]*\bid="[^"]*grdInstituciones(?:Grp)?"[^>]*>[\s\S]*?<\/table>/.exec(html)?.[0];
   if (!table) throw new Error('Lista de la SSF sin tabla de instituciones');
   const items = [...table.matchAll(/InformacionInstitucion\.aspx\?nroinst=(\d+)"[^>]*>([^<]*)</g)].map(([, nroinst, name]) =>
@@ -248,7 +248,7 @@ export function parseSsfList(html: string): Array<z.infer<typeof SsfListItem>> {
 }
 
 /** Razón social, estado, nombre de fantasía y página web de una ficha de la SSF. */
-export function parseSsfFicha(html: string): z.infer<typeof SsfFicha> {
+function parseSsfFicha(html: string): z.infer<typeof SsfFicha> {
   const text = (id: string) => {
     const match = new RegExp(`<(?:span|a)\\b[^>]*\\bid="[^"]*_${id}"[^>]*>([^<]*)<`).exec(html);
     return match ? decodeHtml(match[1]!) : undefined;
@@ -275,7 +275,7 @@ function urlCell(row: Record<string, unknown>, columnTypes: string[]): string {
 }
 
 /** Listado del Sistema de Pagos (vista «Publicar»). Si no vienen todas las filas, falla. */
-export function parsePaymentsList(json: unknown): Array<z.infer<typeof PaymentItem>> {
+function parsePaymentsList(json: unknown): Array<z.infer<typeof PaymentItem>> {
   const table = DataTable.parse(json);
   if (table.data.length !== table.recordsTotal) throw new Error('Listado del Sistema de Pagos incompleto');
   return table.data.map((row) =>
@@ -284,7 +284,7 @@ export function parsePaymentsList(json: unknown): Array<z.infer<typeof PaymentIt
 }
 
 /** Vista propia de la entidad en su página del Sistema de Pagos (`d.viewName`). */
-export function parsePaymentsView(html: string): string {
+function parsePaymentsView(html: string): string {
   const view = new RegExp(`d\\.listName\\s*=\\s*'${PAYMENTS_LIST}';\\s*d\\.viewName\\s*=\\s*'([A-Za-z0-9 _-]{1,40})'`).exec(html)?.[1];
   if (!view) throw new Error('Página del Sistema de Pagos sin vista de datos generales');
   return view;
@@ -296,7 +296,7 @@ const HOST_LIKE = /^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i;
  * Textos y sitio web de la vista de una entidad del Sistema de Pagos. El orden de las columnas cambia
  * entre vistas: el sitio sale del atributo de la fila, de un enlace o de una celda con forma de dirección.
  */
-export function parsePaymentsDetail(json: unknown): { texts: string[]; website: string } {
+function parsePaymentsDetail(json: unknown): { texts: string[]; website: string } {
   const table = DataTable.parse(json);
   if (table.data.length !== 1) throw new Error('Vista del Sistema de Pagos sin una única fila');
   const row = table.data[0]!;
