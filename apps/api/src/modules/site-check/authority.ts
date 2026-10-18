@@ -79,7 +79,7 @@ export class AuthorityView {
   private readonly byDomain = new Map<string, BcuInstitution[]>();
   /** Catálogo y BCU enlazados por dominio: la entrada del catálogo que lista un dominio del BCU es esa institución. */
   private readonly linked = new Map<string, Set<string>>();
-  /** Zonas de gobierno de la más específica a la menos (gub.uy antes que uy, si existiera). */
+  /** Zonas de gobierno de la más específica a la menos (x.gub.uy antes que gub.uy, si existiera). */
   private readonly zonesBySpecificity: GovernmentZone[];
   /** Nombres de organismos del Estado, normalizados. */
   private readonly claimGroups: Array<{ group: ClaimGroup; names: Named[]; acronyms: Named[]; contextNames: Named[]; context: string[] }>;

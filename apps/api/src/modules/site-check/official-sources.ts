@@ -33,7 +33,8 @@ const Source = z
     return /^https?:\/\//.test(value) ? { name: value, url: value } : { name: value };
   });
 
-const ZoneSuffix = z.string().regex(/^[a-z0-9-]+(\.[a-z0-9-]+)*$/);
+/** Al menos dos etiquetas (gub.uy): una zona de una sola sería demasiado genérica. */
+const ZoneSuffix = z.string().regex(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/);
 
 const ClaimsFile = z.strictObject({
   version: z.string().min(1),
@@ -221,7 +222,7 @@ export function loadOfficialSources(options: { catalogFiles?: string[]; commonWo
 
 /**
  * Zona de gobierno que contiene al host, por límites de dominio. `zones` viene ordenada de la más específica
- * a la menos (gub.uy antes que uy, si existiera): la ordena AuthorityView una sola vez.
+ * a la menos (x.gub.uy antes que gub.uy, si existiera): la ordena AuthorityView una sola vez.
  */
 export function findZone(zones: readonly GovernmentZone[], hostname: string): GovernmentZone | undefined {
   return zones.find((zone) => hostname !== zone.suffix && hostMatches(hostname, zone.suffix, 'subdomains'));
