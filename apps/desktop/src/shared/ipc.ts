@@ -449,7 +449,6 @@ export const ValidationMessageSchema = z.strictObject({});
 /* ------------------------- Protección de sitios ------------------------- */
 
 export const SummarizeRequestSchema = z.strictObject({ requestId: Id, navigationId: Id, contentVersion: ContentVersion });
-export type SummarizeRequest = z.infer<typeof SummarizeRequestSchema>;
 
 export const SummaryMessageSchema = z.strictObject({
   requestId: Id,

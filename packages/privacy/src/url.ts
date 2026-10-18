@@ -16,7 +16,7 @@ const MAX_PATH_SEGMENTS = 30;
  * también cuenta un segmento que nombra una credencial ("token", "clave"): en el
  * path suele venir pegado al valor; como nombre de parámetro de la query no.
  */
-export function looksSecret(raw: string, { keywords = true } = {}): boolean {
+function looksSecret(raw: string, { keywords = true } = {}): boolean {
   const text = safeDecode(raw);
   if (!text) return false;
   if (/[@=]/.test(text)) return true;
