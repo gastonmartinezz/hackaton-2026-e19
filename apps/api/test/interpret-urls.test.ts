@@ -220,3 +220,24 @@ describe('InterpretService: logs de la verificación', () => {
     ]);
   });
 });
+
+describe('UrlGuard: rendimiento', () => {
+  it('repara todas las opciones en paralelo, no una después de otra', async () => {
+    // Verificador lento: 100 ms por URL; las páginas fallan y la raíz de cada dominio existe.
+    const verifier = {
+      verify: async (url: string) => {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        return new URL(url).pathname === '/' ? { ok: true as const, finalUrl: url } : { ok: false as const, reason: 'not_found' as const, status: 404 };
+      },
+    };
+    const guard = new UrlGuard(verifier as never);
+    const output = options('https://a.example/x', 'https://b.example/x', 'https://c.example/x');
+    const stats = { checked: 0, valid: 0, invalid: {}, rootFallbacks: 0, dropped: 0, converted: 'none' as const, invalidDomains: [] };
+    const started = performance.now();
+    const fixed = await guard.repair(output, new Map(), stats);
+    const elapsed = performance.now() - started;
+    expect(fixed.options.map((o) => o.url)).toEqual(['https://a.example/', 'https://b.example/', 'https://c.example/']);
+    // En serie serían 6 verificaciones de 100 ms (página y raíz de cada una); en paralelo, unas 2.
+    expect(elapsed).toBeLessThan(350);
+  });
+});

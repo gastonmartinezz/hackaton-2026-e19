@@ -42,7 +42,10 @@ export class InterpretService {
 
     let retried = false;
     const failed = this.guard.failed(checks);
+    let warmRoots: Promise<void> | undefined;
     if (failed.length > 0) {
+      // En paralelo con el reintento: la raíz de cada dominio que falló, por si hay que repararla.
+      warmRoots = this.guard.prefetchRoots(failed);
       // Un reintento diciéndole a Claude qué URL falló y por qué.
       let second: InterpretOutput | undefined;
       try {
@@ -61,6 +64,7 @@ export class InterpretService {
       }
     }
     // Siempre, se haya usado o no el reintento: lo que siga inválido pasa a la raíz del dominio o se saca.
+    await warmRoots;
     output = await this.guard.repair(output, checks, stats);
 
     log.info(

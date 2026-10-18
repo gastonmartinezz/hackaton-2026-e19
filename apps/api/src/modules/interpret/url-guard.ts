@@ -48,6 +48,15 @@ export class UrlGuard {
     return new Map(results);
   }
 
+  /**
+   * Verifica en segundo plano la raíz del dominio de las URLs que fallaron, mientras Claude responde el
+   * reintento: el verificador guarda el resultado en caché y `repair` ya no espera esas consultas. Nunca falla.
+   */
+  prefetchRoots(failed: FailedUrl[]): Promise<void> {
+    const roots = [...new Set(failed.map((f) => rootOf(f.url)).filter((root): root is string => Boolean(root)))];
+    return Promise.allSettled(roots.map((root) => this.verifier.verify(root))).then(() => undefined);
+  }
+
   failed(checks: Map<string, UrlCheck>): FailedUrl[] {
     return [...checks]
       .filter((entry): entry is [string, Extract<UrlCheck, { ok: false }>] => !entry[1].ok)
@@ -79,10 +88,12 @@ export class UrlGuard {
     }
 
     if (output.type === 'options') {
+      // Todas las opciones a la vez; el orden y el descarte de repetidas se aplican después.
+      const fixed = await Promise.all(output.options.map((option) => fix(option.url)));
       const seen = new Set<string>();
       const options: InterpretOutput['options'] = [];
-      for (const option of output.options) {
-        const url = await fix(option.url);
+      for (const [i, option] of output.options.entries()) {
+        const url = fixed[i];
         if (!url || seen.has(url)) continue;
         seen.add(url);
         options.push({ ...option, url });
