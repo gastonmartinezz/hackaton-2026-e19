@@ -3,7 +3,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SpeakResult, SpeechAudioEvent } from '../../../shared/ipc';
-import { pickSpanishVoice, systemVoices, type Mp3Stream, type Playback, type SystemSpeechProblem } from './playback';
+import { pickSpanishVoice, systemSpeak, systemVoices, type Mp3Stream, type Playback, type SystemSpeechProblem } from './playback';
 import { SpeakButton } from './SpeakButton';
 import { SPEECH_TEXTS } from './speechText';
 import { autoRead, speechSource, type ReadAloudDeps } from './useReadAloud';
@@ -59,7 +59,7 @@ function fakeDeps(result: SpeakResult = { status: 'ok' }) {
       return () => cutListeners.delete(listener);
     }),
     openMp3Stream: vi.fn((): Mp3Stream => stream),
-    systemSpeak: vi.fn(async (): Promise<Playback | SystemSpeechProblem> => system.playback),
+    systemSpeak: vi.fn(async (_text: string, _stillWanted: () => boolean): Promise<Playback | SystemSpeechProblem> => system.playback),
     warmUpVoices: vi.fn(),
   } satisfies ReadAloudDeps;
   const cutFromMain = () => act(async () => cutListeners.forEach((l) => l()));
@@ -150,7 +150,7 @@ describe('SpeakButton', () => {
     render(<SpeakButton text="Hola" deps={deps} />);
     await click();
     await flush();
-    expect(deps.systemSpeak).toHaveBeenCalledWith('Hola');
+    expect(deps.systemSpeak).toHaveBeenCalledWith('Hola', expect.any(Function));
     expect(button()!.textContent).toBe(SPEECH_TEXTS.stop);
     await act(async () => system.end());
     expect(speechSource.mode).toBe('system');
@@ -448,6 +448,21 @@ describe('modo voz: lectura automática', () => {
     expect(deps.speak).toHaveBeenCalledTimes(2);
   });
 
+  it('si falla mientras suena, no queda marcada como leída: se vuelve a leer cuando reaparece (sin reintentar en bucle)', async () => {
+    const { deps, mp3 } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    await act(async () => mp3.end('failed'));
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(SPEECH_TEXTS.failed);
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledOnce();
+    act(() => root.render(null));
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledTimes(2);
+  });
+
   it('una lectura automática cortada al desmontarse se puede volver a leer (StrictMode en desarrollo)', async () => {
     const { deps } = fakeDeps();
     let resolve: (r: SpeakResult) => void = () => {};
@@ -459,6 +474,155 @@ describe('modo voz: lectura automática', () => {
     render(<SpeakButton text="Hola" deps={deps} auto />);
     await flush();
     expect(deps.speak).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('voz del sistema: la lectura que espera las voces se puede cortar', () => {
+  /** systemSpeak simulado que queda esperando las voces; guarda `stillWanted` para mirarlo. */
+  function waitingVoices(deps: ReturnType<typeof fakeDeps>['deps']) {
+    const calls: Array<{ wanted: () => boolean; resolve: (p: Playback | SystemSpeechProblem) => void }> = [];
+    deps.systemSpeak.mockImplementation(
+      (_text: string, wanted: () => boolean) => new Promise<Playback | SystemSpeechProblem>((resolve) => calls.push({ wanted, resolve })),
+    );
+    return calls;
+  }
+  beforeEach(() => {
+    speechSource.mode = 'system';
+  });
+
+  it('un aviso de la otra vista la corta mientras espera, y cuando llegan las voces no suena', async () => {
+    const { deps, system, cutFromMain } = fakeDeps();
+    const calls = waitingVoices(deps);
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.stop);
+    expect(calls[0]!.wanted()).toBe(true);
+    await cutFromMain();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.listen);
+    // Ya no hace falta: systemSpeak no la hace sonar ni llama a speechSynthesis.cancel().
+    expect(calls[0]!.wanted()).toBe(false);
+    await act(async () => calls[0]!.resolve(system.playback));
+    expect(system.playback.stop).toHaveBeenCalled();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.listen);
+  });
+
+  it('otra lectura de esta vista también la corta mientras espera', async () => {
+    const a = fakeDeps();
+    const b = fakeDeps();
+    const waitingA = waitingVoices(a.deps);
+    render(
+      <>
+        <SpeakButton text="Primero" deps={a.deps} />
+        <SpeakButton text="Segundo" deps={b.deps} />
+      </>,
+    );
+    const [first, second] = [...container.querySelectorAll<HTMLButtonElement>('button.speak-btn')];
+    await act(async () => first!.click());
+    await act(async () => second!.click());
+    expect(waitingA[0]!.wanted()).toBe(false);
+    expect(first!.textContent).toBe(SPEECH_TEXTS.listen);
+    expect(second!.textContent).toBe(SPEECH_TEXTS.stop);
+  });
+
+  it('«Detener» mientras espera las voces: no suena después', async () => {
+    const { deps } = fakeDeps();
+    const calls = waitingVoices(deps);
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    await click();
+    expect(calls[0]!.wanted()).toBe(false);
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.listen);
+  });
+
+  it('apagar el modo voz mientras espera las voces: no suena después', async () => {
+    const { deps, system } = fakeDeps();
+    const calls = waitingVoices(deps);
+    render(<SpeakButton text="Hola" deps={deps} auto />);
+    await flush();
+    expect(calls).toHaveLength(1);
+    render(<SpeakButton text="Hola" deps={deps} auto={false} />);
+    await flush();
+    expect(calls[0]!.wanted()).toBe(false);
+    await act(async () => calls[0]!.resolve(system.playback));
+    expect(system.playback.stop).toHaveBeenCalled();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.listen);
+  });
+
+  it('«Repetir» mientras espera las voces: solo la última puede sonar', async () => {
+    const { deps } = fakeDeps();
+    const calls = waitingVoices(deps);
+    render(<SpeakButton text="Hola" deps={deps} auto contentKey="1:0" />);
+    await flush();
+    render(<SpeakButton text="Hola" deps={deps} auto contentKey="1:1" />);
+    await flush();
+    expect(calls).toHaveLength(2);
+    expect(calls[0]!.wanted()).toBe(false);
+    expect(calls[1]!.wanted()).toBe(true);
+  });
+});
+
+describe('systemSpeak: una lectura vieja nunca corta a una más nueva', () => {
+  const realSynthesis = Object.getOwnPropertyDescriptor(globalThis, 'speechSynthesis');
+  const realUtterance = Object.getOwnPropertyDescriptor(globalThis, 'SpeechSynthesisUtterance');
+  let synth: { speak: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn>; getVoices: () => unknown[] };
+  beforeEach(() => {
+    synth = Object.assign(new EventTarget(), {
+      speak: vi.fn(),
+      cancel: vi.fn(),
+      getVoices: () => [{ lang: 'es-MX', name: 'Paulina', localService: true }],
+    });
+    Object.defineProperty(globalThis, 'speechSynthesis', { value: synth, configurable: true });
+    class FakeUtterance extends EventTarget {
+      voice: unknown = null;
+      lang = '';
+      constructor(readonly text: string) {
+        super();
+      }
+    }
+    Object.defineProperty(globalThis, 'SpeechSynthesisUtterance', { value: FakeUtterance, configurable: true });
+  });
+  afterEach(() => {
+    for (const [name, real] of [
+      ['speechSynthesis', realSynthesis],
+      ['SpeechSynthesisUtterance', realUtterance],
+    ] as const) {
+      if (real) Object.defineProperty(globalThis, name, real);
+      else delete (globalThis as Record<string, unknown>)[name];
+    }
+  });
+
+  it('si al llegar las voces ya no hace falta, no suena ni llama a cancel()', async () => {
+    const report = vi.fn();
+    const result = await systemSpeak('Hola', 5_000, report, () => false);
+    expect(synth.speak).not.toHaveBeenCalled();
+    expect(synth.cancel).not.toHaveBeenCalled();
+    expect(typeof result).toBe('object');
+    const playback = result as Playback;
+    playback.stop();
+    expect(synth.cancel).not.toHaveBeenCalled();
+    await expect(playback.done).resolves.toBe('stopped');
+  });
+
+  it('detener una lectura ya reemplazada no calla a la que suena ahora', async () => {
+    const first = (await systemSpeak('Primera')) as Playback;
+    const second = (await systemSpeak('Segunda')) as Playback;
+    expect(synth.speak).toHaveBeenCalledTimes(2);
+    const cancels = synth.cancel.mock.calls.length;
+    first.stop();
+    expect(synth.cancel.mock.calls.length).toBe(cancels);
+    await expect(first.done).resolves.toBe('stopped');
+    second.stop();
+    expect(synth.cancel.mock.calls.length).toBe(cancels + 1);
+  });
+
+  it('detener una lectura que ya terminó no calla nada', async () => {
+    const playback = (await systemSpeak('Hola')) as Playback;
+    const utterance = synth.speak.mock.calls[0]![0] as EventTarget;
+    utterance.dispatchEvent(new Event('end'));
+    await expect(playback.done).resolves.toBe('ended');
+    const cancels = synth.cancel.mock.calls.length;
+    playback.stop();
+    expect(synth.cancel.mock.calls.length).toBe(cancels);
   });
 });
 

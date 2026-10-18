@@ -36,7 +36,8 @@ export interface ReadAloudDeps {
   onCut(listener: () => void): () => void;
   /** Reproducción que empieza con los primeros datos. */
   openMp3Stream(): Mp3Stream;
-  systemSpeak(text: string): Promise<Playback | SystemSpeechProblem>;
+  /** `stillWanted`: false si la lectura dejó de hacer falta mientras esperaba las voces (no suena). */
+  systemSpeak(text: string, stillWanted: () => boolean): Promise<Playback | SystemSpeechProblem>;
   /** Pide las voces del sistema temprano, para no esperarlas al tocar «Escuchar». */
   warmUpVoices(): void;
 }
@@ -46,7 +47,7 @@ const defaultDeps: ReadAloudDeps = {
   stopSpeaking: () => window.asistente.stopSpeaking(),
   onCut: (listener) => window.asistente.onSpeechCut(listener),
   openMp3Stream,
-  systemSpeak: (text) => systemSpeak(text, VOICES_TIMEOUT_MS, (data) => window.asistente.speechDiagnostic(data)),
+  systemSpeak: (text, stillWanted) => systemSpeak(text, VOICES_TIMEOUT_MS, (data) => window.asistente.speechDiagnostic(data), stillWanted),
   warmUpVoices,
 };
 
@@ -82,18 +83,21 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
   const autoAttempt = useRef<{ key: string; id: number } | null>(null);
   /** Hay una descarga en curso en el proceso principal (hasta el último pedazo). */
   const pending = useRef(false);
+  /** Esperando las voces del sistema (hasta 5 s): todavía no suena, pero ya hay una lectura en curso. */
+  const waiting = useRef(false);
 
-  /** Corta lo que esté sonando o descargando en esta lectura, sin avisar a nadie. */
+  /** Corta lo que esté sonando, descargando o esperando voces en esta lectura, sin avisar a nadie. */
   const silence = useCallback(() => {
     attempt.current++;
     playback.current?.stop();
     playback.current = null;
     pending.current = false;
+    waiting.current = false;
   }, []);
 
   /** La cortó otra lectura (de esta vista o de la otra): vuelve a «Escuchar». */
   const cutFromOutside = useCallback(() => {
-    if (!playback.current && !pending.current) return;
+    if (!playback.current && !pending.current && !waiting.current) return;
     silence();
     setState({ kind: 'idle' });
   }, [silence]);
@@ -112,9 +116,12 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
     }
     playback.current = started;
     // Empezó a sonar de verdad: recién ahora ese contenido cuenta como leído.
-    if (autoAttempt.current?.id === id) autoRead.last = autoAttempt.current.key;
+    const key = autoAttempt.current?.id === id ? autoAttempt.current.key : null;
+    if (key !== null) autoRead.last = key;
     setState({ kind: 'playing' });
     void started.done.then((result) => {
+      // Si falló mientras sonaba (la descarga o el audio), se puede volver a leer cuando reaparezca.
+      if (result === 'failed' && key !== null && autoRead.last === key) autoRead.last = '';
       if (id !== attempt.current) return;
       playback.current = null;
       // Terminó de sonar: no queda nada por descargar ni por cortar.
@@ -127,9 +134,12 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
     async (id: number, value: string) => {
       // La voz del sistema no pasa por el proceso principal: se le avisa para que corte la otra vista.
       deps.stopSpeaking();
-      const started = await deps.systemSpeak(value);
+      // Mientras espera las voces se puede cortar (otra lectura, «Detener», apagar el modo voz).
+      waiting.current = true;
+      const started = await deps.systemSpeak(value, () => id === attempt.current);
       if (typeof started === 'object' && id !== attempt.current) return started.stop();
       if (id !== attempt.current) return;
+      waiting.current = false;
       if (started === 'noSpanishVoice') {
         // Hay voces pero ninguna en español: no va a haber forma de leer en esta ejecución.
         speechSource.mode = 'none';
@@ -148,7 +158,7 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps, { 
     if (!value || speechSource.mode === 'none') return;
     for (const other of localReaders) if (other !== cutFromOutside) other();
     // También la lectura propia en curso (por ejemplo «Repetir» con el mismo texto): nunca dos voces.
-    if (playback.current || pending.current) silence();
+    if (playback.current || pending.current || waiting.current) silence();
     const id = ++attempt.current;
     setState({ kind: 'loading' });
     if (speechSource.mode === 'system') return readWithSystem(id, value);

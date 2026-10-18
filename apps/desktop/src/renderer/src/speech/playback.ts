@@ -234,18 +234,31 @@ export function warmUpVoices(): void {
 /** Por qué no se pudo leer con la voz del sistema. */
 export type SystemSpeechProblem = 'noSpanishVoice' | 'noVoices';
 
+/** Lectura con la voz del sistema que está sonando (o en cola) en esta vista. */
+let speaking: SpeechSynthesisUtterance | null = null;
+
+/** Una lectura que ya no hace falta: no suena y detenerla no hace nada. */
+const notWanted = (): Playback => ({ done: Promise.resolve('stopped'), stop: () => {} });
+
 /**
  * Lee con la voz del sistema. `noSpanishVoice`: el sistema tiene voces pero
  * ninguna en español (no va a haber); `noVoices`: no llegaron las voces (puede
  * ser momentáneo).
+ *
+ * `stillWanted`: se consulta al terminar de esperar las voces. Si la lectura ya
+ * no hace falta (se detuvo, la cortó otra o la vista se cerró), no suena ni
+ * llama a `speechSynthesis.cancel()`: una lectura vieja nunca corta a una más
+ * nueva.
  */
 export async function systemSpeak(
   text: string,
   voicesTimeoutMs = VOICES_TIMEOUT_MS,
   report: (data: SpeechDiagnostic) => void = () => {},
+  stillWanted: () => boolean = () => true,
 ): Promise<Playback | SystemSpeechProblem> {
   const started = performance.now();
   const voices = await systemVoices(voicesTimeoutMs);
+  if (!stillWanted()) return notWanted();
   const spanishVoices = voices.filter((v) => lang(v) === 'es' || lang(v).startsWith('es-')).length;
   const voice = pickSpanishVoice(voices);
   // Diagnóstico sin contenido: cuántas voces, cuántas en español, cuánto se esperó y cuál se eligió.
@@ -264,23 +277,33 @@ export async function systemSpeak(
   let finish: (result: 'ended' | 'failed' | 'stopped') => void = () => {};
   const done = new Promise<'ended' | 'failed' | 'stopped'>((resolve) => (finish = resolve));
   const event = (name: 'start' | 'end' | 'error', errorType: string | null = null) => report({ ...base, outcome: 'ok', event: name, errorType });
+  const release = () => {
+    if (speaking === utterance) speaking = null;
+  };
   utterance.addEventListener('start', () => event('start'));
   utterance.addEventListener('end', () => {
+    release();
     event('end');
     finish('ended');
   });
   utterance.addEventListener('error', (e) => {
+    release();
     const type = (e as SpeechSynthesisErrorEvent).error;
     // `interrupted`/`canceled` son «Detener» u otra lectura: no es una falla.
     if (type !== 'interrupted' && type !== 'canceled') event('error', /^[a-z-]{1,40}$/.test(type) ? type : 'other');
     finish(type === 'interrupted' || type === 'canceled' ? 'stopped' : 'failed');
   });
   speechSynthesis.cancel();
+  speaking = utterance;
   speechSynthesis.speak(utterance);
   return {
     done,
     stop: () => {
-      speechSynthesis.cancel();
+      // Solo se calla si esta lectura sigue sonando: si ya terminó o la reemplazó otra, no se toca la nueva.
+      if (speaking === utterance) {
+        speaking = null;
+        speechSynthesis.cancel();
+      }
       finish('stopped');
     },
   };
