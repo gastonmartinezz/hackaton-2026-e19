@@ -10,9 +10,7 @@
  * hace clic ni envía el formulario, y nunca lee ni informa el valor.
  */
 import { extractPageSummary, extractSnapshot, pageSignature, resolveSelector, snapshotToHtml, type ElementRegistry } from '@asistente/page-analyzer';
-import { isSensitiveField } from '@asistente/guidance';
 import { ipcRenderer } from 'electron';
-import { DICTATABLE_TYPES, dictatedValue, matchListOption } from '../../shared/dictation';
 import {
   ExtractRequestSchema,
   FillRequestSchema,
@@ -23,6 +21,7 @@ import {
   type FillResult,
   type ShowResult,
 } from '../../shared/ipc';
+import { fillableType, focusField, looksSensitive, writeDictated } from './fill';
 import { Highlighter, isField } from './highlighter';
 import { isRelevantChange, observePage } from './observer';
 
@@ -91,7 +90,7 @@ ipcRenderer.on(PAGE_CHANNELS.focus, (_event, raw: unknown) => {
   const request = FocusRequestSchema.safeParse(raw);
   if (!request.success) return;
   const element = resolveCurrent(request.data.navigationId, request.data.elementId);
-  if (element instanceof HTMLElement) element.focus({ preventScroll: true });
+  if (element) focusField(element);
 });
 
 // Protección de sitios: resumen sanitizado (sin valores, cookies ni almacenamiento).
@@ -112,59 +111,13 @@ function resolveCurrent(navigationId: string, elementId: string): Element | unde
   return registry?.navigationId === navigationId ? registry.resolve(elementId) : undefined;
 }
 
-/** Tipo de lugar donde Guíame puede escribir lo dictado, o null (botones, casilleros, archivos, sin habilitar). */
-function fillableType(element: Element): string | null {
-  if (element instanceof HTMLSelectElement) return element.multiple || element.disabled ? null : 'select';
-  if (element instanceof HTMLTextAreaElement) return element.disabled || element.readOnly ? null : 'textarea';
-  if (!(element instanceof HTMLInputElement) || element.disabled || element.readOnly) return null;
-  const type = (element.getAttribute('type') ?? 'text').toLowerCase();
-  return DICTATABLE_TYPES.has(type) ? type : null;
-}
-
-/** Solo atributos del sitio (tipo, autocomplete, nombre, id, rótulos): nunca el valor. */
-function looksSensitive(element: Element): boolean {
-  const attr = (name: string) => element.getAttribute(name) ?? '';
-  return isSensitiveField({
-    inputType: attr('type'),
-    autocomplete: attr('autocomplete'),
-    label: [attr('aria-label'), attr('placeholder'), attr('title')].join(' '),
-    name: [attr('name'), attr('id')].join(' '),
-  });
-}
-
-/**
- * Escribe lo dictado como si lo hubiera escrito la persona (el sitio recibe
- * `input` y `change`), con el setter nativo para que los sitios hechos con
- * React u otros marcos lo registren. Nunca en un dato sensible.
- */
+/** Escribe lo dictado solo en el lugar que está señalado ahora. */
 function fill(navigationId: string, elementId: string, said: string): FillResult {
   const element = resolveCurrent(navigationId, elementId);
   if (!element || element !== highlighter?.target) return 'stale';
-  const type = fillableType(element);
-  if (!type || looksSensitive(element)) return 'refused';
-  let apply: () => void;
-  if (element instanceof HTMLSelectElement) {
-    const index = matchListOption(said, Array.from(element.options, (option) => option.label || option.text));
-    if (index === null) return 'noMatch';
-    apply = () => {
-      element.selectedIndex = index;
-    };
-  } else {
-    const value = dictatedValue(said, type);
-    if (value === null) return 'noMatch';
-    const proto = element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-    apply = () => Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(element, value);
-  }
-  filling = true;
-  try {
-    (element as HTMLElement).focus({ preventScroll: true });
-    apply();
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  } finally {
-    filling = false;
-  }
-  return 'filled';
+  return writeDictated(element, said, (active) => {
+    filling = active;
+  });
 }
 
 /** Espera a que termine el desplazamiento suave (o un máximo) para medir el control. */
