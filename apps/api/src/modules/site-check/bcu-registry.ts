@@ -48,19 +48,19 @@ const bcuFichaUrl = (nroinst: string) => `${SSF_PAGES}InformacionInstitucion.asp
  * proveedores de activos virtuales y los representantes de entidades extranjeras.
  */
 const SSF_LISTS = [
-  { page: 'bancos_Instituciones_Lst.aspx', kind: 'Banco' },
-  { page: 'casas_Financieras_Lst.aspx', kind: 'Casa financiera' },
-  { page: 'coo_Int_Fin_Lst.aspx', kind: 'Cooperativa de intermediación financiera' },
-  { page: 'emp_admin_cred.aspx', kind: 'Empresa administradora de crédito' },
-  { page: 'EntidadesOtorCreMayActivi.aspx', kind: 'Entidad otorgante de crédito de mayor actividad' },
-  { page: 'emp_Serv_Fin_Lst.aspx', kind: 'Empresa de servicios financieros' },
-  { page: 'casas_cambio.aspx', kind: 'Casa de cambio' },
-  { page: 'emp_Trans_Fondos_Lst.aspx', kind: 'Empresa de transferencia de fondos' },
-  { page: 'emp_Adm_Plat_Prestamos_Lst.aspx', kind: 'Plataforma de préstamos' },
-  { page: 'emp_Admin_ahorro_prev_Lst.aspx', kind: 'Administradora de grupos de ahorro previo' },
-  { page: 'afaps.aspx', kind: 'Administradora de fondos de ahorro previsional (AFAP)' },
-  { page: 'empresas_Seguros.aspx', kind: 'Empresa de seguros' },
-] as const;
+  'bancos_Instituciones_Lst.aspx', // bancos
+  'casas_Financieras_Lst.aspx', // casas financieras
+  'coo_Int_Fin_Lst.aspx', // cooperativas de intermediación financiera
+  'emp_admin_cred.aspx', // empresas administradoras de crédito
+  'EntidadesOtorCreMayActivi.aspx', // entidades otorgantes de crédito de mayor actividad
+  'emp_Serv_Fin_Lst.aspx', // empresas de servicios financieros
+  'casas_cambio.aspx', // casas de cambio
+  'emp_Trans_Fondos_Lst.aspx', // empresas de transferencia de fondos
+  'emp_Adm_Plat_Prestamos_Lst.aspx', // plataformas de préstamos
+  'emp_Admin_ahorro_prev_Lst.aspx', // administradoras de grupos de ahorro previo
+  'afaps.aspx', // administradoras de fondos de ahorro previsional (AFAP)
+  'empresas_Seguros.aspx', // empresas de seguros
+];
 
 // Sitios que no identifican a una institución: autorizarlos aprobaría a cualquiera que publique ahí.
 const SHARED_DOMAINS = new Set([
@@ -86,7 +86,6 @@ const DataTable = z.object({
 const PaymentItem = z.object({
   tradeName: z.string().trim().min(1).max(200),
   name: z.string().trim().min(1).max(300),
-  kind: z.string().trim().max(600),
   page: z.string().startsWith(PAYMENTS_PAGES).max(300),
 });
 
@@ -97,8 +96,6 @@ export interface BcuInstitution {
   name: string;
   /** Nombre de fantasía o comercial («OCA Card», «Prex»), si lo publica. */
   tradeName: string | null;
-  /** Tipo de institución o categorías del Sistema de Pagos. */
-  kind: string;
   /** Sitio web tal como lo publica el BCU (a veces, varios separados por comas). */
   website: string;
   /** Dominios registrables (eTLD+1) de los sitios publicados: autorizan ese dominio y sus subdominios. */
@@ -109,8 +106,6 @@ export interface BcuInstitution {
 
 export interface RegistrySnapshot {
   institutions: BcuInstitution[];
-  /** Instituciones sin sitio web utilizable o que no están activas. */
-  skipped: Array<{ id: string; name: string; reason: string }>;
   fetchedAt: string;
 }
 
@@ -135,8 +130,6 @@ export interface BcuRegistryOptions {
   usableForMs: number;
   /** Espera después del primer intento fallido; se duplica con cada falla seguida, hasta 6 h. */
   retryAfterMs?: number;
-  /** Peticiones simultáneas al BCU. */
-  concurrency?: number;
   /** Tope de peticiones por descarga completa (hoy son unas 240). */
   maxRequests?: number;
   now?: () => number;
@@ -279,7 +272,7 @@ function parsePaymentsList(json: unknown): Array<z.infer<typeof PaymentItem>> {
   const table = DataTable.parse(json);
   if (table.data.length !== table.recordsTotal) throw new Error('Listado del Sistema de Pagos incompleto');
   return table.data.map((row) =>
-    PaymentItem.parse({ tradeName: decodeHtml(String(row['0'] ?? '')), name: decodeHtml(String(row['1'] ?? '')), kind: decodeHtml(String(row['2'] ?? '')), page: urlCell(row, table.columnTypes) }),
+    PaymentItem.parse({ tradeName: decodeHtml(String(row['0'] ?? '')), name: decodeHtml(String(row['1'] ?? '')), page: urlCell(row, table.columnTypes) }),
   );
 }
 
@@ -419,10 +412,10 @@ export class BcuRegistry {
     const json = async (url: string, body: string) => (await request(url, body)).json() as Promise<unknown>;
 
     // Listados: si falta alguno, la copia no está completa y se conserva la anterior.
-    const ssf = new Map<string, { nroinst: string; name: string; kind: string }>();
-    for (const list of SSF_LISTS) {
-      for (const item of parseSsfList(await text(`${SSF_PAGES}${list.page}`))) {
-        if (!ssf.has(item.nroinst)) ssf.set(item.nroinst, { ...item, kind: list.kind });
+    const ssf = new Map<string, z.infer<typeof SsfListItem>>();
+    for (const page of SSF_LISTS) {
+      for (const item of parseSsfList(await text(`${SSF_PAGES}${page}`))) {
+        if (!ssf.has(item.nroinst)) ssf.set(item.nroinst, item);
       }
     }
     const payments = parsePaymentsList(await json(BCU_LISTS_HANDLER, listBody('Publicar')));
@@ -430,11 +423,10 @@ export class BcuRegistry {
 
     const previous = new Map(this.snapshot?.institutions.map((i) => [i.id, i]));
     const institutions: BcuInstitution[] = [];
-    const skipped: RegistrySnapshot['skipped'] = [];
-    const add = (id: string, name: string, tradeName: string | null, kind: string, website: string, sourceUrl: string) => {
+    // Sin sitio web utilizable, la institución no entra.
+    const add = (id: string, name: string, tradeName: string | null, website: string, sourceUrl: string) => {
       const sites = parseWebsites(website);
-      if ('reason' in sites) skipped.push({ id, name, reason: sites.reason });
-      else institutions.push({ id, name, tradeName: tradeName || null, kind, website: website.trim(), domains: sites.domains, sourceUrl });
+      if (!('reason' in sites)) institutions.push({ id, name, tradeName: tradeName || null, website: website.trim(), domains: sites.domains, sourceUrl });
     };
 
     const tasks: Array<{ id: string; run: () => Promise<void> }> = [
@@ -443,8 +435,8 @@ export class BcuRegistry {
         run: async () => {
           const url = bcuFichaUrl(item.nroinst);
           const ficha = parseSsfFicha(await text(url));
-          if (!/^activ[ao]$/.test(normalizeName(ficha.status))) skipped.push({ id: `ssf-${item.nroinst}`, name: ficha.name, reason: `estado: ${ficha.status}` });
-          else add(`ssf-${item.nroinst}`, ficha.name, ficha.tradeName, item.kind, ficha.website, url);
+          // Solo las instituciones activas.
+          if (/^activ[ao]$/.test(normalizeName(ficha.status))) add(`ssf-${item.nroinst}`, ficha.name, ficha.tradeName, ficha.website, url);
         },
       })),
       ...payments.map((item) => {
@@ -461,8 +453,8 @@ export class BcuRegistry {
               detail = parsePaymentsDetail(await json(BCU_LISTS_HANDLER, listBody(view, 10)));
             }
             this.views.set(item.page, view!);
-            if (!hasName(detail.texts, item.name)) skipped.push({ id, name: item.name, reason: 'la vista no corresponde a la entidad' });
-            else add(id, item.name, item.tradeName, item.kind, detail.website, item.page);
+            // Una vista que no corresponde a la entidad no se usa.
+            if (hasName(detail.texts, item.name)) add(id, item.name, item.tradeName, detail.website, item.page);
           },
         };
       }),
@@ -484,11 +476,12 @@ export class BcuRegistry {
       }
     };
     const total = tasks.length;
-    await Promise.all(Array.from({ length: this.options.concurrency ?? 2 }, worker));
+    // 2 pedidos en paralelo al BCU.
+    await Promise.all(Array.from({ length: 2 }, worker));
     // Con demasiadas fichas caídas la copia no es confiable.
     if (failed > Math.max(2, total * 0.1)) throw new Error(`Faltan ${failed} fichas del registro del BCU`);
 
     institutions.sort((a, b) => a.id.localeCompare(b.id, 'es', { numeric: true }));
-    return { institutions, skipped, fetchedAt };
+    return { institutions, fetchedAt };
   }
 }

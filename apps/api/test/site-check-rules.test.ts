@@ -89,7 +89,8 @@ describe('fuentes de autoridad', () => {
     // Floder S.A. (nombre de fantasía «Paigo») publica ocho sitios en la ficha.
     expect(view.official('www.paigo.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'Paigo' });
     expect(view.official('www.credisol.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'Paigo' });
-    expect(view.registry.snapshot?.skipped).toContainEqual({ id: 'ssf-7835', name: 'CREDIYI S.A.', reason: 'sin sitio web' });
+    // CREDIYI S.A. no publica sitio web: no entra.
+    expect(view.registry.snapshot?.institutions.map((i) => i.id)).not.toContain('ssf-7835');
     expect(view.registry.snapshot?.institutions).toHaveLength(161);
   });
 
