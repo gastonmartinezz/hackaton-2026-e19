@@ -15,9 +15,6 @@ export interface TlsInfo {
   authorized: boolean;
   /** Código de OpenSSL/Node si el certificado no es válido (vencido, autofirmado, nombre distinto…). */
   error: string | null;
-  validTo: string | null;
-  issuer: string | null;
-  protocol: string | null;
 }
 
 export interface HopResult {
@@ -28,17 +25,6 @@ export interface HopResult {
 
 /** Hace UNA petición a `url` conectando a `address` (ya validada). No sigue redirecciones. */
 export type HopRequester = (url: URL, address: ResolvedAddress, timeoutMs: number, signal: AbortSignal) => Promise<HopResult>;
-
-export interface ConnectionData {
-  /** Orígenes recorridos, sin path ni query. */
-  hops: Array<{ origin: string; status: number }>;
-  finalOrigin: string;
-  /** El destino al que se llegó usa https. */
-  https: boolean;
-  /** Certificado del destino al que se llegó. */
-  tls: TlsInfo | null;
-  crossDomainRedirect: boolean;
-}
 
 /**
  * Petición real con node:http(s). Conecta a la IP validada (sin segunda resolución DNS), sin
@@ -67,14 +53,10 @@ const nodeHopRequester: HopRequester = (url, address, timeoutMs, signal) =>
       const socket = response.socket as TLSSocket;
       let tls: TlsInfo | null = null;
       if (url.protocol === 'https:' && typeof socket.getPeerCertificate === 'function') {
-        const cert = socket.getPeerCertificate();
         const authError = socket.authorizationError as unknown;
         tls = {
           authorized: socket.authorized,
           error: authError ? String((authError as { code?: string }).code ?? authError).slice(0, 80) : null,
-          validTo: cert?.valid_to ? new Date(cert.valid_to).toISOString() : null,
-          issuer: typeof cert?.issuer?.O === 'string' ? cert.issuer.O.slice(0, 120) : null,
-          protocol: socket.getProtocol?.() ?? null,
         };
       }
       const location = response.headers.location ?? null;
@@ -91,7 +73,7 @@ const nodeHopRequester: HopRequester = (url, address, timeoutMs, signal) =>
  * Lo que observa este servicio puede diferir de lo que ve la persona (sesión, ubicación).
  */
 export class ConnectionInspector {
-  private readonly cache = new TtlCache<SourceResult<ConnectionData>>();
+  private readonly cache = new TtlCache<SourceResult>();
   private readonly budget: ProviderBudget;
 
   constructor(
@@ -108,7 +90,7 @@ export class ConnectionInspector {
   }
 
   /** `url` ya depurada (sin query ni fragmento). */
-  inspect(url: URL): Promise<SourceResult<ConnectionData>> {
+  inspect(url: URL): Promise<SourceResult> {
     const checkedAt = new Date((this.options.now ?? Date.now)()).toISOString();
     // SITE_CHECK_CONNECTION=false
     if (!this.options.enabled) return Promise.resolve(unavailable(['disabled']));
@@ -119,22 +101,20 @@ export class ConnectionInspector {
           this.budget.take();
           return await withTimeout(this.options.timeoutMs, (signal) => this.follow(url, checkedAt, signal));
         } catch (error) {
-          return unavailable<ConnectionData>([errorKind(error)]);
+          return unavailable([errorKind(error)]);
         }
       },
       (result) => result.ttlMs,
     );
   }
 
-  private async follow(start: URL, checkedAt: string, signal: AbortSignal): Promise<SourceResult<ConnectionData>> {
+  private async follow(start: URL, checkedAt: string, signal: AbortSignal): Promise<SourceResult> {
     const resolver = this.options.resolver ?? systemResolver;
     const requester = this.options.requester ?? nodeHopRequester;
-    const hops: ConnectionData['hops'] = [];
     let current = new URL(start);
     // Último destino realmente consultado: una redirección bloqueada no se visita ni se informa como destino.
     let reached = new URL(start);
-    // Certificado del destino al que se llegó; los no válidos se registran en cualquier salto.
-    let tls: TlsInfo | null = null;
+    // Los certificados no válidos se registran en cualquier salto.
     const badCertificates: string[] = [];
     let finished = false;
     let blocked = false;
@@ -162,8 +142,6 @@ export class ConnectionInspector {
         break;
       }
       reached = current;
-      hops.push({ origin: current.origin, status: result.status });
-      tls = result.tls;
       if (result.tls && !result.tls.authorized) badCertificates.push(`${current.origin} (${result.tls.error ?? 'sin detalle'})`);
       if (result.status < 300 || result.status >= 400 || !result.location) {
         finished = true;
@@ -180,8 +158,7 @@ export class ConnectionInspector {
     if (badCertificates.length > 0) finding('CERTIFICATE_PROBLEM', `Certificado no válido en ${badCertificates.join(', ')}`.slice(0, 300));
     const startDomain = describeHost(start.hostname).registrableDomain;
     const finalDomain = describeHost(reached.hostname).registrableDomain;
-    const crossDomainRedirect = startDomain !== finalDomain;
-    if (crossDomainRedirect) finding('CROSS_DOMAIN_REDIRECT', `Redirige a otro dominio: ${finalDomain ?? reached.hostname}`);
+    if (startDomain !== finalDomain) finding('CROSS_DOMAIN_REDIRECT', `Redirige a otro dominio: ${finalDomain ?? reached.hostname}`);
 
     // Parcial si una redirección apunta a un destino bloqueado (no se sigue), no responde (queda lo observado
     // hasta ahí) o se superan las MAX_REDIRECTS.
@@ -189,7 +166,6 @@ export class ConnectionInspector {
       coverage: finished ? 'complete' : 'partial',
       ttlMs: CONNECTION_TTL_MS,
       errors: blocked ? ['blocked_destination'] : unreachable ? ['redirect_unreachable'] : [],
-      data: { hops, finalOrigin: reached.origin, https: reached.protocol === 'https:', tls, crossDomainRedirect },
       findings,
     };
   }

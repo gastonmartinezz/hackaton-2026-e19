@@ -13,7 +13,7 @@ export const publicResolver: HostResolver = async () => [{ address: PUBLIC_IP, f
 export const okHop: HopResult = {
   status: 200,
   location: null,
-  tls: { authorized: true, error: null, validTo: '2027-01-01T00:00:00.000Z', issuer: 'CA de prueba', protocol: 'TLSv1.3' },
+  tls: { authorized: true, error: null },
 };
 
 /** Requester falso que registra los destinos pedidos. */
@@ -84,7 +84,6 @@ export function fakeRdapFetch({ registeredAt = '2001-05-10T00:00:00Z', fail = fa
     if (url.startsWith('https://rdap.prueba/domain/')) {
       return Response.json({
         events: [{ eventAction: 'registration', eventDate: registeredAt }],
-        entities: [{ roles: ['registrar'], vcardArray: ['vcard', [['fn', {}, 'text', 'Registrador de prueba']]] }],
       });
     }
     return new Response('not found', { status: 404 });

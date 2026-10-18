@@ -10,7 +10,7 @@ describe('RDAP', () => {
     const fetch = fakeRdapFetch({ registeredAt: '2010-01-02T00:00:00Z' });
     const rdap = new RdapClient({ ...limits, enabled: true, fetchImpl: fetch.impl });
     const result = await rdap.lookup('ejemplo.net');
-    expect(result).toMatchObject({ coverage: 'complete', data: { registeredAt: '2010-01-02T00:00:00Z', registrar: 'Registrador de prueba' }, findings: [] });
+    expect(result).toMatchObject({ coverage: 'complete', findings: [] });
     expect(fetch.calls).toEqual(['https://data.iana.org/rdap/dns.json', 'https://rdap.prueba/domain/ejemplo.net']);
     // Segunda consulta: bootstrap y dominio en caché.
     await rdap.lookup('ejemplo.net');
@@ -20,7 +20,7 @@ describe('RDAP', () => {
   it('un TLD sin servicio RDAP (.uy) queda unavailable con el motivo', async () => {
     const rdap = new RdapClient({ ...limits, enabled: true, fetchImpl: fakeRdapFetch().impl });
     const result = await rdap.lookup('ejemplo.uy');
-    expect(result).toMatchObject({ coverage: 'unavailable', errors: ['no_rdap_service'], data: null, findings: [] });
+    expect(result).toMatchObject({ coverage: 'unavailable', errors: ['no_rdap_service'], findings: [] });
   });
 
   it('los dominios .uy no gastan el cupo por minuto ni repiten la consulta', async () => {
