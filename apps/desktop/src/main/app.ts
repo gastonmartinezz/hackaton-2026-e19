@@ -830,9 +830,10 @@ export class AppController {
         this.#publish();
         return;
       case 'askOnPage': {
-        // Lo que pidió no estaba entre las opciones: el backend investiga cómo se hace acá y la guía empieza sola.
-        const goal = minimizeIntent(command.text, Limits.maxMessageLength);
-        if (goal && this.#siteVisible && this.#guideAllowed()) this.#assistant.analyze(goal, goal);
+        // Lo que pidió en la página: la IA lo interpreta contra las opciones y, si no está, busca cómo hacerlo.
+        // El objetivo del recorrido (el del buscador) se mantiene; el pedido va aparte.
+        const asked = minimizeIntent(command.text, Limits.maxMessageLength);
+        if (asked && this.#siteVisible && this.#guideAllowed()) this.#assistant.analyze(this.#assistant.state.goal ? undefined : asked, asked);
         return;
       }
       case 'cardLayout':

@@ -1,14 +1,21 @@
 import { randomBytes } from 'node:crypto';
 import type { ChatMessage, GuideStep, Metadata, PageOption } from '@hackaton/contracts';
 
-/** Cada llamada que se recuerda. No se guarda el HTML. */
+/** En qué página pasó algo del recorrido (título y sitio, sin la ruta). */
+export type PageRef = NonNullable<Metadata['page']>;
+
+/**
+ * Cada llamada que se recuerda. No se guarda el HTML. Las de la guía (options,
+ * nextStep, procedure) llevan `page`: la página en la que pasaron, para que la
+ * IA siga el recorrido entre páginas.
+ */
 export type SessionEntry =
   | { type: 'interpret'; response: 'redirect' | 'question' | 'options'; goal: string; reason: string; urls: string[] }
   /**
    * `goal`: lo que la persona dijo que quiere hacer en la página. `request`: lo
    * que pidió con sus palabras fuera de las opciones (se investigó cómo hacerlo).
    */
-  | { type: 'options'; goal?: string; options: PageOption[]; request?: string }
+  | { type: 'options'; goal?: string; options: PageOption[]; request?: string; page?: PageRef }
   | {
       type: 'nextStep';
       optionId: string;
@@ -16,6 +23,7 @@ export type SessionEntry =
       completedSteps: GuideStep[];
       steps: GuideStep[];
       done: boolean;
+      page?: PageRef;
     }
   /** Paso a paso investigado de una opción (tarea procedure). Se pide una sola vez por opción. */
   | {
@@ -25,6 +33,7 @@ export type SessionEntry =
       steps: Array<{ title: string; detail: string }>;
       completion: string;
       sources: string[];
+      page?: PageRef;
     };
 
 /** Todo lo que Claude recibe como contexto del recorrido, desde interpret hasta la última llamada. */
@@ -85,7 +94,9 @@ export class SessionStore {
   append(id: string, owner: string, entry: SessionEntry): void {
     const session = this.touch(id, owner);
     if (!session) return;
-    session.history.push(entry);
+    // Las entradas de la guía quedan marcadas con la página actual (la metadata ya se actualizó en esta llamada).
+    const page = session.metadata.page;
+    session.history.push(entry.type !== 'interpret' && page && !entry.page ? { ...entry, page: { ...page } } : entry);
     if (session.history.length > MAX_HISTORY) {
       // Se descartan primero los pasos viejos de next-step: las opciones y el paso a paso
       // investigado hacen falta mientras dure la guía.
