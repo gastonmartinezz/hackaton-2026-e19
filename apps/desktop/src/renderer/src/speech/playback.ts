@@ -4,6 +4,7 @@
  * del sistema en español. Nada se guarda: el audio vive en memoria y se libera
  * al terminar.
  */
+import type { SpeechDiagnostic } from '../../../shared/ipc';
 
 export interface Playback {
   /** Termina sola (`ended`), por un error (`failed`) o al detenerla (`stopped`). */
@@ -178,53 +179,131 @@ export function playMp3(audio: Uint8Array): Playback {
 /** Normaliza `es_AR` → `es-ar`. */
 const lang = (voice: Pick<SpeechSynthesisVoice, 'lang'>) => voice.lang.replace('_', '-').toLowerCase();
 
-/** Voz del sistema en español: es-UY, después es-AR y después cualquier es-*. Null si no hay. */
-export function pickSpanishVoice<T extends Pick<SpeechSynthesisVoice, 'lang' | 'localService'>>(voices: readonly T[]): T | null {
+/** Variantes de voz que no corresponden para leer indicaciones (y podrían sonar a burla). */
+const NOVELTY_VOICES = /grandma|grandpa|abuel|rocko|shelley|sandy|flo\b|eddy|reed|bad news|bells|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|albert|bahh|boing/i;
+
+/**
+ * Voz del sistema en español: cualquier `es-*` sirve. Se prefiere es-UY, después
+ * es-AR, después otras de Latinoamérica (es-419, es-MX, es-US…) y por último
+ * es-ES; dentro de cada grupo, las voces locales y las clásicas (en macOS,
+ * «Paulina» o «Mónica») antes que las variantes. Null si no hay ninguna.
+ */
+export function pickSpanishVoice<T extends Pick<SpeechSynthesisVoice, 'lang' | 'localService' | 'name'>>(voices: readonly T[]): T | null {
   const spanish = voices.filter((v) => lang(v) === 'es' || lang(v).startsWith('es-'));
-  const rank = (v: T) => (lang(v) === 'es-uy' ? 0 : lang(v) === 'es-ar' ? 1 : 2) * 2 + (v.localService ? 0 : 1);
+  const region = (v: T) => (lang(v) === 'es-uy' ? 0 : lang(v) === 'es-ar' ? 1 : lang(v) === 'es-es' ? 3 : 2);
+  const rank = (v: T) => region(v) * 4 + (NOVELTY_VOICES.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1);
   return [...spanish].sort((a, b) => rank(a) - rank(b))[0] ?? null;
 }
 
-/** Voces del sistema (en Chromium pueden llegar un rato después). */
-async function systemVoices(): Promise<SpeechSynthesisVoice[]> {
+/** Cuánto se espera a que el sistema cargue sus voces (en un arranque en frío puede tardar). */
+export const VOICES_TIMEOUT_MS = 5_000;
+
+/**
+ * Voces del sistema. En Chromium la lista llega un rato después de la primera
+ * consulta, y el primer `voiceschanged` puede llegar con la lista todavía
+ * vacía: se espera hasta tener voces (o hasta el tope), mirando en cada aviso
+ * y cada 100 ms.
+ */
+export async function systemVoices(timeoutMs = VOICES_TIMEOUT_MS): Promise<SpeechSynthesisVoice[]> {
   if (typeof speechSynthesis === 'undefined') return [];
   const now = speechSynthesis.getVoices();
   if (now.length > 0) return now;
   return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(speechSynthesis.getVoices()), 1_000);
-    speechSynthesis.addEventListener(
-      'voiceschanged',
-      () => {
-        clearTimeout(timer);
-        resolve(speechSynthesis.getVoices());
-      },
-      { once: true },
-    );
+    const check = () => {
+      const voices = speechSynthesis.getVoices();
+      if (voices.length === 0) return;
+      done(voices);
+    };
+    const poll = setInterval(check, 100);
+    const timer = setTimeout(() => done(speechSynthesis.getVoices()), timeoutMs);
+    const done = (voices: SpeechSynthesisVoice[]) => {
+      clearInterval(poll);
+      clearTimeout(timer);
+      speechSynthesis.removeEventListener('voiceschanged', check);
+      resolve(voices);
+    };
+    speechSynthesis.addEventListener('voiceschanged', check);
   });
 }
 
-/** ¿Hay una voz del sistema en español? */
-export async function hasSystemVoice(): Promise<boolean> {
-  return pickSpanishVoice(await systemVoices()) !== null;
+/** Pide la lista de voces apenas se puede, para que esté lista cuando haga falta. */
+export function warmUpVoices(): void {
+  if (typeof speechSynthesis !== 'undefined') speechSynthesis.getVoices();
 }
 
-/** Lee con la voz del sistema. Null si no hay voz en español. */
-export async function systemSpeak(text: string): Promise<Playback | null> {
-  const voice = pickSpanishVoice(await systemVoices());
-  if (!voice) return null;
+/** Por qué no se pudo leer con la voz del sistema. */
+export type SystemSpeechProblem = 'noSpanishVoice' | 'noVoices';
+
+/** Lectura con la voz del sistema que está sonando (o en cola) en esta vista. */
+let speaking: SpeechSynthesisUtterance | null = null;
+
+/** Una lectura que ya no hace falta: no suena y detenerla no hace nada. */
+const notWanted = (): Playback => ({ done: Promise.resolve('stopped'), stop: () => {} });
+
+/**
+ * Lee con la voz del sistema. `noSpanishVoice`: el sistema tiene voces pero
+ * ninguna en español (no va a haber); `noVoices`: no llegaron las voces (puede
+ * ser momentáneo).
+ *
+ * `stillWanted`: se consulta al terminar de esperar las voces. Si la lectura ya
+ * no hace falta (se detuvo, la cortó otra o la vista se cerró), no suena ni
+ * llama a `speechSynthesis.cancel()`: una lectura vieja nunca corta a una más
+ * nueva.
+ */
+export async function systemSpeak(
+  text: string,
+  voicesTimeoutMs = VOICES_TIMEOUT_MS,
+  report: (data: SpeechDiagnostic) => void = () => {},
+  stillWanted: () => boolean = () => true,
+): Promise<Playback | SystemSpeechProblem> {
+  const started = performance.now();
+  const voices = await systemVoices(voicesTimeoutMs);
+  if (!stillWanted()) return notWanted();
+  const spanishVoices = voices.filter((v) => lang(v) === 'es' || lang(v).startsWith('es-')).length;
+  const voice = pickSpanishVoice(voices);
+  // Diagnóstico sin contenido: cuántas voces, cuántas en español, cuánto se esperó y cuál se eligió.
+  const base = { voices: voices.length, spanishVoices, waitMs: Math.round(performance.now() - started), chosenLang: voice?.lang ?? null } as const;
+  if (voices.length === 0) {
+    report({ ...base, outcome: 'noVoices', event: 'none', errorType: null });
+    return 'noVoices';
+  }
+  if (!voice) {
+    report({ ...base, outcome: 'noSpanishVoice', event: 'none', errorType: null });
+    return 'noSpanishVoice';
+  }
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.voice = voice;
   utterance.lang = voice.lang;
   let finish: (result: 'ended' | 'failed' | 'stopped') => void = () => {};
   const done = new Promise<'ended' | 'failed' | 'stopped'>((resolve) => (finish = resolve));
-  utterance.addEventListener('end', () => finish('ended'));
-  utterance.addEventListener('error', () => finish('failed'));
+  const event = (name: 'start' | 'end' | 'error', errorType: string | null = null) => report({ ...base, outcome: 'ok', event: name, errorType });
+  const release = () => {
+    if (speaking === utterance) speaking = null;
+  };
+  utterance.addEventListener('start', () => event('start'));
+  utterance.addEventListener('end', () => {
+    release();
+    event('end');
+    finish('ended');
+  });
+  utterance.addEventListener('error', (e) => {
+    release();
+    const type = (e as SpeechSynthesisErrorEvent).error;
+    // `interrupted`/`canceled` son «Detener» u otra lectura: no es una falla.
+    if (type !== 'interrupted' && type !== 'canceled') event('error', /^[a-z-]{1,40}$/.test(type) ? type : 'other');
+    finish(type === 'interrupted' || type === 'canceled' ? 'stopped' : 'failed');
+  });
   speechSynthesis.cancel();
+  speaking = utterance;
   speechSynthesis.speak(utterance);
   return {
     done,
     stop: () => {
-      speechSynthesis.cancel();
+      // Solo se calla si esta lectura sigue sonando: si ya terminó o la reemplazó otra, no se toca la nueva.
+      if (speaking === utterance) {
+        speaking = null;
+        speechSynthesis.cancel();
+      }
       finish('stopped');
     },
   };

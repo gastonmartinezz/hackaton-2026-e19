@@ -14,6 +14,8 @@ import {
   UI_SPEAK_AUDIO_CHANNEL,
   UI_SPEAK_CHANNEL,
   UI_SPEAK_STOP_CHANNEL,
+  UI_SPEECH_DIAGNOSTIC_CHANNEL,
+  SpeechDiagnosticSchema,
   UI_STATE_CHANNEL,
   UI_TRANSCRIBE_CHANNEL,
   UiCommandSchema,
@@ -38,6 +40,7 @@ import { SpeechHub } from './speech';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
 import { buildUserContext, type SystemInfo } from './user-context';
 import { Transcriber } from './voice';
+import { changeVoiceMode, isDictatedSearch, VOICE_MODE_TEXTS, VoiceModeState } from './voice-mode';
 
 /** Igual que --chrome-h y --card-w de design/tokens.css, y el ancho de la tarjeta achicada. */
 const chromeHeight = (scale: number) => Math.round(72 + (scale - 1) * 16);
@@ -76,6 +79,8 @@ export class AppController {
   readonly #card: HelpCardView;
   readonly #transcriber: Transcriber;
   readonly #speech: SpeechHub;
+  /** Modo voz: lectura automática de lo que escribe Mostrame. */
+  readonly #voiceMode: VoiceModeState;
   #cardLayout: CardLayout = { placement: 'top', maxHeight: 0 };
   #siteVisible = false;
   /** La persona tocó «Salir de la ayuda» en esta página (pantalla 21). */
@@ -126,6 +131,7 @@ export class AppController {
     this.#transcriber = new Transcriber(options.api);
     // Una sola lectura en toda la app: el hub avisa a la ventana y a la tarjeta.
     this.#speech = new SpeechHub(options.api, () => [this.window.webContents, this.#card.contents]);
+    this.#voiceMode = new VoiceModeState(options.prefs.value.voiceMode);
     this.#wireSite();
 
     ipcMain.handle(UI_COMMAND_CHANNEL, (event, raw: unknown) => this.#onCommand(event, raw));
@@ -135,6 +141,22 @@ export class AppController {
       if (this.#isOwnUi(event)) this.#speech.stop(event.sender);
     };
     ipcMain.on(UI_SPEAK_STOP_CHANNEL, stopSpeaking);
+    // Diagnóstico de la voz del sistema: solo cantidades, idioma de la voz y eventos.
+    const speechDiagnostic = (event: IpcMainEvent, raw: unknown) => {
+      const data = SpeechDiagnosticSchema.safeParse(raw);
+      if (!this.#isOwnUi(event) || !data.success) return;
+      const d = data.data;
+      log('speech.system', {
+        voices: d.voices,
+        spanishVoices: d.spanishVoices,
+        waitMs: d.waitMs,
+        chosen: d.chosenLang ? `kind:${d.chosenLang}` : null,
+        outcome: `code:${d.outcome}`,
+        utterance: `code:${d.event}`,
+        errorType: d.errorType ? `code:${d.errorType}` : null,
+      });
+    };
+    ipcMain.on(UI_SPEECH_DIAGNOSTIC_CHANNEL, speechDiagnostic);
     this.window.on('resize', () => this.#layout());
     this.window.once('ready-to-show', () => this.window.show());
     this.window.on('closed', () => {
@@ -142,6 +164,7 @@ export class AppController {
       ipcMain.removeHandler(UI_TRANSCRIBE_CHANNEL);
       ipcMain.removeHandler(UI_SPEAK_CHANNEL);
       ipcMain.removeListener(UI_SPEAK_STOP_CHANNEL, stopSpeaking);
+      ipcMain.removeListener(UI_SPEECH_DIAGNOSTIC_CHANNEL, speechDiagnostic);
       this.#transcriber.cancel();
       this.#speech.stopAll();
       this.#bridge.dispose();
@@ -207,7 +230,12 @@ export class AppController {
       mockBackend: this.options.api.isMock,
       guideEnabled: GUIDE_ENABLED,
       layout: { topBarHeight: chromeHeight(this.options.prefs.value.textScale), card: this.#cardLayout },
-      prefs: { textScale: this.options.prefs.value.textScale, aiEnabledForSite: this.options.prefs.isAiEnabled(this.#origin()) },
+      prefs: {
+        textScale: this.options.prefs.value.textScale,
+        aiEnabledForSite: this.options.prefs.isAiEnabled(this.#origin()),
+        voiceMode: this.#voiceMode.preference,
+      },
+      voice: { active: this.#voiceMode.active },
       profile: {
         ...this.options.prefs.value.profile,
         termsAccepted: this.#termsAccepted(),
@@ -243,6 +271,7 @@ export class AppController {
         option: guide.option ? toView(guide.option) : null,
         instruction: guide.phase === 'waitingForUser' ? (guide.step?.instruction ?? null) : null,
         announceKey: this.#assistant.announceKey,
+        contentKey: this.#assistant.epoch,
         stepCount: guide.stepCount,
         message: guide.message ?? null,
         targetVisible: this.#assistant.targetVisible,
@@ -390,6 +419,7 @@ export class AppController {
     if (event.sender !== this.window.webContents || event.senderFrame !== event.sender.mainFrame || !this.#termsAccepted()) {
       return { status: 'error', reason: 'failed' };
     }
+    // El modo voz se prende recién cuando la búsqueda dictada se envía (submitIntent con `dictated`).
     return this.#transcriber.transcribe(raw);
   }
 
@@ -415,6 +445,8 @@ export class AppController {
         return;
       case 'submitIntent': {
         if (!this.#termsAccepted()) return;
+        // Buscar dictando prende el modo voz para este recorrido (si la preferencia es `auto`).
+        if (isDictatedSearch(command, this.#chat.busy) && this.#voiceMode.dictated()) this.#publish();
         if (command.guide !== undefined) this.#wantGuide = command.guide;
         // «Solo ir al sitio» con una dirección escrita: se abre directo.
         const url = command.guide === false ? parseAddressInput(command.text) : null;
@@ -472,6 +504,7 @@ export class AppController {
         return;
       case 'home':
         this.#speech.stopAll();
+        this.#voiceMode.newJourney();
         this.#assistant.exit();
         this.#chat.reset();
         this.#wantGuide = true;
@@ -522,6 +555,23 @@ export class AppController {
         this.#assistant.retry();
         return;
       // TODO(UI final): setAiForSite no tiene control en la UI de Mostrame todavía.
+      case 'setVoiceMode': {
+        // Primero se guarda; si falla, no cambia nada y se avisa en la interfaz (el comando llega con `void`).
+        await changeVoiceMode(this.#voiceMode, command.mode, {
+          save: (mode) => this.options.prefs.update({ voiceMode: mode }),
+          stopAll: () => this.#speech.stopAll(),
+          publish: () => {
+            // Se guardó: el aviso de un intento anterior ya no corresponde, y se va en la misma publicación.
+            this.#notices = this.#notices.filter((n) => n.text !== VOICE_MODE_TEXTS.saveFailed);
+            this.#publish();
+          },
+          failed: () => {
+            log('prefs.error', { kind: 'kind:voiceMode' });
+            this.#notify(VOICE_MODE_TEXTS.saveFailed, 'error');
+          },
+        });
+        return;
+      }
       case 'setTextScale':
         await this.options.prefs.update({ textScale: command.scale });
         this.#layout();

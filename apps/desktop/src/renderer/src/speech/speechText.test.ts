@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clipForSpeech, joinSpeech, SPEAK_MAX_CHARS } from '../../../shared/speech';
-import { guideSpeech, questionSpeech, recommendationSpeech, SPEECH_TEXTS } from './speechText';
+import { guideSpeech, optionsSpeech, questionSpeech, recommendationSpeech, SPEECH_TEXTS, stepSpeechKey } from './speechText';
 
 const guide = (over: Partial<Parameters<typeof guideSpeech>[0]>) => ({ phase: 'waitingForUser', instruction: null, targetField: false, evidence: null, ...over });
 
@@ -66,6 +66,22 @@ describe('qué se lee', () => {
   it('la recomendación (10): motivo y sitio, sin la dirección', () => {
     const text = recommendationSpeech('Este es el sitio que mejor se ajusta.', { title: 'Agenda de Identificación Civil', reason: 'Ahí se sacan los turnos.' });
     expect(text).toBe('Este es el sitio que mejor se ajusta. Sitio recomendado: Agenda de Identificación Civil. Por qué te lo recomiendo: Ahí se sacan los turnos.');
+  });
+
+  it('las opciones de la página (05)', () => {
+    expect(optionsSpeech(['Completar: Pedir turno', 'Ir a «Confirmar turno»'])).toBe(
+      '¿Qué querés hacer acá? Encontré estas opciones en esta página: Completar: Pedir turno o Ir a «Confirmar turno».',
+    );
+    expect(optionsSpeech([])).toBe('');
+  });
+
+  it('modo voz: cada paso nuevo es contenido nuevo aunque repita el texto; «Repetir» también', () => {
+    const step = { stepCount: 3, announceKey: 0, contentKey: 7 };
+    expect(stepSpeechKey(step)).toBe(stepSpeechKey({ ...step }));
+    expect(stepSpeechKey({ ...step, stepCount: 4 })).not.toBe(stepSpeechKey(step));
+    expect(stepSpeechKey({ ...step, announceKey: 1 })).not.toBe(stepSpeechKey(step));
+    // El mismo número de paso en un recorrido nuevo (otra solicitud) también es contenido nuevo.
+    expect(stepSpeechKey({ ...step, contentKey: 12 })).not.toBe(stepSpeechKey(step));
   });
 
   it('lo que se arma nunca pasa de 600 caracteres', () => {

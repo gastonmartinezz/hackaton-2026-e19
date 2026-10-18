@@ -17,6 +17,8 @@ export const SPEECH_TEXTS = {
   stop: 'Detener',
   failed: 'No pude leerlo en voz alta. Fue un problema de mi lado, no tuyo.',
   busy: 'Ahora no puedo leerlo en voz alta. Esperá un momento y probá de nuevo.',
+  /** No hay ninguna forma de leer en este equipo (se muestra una vez, después el botón no aparece). */
+  noVoice: 'En este equipo no hay una voz en español para leer en voz alta.',
   /** Antes de enumerar las respuestas de una pregunta del inicio. */
   choices: 'Podés elegir',
   /** Visibles en la tarjeta o el inicio (se copian para leerlos igual). */
@@ -24,6 +26,9 @@ export const SPEECH_TEXTS = {
   completed: 'Listo.',
   didYouFinish: '¿Pudiste terminar? La página cambió, pero no sé si terminaste. Fijate si la página lo confirma.',
   unsure: 'No estoy seguro',
+  optionsTitle: '¿Qué querés hacer acá?',
+  /** Visible como «Encontré estas opciones en esta página.»; acá se le suma la lista. */
+  optionsLead: 'Encontré estas opciones en esta página',
   recommended: 'Sitio recomendado',
   why: 'Por qué te lo recomiendo',
 } as const;
@@ -39,6 +44,22 @@ export function guideSpeech(guide: Pick<AppState['guide'], 'phase' | 'instructio
     default:
       return '';
   }
+}
+
+/**
+ * Modo voz: qué cuenta como una instrucción nueva. Cambia con cada paso (aunque
+ * repita el texto, como «Siguiente» en un formulario de varias páginas) y con
+ * «Repetir»; no cambia al volver a dibujar el mismo paso.
+ */
+export function stepSpeechKey(guide: Pick<AppState['guide'], 'stepCount' | 'announceKey' | 'contentKey'>): string {
+  return `${guide.contentKey}:${guide.stepCount}:${guide.announceKey}`;
+}
+
+/** Tarjeta (05): la pregunta y las opciones de la página (sin «Ver otras opciones»). */
+export function optionsSpeech(titles: string[]): string {
+  if (titles.length === 0) return '';
+  const list = titles.length > 1 ? `${titles.slice(0, -1).join(', ')} o ${titles.at(-1)}` : titles[0];
+  return joinSpeech(SPEECH_TEXTS.optionsTitle, `${SPEECH_TEXTS.optionsLead}: ${list}`);
 }
 
 /** Inicio (02, 03): la pregunta, las respuestas sugeridas y el porqué. */
