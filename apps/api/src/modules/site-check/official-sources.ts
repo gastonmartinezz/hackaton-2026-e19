@@ -43,7 +43,7 @@ const ClaimsFile = z.strictObject({
       country: z.string().length(2),
       organization: z.string().min(1),
       note: z.string().optional(),
-      // containsName ignora los nombres de menos de 3 caracteres: se rechazan para que no queden inertes.
+      // AuthorityView.claims ignora los nombres de menos de 3 caracteres: se rechazan para que no queden inertes.
       names: z.array(z.string().min(3)).min(1),
       /** Siglas que alcanzan solas si son toda la marca o una parte separada; dentro de un nombre más largo piden contexto. */
       acronyms: z.array(z.string().min(3)).default([]),
@@ -216,10 +216,12 @@ export function loadOfficialSources(
   return sources;
 }
 
-/** Zona de gobierno que contiene al host, por límites de dominio. */
+/**
+ * Zona de gobierno que contiene al host, por límites de dominio. `zones` viene ordenada de la más específica
+ * a la menos (gub.uy antes que uy, si existiera): la ordena AuthorityView una sola vez.
+ */
 export function findZone(zones: readonly GovernmentZone[], hostname: string): GovernmentZone | undefined {
-  // La zona más específica primero (gub.uy antes que uy, si existiera).
-  return [...zones].sort((a, b) => b.suffix.length - a.suffix.length).find((zone) => hostname !== zone.suffix && hostMatches(hostname, zone.suffix, 'subdomains'));
+  return zones.find((zone) => hostname !== zone.suffix && hostMatches(hostname, zone.suffix, 'subdomains'));
 }
 
 export function catalogAuthorizes(entry: CatalogEntry, hostname: string): boolean {
@@ -235,12 +237,6 @@ export const normalizeName = (text: string) =>
     .replace(/[^\p{L}\p{N}.]+/gu, ' ')
     .replace(/(^|\s)\.+|\.+(\s|$)/g, ' ')
     .trim();
-
-/** El nombre aparece como palabras completas dentro del texto. */
-export const containsName = (text: string, name: string) => {
-  const needle = normalizeName(name);
-  return needle.length >= 3 && ` ${normalizeName(text)} `.includes(` ${needle} `);
-};
 
 /** Alias de una organización del catálogo: "Antel (Administración Nacional de Telecomunicaciones)" → ambos. */
 export const organizationAliases = (organization: string, id: string) =>

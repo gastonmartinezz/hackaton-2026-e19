@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { rootCertificates } from 'node:tls';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { computeRisk } from '../src/modules/site-check/aggregate.js';
-import { AuthorityView } from '../src/modules/site-check/authority.js';
+import { AuthorityService, AuthorityView } from '../src/modules/site-check/authority.js';
 import { bcuFetch, BcuRegistry, parseWebsite, parseWebsites, type BcuRegistryOptions } from '../src/modules/site-check/bcu-registry.js';
 import { describeHost, editDistance, hostMatches } from '../src/modules/site-check/domain.js';
 import { lookalikeSignals, type Reference } from '../src/modules/site-check/lookalike.js';
@@ -255,6 +255,23 @@ describe('fuentes de autoridad', () => {
 });
 
 describe('registro del BCU', () => {
+  it('la vista de las fuentes se reutiliza mientras el registro no cambie y se rearma cuando cambia', async () => {
+    let now = Date.parse('2026-10-18T00:00:00Z');
+    let down = false;
+    const fetchImpl = ((input: string | URL | Request, init?: RequestInit) => fakeRdapFetch({ bcuDown: down }).impl(input, init)) as typeof fetch;
+    const authority = new AuthorityService(loadOfficialSources({ catalogFiles: TEST_CATALOGS }), registry(fetchImpl, () => now), 1000);
+    const fresh = await authority.view();
+    expect(await authority.view()).toBe(fresh);
+    expect(fresh.references()).toBe(fresh.references());
+    expect(fresh.official('www.itau.com.uy')?.basis).toBe('financial_regulator');
+    down = true;
+    now += 60 * HOUR; // la copia deja de estar vigente y el refresco falla
+    const stale = await authority.view();
+    expect(stale).not.toBe(fresh);
+    expect(stale.registry.status).toBe('stale');
+    expect(stale.official('www.itau.com.uy')).toBeNull();
+  });
+
   it('un sitio publicado en un subdominio ajeno no hace oficial al dominio entero ni es referencia de parecido', () => {
     // El BCU publica la casa de cambio Balumacambio en balumacambio.enjoypuntadeleste.com.uy (fixture real).
     expect(view.official('balumacambio.enjoypuntadeleste.com.uy')).toMatchObject({ basis: 'financial_regulator', matched: 'balumacambio.enjoypuntadeleste.com.uy' });

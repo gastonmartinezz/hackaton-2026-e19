@@ -530,7 +530,7 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 | RDAP | hash del dominio registrable | 24 h (bootstrap de IANA: 24 h) |
 | Conexión | hash de la URL depurada | 1 h |
 | Registro del BCU | en memoria, una copia | refresco cada 24 h; vigente 48 h; vieja (no aprueba) hasta 7 días |
-| Zonas, catálogos y contenido | sin caché (se evalúan en cada solicitud) | 10 min |
+| Zonas, catálogos y contenido | sin caché de resultados (se evalúan en cada solicitud). Los índices y nombres normalizados de las fuentes se arman una vez por copia del registro del BCU | 10 min |
 
 - `expiresAt` = la vigencia más corta de las fuentes usadas. Con alguna cobertura `unavailable`/`partial`, y en la fase de dirección, es de **60 segundos**.
 - Las fallas no se guardan en caché: «Intentar de nuevo» vuelve a consultar.
