@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { UiCommandSchema } from '../shared/ipc';
 import { PrefsStore } from './prefs';
-import { changeVoiceMode, isDictatedSearch, VoiceModeState } from './voice-mode';
+import { changeVoiceMode, isDictatedSearch, VOICE_MODE_TEXTS, VoiceModeState } from './voice-mode';
 
 describe('VoiceModeState', () => {
   it('auto (por defecto): se prende al buscar dictando, para ese recorrido', () => {
@@ -50,25 +50,31 @@ describe('changeVoiceMode: primero se guarda, después se aplica', () => {
       save: vi.fn(async (mode: 'on' | 'off') => void calls.push(`save:${mode}`)),
       stopAll: vi.fn(() => void calls.push('stopAll')),
       publish: vi.fn(() => void calls.push('publish')),
+      failed: vi.fn(() => void calls.push('failed')),
     };
   };
 
   it('guarda, aplica, corta el audio (al apagar) y publica, en ese orden', async () => {
     const state = new VoiceModeState('on');
     const fx = effects();
-    await changeVoiceMode(state, 'off', fx);
+    await expect(changeVoiceMode(state, 'off', fx)).resolves.toBe(true);
     expect(fx.calls).toEqual(['save:off', 'stopAll', 'publish']);
     expect([state.preference, state.active]).toEqual(['off', false]);
   });
 
-  it('si guardar falla, el estado no cambia, no se corta ni se publica, y el error sigue', async () => {
+  it('si guardar falla, el estado no cambia, no se corta ni se aplica, y se avisa en la interfaz', async () => {
     const state = new VoiceModeState('on');
     const fx = effects();
     fx.save.mockRejectedValueOnce(new Error('disco lleno'));
-    await expect(changeVoiceMode(state, 'off', fx)).rejects.toThrow('disco lleno');
+    // El comando llega con `void`: el error no se relanza (nadie lo vería), se avisa con `failed`.
+    await expect(changeVoiceMode(state, 'off', fx)).resolves.toBe(false);
     expect([state.preference, state.active]).toEqual(['on', true]);
-    expect(fx.stopAll).not.toHaveBeenCalled();
-    expect(fx.publish).not.toHaveBeenCalled();
+    expect(fx.calls).toEqual(['failed']);
+  });
+
+  it('el aviso es breve, sin culpa y nombra el control', () => {
+    expect(VOICE_MODE_TEXTS.saveFailed).toContain('«Voz»');
+    expect(VOICE_MODE_TEXTS.saveFailed).toContain('Fue un problema de mi lado, no tuyo');
   });
 });
 
@@ -78,6 +84,12 @@ describe('isDictatedSearch: solo una búsqueda dictada que se envió prende el m
     expect(isDictatedSearch({ type: 'submitIntent', text: 'renovar la cédula', guide: true })).toBe(false);
     expect(isDictatedSearch({ type: 'submitIntent', text: '   ', dictated: true })).toBe(false);
     expect(isDictatedSearch({ type: 'search', text: 'x' })).toBe(false);
+  });
+
+  it('con otra búsqueda en curso el envío se ignora: no prende el modo', () => {
+    const command = { type: 'submitIntent', text: 'renovar la cédula', guide: true, dictated: true } as const;
+    expect(isDictatedSearch(command, true)).toBe(false);
+    expect(isDictatedSearch(command, false)).toBe(true);
   });
 
   it('el contrato IPC acepta `dictated: true` y rechaza otros valores', () => {

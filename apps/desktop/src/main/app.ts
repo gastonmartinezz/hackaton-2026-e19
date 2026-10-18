@@ -40,7 +40,7 @@ import { SpeechHub } from './speech';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
 import { buildUserContext, type SystemInfo } from './user-context';
 import { Transcriber } from './voice';
-import { changeVoiceMode, isDictatedSearch, VoiceModeState } from './voice-mode';
+import { changeVoiceMode, isDictatedSearch, VOICE_MODE_TEXTS, VoiceModeState } from './voice-mode';
 
 /** Igual que --chrome-h y --card-w de design/tokens.css, y el ancho de la tarjeta achicada. */
 const chromeHeight = (scale: number) => Math.round(72 + (scale - 1) * 16);
@@ -445,7 +445,7 @@ export class AppController {
       case 'submitIntent': {
         if (!this.#termsAccepted()) return;
         // Buscar dictando prende el modo voz para este recorrido (si la preferencia es `auto`).
-        if (isDictatedSearch(command) && this.#voiceMode.dictated()) this.#publish();
+        if (isDictatedSearch(command, this.#chat.busy) && this.#voiceMode.dictated()) this.#publish();
         if (command.guide !== undefined) this.#wantGuide = command.guide;
         // «Solo ir al sitio» con una dirección escrita: se abre directo.
         const url = command.guide === false ? parseAddressInput(command.text) : null;
@@ -554,19 +554,21 @@ export class AppController {
         this.#assistant.retry();
         return;
       // TODO(UI final): setAiForSite no tiene control en la UI de Mostrame todavía.
-      case 'setVoiceMode':
-        // Como «Tamaño de letra»: primero se guarda; si falla, no cambia nada y se informa.
-        try {
-          await changeVoiceMode(this.#voiceMode, command.mode, {
-            save: (mode) => this.options.prefs.update({ voiceMode: mode }),
-            stopAll: () => this.#speech.stopAll(),
-            publish: () => this.#publish(),
-          });
-        } catch (error) {
-          log('prefs.error', { kind: 'kind:voiceMode' });
-          throw error;
-        }
+      case 'setVoiceMode': {
+        // Primero se guarda; si falla, no cambia nada y se avisa en la interfaz (el comando llega con `void`).
+        const saved = await changeVoiceMode(this.#voiceMode, command.mode, {
+          save: (mode) => this.options.prefs.update({ voiceMode: mode }),
+          stopAll: () => this.#speech.stopAll(),
+          publish: () => this.#publish(),
+          failed: () => {
+            log('prefs.error', { kind: 'kind:voiceMode' });
+            this.#notify(VOICE_MODE_TEXTS.saveFailed, 'error');
+          },
+        });
+        // Se guardó: el aviso de un intento anterior ya no corresponde.
+        if (saved) this.#notices = this.#notices.filter((n) => n.text !== VOICE_MODE_TEXTS.saveFailed);
         return;
+      }
       case 'setTextScale':
         await this.options.prefs.update({ textScale: command.scale });
         this.#layout();

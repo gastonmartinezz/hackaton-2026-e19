@@ -9,6 +9,14 @@
  */
 import type { UiCommand, VoiceMode } from '../shared/ipc';
 
+/**
+ * TEMPORAL — texto del aviso si no se pudo guardar el interruptor «Voz» (no
+ * está en design/textos.es.json). Pendiente de aprobación de diseño.
+ */
+export const VOICE_MODE_TEXTS = {
+  saveFailed: 'No pude cambiar «Voz». Fue un problema de mi lado, no tuyo. Probá de nuevo.',
+} as const;
+
 export class VoiceModeState {
   /** En `auto`: la persona buscó dictando en este recorrido. */
   #dictatedThisJourney = false;
@@ -48,24 +56,33 @@ export interface VoiceModeEffects {
   /** Corta lo que esté sonando en todas las vistas. */
   stopAll(): void;
   publish(): void;
+  /** No se pudo guardar: se avisa en la interfaz (sin culpa) y el interruptor queda como estaba. */
+  failed(): void;
 }
 
 /**
  * Interruptor «Voz»: primero se guarda y recién después se aplica, se corta
  * el audio (al apagar) y se publica. Si guardar falla, el estado no cambia y
- * el error sigue hacia quien lo pidió.
+ * se avisa con `failed`. Devuelve si se guardó.
  */
-export async function changeVoiceMode(state: VoiceModeState, mode: 'on' | 'off', effects: VoiceModeEffects): Promise<void> {
-  await effects.save(mode);
+export async function changeVoiceMode(state: VoiceModeState, mode: 'on' | 'off', effects: VoiceModeEffects): Promise<boolean> {
+  try {
+    await effects.save(mode);
+  } catch {
+    effects.failed();
+    return false;
+  }
   state.set(mode);
   if (mode === 'off') effects.stopAll();
   effects.publish();
+  return true;
 }
 
 /**
- * ¿Es una búsqueda dictada que de verdad se envió? Solo eso prende el modo
- * voz en `auto` (no una transcripción que la vista descartó).
+ * ¿Es una búsqueda dictada que de verdad se envía? Solo eso prende el modo
+ * voz en `auto` (no una transcripción que la vista descartó). Con otra
+ * búsqueda en curso (`chatBusy`) el envío se ignora, así que tampoco cuenta.
  */
-export function isDictatedSearch(command: UiCommand): boolean {
-  return command.type === 'submitIntent' && command.dictated === true && command.text.trim() !== '';
+export function isDictatedSearch(command: UiCommand, chatBusy = false): boolean {
+  return !chatBusy && command.type === 'submitIntent' && command.dictated === true && command.text.trim() !== '';
 }

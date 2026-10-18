@@ -32,6 +32,7 @@ const PrefsSchema = z.object({
   voiceMode: z.enum(VOICE_MODES).catch('auto').default('auto'),
 });
 export type Prefs = z.infer<typeof PrefsSchema>;
+type PrefsPatch = Partial<Omit<Prefs, 'version'>>;
 
 export const DEFAULT_PREFS: Prefs = {
   version: 1,
@@ -70,18 +71,28 @@ export class PrefsStore {
     return this.#prefs;
   }
 
-  update(patch: Partial<Omit<Prefs, 'version'>>): Promise<void> {
-    this.#prefs = PrefsSchema.parse({ ...this.#prefs, ...patch });
-    const snapshot = JSON.stringify(this.#prefs, null, 2);
+  /**
+   * Todo o nada: `value` cambia recién cuando el archivo quedó guardado. Si la
+   * escritura falla, el cambio no se aplica (ni en memoria ni en el próximo
+   * guardado) y el error lo recibe solo quien lo pidió. `patch` puede ser una
+   * función del valor guardado hasta ese momento, para cambios que dependen
+   * del anterior.
+   */
+  update(patch: PrefsPatch | ((current: Prefs) => PrefsPatch)): Promise<void> {
     // Escrituras en serie y atómicas (archivo temporal + rename). Un fallo
-    // anterior no debe frenar las siguientes: solo lo recibe quien lo causó.
-    this.#writing = this.#writing.catch(() => undefined).then(async () => {
-      await mkdir(dirname(this.#file), { recursive: true });
-      const tmp = `${this.#file}.tmp`;
-      await writeFile(tmp, snapshot, 'utf8');
-      await rename(tmp, this.#file);
-    });
-    return this.#writing;
+    // anterior no debe frenar las siguientes: cada una parte de lo último guardado.
+    const write = this.#writing
+      .catch(() => undefined)
+      .then(async () => {
+        const next = PrefsSchema.parse({ ...this.#prefs, ...(typeof patch === 'function' ? patch(this.#prefs) : patch) });
+        await mkdir(dirname(this.#file), { recursive: true });
+        const tmp = `${this.#file}.tmp`;
+        await writeFile(tmp, JSON.stringify(next, null, 2), 'utf8');
+        await rename(tmp, this.#file);
+        this.#prefs = next;
+      });
+    this.#writing = write;
+    return write;
   }
 
   isAiEnabled(origin: string | null): boolean {
@@ -89,7 +100,9 @@ export class PrefsStore {
   }
 
   setAiEnabled(origin: string, enabled: boolean): Promise<void> {
-    const rest = this.#prefs.aiDisabledOrigins.filter((o) => o !== origin);
-    return this.update({ aiDisabledOrigins: enabled ? rest : [...rest, origin] });
+    return this.update((current) => {
+      const rest = current.aiDisabledOrigins.filter((o) => o !== origin);
+      return { aiDisabledOrigins: enabled ? rest : [...rest, origin] };
+    });
   }
 }
