@@ -178,40 +178,71 @@ export function playMp3(audio: Uint8Array): Playback {
 /** Normaliza `es_AR` → `es-ar`. */
 const lang = (voice: Pick<SpeechSynthesisVoice, 'lang'>) => voice.lang.replace('_', '-').toLowerCase();
 
-/** Voz del sistema en español: es-UY, después es-AR y después cualquier es-*. Null si no hay. */
-export function pickSpanishVoice<T extends Pick<SpeechSynthesisVoice, 'lang' | 'localService'>>(voices: readonly T[]): T | null {
+/** Variantes de voz que no corresponden para leer indicaciones (y podrían sonar a burla). */
+const NOVELTY_VOICES = /grandma|grandpa|abuel|rocko|shelley|sandy|flo\b|eddy|reed|bad news|bells|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|albert|bahh|boing/i;
+
+/**
+ * Voz del sistema en español: cualquier `es-*` sirve. Se prefiere es-UY, después
+ * es-AR, después otras de Latinoamérica (es-419, es-MX, es-US…) y por último
+ * es-ES; dentro de cada grupo, las voces locales y las clásicas (en macOS,
+ * «Paulina» o «Mónica») antes que las variantes. Null si no hay ninguna.
+ */
+export function pickSpanishVoice<T extends Pick<SpeechSynthesisVoice, 'lang' | 'localService' | 'name'>>(voices: readonly T[]): T | null {
   const spanish = voices.filter((v) => lang(v) === 'es' || lang(v).startsWith('es-'));
-  const rank = (v: T) => (lang(v) === 'es-uy' ? 0 : lang(v) === 'es-ar' ? 1 : 2) * 2 + (v.localService ? 0 : 1);
+  const region = (v: T) => (lang(v) === 'es-uy' ? 0 : lang(v) === 'es-ar' ? 1 : lang(v) === 'es-es' ? 3 : 2);
+  const rank = (v: T) => region(v) * 4 + (NOVELTY_VOICES.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1);
   return [...spanish].sort((a, b) => rank(a) - rank(b))[0] ?? null;
 }
 
-/** Voces del sistema (en Chromium pueden llegar un rato después). */
-async function systemVoices(): Promise<SpeechSynthesisVoice[]> {
+/** Cuánto se espera a que el sistema cargue sus voces (en un arranque en frío puede tardar). */
+export const VOICES_TIMEOUT_MS = 5_000;
+
+/**
+ * Voces del sistema. En Chromium la lista llega un rato después de la primera
+ * consulta, y el primer `voiceschanged` puede llegar con la lista todavía
+ * vacía: se espera hasta tener voces (o hasta el tope), mirando en cada aviso
+ * y cada 100 ms.
+ */
+export async function systemVoices(timeoutMs = VOICES_TIMEOUT_MS): Promise<SpeechSynthesisVoice[]> {
   if (typeof speechSynthesis === 'undefined') return [];
   const now = speechSynthesis.getVoices();
   if (now.length > 0) return now;
   return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(speechSynthesis.getVoices()), 1_000);
-    speechSynthesis.addEventListener(
-      'voiceschanged',
-      () => {
-        clearTimeout(timer);
-        resolve(speechSynthesis.getVoices());
-      },
-      { once: true },
-    );
+    const check = () => {
+      const voices = speechSynthesis.getVoices();
+      if (voices.length === 0) return;
+      done(voices);
+    };
+    const poll = setInterval(check, 100);
+    const timer = setTimeout(() => done(speechSynthesis.getVoices()), timeoutMs);
+    const done = (voices: SpeechSynthesisVoice[]) => {
+      clearInterval(poll);
+      clearTimeout(timer);
+      speechSynthesis.removeEventListener('voiceschanged', check);
+      resolve(voices);
+    };
+    speechSynthesis.addEventListener('voiceschanged', check);
   });
 }
 
-/** ¿Hay una voz del sistema en español? */
-export async function hasSystemVoice(): Promise<boolean> {
-  return pickSpanishVoice(await systemVoices()) !== null;
+/** Pide la lista de voces apenas se puede, para que esté lista cuando haga falta. */
+export function warmUpVoices(): void {
+  if (typeof speechSynthesis !== 'undefined') speechSynthesis.getVoices();
 }
 
-/** Lee con la voz del sistema. Null si no hay voz en español. */
-export async function systemSpeak(text: string): Promise<Playback | null> {
-  const voice = pickSpanishVoice(await systemVoices());
-  if (!voice) return null;
+/** Por qué no se pudo leer con la voz del sistema. */
+export type SystemSpeechProblem = 'noSpanishVoice' | 'noVoices';
+
+/**
+ * Lee con la voz del sistema. `noSpanishVoice`: el sistema tiene voces pero
+ * ninguna en español (no va a haber); `noVoices`: no llegaron las voces (puede
+ * ser momentáneo).
+ */
+export async function systemSpeak(text: string, voicesTimeoutMs = VOICES_TIMEOUT_MS): Promise<Playback | SystemSpeechProblem> {
+  const voices = await systemVoices(voicesTimeoutMs);
+  if (voices.length === 0) return 'noVoices';
+  const voice = pickSpanishVoice(voices);
+  if (!voice) return 'noSpanishVoice';
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.voice = voice;
   utterance.lang = voice.lang;

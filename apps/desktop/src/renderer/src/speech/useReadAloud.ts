@@ -13,9 +13,15 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SpeakResult, SpeechAudioEvent } from '../../../shared/ipc';
-import { openMp3Stream, systemSpeak, type Mp3Stream, type Playback } from './playback';
+import { openMp3Stream, systemSpeak, warmUpVoices, type Mp3Stream, type Playback, type SystemSpeechProblem } from './playback';
 
-export type ReadAloudState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'playing' } | { kind: 'error'; reason: 'busy' | 'failed' };
+export type ReadAloudState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'playing' }
+  | { kind: 'error'; reason: 'busy' | 'failed' }
+  /** No hay ninguna forma de leer en este equipo: se explica una vez y el botón se oculta. */
+  | { kind: 'unavailable' };
 
 export interface ReadAloudDeps {
   /** Pide la lectura; los pedazos del MP3 llegan a `onAudio` mientras el servidor los manda. */
@@ -26,7 +32,9 @@ export interface ReadAloudDeps {
   onCut(listener: () => void): () => void;
   /** Reproducción que empieza con los primeros datos. */
   openMp3Stream(): Mp3Stream;
-  systemSpeak(text: string): Promise<Playback | null>;
+  systemSpeak(text: string): Promise<Playback | SystemSpeechProblem>;
+  /** Pide las voces del sistema temprano, para no esperarlas al tocar «Escuchar». */
+  warmUpVoices(): void;
 }
 
 const defaultDeps: ReadAloudDeps = {
@@ -34,7 +42,8 @@ const defaultDeps: ReadAloudDeps = {
   stopSpeaking: () => window.asistente.stopSpeaking(),
   onCut: (listener) => window.asistente.onSpeechCut(listener),
   openMp3Stream,
-  systemSpeak,
+  systemSpeak: (text) => systemSpeak(text),
+  warmUpVoices,
 };
 
 /**
@@ -95,13 +104,16 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
       // La voz del sistema no pasa por el proceso principal: se le avisa para que corte la otra vista.
       deps.stopSpeaking();
       const started = await deps.systemSpeak(value);
-      if (id !== attempt.current) return started?.stop();
-      if (!started) {
+      if (typeof started === 'object' && id !== attempt.current) return started.stop();
+      if (id !== attempt.current) return;
+      if (started === 'noSpanishVoice') {
+        // Hay voces pero ninguna en español: no va a haber forma de leer en esta ejecución.
         speechSource.mode = 'none';
         setSourceVersion((v) => v + 1);
-        setState({ kind: 'idle' });
-        return;
+        return setState({ kind: 'unavailable' });
       }
+      // Las voces no llegaron a tiempo: puede ser momentáneo, el botón queda.
+      if (started === 'noVoices') return setState({ kind: 'error', reason: 'failed' });
       play(id, started);
     },
     [deps, play],
@@ -148,6 +160,9 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
     if (active) stop();
     else void start();
   }, [active, start, stop]);
+
+  // Las voces del sistema tardan en cargar: se piden al mostrar el botón.
+  useEffect(() => deps.warmUpVoices(), [deps]);
 
   // Una sola lectura: avisos de la otra vista y de otras lecturas de esta.
   useEffect(() => {

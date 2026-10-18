@@ -3,7 +3,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SpeakResult, SpeechAudioEvent } from '../../../shared/ipc';
-import { pickSpanishVoice, type Mp3Stream, type Playback } from './playback';
+import { pickSpanishVoice, systemVoices, type Mp3Stream, type Playback, type SystemSpeechProblem } from './playback';
 import { SpeakButton } from './SpeakButton';
 import { SPEECH_TEXTS } from './speechText';
 import { speechSource, type ReadAloudDeps } from './useReadAloud';
@@ -58,7 +58,8 @@ function fakeDeps(result: SpeakResult = { status: 'ok' }) {
       return () => cutListeners.delete(listener);
     }),
     openMp3Stream: vi.fn((): Mp3Stream => stream),
-    systemSpeak: vi.fn(async (): Promise<Playback | null> => system.playback),
+    systemSpeak: vi.fn(async (): Promise<Playback | SystemSpeechProblem> => system.playback),
+    warmUpVoices: vi.fn(),
   } satisfies ReadAloudDeps;
   const cutFromMain = () => act(async () => cutListeners.forEach((l) => l()));
   const audio = (event: SpeechAudioEvent) => act(async () => onAudio(event));
@@ -158,14 +159,41 @@ describe('SpeakButton', () => {
     expect(deps.systemSpeak).toHaveBeenCalledTimes(2);
   });
 
-  it('voz apagada y sin voz del sistema en español: el botón se oculta', async () => {
+  it('voz apagada y sin voz del sistema en español: lo explica una vez y recién ahí oculta el botón', async () => {
     const { deps } = fakeDeps({ status: 'error', reason: 'off' });
-    deps.systemSpeak.mockResolvedValue(null);
+    deps.systemSpeak.mockResolvedValue('noSpanishVoice');
     render(<SpeakButton text="Hola" deps={deps} />);
     await click();
     await flush();
     expect(button()).toBeNull();
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(SPEECH_TEXTS.noVoice);
+    // En la próxima vista (otra instrucción) ya no aparece, sin repetir el aviso.
+    render(<SpeakButton text="Otra instrucción" deps={deps} />);
+    await flush();
+    expect(button()).toBeNull();
     expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('si las voces del sistema no llegan a tiempo, el botón NO se oculta (puede ser momentáneo)', async () => {
+    const { deps } = fakeDeps({ status: 'error', reason: 'off' });
+    deps.systemSpeak.mockResolvedValue('noVoices');
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    await flush();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.listen);
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(SPEECH_TEXTS.failed);
+    expect(speechSource.mode).toBe('system');
+    deps.systemSpeak.mockResolvedValue(fakePlayback().playback);
+    await click();
+    await flush();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.stop);
+  });
+
+  it('pide las voces del sistema al mostrarse (para no esperarlas al tocar)', async () => {
+    const { deps } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await flush();
+    expect(deps.warmUpVoices).toHaveBeenCalled();
   });
 
   it('«Detener» avisa al proceso principal aunque ya esté sonando (para que corte la otra vista)', async () => {
@@ -300,7 +328,7 @@ describe('SpeakButton', () => {
 });
 
 describe('pickSpanishVoice', () => {
-  const v = (lang: string, localService = true) => ({ lang, localService, name: lang });
+  const v = (lang: string, localService = true, name = lang) => ({ lang, localService, name });
 
   it('prefiere es-UY, después es-AR y después cualquier es-*', () => {
     expect(pickSpanishVoice([v('en-US'), v('es-ES'), v('es-AR'), v('es-UY')])?.lang).toBe('es-UY');
@@ -309,8 +337,72 @@ describe('pickSpanishVoice', () => {
     expect(pickSpanishVoice([v('es')])?.lang).toBe('es');
   });
 
+  it('macOS (es-ES y es-MX, sin es-UY): elige una voz clásica de Latinoamérica, no las variantes', () => {
+    const mac = [
+      v('es-ES', true, 'Eddy (español (España))'),
+      v('es-MX', true, 'Eddy (español (México))'),
+      v('es-ES', true, 'Grandma (español (España))'),
+      v('es-MX', true, 'Grandpa (español (México))'),
+      v('es-ES', true, 'Mónica'),
+      v('es-MX', true, 'Paulina'),
+      v('en-US', true, 'Samantha'),
+    ];
+    expect(pickSpanishVoice(mac)?.name).toBe('Paulina');
+    expect(pickSpanishVoice(mac.filter((x) => x.lang !== 'es-MX'))?.name).toBe('Mónica');
+    expect(pickSpanishVoice([v('es-ES', true, 'Grandma (español (España))')])?.name).toBe('Grandma (español (España))');
+  });
+
   it('entre iguales prefiere la voz local; sin español, null', () => {
     expect(pickSpanishVoice([v('es-ES', false), v('es-MX', true)])?.lang).toBe('es-MX');
     expect(pickSpanishVoice([v('en-US'), v('pt-BR'), v('est')])).toBeNull();
+  });
+});
+
+describe('systemVoices: esperar las voces sin ocultar el botón por apuro', () => {
+  const realSynthesis = Object.getOwnPropertyDescriptor(globalThis, 'speechSynthesis');
+  /** speechSynthesis simulado: la lista se llena cuando el test quiere. */
+  function fakeSynthesis() {
+    let voices: Array<{ lang: string; name: string; localService: boolean }> = [];
+    const target = new EventTarget();
+    const synth = Object.assign(target, { getVoices: () => voices });
+    Object.defineProperty(globalThis, 'speechSynthesis', { value: synth, configurable: true });
+    return {
+      fill: () => (voices = [{ lang: 'es-MX', name: 'Paulina', localService: true }]),
+      changed: () => target.dispatchEvent(new Event('voiceschanged')),
+    };
+  }
+  afterEach(() => {
+    vi.useRealTimers();
+    if (realSynthesis) Object.defineProperty(globalThis, 'speechSynthesis', realSynthesis);
+    else delete (globalThis as { speechSynthesis?: unknown }).speechSynthesis;
+  });
+
+  it('si el primer «voiceschanged» llega con la lista vacía, sigue esperando', async () => {
+    vi.useFakeTimers();
+    const synth = fakeSynthesis();
+    const pending = systemVoices(5_000);
+    synth.changed(); // llega el aviso, pero todavía sin voces (lo que se vio en Electron en frío)
+    await vi.advanceTimersByTimeAsync(300);
+    synth.fill();
+    await vi.advanceTimersByTimeAsync(100);
+    await expect(pending).resolves.toHaveLength(1);
+  });
+
+  it('espera más de 1 s si hace falta (en frío tardó ~0,8 s)', async () => {
+    vi.useFakeTimers();
+    const synth = fakeSynthesis();
+    const pending = systemVoices(5_000);
+    await vi.advanceTimersByTimeAsync(1_800);
+    synth.fill();
+    synth.changed();
+    await expect(pending).resolves.toHaveLength(1);
+  });
+
+  it('si nunca llegan, devuelve la lista vacía al tope', async () => {
+    vi.useFakeTimers();
+    fakeSynthesis();
+    const pending = systemVoices(5_000);
+    await vi.advanceTimersByTimeAsync(5_000);
+    await expect(pending).resolves.toEqual([]);
   });
 });

@@ -10,7 +10,15 @@ import { useReadAloud, type ReadAloudDeps } from './useReadAloud';
 
 export function SpeakButton({ text, deps }: { text: string; deps?: ReadAloudDeps }) {
   const { state, active, toggle, available } = useReadAloud(text, deps);
-  if (!available || !text.trim()) return null;
+  if (!available) {
+    // Se explica una sola vez, en el botón que se tocó; después el botón ya no se ofrece.
+    return state.kind === 'unavailable' ? (
+      <p className="speak-error" role="alert">
+        {SPEECH_TEXTS.noVoice}
+      </p>
+    ) : null;
+  }
+  if (!text.trim()) return null;
   const error = state.kind === 'error' ? (state.reason === 'busy' ? SPEECH_TEXTS.busy : SPEECH_TEXTS.failed) : null;
   return (
     <div className="speak">

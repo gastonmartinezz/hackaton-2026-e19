@@ -17,6 +17,8 @@ export const SPEECH_TEXTS = {
   stop: 'Detener',
   failed: 'No pude leerlo en voz alta. Fue un problema de mi lado, no tuyo.',
   busy: 'Ahora no puedo leerlo en voz alta. Esperá un momento y probá de nuevo.',
+  /** No hay ninguna forma de leer en este equipo (se muestra una vez, después el botón no aparece). */
+  noVoice: 'En este equipo no hay una voz en español para leer en voz alta.',
   /** Antes de enumerar las respuestas de una pregunta del inicio. */
   choices: 'Podés elegir',
   /** Visibles en la tarjeta o el inicio (se copian para leerlos igual). */
