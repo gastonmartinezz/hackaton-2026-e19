@@ -1,6 +1,6 @@
 # Protección de sitios: qué se valida hoy
 
-Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que **no** está activo. El contrato del endpoint está en [`api.md`](api.md).
+Estado al 18/10/2026, después del #39. Describe lo que hace el código en `main`, incluido lo que **no** está activo, y al final lo que quedó [pendiente](#pendientes). El contrato del endpoint está en [`api.md`](api.md).
 
 ## Resumen
 
@@ -71,6 +71,13 @@ Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que
 - **No puede** bajar el riesgo ni dar «Sitio oficial». Si su explicación dice que el sitio es oficial o seguro, se descarta.
 - Tiene un tiempo máximo de 8 s. Si falla, el contenido queda como revisado parcialmente.
 
+### En la interfaz
+
+- **Indicador:** va dentro de la píldora «Estás en…», con ícono y texto, sin depender del color. Si no entra junto al dominio, se compacta la píldora; si igual no entra, el sello flota justo debajo, sin mover el sitio.
+- **Panel:** al tocar el indicador se abre un panel que **flota sobre el sitio**, debajo del indicador. Tiene título, una o dos frases, la acción principal y «Ver por qué» cerrado, con la fuente y la fecha de revisión. Se cierra con Escape, «Cerrar», «Entendido», tocando el indicador, con un clic afuera o al navegar, y el foco vuelve al indicador. La página y la tarjeta de ayuda no se mueven.
+- **«Posible estafa»:** muestra una advertencia a pantalla completa con «Salir de este sitio» y «Continuar de todos modos». Pausa las indicaciones de la guía que piden datos o confirmaciones, y no se repite en la misma navegación salvo que aumente el riesgo.
+- **Estados favorables:** no abren nada ni interrumpen; el estado queda en la barra.
+
 ### Caché
 
 Los resultados se guardan por fuente: conexión 1 h, registro 24 h y registro del BCU 24 h. Una respuesta completa vence a los 10 min. Si alguna fuente falla o la página todavía no cargó, el resultado vence al minuto. Los resultados con fallas no se guardan.
@@ -83,6 +90,23 @@ Los resultados se guardan por fuente: conexión 1 h, registro 24 h y registro de
 4. **Nombres en mayúsculas.** Si el BCU no publica un nombre de fantasía y la institución no está en el catálogo, el nombre puede aparecer en mayúsculas («CAMBIO FAGALDE»).
 5. **El resto del catálogo se actualiza a mano** (Antel, UTE, mutualistas, organismos fuera de `gub.uy`).
 6. **Palabras comunes: menos falsas alarmas, algunas imitaciones sin detectar.** Para no marcar sitios inocentes como `correo.miempresa.com.uy`, las instituciones que se llaman como palabras comunes solo se detectan si el dominio oficial completo aparece dentro de otro o si se imitan sus letras. Desde la dirección sola **ya no se detectan** `correo-uy.com` ni `visa-login.com`. Se detectan por el contenido si la página nombra a la organización completa («Correo Uruguayo») o con la IA. Algunas falsas alarmas siguen, por ejemplo `claro.blog.com`.
-7. **Páginas muy largas:** si una página supera los 20.000 elementos, el resumen se corta y aun así figura como revisado por completo (issue #21).
-8. **Lo que ve el servidor puede diferir de lo que ve la persona:** la revisión de conexión y certificado se hace desde el servidor, no con la sesión de la persona.
-9. **Contenido que no se puede leer:** iframes de otros dominios, shadow DOM cerrado y canvas.
+7. **Marcas cortas en subdominios:** `bna.sitio-falso.com` o `ute.sitio-falso.com` no se detectan por la dirección, porque la regla de subdominios solo se aplica a marcas de 5 letras o más (o con una palabra como «login»), para no alarmar con nombres cortos que son palabras comunes. Se detectan si la página dice ser esa organización (issue #21).
+8. **Páginas muy largas:** si una página supera los 20.000 elementos, el resumen se corta y aun así figura como revisado por completo (issue #21).
+9. **Lo que ve el servidor puede diferir de lo que ve la persona:** la revisión de conexión y certificado se hace desde el servidor, no con la sesión de la persona.
+10. **Contenido que no se puede leer:** iframes de otros dominios, shadow DOM cerrado y canvas.
+11. **Sello fuera de la píldora:** en sitios sin `https`, con la letra a 1,2× y una ventana de 1440 px, el sello suele quedar flotando debajo de la píldora porque no entra junto al dominio. No mueve nada ni tapa la barra, pero tapa la esquina superior izquierda del sitio.
+
+## Pendientes
+
+Quedó fuera de esta versión, por decisión del 18/10/2026. Las estimaciones son de trabajo más revisión.
+
+| Pendiente | Qué resolvería | Estimación |
+|---|---|---|
+| Correo Uruguayo como marca distintiva | Que `correo-uy.com` dé «Posible estafa» desde la dirección. Las estafas de «paquete retenido» suelen imitar al Correo | 15–20 min |
+| Marcas distintivas para la regla de subdominios (issue #21) | Detectar `bna.sitio-falso.com` sin falsas alarmas con palabras comunes (Verde, Pronto, Universal) | 30–45 min |
+| Páginas muy largas como revisión parcial (issue #21) | Que una página cortada no figure como revisada por completo. Toca el contrato, el extractor y el backend | 45–60 min |
+| Lista gratuita de sitios denunciados | Detectar sitios de estafa que no imitan a nadie y sitios oficiales comprometidos. URLhaus (abuse.ch) es gratis sin fines de lucro, con registro. **Requiere decidir la fuente y su licencia** | ~1 h |
+| Revisión periódica del catálogo de Uruguay | Mantener vigentes las 153 entradas (Antel, UTE, mutualistas…). Hoy se revisan a mano y la última revisión es del 17/10/2026 | Tarea periódica |
+| Revisión de textos con diseño | Los textos del indicador y del panel no están en el diseño v2.2 (`design/textos.es.json` se eliminó) y no los revisó diseño | — |
+| Validación con personas mayores | La especificación pide comprobar con el público objetivo que se entiendan los estados y las acciones | — |
+| Accesibilidad sin verificar | No se probaron el foco del sistema operativo al pasar entre la ventana y el panel flotante ni la lectura con VoiceOver | — |
