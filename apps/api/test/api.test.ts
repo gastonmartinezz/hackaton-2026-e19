@@ -39,7 +39,7 @@ describe('infraestructura', () => {
     app = await testApp();
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ status: 'ok', stt: 'off' });
+    expect(res.json()).toEqual({ status: 'ok', stt: 'off', tts: 'off' });
   });
 
   it('rechaza solicitudes sin token con el formato de error estable', async () => {
@@ -74,8 +74,8 @@ describe('POST /v1/interpret', () => {
   it.each<[string, InterpretOutput, object]>([
     [
       'redirect',
-      { type: 'redirect', message: 'Te llevo.', url: 'https://www.argentina.gob.ar/', options: [], ...internal },
-      { type: 'redirect', message: 'Te llevo.', url: 'https://www.argentina.gob.ar/' },
+      { type: 'redirect', message: 'Te llevo.', url: 'https://www.gub.uy/', options: [], ...internal },
+      { type: 'redirect', message: 'Te llevo.', url: 'https://www.gub.uy/' },
     ],
     [
       'question',
@@ -118,7 +118,7 @@ describe('POST /v1/interpret', () => {
     const { sessionId } = first.json();
     const second = await post('/v1/interpret', {
       sessionId,
-      messages: [...payload.messages, { role: 'assistant', content: first.json().message }, { role: 'user', content: 'En Argentina' }],
+      messages: [...payload.messages, { role: 'assistant', content: first.json().message }, { role: 'user', content: 'En Montevideo' }],
     });
     expect(second.json()).toMatchObject({ sessionId, type: 'redirect' });
   });
@@ -126,7 +126,7 @@ describe('POST /v1/interpret', () => {
   it('pasa a Claude los datos de la persona', async () => {
     const { model, inputs } = recordingModel();
     app = await testApp({ model });
-    const user = { location: { country: 'AR', region: 'Córdoba', city: 'Villa María' }, ageRange: '65-74', language: 'es-AR' };
+    const user = { location: { country: 'UY', region: 'Canelones', city: 'Las Piedras' }, ageRange: '65-74', language: 'es-UY' };
     expect((await post('/v1/interpret', { ...payload, user })).statusCode).toBe(200);
     expect(inputs.interpret[0].user).toEqual(user);
 
@@ -140,13 +140,14 @@ describe('POST /v1/interpret', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it('rechaza una URL que no es http(s)', async () => {
+  it('nunca devuelve una URL que no es https: la cambia por una pregunta', async () => {
     app = await testApp({
       model: interpretReturning({ type: 'redirect', message: 'Te llevo.', url: 'javascript:alert(1)', options: [], ...internal }),
     });
     const res = await post('/v1/interpret', payload);
-    expect(res.statusCode).toBe(502);
-    expect(res.json().error.code).toBe('AI_INVALID_RESPONSE');
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ type: 'question' });
+    expect(JSON.stringify(res.json())).not.toContain('javascript:');
   });
 
   it('devuelve SESSION_NOT_FOUND con una sesión inexistente', async () => {

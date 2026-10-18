@@ -436,6 +436,112 @@ body {
 .sbox .go .ic {
   color: inherit;
 }
+/* Micrófono del buscador (01): ícono solo en reposo; «Terminar» visible al escuchar. */
+.sbox .mic {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: 0 var(--space-2);
+  border: var(--border-w-strong) solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.sbox .mic .ic {
+  color: inherit;
+}
+.sbox .mic:hover {
+  background: var(--color-sunken);
+  color: var(--color-ink);
+}
+/* Escuchando: estado fijo (sin pulso), también con «reducir movimiento». */
+.sbox .mic[aria-pressed='true'] {
+  padding: 0 var(--space-4);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+.sbox .mic[aria-disabled='true'] {
+  cursor: progress;
+  background: transparent;
+  color: var(--color-muted);
+}
+.voice-status {
+  width: min(860px, 100%);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--color-muted);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+/* Interruptor «Voz» de la barra: prendido se ve marcado (estado fijo, sin animación). */
+.btn-chrome.voice-toggle[aria-pressed='true'] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+/* Leer en voz alta (S11): «Escuchar» / «Detener» al lado del rótulo o del título. */
+.now-row,
+.speak-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.speak {
+  margin-left: auto;
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+}
+.speak-btn.btn {
+  padding: 0 var(--space-4);
+  font-size: var(--fs-sm);
+}
+/* Sonando: estado fijo (sin animación), también con «reducir movimiento». */
+.speak-btn.btn[data-active] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.speak-error {
+  margin: 0;
+  max-width: 22em;
+  font-size: var(--fs-xs);
+  color: var(--color-danger);
+  text-align: end;
+}
+/* Responder con la voz (modo voz): «Te escucho» y «Terminar» debajo de las opciones. */
+.voice-answer {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+.voice-answer .voice-status {
+  width: auto;
+  justify-content: flex-start;
+  text-align: start;
+}
+/* Vacía sigue montada (región aria-live), pero sin ocupar lugar. */
+.voice-status:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
 .sbtns {
   display: flex;
   gap: var(--space-3);

@@ -4,11 +4,21 @@
  *   alcanza, el proceso principal abre el sitio directo.
  * - 02/03: si falta un dato, una pregunta por vez debajo del buscador.
  * - 10: con varios sitios (o «No estoy seguro»), el más afín y alternativas.
+ * - Micrófono (01): dictar la búsqueda. Lo entendido queda en el buscador y
+ *   se busca solo, como «Mostrame cómo».
  */
 import { BrandSymbol, Button, Icon, LoadingDots, Logo } from '@asistente/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { AppState, CandidateView } from '../../shared/ipc';
+import { SpeakButton } from './speech/SpeakButton';
+import { questionSpeech, recommendationSpeech } from './speech/speechText';
+import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
 import { send } from './useAppState';
+import { MicButton, VoiceMessages } from './voice/VoiceSearch';
+import { useVoiceInput } from './voice/useVoiceInput';
+
+/** Igual que el máximo de `submitIntent`. */
+const MAX_QUERY = 500;
 
 const UNSURE = 'No estoy seguro';
 
@@ -21,17 +31,35 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
   lastMode.current = mode;
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  // El texto dictado reemplaza lo escrito; el foco queda donde estaba. Con una
+  // búsqueda en curso no se puede escuchar y se corta lo que hubiera.
+  const voice = useVoiceInput((heard) => setText(heard.slice(0, MAX_QUERY)), {
+    blocked: busy,
+    // Dictado (decisión de producto): lo entendido queda visible en el buscador y se busca
+    // solo, por el mismo camino que «Mostrame cómo» (con ayuda). «Solo ir al sitio» manda
+    // `guide: false`: abre una dirección escrita directo y, si no es una dirección, abre el
+    // destino sin la guía.
+    onSubmit: (heard) => send({ type: 'submitIntent', text: heard.slice(0, MAX_QUERY).trim(), guide: true, dictated: true }),
+  });
+  const voiceBusy = voice.status.kind === 'transcribing';
 
   // Con pregunta o recomendación, el buscador conserva lo que la persona buscó.
   useEffect(() => setText(mode === 'search' ? '' : (chat.query ?? '')), [mode, chat.query]);
   useEffect(() => {
     if (!busy && mode === 'search') inputRef.current?.focus();
   }, [busy, mode]);
+  // El micrófono es del buscador de inicio: fuera de 01 se deja de escuchar.
+  const { cancel: cancelVoice } = voice;
+  useEffect(() => {
+    if (mode !== 'search') cancelVoice();
+  }, [mode, cancelVoice]);
 
   const submit = (guide: boolean, event?: FormEvent) => {
     event?.preventDefault();
     const value = text.trim();
-    if (!value || busy || (mode !== 'search' && value === chat.query)) return;
+    if (!value || busy || voiceBusy || (mode !== 'search' && value === chat.query)) return;
+    // Búsqueda escrita: el dictado anterior (y su aviso) ya no corresponde.
+    voice.cancel();
     send({ type: 'submitIntent', text: value, guide });
   };
 
@@ -48,10 +76,12 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
             placeholder="Buscá un sitio o contá qué querés hacer"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            maxLength={500}
-            readOnly={busy}
+            maxLength={MAX_QUERY}
+            readOnly={busy || voiceBusy}
             autoComplete="off"
           />
+          {/* Voz apagada en el servidor: el micrófono no se ofrece más en esta ejecución. */}
+          {mode === 'search' && voice.available ? <MicButton status={voice.status} onToggle={voice.toggle} blocked={busy} /> : null}
           {mode === 'reco' ? (
             <Button variant="primary" icon="sparkles" type="submit" className="go">
               Mostrame cómo
@@ -68,6 +98,7 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
             </Button>
           </div>
         ) : null}
+        {mode === 'search' ? <VoiceMessages status={voice.status} /> : null}
         {busy ? (
           <p className="home-status" role="status">
             <LoadingDots />
@@ -103,15 +134,32 @@ function Question({ state }: { state: AppState }) {
   const { question, answered } = state.chat;
   const firstRef = useRef<HTMLButtonElement>(null);
   useEffect(() => firstRef.current?.focus(), [question?.text]);
+  // Modo voz: al terminar de leer la pregunta, se puede contestar hablando.
+  const [readDone, setReadDone] = useState(0);
+  // Lo que dice la respuesta por voz se anuncia en la región de esta vista (una sola).
+  const [voiceMessage, setVoiceMessage] = useState('');
   if (!question) return null;
   const answer = (text: string) => send({ type: 'submitIntent', text });
+  const choices: VoiceChoice[] = [
+    ...question.answers.map((a) => ({ label: a, run: () => answer(a) })),
+    { label: UNSURE, kind: 'unsure', run: () => answer(UNSURE) },
+  ];
 
   return (
     <section className="ask-card" aria-labelledby="ask-q">
-      <p className="lead2">
-        <BrandSymbol />
-        Para llevarte directo al sitio justo, necesito un dato.
-      </p>
+      <div className="speak-row">
+        <p className="lead2">
+          <BrandSymbol />
+          Para llevarte directo al sitio justo, necesito un dato.
+        </p>
+        {/* Cada respuesta de Mostrame es contenido nuevo para el modo voz, aunque repita la pregunta. */}
+        <SpeakButton
+          text={questionSpeech(question)}
+          auto={state.voice.active}
+          contentKey={state.chat.messages.length}
+          onDone={(outcome) => outcome === 'ended' && setReadDone((n) => n + 1)}
+        />
+      </div>
       {answered.length > 0 ? (
         <ul className="ask-done" aria-label="Lo que ya me contaste">
           {answered.map((a, i) => (
@@ -122,9 +170,11 @@ function Question({ state }: { state: AppState }) {
           ))}
         </ul>
       ) : null}
-      <h2 id="ask-q" aria-live="polite">
-        {question.text}
-      </h2>
+      {/* Única región que anuncia en esta vista: la pregunta y lo que dice la respuesta por voz. */}
+      <div aria-live="polite">
+        <h2 id="ask-q">{question.text}</h2>
+        <span className="sr-only">{voiceMessage}</span>
+      </div>
       <ul className="ask-opts" aria-label="Elegí una respuesta">
         {question.answers.map((a, i) => (
           <li key={a}>
@@ -150,6 +200,7 @@ function Question({ state }: { state: AppState }) {
         ) : null}
         <span className="muted">¿Otra respuesta? Escribila en el buscador.</span>
       </div>
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} onMessage={setVoiceMessage} />
     </section>
   );
 }
@@ -158,17 +209,41 @@ function Question({ state }: { state: AppState }) {
 function Recommendation({ state }: { state: AppState }) {
   const { candidates, unsure, messages } = state.chat;
   const [first, ...others] = candidates;
+  // Modo voz: al terminar de leer la recomendación, se puede contestar hablando.
+  const [readDone, setReadDone] = useState(0);
+  const [voiceMessage, setVoiceMessage] = useState('');
   const intro = unsure
     ? 'No pasa nada si no estás seguro. Por lo que buscaste, este es el sitio que mejor se ajusta. Si no es, contame un poco más en el buscador.'
     : (messages.findLast((m) => m.from === 'assistant')?.text ?? '');
   if (!first) return null;
+  // Lo mismo que los botones: «Ir con ayuda», «Solo abrir el sitio» y «Abrir» de cada alternativa.
+  const open = (id: string, guide: boolean) => send({ type: 'openCandidate', candidateId: id, guide });
+  const choices: VoiceChoice[] = [
+    { label: 'Ir con ayuda', aliases: [first.title], run: () => open(first.id, true) },
+    { label: 'Solo abrir el sitio', run: () => open(first.id, false) },
+    ...others.map((c) => ({ label: c.title, run: () => open(c.id, true) })),
+  ];
 
   return (
     <div className="reco-main">
-      <p className="reco-why" aria-live="polite">
-        <BrandSymbol />
-        <span>{intro}</span>
-      </p>
+      <div className="speak-row">
+        {/* Única región que anuncia en esta vista: el motivo y lo que dice la respuesta por voz. */}
+        <p className="reco-why" aria-live="polite">
+          <BrandSymbol />
+          <span>{intro}</span>
+          <span className="sr-only">{voiceMessage}</span>
+        </p>
+        <SpeakButton
+          text={recommendationSpeech(
+            intro,
+            first,
+            others.map((c) => c.title),
+          )}
+          auto={state.voice.active}
+          contentKey={messages.length}
+          onDone={(outcome) => outcome === 'ended' && setReadDone((n) => n + 1)}
+        />
+      </div>
       <SiteCard candidate={first} recommended />
       {others.length > 0 ? (
         <>
@@ -182,6 +257,7 @@ function Recommendation({ state }: { state: AppState }) {
           </ul>
         </>
       ) : null}
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} onMessage={setVoiceMessage} />
       <p className="why">
         <Icon name="search" size="sm" />
         <span>¿No es esto? Contame un poco más en el buscador y te llevo directo.</span>

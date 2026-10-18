@@ -14,7 +14,16 @@ let sent: UiCommand[];
 
 beforeEach(() => {
   sent = [];
-  window.asistente = { command: vi.fn(async (c: UiCommand) => void sent.push(c)), onState: () => () => {} };
+  window.asistente = {
+    command: vi.fn(async (c: UiCommand) => void sent.push(c)),
+    onState: () => () => {},
+    transcribe: vi.fn(),
+    speak: vi.fn(),
+    stopSpeaking: vi.fn(),
+    onSpeechCut: () => () => {},
+    speechDiagnostic: vi.fn(),
+    voiceDiagnostic: vi.fn(),
+  };
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);

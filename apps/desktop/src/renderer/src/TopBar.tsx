@@ -1,6 +1,7 @@
 /**
  * Barra del navegador (todas las pantallas): logo, Inicio, Atrás, Recargar, el
- * buscador en píldora, Ayuda (con un sitio abierto) y Tamaño de letra.
+ * buscador en píldora, Ayuda (con un sitio abierto), Voz y Tamaño de letra.
+ * «Voz» no está en el diseño v1.5: pendiente de aprobación de diseño.
  */
 import { Button, Icon, Logo } from '@asistente/ui';
 import { useState, type FormEvent } from 'react';
@@ -10,6 +11,16 @@ import { SiteCheckIndicator, SiteCheckProbe } from './SiteCheck';
 import { send } from './useAppState';
 
 const SCALE_NAMES: Record<number, string> = { 1.2: 'normal', 1.45: 'grande', 1.75: 'muy grande' };
+
+/**
+ * TEMPORAL — textos del interruptor del modo voz (no están en
+ * design/textos.es.json). Pendientes de aprobación de diseño.
+ */
+export const VOICE_TOGGLE_TEXTS = {
+  label: 'Voz',
+  /** Completa el nombre accesible: «Voz: leer en voz alta». El estado lo da aria-pressed. */
+  description: ': leer en voz alta',
+} as const;
 
 export function TopBar({ state, indicatorInline = true }: { state: AppState; indicatorInline?: boolean }) {
   const { nav, prefs, guide } = state;
@@ -43,6 +54,7 @@ export function TopBar({ state, indicatorInline = true }: { state: AppState; ind
           Ayuda
         </Button>
       ) : null}
+      <VoiceToggle active={state.voice.active} />
       <Button variant="chrome" onClick={nextScale}>
         <Icon name="a-large-small" />
         <span className="lbl-long">Tamaño de letra</span>
@@ -50,6 +62,21 @@ export function TopBar({ state, indicatorInline = true }: { state: AppState; ind
         <span className="sr-only">: {SCALE_NAMES[prefs.textScale] ?? ''}</span>
       </Button>
     </header>
+  );
+}
+
+/**
+ * Interruptor del modo voz: prendido, Mostrame lee solo lo que escribe. Tocarlo
+ * deja la preferencia en «on» u «off»; apagarlo corta lo que esté sonando.
+ * Sin ícono de parlante en design/icons: texto, y la marca de «prendido».
+ */
+export function VoiceToggle({ active }: { active: boolean }) {
+  return (
+    <Button variant="chrome" className="voice-toggle" aria-pressed={active} onClick={() => send({ type: 'setVoiceMode', mode: active ? 'off' : 'on' })}>
+      {active ? <Icon name="check" /> : null}
+      {VOICE_TOGGLE_TEXTS.label}
+      <span className="sr-only">{VOICE_TOGGLE_TEXTS.description}</span>
+    </Button>
   );
 }
 

@@ -8,6 +8,9 @@ import { Fragment, useLayoutEffect, useRef, useState, type FormEvent, type React
 import type { AppState, CardMode, OptionView } from '../../shared/ipc';
 import { Notices } from './Notices';
 import { GuidePausedNotice } from './SiteCheck';
+import { SpeakButton } from './speech/SpeakButton';
+import { guideSpeech, optionsReadKey, optionsSpeech, stepSpeechKey } from './speech/speechText';
+import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
 import { send, useAppState } from './useAppState';
 
 /** Margen transparente de la vista para la sombra (CARD_SHADOW en main/help-card.ts). */
@@ -19,6 +22,8 @@ export function HelpCard() {
   /** Instrucción para la que la persona abrió la tarjeta aunque tapara el control. */
   const [expandedFor, setExpandedFor] = useState<number | null>(null);
   const [more, setMore] = useState(false);
+  /** Cuántas veces se volvió de «Ver otras opciones»: cada vuelta es una aparición nueva para el modo voz. */
+  const [optionsVisit, setOptionsVisit] = useState(0);
   const hostRef = useRef<HTMLDivElement>(null);
 
   const mode: CardMode = state ? cardMode(state, minimized, expandedFor) : 'none';
@@ -81,7 +86,14 @@ export function HelpCard() {
     );
   }
 
-  const body = cardBody(state, { more, setMore });
+  const body = cardBody(state, {
+    more,
+    setMore: (value) => {
+      if (more && !value) setOptionsVisit((n) => n + 1);
+      setMore(value);
+    },
+    optionsVisit,
+  });
   return (
     <div className="card-host" ref={hostRef}>
       <aside
@@ -157,7 +169,7 @@ interface Body {
   foot: 'full' | 'exit' | 'none';
 }
 
-function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) => void }): Body {
+function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) => void; optionsVisit: number }): Body {
   const { guide, nav } = state;
   switch (guide.phase) {
     case 'idle':
@@ -176,7 +188,7 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
       };
 
     case 'choosing':
-      return { foot: 'exit', content: view.more ? <MoreOptions state={state} onBack={() => view.setMore(false)} /> : <Options state={state} onMore={() => view.setMore(true)} /> };
+      return { foot: 'exit', content: view.more ? <MoreOptions state={state} onBack={() => view.setMore(false)} /> : <Options state={state} visit={view.optionsVisit} onMore={() => view.setMore(true)} /> };
 
     case 'guiding':
     case 'verifying':
@@ -197,7 +209,9 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
       return { foot: 'full', content: <CurrentStep state={state} /> };
 
     case 'completed':
-      return guide.evidence ? { tone: 'success', foot: 'none', content: <Completed evidence={guide.evidence} /> } : { tone: 'ask', foot: 'none', content: <DidYouFinish /> };
+      return guide.evidence
+        ? { tone: 'success', foot: 'none', content: <Completed evidence={guide.evidence} speech={guideSpeech(guide)} auto={state.voice.active} contentKey={`listo:${guide.contentKey}`} /> }
+        : { tone: 'ask', foot: 'none', content: <DidYouFinish speech={guideSpeech(guide)} auto={state.voice.active} contentKey={`terminaste:${guide.contentKey}`} /> };
 
     case 'unsupported':
       return {
@@ -253,12 +267,30 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
 }
 
 /** 05: hasta 3 opciones de la página. */
-function Options({ state, onMore }: { state: AppState; onMore: () => void }) {
-  const { primary } = state.guide;
+function Options({ state, visit, onMore }: { state: AppState; visit: number; onMore: () => void }) {
+  const { primary, secondary } = state.guide;
+  // Modo voz: al terminar de leer las opciones, se puede contestar hablando.
+  const [readDone, setReadDone] = useState(0);
+  const choices: VoiceChoice[] = [
+    ...primary.map((o) => ({ label: o.title, run: () => send({ type: 'selectOption', optionId: o.id }) })),
+    // Se nombra al leer solo si hay secundarias; si no, se puede elegir por su nombre pero no por número.
+    { label: 'Ver otras opciones', kind: 'more', unnumbered: secondary.length === 0, run: onMore },
+  ];
   return (
     <>
       <div>
-        <h2 className="title">¿Qué querés hacer acá?</h2>
+        <div className="speak-row">
+          <h2 className="title">¿Qué querés hacer acá?</h2>
+          <SpeakButton
+            text={optionsSpeech(
+              primary.map((o) => o.title),
+              secondary.length > 0,
+            )}
+            auto={state.voice.active}
+            contentKey={optionsReadKey(state.guide.contentKey, visit)}
+            onDone={(outcome) => outcome === 'ended' && setReadDone((n) => n + 1)}
+          />
+        </div>
         <p className="lead-s">Encontré estas opciones en esta página.</p>
       </div>
       <ul className="option-list" aria-label="Opciones de esta página">
@@ -271,6 +303,7 @@ function Options({ state, onMore }: { state: AppState; onMore: () => void }) {
       <button type="button" className="linkish" onClick={onMore}>
         Ver otras opciones
       </button>
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} />
       <p className="panel-note">
         <Icon name="lock" />
         <span>Mostrame no recibe lo que escribís en la página.</span>
@@ -343,10 +376,14 @@ function CurrentStep({ state }: { state: AppState }) {
   const confirm = field || guide.waitFor === 'userConfirmation';
   return (
     <section className="mm-section" aria-label="Paso actual">
-      <p className="now">
-        <Icon name="arrow-right" />
-        Ahora
-      </p>
+      <div className="now-row">
+        <p className="now">
+          <Icon name="arrow-right" />
+          Ahora
+        </p>
+        {/* Leer en voz alta (opcional, S11): solo si la persona lo pide; se corta al cambiar de instrucción. */}
+        <SpeakButton text={guideSpeech(guide)} auto={state.voice.active} contentKey={stepSpeechKey(guide)} />
+      </div>
       {/* Única región que anuncia instrucciones; Repetir cambia la clave y se vuelve a anunciar. No mueve el foco. */}
       <div aria-live="polite" key={guide.announceKey}>
         <p className="instr">{withControlNames(guide.instruction ?? '')}</p>
@@ -403,13 +440,15 @@ function DoneList({ done }: { done: string[] }) {
 }
 
 /** 09: «Listo» solo con evidencia de la página, citada tal cual. */
-function Completed({ evidence }: { evidence: string }) {
+function Completed({ evidence, speech, auto, contentKey }: { evidence: string; speech: string; auto: boolean; contentKey: string }) {
   return (
     <section className="status success" role="status">
       <div className="head">
         <Icon name="circle-check" size="lg" />
         {/* TODO(textos): «completada.titulo» pide «Listo: {resultado}.»; el backend todavía no manda el resultado. */}
         <h2 className="title">Listo.</h2>
+        {/* Se lee «Listo.» sin la cita de la página. */}
+        <SpeakButton text={speech} auto={auto} contentKey={contentKey} />
       </div>
       <p className="evidence">
         <Icon name="check" size="sm" />
@@ -428,7 +467,7 @@ function Completed({ evidence }: { evidence: string }) {
 }
 
 /** 16 y 17: sin evidencia no hay festejo; se pregunta y, si falta algo, se sigue. */
-function DidYouFinish() {
+function DidYouFinish({ speech, auto, contentKey }: { speech: string; auto: boolean; contentKey: string }) {
   const [notYet, setNotYet] = useState(false);
   if (notYet) {
     const reasons = [
@@ -460,6 +499,7 @@ function DidYouFinish() {
       <div className="head">
         <Icon name="circle-help" size="lg" />
         <h2 className="title">¿Pudiste terminar?</h2>
+        <SpeakButton text={speech} auto={auto} contentKey={contentKey} />
       </div>
       <p>La página cambió, pero no sé si terminaste. Fijate si la página lo confirma.</p>
       <div className="actions">

@@ -12,6 +12,11 @@ mac:
   target: dmg
   category: public.app-category.productivity
   hardenedRuntime: true
+  # Micrófono para el dictado del buscador (solo la interfaz propia; el sitio no puede usarlo).
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    NSMicrophoneUsageDescription: Mostrame usa el micrófono solo cuando tocás «Hablar», para escribir en el buscador lo que decís.
 win:
   target: nsis
 linux:

@@ -11,6 +11,8 @@ import type {
   NextStepResponse,
   OptionsRequest,
   OptionsResponse,
+  SpeakRequest,
+  TranscribeResponse,
   SiteCheckRequest,
   SiteCheckResponse,
 } from '@hackaton/contracts';
@@ -23,6 +25,15 @@ export interface ApiClient {
   options(request: OptionsRequest, signal: AbortSignal): Promise<OptionsResponse>;
   /** POST /v1/next-step: pasos reales cuando la guía llega a un paso teórico. */
   nextStep(request: NextStepRequest, signal: AbortSignal): Promise<NextStepResponse>;
+  /** POST /v1/transcribe: dictado del buscador, con `wav` ya revisado (shared/wav.ts). */
+  transcribe(wav: Uint8Array, signal: AbortSignal): Promise<TranscribeResponse>;
+  /**
+   * POST /v1/speak: lee en voz alta un texto de Mostrame. Resuelve cuando el
+   * servidor aceptó (200 con `audio/mpeg`) y devuelve el MP3 en pedazos a
+   * medida que llega, para empezar a reproducir antes de que termine. Los
+   * errores previos rechazan la promesa; los del medio los tira el iterador.
+   */
+  speak(request: SpeakRequest, signal: AbortSignal): Promise<AsyncIterable<Uint8Array>>;
   /** POST /v1/site-check: protección de sitios (fase dirección o contenido). */
   siteCheck(request: SiteCheckRequest, signal: AbortSignal): Promise<SiteCheckResponse>;
 }

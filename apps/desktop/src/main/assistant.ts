@@ -68,6 +68,11 @@ export class Assistant {
   paused = false;
   #riskHold = false;
 
+  /** Cambia con cada solicitud nueva (otra página, otro paso, otro recorrido): identifica qué se está mostrando. */
+  get epoch(): number {
+    return this.#epoch;
+  }
+
   #pageId = shortId();
   #navigationSeq = 0;
   #navigationId = 'nav-0';

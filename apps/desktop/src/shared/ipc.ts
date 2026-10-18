@@ -15,6 +15,10 @@ export const TEXT_SCALES = [1.2, 1.45, 1.75] as const;
 export type TextScale = (typeof TEXT_SCALES)[number];
 export const DEFAULT_TEXT_SCALE: TextScale = 1.2;
 
+/** Modo voz guardado: `auto` se prende al dictar, `on` siempre, `off` nunca (ver main/voice-mode.ts). */
+export const VOICE_MODES = ['auto', 'on', 'off'] as const;
+export type VoiceMode = (typeof VOICE_MODES)[number];
+
 /** Cambiarla cuando cambie el texto de las condiciones: se vuelven a pedir. */
 export const TERMS_VERSION = '2026-10-17';
 
@@ -22,11 +26,78 @@ export const TERMS_VERSION = '2026-10-17';
 
 export const UI_COMMAND_CHANNEL = 'ui:command';
 export const UI_STATE_CHANNEL = 'ui:state';
+/** Dictado del buscador: WAV (shared/wav.ts) → texto para revisar. Solo desde la ventana. */
+export const UI_TRANSCRIBE_CHANNEL = 'ui:transcribe';
+
+/**
+ * Resultado del dictado. `empty`: no se entendió nada; `busy`: el servidor pide
+ * esperar (RATE_LIMITED o AI_UNAVAILABLE con `retryable: true`); `off`: el
+ * servidor tiene la voz apagada (AI_UNAVAILABLE con `retryable: false`), no
+ * se vuelve a ofrecer en esta ejecución; `failed`: cualquier otro problema
+ * (la interfaz lo dice sin culpa).
+ */
+export type TranscribeErrorReason = 'busy' | 'off' | 'failed';
+export type TranscribeResult = { status: 'ok'; text: string } | { status: 'empty' } | { status: 'error'; reason: TranscribeErrorReason };
+
+/** Leer en voz alta: texto de Mostrame → MP3. Desde la ventana o la tarjeta. */
+export const UI_SPEAK_CHANNEL = 'ui:speak';
+/** «Detener»: corta la descarga en curso (la reproducción la corta la interfaz). */
+export const UI_SPEAK_STOP_CHANNEL = 'ui:speak-stop';
+/**
+ * Diagnóstico de la voz del sistema (respaldo): solo datos sin contenido, para
+ * el log técnico del proceso principal.
+ */
+export const UI_SPEECH_DIAGNOSTIC_CHANNEL = 'ui:speech-diagnostic';
+
+/**
+ * Diagnóstico del micrófono (dictado o respuesta por voz): solo números del
+ * detector de silencio y por qué cortó. Nunca audio ni texto.
+ */
+export const UI_VOICE_DIAGNOSTIC_CHANNEL = 'ui:voice-diagnostic';
+const Level = z.number().finite().min(0).max(10);
+export const VoiceDiagnosticSchema = z.strictObject({
+  floor: Level,
+  threshold: Level,
+  peak: Level,
+  durationMs: z.number().int().min(0).max(120_000),
+  /** silence: 5 s sin hablar; noSpeech: nunca habló; limit: 30 s; manual: «Terminar»; cancel: se cortó sin transcribir. */
+  reason: z.enum(['silence', 'noSpeech', 'limit', 'manual', 'cancel']),
+});
+export type VoiceDiagnostic = z.infer<typeof VoiceDiagnosticSchema>;
+export const SpeechDiagnosticSchema = z.strictObject({
+  voices: z.number().int().min(0).max(10_000),
+  spanishVoices: z.number().int().min(0).max(10_000),
+  waitMs: z.number().int().min(0).max(120_000),
+  /** `lang` de la voz elegida (por ejemplo es-MX), o null. */
+  chosenLang: z.string().regex(/^[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*$/).max(20).nullable(),
+  outcome: z.enum(['ok', 'noVoices', 'noSpanishVoice']),
+  /** Eventos de la lectura: start, end, error (con su tipo). */
+  event: z.enum(['none', 'start', 'end', 'error']),
+  errorType: z.string().regex(/^[a-z-]{1,40}$/).nullable(),
+});
+export type SpeechDiagnostic = z.infer<typeof SpeechDiagnosticSchema>;
+
+/** Del proceso principal a las vistas: otra vista empezó a leer o se detuvo todo; cortar lo que suena. */
+export const UI_SPEECH_CUT_CHANNEL = 'ui:speech-cut';
+/**
+ * `busy`: el servidor pide esperar; `off`: voz apagada en el servidor (la
+ * interfaz usa la voz del sistema); `stopped`: se cortó a pedido; `failed`:
+ * cualquier otro problema.
+ */
+export type SpeakErrorReason = 'busy' | 'off' | 'stopped' | 'failed';
+/** `ok`: el servidor aceptó y el audio empieza a llegar por UI_SPEAK_AUDIO_CHANNEL. */
+export type SpeakResult = { status: 'ok' } | { status: 'error'; reason: SpeakErrorReason };
+/** Del proceso principal a la vista que pidió la lectura: el MP3 en pedazos, en orden. */
+export const UI_SPEAK_AUDIO_CHANNEL = 'ui:speak-audio';
+export type SpeechAudioEvent = { type: 'chunk'; chunk: Uint8Array } | { type: 'end' } | { type: 'error'; reason: 'stopped' | 'failed' };
+/** Pedido de lectura: `id` lo elige la vista para reconocer sus pedazos. */
+export const SpeakRequestSchema = z.strictObject({ id: Id, text: z.string().min(1).max(2_000) });
 
 export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ready') }),
   /** `guide: false` es «Solo ir al sitio»: se abre el destino sin la guía. Por defecto, «Mostrame cómo». */
-  z.strictObject({ type: z.literal('submitIntent'), text: z.string().trim().min(1).max(500), guide: z.boolean().optional() }),
+  /** `dictated`: la búsqueda salió del dictado (prende el modo voz si la preferencia es `auto`). */
+  z.strictObject({ type: z.literal('submitIntent'), text: z.string().trim().min(1).max(500), guide: z.boolean().optional(), dictated: z.literal(true).optional() }),
   z.strictObject({ type: z.literal('openCandidate'), candidateId: Id, guide: z.boolean().optional() }),
   z.strictObject({ type: z.literal('resetChat') }),
   z.strictObject({ type: z.literal('navigate'), input: z.string().trim().min(1).max(2048) }),
@@ -48,6 +119,8 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('finishHelp') }),
   z.strictObject({ type: z.literal('retry') }),
   z.strictObject({ type: z.literal('setTextScale'), scale: z.union(TEXT_SCALES.map((s) => z.literal(s))) }),
+  /** Interruptor «Voz» de la barra: deja la preferencia en `on` u `off`. */
+  z.strictObject({ type: z.literal('setVoiceMode'), mode: z.enum(['on', 'off']) }),
   z.strictObject({ type: z.literal('setAiForSite'), enabled: z.boolean() }),
   z.strictObject({ type: z.literal('resolveNotice'), noticeId: Id, action: z.enum(['openHere', 'openExternal', 'dismiss']) }),
   z.strictObject({ type: z.literal('openCurrentExternally') }),
@@ -121,7 +194,9 @@ export interface AppState {
   /** Opciones y guía dentro de la página. */
   guideEnabled: boolean;
   layout: { topBarHeight: number; card: CardLayout };
-  prefs: { textScale: number; aiEnabledForSite: boolean };
+  prefs: { textScale: number; aiEnabledForSite: boolean; voiceMode: VoiceMode };
+  /** Modo voz activo ahora: Mostrame lee solo lo que escribe apenas aparece. */
+  voice: { active: boolean };
   /** Datos de la pantalla inicial. Sin condiciones aceptadas, la app muestra esa pantalla. */
   profile: {
     termsAccepted: boolean;
@@ -169,6 +244,8 @@ export interface AppState {
     instruction: string | null;
     /** Cambia cada vez que la instrucción debe volver a anunciarse (Repetir). */
     announceKey: number;
+    /** Cambia con cada solicitud nueva del asistente: el modo voz lee una vez por aparición, no por texto. */
+    contentKey: number;
     stepCount: number;
     message: string | null;
     targetVisible: boolean | null;
@@ -208,6 +285,22 @@ export interface SiteCheckView {
 export interface AsistenteBridge {
   command(command: UiCommand): Promise<void>;
   onState(listener: (state: AppState) => void): () => void;
+  /** Pasa a texto un WAV PCM16 mono de 16 kHz. Nunca envía la búsqueda. */
+  transcribe(wav: ArrayBuffer): Promise<TranscribeResult>;
+  /** Lee en voz alta un texto de Mostrame (nunca datos de la página). Devuelve el MP3. */
+  /**
+   * Lee en voz alta un texto de Mostrame (nunca datos de la página). Los
+   * pedazos del MP3 llegan a `onAudio` a medida que el servidor los manda.
+   */
+  speak(text: string, onAudio: (event: SpeechAudioEvent) => void): Promise<SpeakResult>;
+  /** «Detener» (o «voy a leer con la voz del sistema»): corta la descarga y avisa a la otra vista. */
+  stopSpeaking(): void;
+  /** Otra vista empezó a leer o se detuvo todo: cortar lo que suena acá. */
+  onSpeechCut(listener: () => void): () => void;
+  /** Diagnóstico sin contenido de la voz del sistema (va al log técnico). */
+  speechDiagnostic(data: SpeechDiagnostic): void;
+  /** Diagnóstico sin contenido del micrófono (va al log técnico). */
+  voiceDiagnostic(data: VoiceDiagnostic): void;
 }
 
 /* ---------------------------- Página externa ---------------------------- */

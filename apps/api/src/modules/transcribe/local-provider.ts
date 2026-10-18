@@ -5,7 +5,7 @@ import { Worker } from 'node:worker_threads';
 import type { FastifyBaseLogger } from 'fastify';
 import type { SttConfig } from '../../config/env.js';
 import { AppError } from '../../lib/errors.js';
-import type { TranscriptionProvider } from './provider.js';
+import type { TranscriptionAudio, TranscriptionProvider } from './provider.js';
 import type { WhisperOptions } from './whisper-pipeline.js';
 import type { WorkerRequest, WorkerResponse } from './whisper.worker.js';
 
@@ -59,7 +59,7 @@ export class LocalWhisperProvider implements TranscriptionProvider {
   private closed = false;
 
   constructor(
-    private readonly config: SttConfig,
+    private readonly config: SttConfig & { STT_CONCURRENCY: number },
     private readonly log: FastifyBaseLogger,
   ) {
     const threads = config.STT_THREADS || Math.max(1, Math.floor(availableParallelism() / config.STT_CONCURRENCY));
@@ -80,7 +80,7 @@ export class LocalWhisperProvider implements TranscriptionProvider {
     return 'failed';
   }
 
-  transcribe(pcm: Float32Array, signal: AbortSignal): Promise<string> {
+  transcribe({ pcm }: TranscriptionAudio, signal: AbortSignal): Promise<string> {
     const slot = this.slots.find((candidate) => candidate.state === 'ready' && !candidate.job);
     if (!slot?.worker) return Promise.reject(new AppError('AI_UNAVAILABLE', 'No hay un modelo de voz libre'));
     const worker = slot.worker;

@@ -6,16 +6,27 @@ import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { Limits } from '@hackaton/contracts';
 import { minimizeIntent, sanitizeOrigin } from '@asistente/privacy';
-import { BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
+import { BrowserWindow, ipcMain, shell, systemPreferences, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import {
   TERMS_VERSION,
   UI_COMMAND_CHANNEL,
+  SpeakRequestSchema,
+  UI_SPEAK_AUDIO_CHANNEL,
+  UI_SPEAK_CHANNEL,
+  UI_SPEAK_STOP_CHANNEL,
+  UI_SPEECH_DIAGNOSTIC_CHANNEL,
+  SpeechDiagnosticSchema,
+  UI_VOICE_DIAGNOSTIC_CHANNEL,
+  VoiceDiagnosticSchema,
   UI_STATE_CHANNEL,
+  UI_TRANSCRIBE_CHANNEL,
   UiCommandSchema,
   type AppState,
   type CardLayout,
   type Notice,
   type NoticeAction,
+  type SpeakResult,
+  type TranscribeResult,
   type SiteCheckView,
   type UiCommand,
 } from '../shared/ipc';
@@ -26,12 +37,16 @@ import { Chat, UNSURE_ANSWER } from './chat';
 import { HelpCardView } from './help-card';
 import { log } from './log';
 import { PageBridge } from './page-bridge';
+import { allowMicrophoneCheck, allowMicrophoneRequest } from './permissions';
 import type { PrefsStore } from './prefs';
 import { SiteProtection } from './site-protection/coordinator';
 import { checkEligibility } from './site-protection/eligibility';
 import { SiteView } from './site-view';
+import { SpeechHub } from './speech';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
 import { buildUserContext, type SystemInfo } from './user-context';
+import { Transcriber } from './voice';
+import { changeVoiceMode, isDictatedSearch, VOICE_MODE_TEXTS, VoiceModeState } from './voice-mode';
 
 /** Igual que --chrome-h y --card-w de design/tokens.css, y el ancho de la tarjeta achicada. */
 const chromeHeight = (scale: number) => Math.round(72 + (scale - 1) * 16);
@@ -68,6 +83,10 @@ export class AppController {
   readonly #assistant: Assistant;
   readonly #chat: Chat;
   readonly #card: HelpCardView;
+  readonly #transcriber: Transcriber;
+  readonly #speech: SpeechHub;
+  /** Modo voz: lectura automática de lo que escribe Mostrame. */
+  readonly #voiceMode: VoiceModeState;
   #cardLayout: CardLayout = { placement: 'top', maxHeight: 0 };
   #siteVisible = false;
   /** La persona tocó «Salir de la ayuda» en esta página (pantalla 21). */
@@ -120,6 +139,10 @@ export class AppController {
       () => buildUserContext(options.prefs.value.profile, options.system),
     );
     this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
+    this.#transcriber = new Transcriber(options.api);
+    // Una sola lectura en toda la app: el hub avisa a la ventana y a la tarjeta.
+    this.#speech = new SpeechHub(options.api, () => [this.window.webContents, this.#card.contents]);
+    this.#voiceMode = new VoiceModeState(options.prefs.value.voiceMode);
     this.#protection = new SiteProtection({
       api: options.api,
       summarize: (navigationId, contentVersion) => this.#bridge.summarize(navigationId, contentVersion),
@@ -128,10 +151,48 @@ export class AppController {
     this.#wireSite();
 
     ipcMain.handle(UI_COMMAND_CHANNEL, (event, raw: unknown) => this.#onCommand(event, raw));
+    ipcMain.handle(UI_TRANSCRIBE_CHANNEL, (event, raw: unknown) => this.#onTranscribe(event, raw));
+    ipcMain.handle(UI_SPEAK_CHANNEL, (event, raw: unknown) => this.#onSpeak(event, raw));
+    const stopSpeaking = (event: IpcMainEvent) => {
+      if (this.#isOwnUi(event)) this.#speech.stop(event.sender);
+    };
+    ipcMain.on(UI_SPEAK_STOP_CHANNEL, stopSpeaking);
+    // Diagnóstico de la voz del sistema: solo cantidades, idioma de la voz y eventos.
+    const speechDiagnostic = (event: IpcMainEvent, raw: unknown) => {
+      const data = SpeechDiagnosticSchema.safeParse(raw);
+      if (!this.#isOwnUi(event) || !data.success) return;
+      const d = data.data;
+      log('speech.system', {
+        voices: d.voices,
+        spanishVoices: d.spanishVoices,
+        waitMs: d.waitMs,
+        chosen: d.chosenLang ? `kind:${d.chosenLang}` : null,
+        outcome: `code:${d.outcome}`,
+        utterance: `code:${d.event}`,
+        errorType: d.errorType ? `code:${d.errorType}` : null,
+      });
+    };
+    ipcMain.on(UI_SPEECH_DIAGNOSTIC_CHANNEL, speechDiagnostic);
+    // Diagnóstico del micrófono: piso de ruido, umbral, pico de voz, duración y por qué cortó.
+    const voiceDiagnostic = (event: IpcMainEvent, raw: unknown) => {
+      const data = VoiceDiagnosticSchema.safeParse(raw);
+      if (!this.#isOwnUi(event) || !data.success) return;
+      const round = (n: number) => Math.round(n * 10_000) / 10_000;
+      const d = data.data;
+      log('voice.capture', { floor: round(d.floor), threshold: round(d.threshold), peak: round(d.peak), durationMs: d.durationMs, reason: `code:${d.reason}` });
+    };
+    ipcMain.on(UI_VOICE_DIAGNOSTIC_CHANNEL, voiceDiagnostic);
     this.window.on('resize', () => this.#layout());
     this.window.once('ready-to-show', () => this.window.show());
     this.window.on('closed', () => {
       ipcMain.removeHandler(UI_COMMAND_CHANNEL);
+      ipcMain.removeHandler(UI_TRANSCRIBE_CHANNEL);
+      ipcMain.removeHandler(UI_SPEAK_CHANNEL);
+      ipcMain.removeListener(UI_SPEAK_STOP_CHANNEL, stopSpeaking);
+      ipcMain.removeListener(UI_SPEECH_DIAGNOSTIC_CHANNEL, speechDiagnostic);
+      ipcMain.removeListener(UI_VOICE_DIAGNOSTIC_CHANNEL, voiceDiagnostic);
+      this.#transcriber.cancel();
+      this.#speech.stopAll();
       this.#bridge.dispose();
     });
   }
@@ -267,7 +328,12 @@ export class AppController {
       mockBackend: this.options.api.isMock,
       guideEnabled: GUIDE_ENABLED,
       layout: { topBarHeight: chromeHeight(this.options.prefs.value.textScale), card: this.#cardLayout },
-      prefs: { textScale: this.options.prefs.value.textScale, aiEnabledForSite: this.options.prefs.isAiEnabled(this.#origin()) },
+      prefs: {
+        textScale: this.options.prefs.value.textScale,
+        aiEnabledForSite: this.options.prefs.isAiEnabled(this.#origin()),
+        voiceMode: this.#voiceMode.preference,
+      },
+      voice: { active: this.#voiceMode.active },
       profile: {
         ...this.options.prefs.value.profile,
         termsAccepted: this.#termsAccepted(),
@@ -304,6 +370,7 @@ export class AppController {
         option: guide.option ? toView(guide.option) : null,
         instruction: guide.phase === 'waitingForUser' ? (guide.step?.instruction ?? null) : null,
         announceKey: this.#assistant.announceKey,
+        contentKey: this.#assistant.epoch,
         stepCount: guide.stepCount,
         message: guide.message ?? null,
         targetVisible: this.#assistant.targetVisible,
@@ -412,8 +479,55 @@ export class AppController {
     wc.setWindowOpenHandler(() => ({ action: 'deny' }));
     wc.on('will-navigate', (event) => event.preventDefault());
     wc.on('will-attach-webview', (event) => event.preventDefault());
-    wc.session.setPermissionRequestHandler((_c, _p, callback) => callback(false));
-    wc.session.setPermissionCheckHandler(() => false);
+    // Todo se rechaza salvo el micrófono para el dictado del buscador, y solo
+    // para esta ventana (la tarjeta comparte la sesión; el sitio tiene la suya).
+    const rendererUrl = this.options.rendererUrl;
+    wc.session.setPermissionRequestHandler((contents, permission, callback, details) => {
+      const allowed = allowMicrophoneRequest(
+        {
+          permission,
+          mediaTypes: 'mediaTypes' in details ? details.mediaTypes : undefined,
+          // La ventana (dictado) o la tarjeta (responder con la voz en 05); nunca el sitio.
+          fromOwnUi: contents === wc || contents === this.#card.contents,
+          isMainFrame: details.isMainFrame,
+          requestingUrl: details.requestingUrl,
+        },
+        rendererUrl,
+      );
+      if (!allowed) return callback(false);
+      void systemMicrophoneAccess().then(callback, () => callback(false));
+    });
+    wc.session.setPermissionCheckHandler((contents, permission, _origin, details) =>
+      allowMicrophoneCheck(
+        { permission, mediaType: details.mediaType, fromOwnUi: contents === wc || contents === this.#card.contents, isMainFrame: details.isMainFrame, requestingUrl: details.requestingUrl },
+        rendererUrl,
+      ),
+    );
+  }
+
+  /** La ventana o la tarjeta, desde su documento principal. */
+  #isOwnUi(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
+    return (event.sender === this.window.webContents || event.sender === this.#card.contents) && event.senderFrame === event.sender.mainFrame;
+  }
+
+  /** Leer en voz alta: desde la ventana o la tarjeta, con condiciones aceptadas. */
+  async #onSpeak(event: IpcMainInvokeEvent, raw: unknown): Promise<SpeakResult> {
+    const request = SpeakRequestSchema.safeParse(raw);
+    if (!this.#isOwnUi(event) || !this.#termsAccepted() || !request.success) return { status: 'error', reason: 'failed' };
+    const { id, text } = request.data;
+    const sender = event.sender;
+    // Los pedazos van solo a la vista que pidió la lectura, con su id.
+    return this.#speech.speak(sender, text, (audio) => {
+      if (!sender.isDestroyed()) sender.send(UI_SPEAK_AUDIO_CHANNEL, { id, ...audio });
+    });
+  }
+
+  /** Dictado del buscador: solo desde la ventana (no la tarjeta) y con condiciones aceptadas. */
+  async #onTranscribe(event: IpcMainInvokeEvent, raw: unknown): Promise<TranscribeResult> {
+    // Desde la ventana (dictado) o la tarjeta (responder con la voz qué opción se quiere).
+    if (!this.#isOwnUi(event) || !this.#termsAccepted()) return { status: 'error', reason: 'failed' };
+    // El modo voz se prende recién cuando la búsqueda dictada se envía (submitIntent con `dictated`).
+    return this.#transcriber.transcribe(raw);
   }
 
   async #onCommand(event: IpcMainInvokeEvent, raw: unknown): Promise<void> {
@@ -438,6 +552,8 @@ export class AppController {
         return;
       case 'submitIntent': {
         if (!this.#termsAccepted()) return;
+        // Buscar dictando prende el modo voz para este recorrido (si la preferencia es `auto`).
+        if (isDictatedSearch(command, this.#chat.busy) && this.#voiceMode.dictated()) this.#publish();
         if (command.guide !== undefined) this.#wantGuide = command.guide;
         // «Solo ir al sitio» con una dirección escrita: se abre directo.
         const url = command.guide === false ? parseAddressInput(command.text) : null;
@@ -504,6 +620,8 @@ export class AppController {
         this.#site.reload();
         return;
       case 'home':
+        this.#speech.stopAll();
+        this.#voiceMode.newJourney();
         this.#assistant.exit();
         this.#chat.reset();
         this.#wantGuide = true;
@@ -537,6 +655,7 @@ export class AppController {
         this.#assistant.back();
         return;
       case 'exitHelp':
+        this.#speech.stopAll();
         this.#helpExited = this.#assistant.state.phase !== 'idle';
         this.#assistant.exit();
         this.#publish();
@@ -554,6 +673,23 @@ export class AppController {
         this.#assistant.retry();
         return;
       // TODO(UI final): setAiForSite no tiene control en la UI de Mostrame todavía.
+      case 'setVoiceMode': {
+        // Primero se guarda; si falla, no cambia nada y se avisa en la interfaz (el comando llega con `void`).
+        await changeVoiceMode(this.#voiceMode, command.mode, {
+          save: (mode) => this.options.prefs.update({ voiceMode: mode }),
+          stopAll: () => this.#speech.stopAll(),
+          publish: () => {
+            // Se guardó: el aviso de un intento anterior ya no corresponde, y se va en la misma publicación.
+            this.#notices = this.#notices.filter((n) => n.text !== VOICE_MODE_TEXTS.saveFailed);
+            this.#publish();
+          },
+          failed: () => {
+            log('prefs.error', { kind: 'kind:voiceMode' });
+            this.#notify(VOICE_MODE_TEXTS.saveFailed, 'error');
+          },
+        });
+        return;
+      }
       case 'setTextScale':
         await this.options.prefs.update({ textScale: command.scale });
         this.#layout();
@@ -599,6 +735,15 @@ export class AppController {
         return;
     }
   }
+}
+
+/** macOS pide permiso del sistema para el micrófono; en Windows y Linux decide Chromium. */
+async function systemMicrophoneAccess(): Promise<boolean> {
+  if (process.platform !== 'darwin') return true;
+  const status = systemPreferences.getMediaAccessStatus('microphone');
+  if (status === 'granted') return true;
+  if (status === 'not-determined') return systemPreferences.askForMediaAccess('microphone');
+  return false;
 }
 
 async function openExternally(url: string): Promise<void> {
