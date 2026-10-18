@@ -43,7 +43,7 @@ describe('NextStepService: paso a paso investigado', () => {
     );
     const procedure = requests.find((r) => r.task === 'procedure')!;
     expect(procedure.system).toBe(SYSTEM_PROMPTS.procedureWithSearch);
-    expect(procedure.webSearch).toEqual({ maxUses: 2, userLocation: {} });
+    expect(procedure.webSearch).toEqual({ maxUses: 2 });
     expect((procedure.input as { site: unknown }).site).toEqual({ title: 'Agenda', urls: ['https://agenda.ejemplo.gub.uy/'] });
     // Primero se investiga y después se piden los pasos.
     expect(requests.map((r) => r.task)).toEqual(['procedure', 'nextStep']);
@@ -124,7 +124,7 @@ describe('OptionsService: algo que no estaba entre las opciones', () => {
 
     expect(requests.map((r) => r.task)).toEqual(['procedure', 'options']);
     expect(requests[0]!.input).toMatchObject({ request: 'Cambiar mi dirección' });
-    expect(requests[0]!.webSearch).toEqual({ maxUses: 2, userLocation: {} });
+    expect(requests[0]!.webSearch).toEqual({ maxUses: 2 });
     expect(requests[1]!.system).toBe(SYSTEM_PROMPTS.optionsForRequest);
     expect(requests[1]!.input).toMatchObject({ request: 'Cambiar mi dirección', procedure: { summary: expect.any(String) } });
     const first = response.options[0]!;

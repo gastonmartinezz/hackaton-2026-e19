@@ -83,7 +83,6 @@ export class AnthropicModel implements StructuredModel {
                     type: 'web_search_20260209' as const,
                     name: 'web_search' as const,
                     max_uses: request.webSearch.maxUses,
-                    user_location: { type: 'approximate' as const, ...request.webSearch.userLocation },
                   },
                 ],
               }

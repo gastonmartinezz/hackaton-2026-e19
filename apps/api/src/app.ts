@@ -30,7 +30,6 @@ import { speakRoutes } from './modules/speak/speak.routes.js';
 import { SpeakService } from './modules/speak/speak.service.js';
 import { createSiteCheckService, type SiteCheckOverrides } from './modules/site-check/factory.js';
 import { siteCheckRoutes } from './modules/site-check/site-check.routes.js';
-import { LocalWhisperProvider } from './modules/transcribe/local-provider.js';
 import { MockTranscriptionProvider } from './modules/transcribe/mock-provider.js';
 import { OpenAITranscriptionProvider } from './modules/transcribe/openai-provider.js';
 import type { TranscriptionProvider } from './modules/transcribe/provider.js';
@@ -55,15 +54,12 @@ export interface AppDeps {
   openai?: OpenAI;
 }
 
-function createTranscriber(config: AppConfig, app: FastifyInstance, openai: () => OpenAI): TranscriptionProvider | null {
+function createTranscriber(config: AppConfig, openai: () => OpenAI): TranscriptionProvider | null {
   switch (config.STT_PROVIDER) {
     case 'off':
       return null;
     case 'mock':
       return new MockTranscriptionProvider();
-    case 'local':
-      // Empieza a cargar el modelo en segundo plano; el servidor arranca igual.
-      return new LocalWhisperProvider(config, app.log);
     case 'openai':
       return new OpenAITranscriptionProvider(openai(), config);
   }
@@ -138,11 +134,10 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
 
   let openaiClient = deps.openai;
   const openai = () => (openaiClient ??= createOpenAI(config));
-  const transcriber = deps.transcriber !== undefined ? deps.transcriber : createTranscriber(config, app, openai);
+  const transcriber = deps.transcriber !== undefined ? deps.transcriber : createTranscriber(config, openai);
   const speakService = new SpeakService(deps.speaker !== undefined ? deps.speaker : createSpeaker(config, openai), app.log, {
     timeoutMs: config.TTS_TIMEOUT_MS,
   });
-  app.addHook('onClose', async () => transcriber?.close?.());
   const transcribeService = new TranscribeService(
     transcriber,
     { timeoutMs: config.STT_TIMEOUT_MS, concurrency: config.STT_CONCURRENCY, maxQueued: config.STT_QUEUE_MAX },
@@ -156,13 +151,8 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
       timeoutMs: config.URL_CHECK_TIMEOUT_MS,
       maxRedirects: config.URL_CHECK_MAX_REDIRECTS,
       cacheTtlMs: config.URL_CHECK_CACHE_TTL_MS,
-      // S03: http solo con una razón visible para la persona; hoy no hay, así que solo https.
-      allowHttp: false,
     });
-  const interpretService = new InterpretService(model, sessions, new UrlGuard(urlVerifier), {
-    webSearch: config.INTERPRET_WEB_SEARCH === 'on',
-    webSearchMaxUses: config.INTERPRET_WEB_SEARCH_MAX_USES,
-  });
+  const interpretService = new InterpretService(model, sessions, new UrlGuard(urlVerifier));
   await app.register(interpretRoutes, { service: interpretService });
   // El paso a paso real de una tarea: al empezar una opción (next-step) o al pedir algo que no estaba entre las opciones (options).
   const researcher = new ProcedureResearcher(model, {

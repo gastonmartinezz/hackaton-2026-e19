@@ -29,14 +29,6 @@ describe('POST /v1/transcribe', () => {
     expect(res.json().error).toMatchObject({ code: 'AI_UNAVAILABLE', retryable: false });
   });
 
-  it('responde 503 reintentable mientras el modelo carga', async () => {
-    const loading: TranscriptionProvider = { status: 'loading', transcribe: async () => 'nunca' };
-    app = await testApp({ transcriber: loading });
-    const res = await postWav(buildWav());
-    expect(res.statusCode).toBe(503);
-    expect(res.json().error).toMatchObject({ code: 'AI_UNAVAILABLE', retryable: true });
-  });
-
   it('exige el token', async () => {
     app = await testApp({}, { STT_PROVIDER: 'mock' });
     const res = await postWav(buildWav(), { 'content-type': 'audio/wav' });
@@ -98,10 +90,9 @@ describe('POST /v1/transcribe', () => {
     expect(res.statusCode).toBe(413);
   });
 
-  it('devuelve texto vacío con silencio, sin llamar al modelo', async () => {
+  it('devuelve texto vacío con silencio, sin llamar al proveedor', async () => {
     let calls = 0;
     const provider: TranscriptionProvider = {
-      status: 'ready',
       transcribe: async () => {
         calls++;
         return 'Subtítulos realizados por la comunidad de Amara.org';
@@ -122,16 +113,15 @@ describe('POST /v1/transcribe', () => {
     expect(second.json().error).toMatchObject({ code: 'RATE_LIMITED', retryable: true });
   });
 
-  it('informa el estado del modelo en /health sin fallar', async () => {
+  it('informa en /health si la voz a texto está activa', async () => {
     app = await testApp();
     expect((await app.inject({ method: 'GET', url: '/health' })).json()).toEqual({ status: 'ok', stt: 'off', tts: 'off' });
     await app.close();
 
-    const failed: TranscriptionProvider = { status: 'failed', transcribe: async () => '' };
-    app = await testApp({ transcriber: failed });
+    app = await testApp({}, { STT_PROVIDER: 'mock' });
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ status: 'ok', stt: 'failed', tts: 'off' });
+    expect(res.json()).toEqual({ status: 'ok', stt: 'ready', tts: 'off' });
   });
 
   it('aparece en el OpenAPI con audio/wav y la respuesta tipada', async () => {
@@ -155,8 +145,7 @@ function recordingLogger() {
 function manualProvider() {
   const pending: Array<{ resolve: (text: string) => void; signal: AbortSignal }> = [];
   const provider: TranscriptionProvider = {
-    status: 'ready',
-    transcribe: (_pcm, signal) => new Promise<string>((resolve) => pending.push({ resolve, signal })),
+    transcribe: (_wav, signal) => new Promise<string>((resolve) => pending.push({ resolve, signal })),
   };
   return { provider, pending };
 }

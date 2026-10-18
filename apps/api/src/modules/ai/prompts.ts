@@ -54,10 +54,6 @@ Tarea: a partir del historial del chat (messages), llegar a la URL del sitio don
 - Usá ageRange solo para elegir mejor (por ejemplo, organismos de jubilados).
 - En goal resumí el objetivo de la persona tal como lo entendiste, sin datos personales. En reason explicá por qué tomaste esta decisión. Estos dos campos son internos: la persona no los ve.`;
 
-const INTERPRET_SEARCH = `
-- Tenés la herramienta web_search. Usala para encontrar la página oficial donde se hace lo que pide la persona y elegí URLs que aparezcan en los resultados, no de memoria.
-- Hacé pocas búsquedas y concretas (por ejemplo, el nombre del trámite y del organismo).`;
-
 const PROCEDURE = `${BASE}
 
 Tarea: entender la opción que eligió la persona en un sitio y armar el paso a paso real para completarla, de principio a fin.
@@ -96,7 +92,6 @@ const PROCEDURE_SEARCH = `
 
 export const SYSTEM_PROMPTS = {
   interpret: INTERPRET,
-  interpretWithSearch: `${INTERPRET}${INTERPRET_SEARCH}`,
 
   options: OPTIONS,
   optionsForRequest: `${OPTIONS}${OPTIONS_REQUEST}`,

@@ -4,8 +4,3 @@ packages:
 onlyBuiltDependencies:
   - electron
   - esbuild
-# No necesitan sus scripts de instalación: onnxruntime-node trae los binarios de CPU
-# en el paquete (el script solo baja los de CUDA) y el de protobufjs es un aviso de versión.
-ignoredBuiltDependencies:
-  - onnxruntime-node
-  - protobufjs

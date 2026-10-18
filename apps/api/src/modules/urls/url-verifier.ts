@@ -1,5 +1,5 @@
 import { lookup as dnsLookup } from 'node:dns/promises';
-import { request as httpRequest, type IncomingMessage } from 'node:http';
+import type { IncomingMessage } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { BlockList, isIP, type LookupFunction } from 'node:net';
 
@@ -26,8 +26,6 @@ export interface UrlCheckOptions {
   maxRedirects: number;
   /** Cuánto se recuerda un resultado positivo; los negativos, la cuarta parte. */
   cacheTtlMs: number;
-  /** http: solo si la especificación lo habilita con una razón visible (S03). Por defecto, solo https. */
-  allowHttp: boolean;
 }
 
 export interface HeadResult {
@@ -171,8 +169,8 @@ export class UrlVerifier {
 
   /** Validaciones de un salto, antes de conectarse. */
   private async rejectTarget(url: URL, signal: AbortSignal): Promise<UrlCheck | null> {
-    const allowed = this.options.allowHttp ? ['https:', 'http:'] : ['https:'];
-    if (!allowed.includes(url.protocol)) return { ok: false, reason: 'scheme' };
+    // Solo https: S03 permite http únicamente con una razón visible para la persona, y la UI no la muestra.
+    if (url.protocol !== 'https:') return { ok: false, reason: 'scheme' };
     if (url.username || url.password) return { ok: false, reason: 'credentials' };
     if (url.port !== '') return { ok: false, reason: 'port' };
 
@@ -247,8 +245,7 @@ function defaultDeps(): UrlCheckDeps {
       (await abortable(dnsLookup(hostname, { all: true }), signal)).map((record) => record.address),
     request: (url, method, signal) =>
       new Promise<HeadResult>((resolve, reject) => {
-        const send = url.protocol === 'https:' ? httpsRequest : httpRequest;
-        const req = send(
+        const req = httpsRequest(
           url,
           {
             method,

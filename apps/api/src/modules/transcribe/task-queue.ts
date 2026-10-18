@@ -29,14 +29,6 @@ export class TaskQueue {
     private readonly maxQueued: number,
   ) {}
 
-  get running(): number {
-    return this.active;
-  }
-
-  get queued(): number {
-    return this.waiting.length;
-  }
-
   async run<T>(task: () => Promise<T>, signal: AbortSignal): Promise<T> {
     if (signal.aborted) throw new QueueAbortedError('Abortada antes de empezar');
     await this.acquire(signal);

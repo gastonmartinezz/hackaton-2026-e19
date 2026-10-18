@@ -144,7 +144,7 @@ describe('UrlVerifier', () => {
 
   it('corta por timeout', async () => {
     const verifier = new UrlVerifier(
-      { timeoutMs: 20, maxRedirects: 3, cacheTtlMs: 0, allowHttp: false },
+      { timeoutMs: 20, maxRedirects: 3, cacheTtlMs: 0 },
       {
         resolve: async () => ['93.184.215.14'],
         request: (_url, _method, signal) =>
@@ -158,7 +158,7 @@ describe('UrlVerifier', () => {
   it('no se queda esperando a un DNS colgado: respeta el timeout y libera la URL', async () => {
     let lookups = 0;
     const verifier = new UrlVerifier(
-      { timeoutMs: 30, maxRedirects: 3, cacheTtlMs: 0, allowHttp: false },
+      { timeoutMs: 30, maxRedirects: 3, cacheTtlMs: 0 },
       {
         // Un servidor de nombres que nunca responde (ni siquiera mira la señal).
         resolve: () => {
@@ -180,7 +180,7 @@ describe('UrlVerifier', () => {
   it('pasa la señal de cancelación a la consulta DNS', async () => {
     let received: AbortSignal | undefined;
     const verifier = new UrlVerifier(
-      { timeoutMs: 1000, maxRedirects: 3, cacheTtlMs: 0, allowHttp: false },
+      { timeoutMs: 1000, maxRedirects: 3, cacheTtlMs: 0 },
       {
         resolve: async (_hostname, signal) => {
           received = signal;

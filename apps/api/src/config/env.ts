@@ -1,31 +1,4 @@
-import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-
-/**
- * Voz a texto (POST /v1/transcribe). Separado para que el script que descarga el
- * modelo al construir la imagen lo lea sin exigir el resto de la configuración.
- */
-export const SttEnvSchema = z.object({
-  // off: el endpoint responde 503 no reintentable. mock: texto fijo. local: Whisper en este servidor.
-  // openai: API de transcripción de OpenAI (no corre ningún modelo acá).
-  STT_PROVIDER: z.enum(['off', 'mock', 'local', 'openai']).default('off'),
-  STT_MODEL: z.string().min(1).default('onnx-community/whisper-small'),
-  // q8: pesos int8 (≈250 MB entre encoder y decoder), el mejor equilibrio entre calidad y velocidad en CPU.
-  STT_DTYPE: z.enum(['fp32', 'fp16', 'q8', 'int8', 'uint8', 'q4', 'bnb4']).default('q8'),
-  // Caché del modelo descargado. Por defecto apps/api/.models (no se versiona).
-  STT_MODEL_DIR: z.string().min(1).default(fileURLToPath(new URL('../../.models', import.meta.url))),
-  STT_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
-  // Transcripciones en paralelo. Con local, cada una es un worker con su copia del modelo
-  // (por defecto 1); con openai son llamadas HTTP (por defecto 8).
-  STT_CONCURRENCY: z.coerce.number().int().min(1).max(32).optional(),
-  // Solicitudes en espera además de las que corren; con la cola llena responde 503 reintentable.
-  STT_QUEUE_MAX: z.coerce.number().int().min(0).max(100).default(4),
-  // Hilos de ONNX Runtime por worker; 0 = núcleos disponibles / STT_CONCURRENCY.
-  STT_THREADS: z.coerce.number().int().min(0).max(64).default(0),
-  // Límite propio por token, más estricto que el general (misma ventana RATE_LIMIT_WINDOW_MS).
-  STT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
-});
-export type SttConfig = z.infer<typeof SttEnvSchema>;
 
 const Effort = z.enum(['low', 'medium', 'high', 'xhigh', 'max']);
 
@@ -75,9 +48,6 @@ const EnvSchema = z
     URL_CHECK_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(5000),
     URL_CHECK_MAX_REDIRECTS: z.coerce.number().int().min(0).max(10).default(3),
     URL_CHECK_CACHE_TTL_MS: z.coerce.number().int().min(0).default(10 * 60_000),
-    // on: Claude usa la búsqueda web del servidor de Anthropic para elegir entre resultados reales.
-    INTERPRET_WEB_SEARCH: z.enum(['off', 'on']).default('off'),
-    INTERPRET_WEB_SEARCH_MAX_USES: z.coerce.number().int().min(1).max(10).default(3),
     // on: al empezar una opción de la guía, Claude busca en la web el paso a paso real (tarea procedure).
     // off: arma el paso a paso con lo que ya sabe, sin buscar.
     GUIDE_WEB_SEARCH: z.enum(['off', 'on']).default('on'),
@@ -110,7 +80,14 @@ const EnvSchema = z
     // Tope de consultas por minuto a RDAP y a la inspección de conexión (cada uno por separado).
     SITE_CHECK_PROVIDER_MAX_PER_MINUTE: z.coerce.number().int().positive().default(120),
 
-    ...SttEnvSchema.shape,
+    // Voz a texto (POST /v1/transcribe). off: 503 no reintentable. mock: texto fijo. openai: API de OpenAI.
+    STT_PROVIDER: z.enum(['off', 'mock', 'openai']).default('off'),
+    STT_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+    // Transcripciones en paralelo hacia OpenAI y cuántas esperan; con la cola llena responde 503 reintentable.
+    STT_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(8),
+    STT_QUEUE_MAX: z.coerce.number().int().min(0).max(100).default(4),
+    // Límite propio por token, más estricto que el general (misma ventana RATE_LIMIT_WINDOW_MS).
+    STT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
 
     OPENAI_API_KEY: z.string().optional(),
     OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
@@ -148,11 +125,7 @@ const EnvSchema = z
     if ((env.STT_PROVIDER === 'openai' || env.TTS_PROVIDER === 'openai') && !env.OPENAI_API_KEY) {
       ctx.addIssue({ code: 'custom', path: ['OPENAI_API_KEY'], message: 'Requerida con STT_PROVIDER=openai o TTS_PROVIDER=openai' });
     }
-  })
-  .transform((env) => ({
-    ...env,
-    STT_CONCURRENCY: env.STT_CONCURRENCY ?? (env.STT_PROVIDER === 'openai' ? 8 : 1),
-  }));
+  });
 
 export type AppConfig = z.infer<typeof EnvSchema>;
 export type ClaudeEffort = z.infer<typeof Effort>;

@@ -63,8 +63,8 @@ export class ProcedureResearcher {
         system: this.options.webSearch ? SYSTEM_PROMPTS.procedureWithSearch : SYSTEM_PROMPTS.procedure,
         input: { context, ...subject, site: siteOf(context) },
         schema: ProcedureOutput,
-        // Sin ubicación: la sesión no la guarda y la API rechaza algunos países (ver InterpretService).
-        ...(this.options.webSearch ? { webSearch: { maxUses: this.options.webSearchMaxUses, userLocation: {} } } : {}),
+        // Sin ubicación: la sesión no la guarda y la API rechaza algunos países (UY da 400).
+        ...(this.options.webSearch ? { webSearch: { maxUses: this.options.webSearchMaxUses } } : {}),
       });
       log.info({ task: 'procedure', subject: 'request' in subject ? 'request' : 'option', steps: output.steps.length, sources: output.sources.length }, 'procedure ready');
       this.#failedAt.delete(key);

@@ -1,17 +1,11 @@
 import { InterpretResponse, type ErrorCode, type InterpretRequest } from '@hackaton/contracts';
 import type { FastifyBaseLogger } from 'fastify';
 import { AppError } from '../../lib/errors.js';
-import type { StructuredModel, WebSearchOptions } from '../ai/model.js';
+import type { StructuredModel } from '../ai/model.js';
 import { SYSTEM_PROMPTS } from '../ai/prompts.js';
 import { InterpretOutput } from '../ai/schemas.js';
 import type { SessionStore } from '../sessions/session-store.js';
 import { countChecks, emptyStats, type FailedUrl, type UrlGuard } from './url-guard.js';
-
-export interface InterpretServiceOptions {
-  /** Le da a Claude la búsqueda web del servidor para elegir entre resultados reales (INTERPRET_WEB_SEARCH). */
-  webSearch: boolean;
-  webSearchMaxUses: number;
-}
 
 /** Errores del reintento que permiten seguir con la primera respuesta (reparada). El resto se propaga. */
 const RECOVERABLE_RETRY_ERRORS: ReadonlySet<ErrorCode> = new Set(['AI_UNAVAILABLE', 'TIMEOUT', 'RATE_LIMITED', 'AI_INVALID_RESPONSE']);
@@ -23,7 +17,6 @@ export class InterpretService {
     private readonly model: StructuredModel,
     private readonly sessions: SessionStore,
     private readonly guard: UrlGuard,
-    private readonly options: InterpretServiceOptions = { webSearch: false, webSearchMaxUses: 3 },
   ) {}
 
   async interpret(request: InterpretRequest, owner: string, log: FastifyBaseLogger = silentLog): Promise<InterpretResponse> {
@@ -35,10 +28,9 @@ export class InterpretService {
     const ask = (failedUrls?: FailedUrl[]) =>
       this.model.generate({
         task: 'interpret',
-        system: this.options.webSearch ? SYSTEM_PROMPTS.interpretWithSearch : SYSTEM_PROMPTS.interpret,
+        system: SYSTEM_PROMPTS.interpret,
         input: failedUrls ? { ...input, failedUrls } : input,
         schema: InterpretOutput,
-        ...(this.options.webSearch ? { webSearch: this.webSearch(request) } : {}),
       });
 
     // Ninguna URL llega a la persona sin comprobar que exista (S03).
@@ -111,18 +103,5 @@ export class InterpretService {
       urls: parsed.data.type === 'redirect' ? [parsed.data.url] : parsed.data.type === 'options' ? parsed.data.options.map((o) => o.url) : [],
     });
     return parsed.data;
-  }
-
-  /** Ubicación aproximada para la búsqueda. Sin país: la API no acepta todos los códigos (UY da 400). */
-  private webSearch(request: InterpretRequest): WebSearchOptions {
-    const location = request.user?.location;
-    return {
-      maxUses: this.options.webSearchMaxUses,
-      userLocation: {
-        ...(location?.city ? { city: location.city } : {}),
-        ...(location?.region ? { region: location.region } : {}),
-        ...(request.user?.timeZone ? { timezone: request.user.timeZone } : {}),
-      },
-    };
   }
 }
