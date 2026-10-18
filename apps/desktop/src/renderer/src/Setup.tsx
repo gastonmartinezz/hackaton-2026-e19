@@ -1,7 +1,8 @@
 /**
  * Pantalla inicial: condiciones de uso y datos opcionales (localidad y edad)
  * para que el asistente muestre páginas de la zona de la persona. Aparece la
- * primera vez, cuando cambian las condiciones y desde «Mis datos».
+ * primera vez y cuando cambian las condiciones. No tiene pantalla en v2.2: usa
+ * el fondo y la tarjeta de las pantallas propias.
  */
 import { Button, TextField } from '@asistente/ui';
 import type { AgeRange } from '@hackaton/contracts';
@@ -52,7 +53,7 @@ export function Setup({ state, onDone }: { state: AppState; onDone?: () => void 
   };
 
   return (
-    <main className="setup">
+    <main className="setup g-ground">
       <form onSubmit={submit}>
         <h1>{profile.termsAccepted ? 'Mis datos' : 'Antes de empezar'}</h1>
         <p>
@@ -115,7 +116,7 @@ export function Setup({ state, onDone }: { state: AppState; onDone?: () => void 
             {saving ? 'Guardando…' : profile.termsAccepted ? 'Guardar' : 'Guardar y empezar'}
           </Button>
           {onDone ? (
-            <Button variant="quiet" onClick={onDone}>
+            <Button variant="link" onClick={onDone}>
               Cancelar
             </Button>
           ) : null}

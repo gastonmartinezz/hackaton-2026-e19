@@ -62,7 +62,7 @@ Spec: `proteccion-sitios-agentes.md`. Contrato: `packages/contracts/src/site-che
 
 | Dirección | Estado |
 |---|---|
-| `banco-demo.example/banco.html` | Sitio oficial por el registro de instituciones del BCU (`financial_regulator`, Banco de Demostración; fuente «Registro de instituciones del BCU (simulado)», bcu.gub.uy) |
+| `banco-demo.example/banco.html` | Sitio oficial por el registro de instituciones del BCU (`financial_regulator`, Banco de Demostración; fuente «Registro de instituciones del BCU, simulado», bcu.gub.uy) |
 | `tramites.mostrame-demo.gub.uy/horarios.html` | Sitio oficial por la zona reservada al Estado (`.gub.uy`, Estado uruguayo) |
 | `usina-uy.example/horarios.html` | Sitio oficial por la lista curada (`official_catalog`, empresa uruguaya de demostración) |
 | `sin-alertas.example/horarios.html` | Sin alertas detectadas |

@@ -1,5 +1,134 @@
 /*
- * Tokens de Mostrame. La fuente de verdad es design/tokens.css (Emi): este
- * archivo solo la reexporta para que las apps la importen desde @asistente/ui.
+ * Tokens de Guíame v2.2. La fuente de verdad es design/tokens/tokens.css: se
+ * importa tal cual (colores, gradientes, Poppins, radios, sombras y las clases
+ * .g-*). Acá se suma lo que la app necesita y el diseño no trae como variable:
+ * la escala de letra, los espacios, las medidas de docs/02 y el foco.
+ *
+ * Los diseños están a 1.2×. Con «Tamaño de letra» (1.45 y 1.75) el texto
+ * corrido escala completo, los títulos escalan menos y los espacios no escalan.
  */
-@import '../../../design/tokens.css';
+@import '../../../design/tokens/tokens.css';
+
+:root {
+  color-scheme: light;
+
+  --text-scale: 1.2;
+  /* 1 en la base del diseño (1.2×). */
+  --k: calc(var(--text-scale) / 1.2);
+  /* 0 en la base; 0.25 y 0.55 en las otras escalas. */
+  --s1: calc(var(--text-scale) - 1.2);
+
+  /* ---------- Letra (docs/02 › Tipografía) ---------- */
+  --fs-min: calc(var(--g-size-min) * var(--k)); /* 20 · progreso, rótulos */
+  --fs-badge: calc(19px * var(--k)); /* sellos y píldoras (R14: 19 solo ahí) */
+  --fs-secondary: calc(21px * var(--k)); /* botón secundario, enlace */
+  --fs-support: calc(var(--g-size-support) * var(--k)); /* 22 · apoyo, cuerpo */
+  --fs-answer: calc(24px * var(--k)); /* respuestas */
+  --fs-input: calc(24px * var(--k));
+  --fs-input-home: calc(26px * var(--k));
+  --fs-site: calc(26px * var(--k)); /* nombre del sitio recomendado */
+  --fs-instruction: calc(var(--g-size-instruction) + var(--s1) * 24px); /* 32 */
+  --fs-title-card: calc(var(--g-size-heading-card) + var(--s1) * 20px); /* 31 */
+  --fs-title-question: calc(var(--g-size-heading-question) + var(--s1) * 20px); /* 34 */
+  --fs-title-home: calc(48px + var(--s1) * 24px);
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --lh-tight: 1.15;
+  --lh-title: 1.2;
+  --lh-instruction: 1.3;
+  --lh-body: 1.45;
+  --tracking-title: -0.025em;
+
+  /* ---------- Espacios (no escalan) ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px; /* separación mínima entre objetivos */
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 28px;
+  --space-7: 40px;
+  --space-8: 56px;
+
+  /* ---------- Controles (crecen con la letra) ---------- */
+  --target-min: 48px;
+  --h-bar: calc(76px + var(--s1) * 16px); /* igual que chromeHeight en main/app.ts */
+  --h-bar-control: calc(54px + var(--s1) * 12px);
+  --h-primary: calc(64px + var(--s1) * 20px);
+  --h-secondary: calc(58px + var(--s1) * 20px);
+  --h-option: calc(64px + var(--s1) * 20px);
+  --h-answer: calc(72px + var(--s1) * 20px);
+  --h-voice: calc(52px + var(--s1) * 12px);
+  --h-voice-home: calc(56px + var(--s1) * 12px);
+  --h-search: calc(72px + var(--s1) * 16px);
+  --h-search-home: calc(76px + var(--s1) * 16px);
+  --h-badge: calc(38px + var(--s1) * 12px);
+  --icon-sm: calc(22px * var(--k));
+  --icon-md: calc(26px * var(--k));
+  --icon-lg: calc(40px * var(--k));
+  --logo-bar: 38px;
+  --logo-card: 38px;
+  --logo-pill: 40px;
+  --logo-home: 78px;
+
+  /* ---------- Disposición ---------- */
+  /* Tarjeta flotante (R4): 520px a 1.2×; igual que cardWidth en main/app.ts. */
+  --card-w: min(calc(var(--g-card-width) + var(--s1) * 240px), 42vw);
+  --card-gap: 24px;
+  --pill-strip: 76px; /* franja del ícono en la tarjeta achicada (12) */
+  --home-w: calc(880px + var(--s1) * 240px); /* tarjeta de pregunta y recomendación */
+  --home-search-w: calc(820px + var(--s1) * 240px); /* buscador del inicio (01) */
+
+  /* ---------- Radios ---------- */
+  --radius-chip: 8px; /* nombre del control, píldoras de respuestas dadas */
+  --radius-box: 24px; /* caja de espera o privacidad */
+  --radius-pill: 999px;
+
+  /* ---------- Bordes ---------- */
+  --border-w: 1px;
+  --border-w-strong: 2px;
+
+  /* ---------- Colores que el diseño usa sin variable ---------- */
+  --g-on-brand: var(--g-surface); /* texto e íconos sobre azul */
+  --g-voice-halo: #DCE6FF; /* halo del botón «Hablar» (docs/02) */
+  --g-bar-pressed: rgba(255, 255, 255, 0.2); /* «Ayuda» abierta (R7) */
+  --g-scrim: rgba(11, 27, 63, 0.45); /* detrás de un diálogo (docs/02) */
+  --g-shadow-bar: 0 10px 30px -12px rgba(22, 56, 184, 0.55);
+  --g-shadow-voice: 0 0 0 4px var(--g-voice-halo), 0 10px 22px -10px rgba(22, 56, 184, 0.75);
+  /* La tarjeta vive en su propia vista con 16px de margen (CARD_SHADOW en main/help-card.ts):
+     el halo de --g-shadow-card entra; la sombra profunda se acorta para no cortarse. */
+  --g-shadow-card-view: 0 0 0 1px rgba(29, 78, 216, 0.16), 0 0 0 10px rgba(59, 116, 255, 0.16), 0 12px 14px -10px rgba(22, 56, 184, 0.6);
+  --g-gradient-pill: linear-gradient(90deg, #EEF3FF 0%, var(--g-surface) 40%); /* tarjeta achicada (12) */
+
+  /* ---------- Foco (WCAG 2.2: visible, ≥3:1, no tapado) ---------- */
+  --focus-ring: 0 0 0 3px var(--g-surface), 0 0 0 6px var(--g-brand-dark);
+  /* Sobre la barra azul: anillo navy por dentro y blanco por fuera. */
+  --focus-ring-bar: 0 0 0 3px var(--g-ink), 0 0 0 6px var(--g-surface);
+
+  /* ---------- Movimiento ---------- */
+  --dur-fast: 120ms;
+  --dur-breathe: 900ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---------- Escala de letra ---------- */
+:root[data-text-scale='1.2'] {
+  --text-scale: 1.2;
+}
+:root[data-text-scale='1.45'] {
+  --text-scale: 1.45;
+}
+:root[data-text-scale='1.75'] {
+  --text-scale: 1.75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-breathe: 0ms;
+  }
+}

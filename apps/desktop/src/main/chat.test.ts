@@ -25,6 +25,8 @@ function setupWith(userContext: () => UserContext | undefined, ...responses: Rep
     options: vi.fn(),
     siteCheck: vi.fn(),
     nextStep: vi.fn(),
+    transcribe: vi.fn(),
+    speak: vi.fn(),
   };
   const onRedirect = vi.fn();
   const session = new ApiSession();
@@ -146,6 +148,8 @@ describe('Chat (/v1/interpret)', () => {
       options: vi.fn(),
       siteCheck: vi.fn(),
       nextStep: vi.fn(),
+      transcribe: vi.fn(),
+      speak: vi.fn(),
     };
     await new Chat(api, session, () => {}, vi.fn()).submit('turno');
     expect(sent.map((r) => r.sessionId)).toEqual(['s-vieja', 's-guia']);
@@ -192,7 +196,7 @@ describe('Chat · respuestas sugeridas (TEMPORAL, campos pendientes del contrato
     expect(questionExtras({})).toEqual({ answers: [], reason: null });
   });
 
-  it('el mock no insiste después de «No estoy seguro»', () => {
+  it('el mock no insiste después de «No sé bien»', () => {
     const sites = [
       { title: 'A', url: 'https://a.example', reason: 'a' },
       { title: 'B', url: 'https://b.example', reason: 'b' },

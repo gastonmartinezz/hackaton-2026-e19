@@ -12,12 +12,43 @@ describe('PrefsStore', () => {
     await writeFile(dir, 'x');
     const store = new PrefsStore(dir);
     await expect(store.update({ textScale: 1.45 })).rejects.toThrow();
+    // Todo o nada: lo que no se guardó tampoco queda en memoria.
+    expect(store.value.textScale).toBe(1.2);
 
     await rm(dir);
     await store.setAiEnabled('https://a.gub.uy', false);
     const saved = JSON.parse(await readFile(join(dir, 'preferences.json'), 'utf8'));
-    expect(saved).toMatchObject({ textScale: 1.45, aiDisabledOrigins: ['https://a.gub.uy'] });
+    // El próximo guardado no arrastra el cambio que falló.
+    expect(saved).toMatchObject({ textScale: 1.2, aiDisabledOrigins: ['https://a.gub.uy'] });
+    expect(store.value).toMatchObject({ textScale: 1.2, aiDisabledOrigins: ['https://a.gub.uy'] });
     await rm(root, { recursive: true });
+  });
+
+  it('el modo voz que no se pudo guardar no lo guarda después el tamaño de letra', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'prefs-'));
+    const dir = join(root, 'userData');
+    await writeFile(dir, 'x');
+    const store = new PrefsStore(dir);
+    await expect(store.update({ voiceMode: 'off' })).rejects.toThrow();
+    expect(store.value.voiceMode).toBe('auto');
+    await rm(dir);
+    await store.update({ textScale: 1.75 });
+    expect(JSON.parse(await readFile(join(dir, 'preferences.json'), 'utf8'))).toMatchObject({ voiceMode: 'auto', textScale: 1.75 });
+    await rm(root, { recursive: true });
+  });
+
+  it('el valor cambia recién cuando quedó guardado, y los cambios seguidos se suman', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'prefs-'));
+    const store = new PrefsStore(dir);
+    await store.load();
+    const scale = store.update({ textScale: 1.45 });
+    const a = store.setAiEnabled('https://a.gob.uy', false);
+    const b = store.setAiEnabled('https://b.gob.uy', false);
+    expect(store.value.textScale).toBe(1.2); // todavía no se guardó
+    await Promise.all([scale, a, b]);
+    expect(store.value).toMatchObject({ textScale: 1.45, aiDisabledOrigins: ['https://a.gob.uy', 'https://b.gob.uy'] });
+    expect(JSON.parse(await readFile(join(dir, 'preferences.json'), 'utf8'))).toMatchObject({ textScale: 1.45, aiDisabledOrigins: ['https://a.gob.uy', 'https://b.gob.uy'] });
+    await rm(dir, { recursive: true });
   });
 
   it('un archivo anterior a la pantalla inicial conserva sus datos y pide las condiciones', async () => {

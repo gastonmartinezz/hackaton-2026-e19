@@ -53,6 +53,8 @@ function recording(api: ApiClient, overrides: Partial<ApiClient> = {}) {
     interpret: (r, s) => api.interpret(r, s),
     options: (r, s) => (sent.push(r), (overrides.options ?? api.options.bind(api))(r, s)),
     nextStep: (r, s) => (sent.push(r), (overrides.nextStep ?? api.nextStep.bind(api))(r, s)),
+    transcribe: (w, s) => api.transcribe(w, s),
+    speak: (r, s) => api.speak(r, s),
     siteCheck: (r, s) => api.siteCheck(r, s),
   };
   return { api: wrapped, sent };

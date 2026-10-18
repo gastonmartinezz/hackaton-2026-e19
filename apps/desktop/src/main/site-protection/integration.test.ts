@@ -85,7 +85,7 @@ describe('protección de sitios con el backend simulado', () => {
   it('el banco de demostración figura en el registro de instituciones del BCU (simulado)', async () => {
     const { protection } = setup();
     await visit(protection, 'banco.html', 'http://banco-demo.example:47321/banco.html');
-    expect(protection.snapshot.response?.identity.source).toMatchObject({ name: 'Registro de instituciones del BCU (simulado)' });
+    expect(protection.snapshot.response?.identity.source).toMatchObject({ name: 'Registro de instituciones del BCU, simulado' });
     expect(new URL(protection.snapshot.response!.identity.source!.url!).hostname).toBe('www.bcu.gub.uy');
   });
 

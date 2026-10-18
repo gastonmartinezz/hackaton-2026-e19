@@ -9,7 +9,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { AgeRange, CountryCode } from '@hackaton/contracts';
 import { z } from 'zod';
-import { DEFAULT_TEXT_SCALE, TEXT_SCALES } from '../shared/ipc';
+import { DEFAULT_TEXT_SCALE, TEXT_SCALES, VOICE_MODES } from '../shared/ipc';
 
 /** Lo que la persona cuenta de sí misma en la pantalla inicial. Todo opcional. */
 const ProfileSchema = z.object({
@@ -29,8 +29,11 @@ const PrefsSchema = z.object({
   /** Versión de las condiciones de uso aceptadas; null si nunca las aceptó. */
   termsAccepted: z.string().max(40).nullable().default(null),
   profile: ProfileSchema.default({ country: null, region: '', city: '', ageRange: null }),
+  /** Modo voz: `auto` (se prende al dictar), `on` u `off`. Un valor desconocido vuelve a `auto`. */
+  voiceMode: z.enum(VOICE_MODES).catch('auto').default('auto'),
 });
 export type Prefs = z.infer<typeof PrefsSchema>;
+type PrefsPatch = Partial<Omit<Prefs, 'version'>>;
 
 export const DEFAULT_PREFS: Prefs = {
   version: 1,
@@ -38,6 +41,7 @@ export const DEFAULT_PREFS: Prefs = {
   aiDisabledOrigins: [],
   termsAccepted: null,
   profile: { country: null, region: '', city: '', ageRange: null },
+  voiceMode: 'auto',
 };
 
 function nearestScale(value: unknown): unknown {
@@ -51,7 +55,7 @@ export class PrefsStore {
   /** El archivo existe pero no se pudo leer: no se escribe hasta poder leerlo. */
   #unreadable = false;
   /** Cambios de esta sesión mientras el archivo no se pudo leer. */
-  #pending: Partial<Omit<Prefs, 'version'>> = {};
+  #pending: PrefsPatch = {};
   readonly #file: string;
 
   constructor(directory: string) {
@@ -90,28 +94,50 @@ export class PrefsStore {
     }
   }
 
-  update(patch: Partial<Omit<Prefs, 'version'>>): Promise<void> {
-    this.#prefs = PrefsSchema.parse({ ...this.#prefs, ...patch });
-    if (this.#unreadable) this.#pending = { ...this.#pending, ...patch };
+  /**
+   * Todo o nada: `value` cambia recién cuando el archivo quedó guardado. Si la
+   * escritura falla, el cambio no se aplica (ni en memoria ni en el próximo
+   * guardado) y el error lo recibe solo quien lo pidió. `patch` puede ser una
+   * función del valor guardado hasta ese momento, para cambios que dependen
+   * del anterior.
+   *
+   * Excepción: si al arrancar el archivo no se pudo leer, los cambios de la
+   * sesión se aplican en memoria igual (para que la app se pueda usar) y se
+   * guardan recién cuando se pueda volver a leer, sin pisar lo que ya había.
+   */
+  update(patch: PrefsPatch | ((current: Prefs) => PrefsPatch)): Promise<void> {
     // Escrituras en serie y atómicas (archivo temporal + rename). Un fallo
-    // anterior no debe frenar las siguientes: solo lo recibe quien lo causó.
-    this.#writing = this.#writing.catch(() => undefined).then(async () => {
-      if (this.#unreadable) {
-        // Si al arrancar no se pudo leer el archivo, se vuelve a leer antes de
-        // escribir: los valores por defecto no deben pisar las condiciones
-        // aceptadas ni los datos guardados. Si sigue sin leerse, no se escribe.
-        const saved = (await this.#read()) ?? DEFAULT_PREFS;
-        this.#prefs = PrefsSchema.parse({ ...saved, ...this.#pending });
-        this.#unreadable = false;
-        this.#pending = {};
-      }
-      const snapshot = JSON.stringify(this.#prefs, null, 2);
-      await mkdir(dirname(this.#file), { recursive: true });
-      const tmp = `${this.#file}.tmp`;
-      await writeFile(tmp, snapshot, 'utf8');
-      await rename(tmp, this.#file);
-    });
-    return this.#writing;
+    // anterior no debe frenar las siguientes: cada una parte de lo último guardado.
+    const write = this.#writing
+      .catch(() => undefined)
+      .then(async () => {
+        const change = typeof patch === 'function' ? patch(this.#prefs) : patch;
+        if (this.#unreadable) {
+          this.#pending = { ...this.#pending, ...change };
+          this.#prefs = PrefsSchema.parse({ ...this.#prefs, ...change });
+          // Se vuelve a leer antes de escribir: los valores por defecto no deben pisar
+          // las condiciones aceptadas ni los datos guardados. Si sigue sin leerse, no se escribe.
+          const saved = (await this.#read()) ?? DEFAULT_PREFS;
+          const next = PrefsSchema.parse({ ...saved, ...this.#pending });
+          await this.#persist(next);
+          this.#prefs = next;
+          this.#unreadable = false;
+          this.#pending = {};
+          return;
+        }
+        const next = PrefsSchema.parse({ ...this.#prefs, ...change });
+        await this.#persist(next);
+        this.#prefs = next;
+      });
+    this.#writing = write;
+    return write;
+  }
+
+  async #persist(next: Prefs): Promise<void> {
+    await mkdir(dirname(this.#file), { recursive: true });
+    const tmp = `${this.#file}.tmp`;
+    await writeFile(tmp, JSON.stringify(next, null, 2), 'utf8');
+    await rename(tmp, this.#file);
   }
 
   isAiEnabled(origin: string | null): boolean {
@@ -119,7 +145,9 @@ export class PrefsStore {
   }
 
   setAiEnabled(origin: string, enabled: boolean): Promise<void> {
-    const rest = this.#prefs.aiDisabledOrigins.filter((o) => o !== origin);
-    return this.update({ aiDisabledOrigins: enabled ? rest : [...rest, origin] });
+    return this.update((current) => {
+      const rest = current.aiDisabledOrigins.filter((o) => o !== origin);
+      return { aiDisabledOrigins: enabled ? rest : [...rest, origin] };
+    });
   }
 }

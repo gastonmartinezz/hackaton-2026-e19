@@ -7,14 +7,13 @@
 import { randomUUID } from 'node:crypto';
 import { Limits, type ChatMessage as ApiMessage, type SiteOption, type UserContext } from '@hackaton/contracts';
 import { minimizeIntent } from '@asistente/privacy';
-import type { ChatMessage, ChatPhase } from '../shared/ipc';
+import { UNSURE_ANSWER, type ChatMessage, type ChatPhase } from '../shared/ipc';
 import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession, type SessionTicket } from './api/client';
 import { questionExtras } from './api/pending-contract';
 import { log } from './log';
 
 const MAX_MESSAGES = 30;
-/** Respuesta fija del botón «No estoy seguro»: el backend no insiste y recomienda. */
-export const UNSURE_ANSWER = 'No estoy seguro';
+export { UNSURE_ANSWER };
 
 export interface Candidate extends SiteOption {
   id: string;

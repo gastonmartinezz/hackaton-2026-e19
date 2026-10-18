@@ -19,9 +19,17 @@ import type {
   SiteCheckRequest,
   SiteCheckResponse,
   SiteOption,
+  TranscribeResponse,
 } from '@hackaton/contracts';
+import { SpeakRequest } from '@hackaton/contracts';
+import { UNSURE_ANSWER } from '../../shared/ipc';
+import { isTranscribableWav, rms, wavSamples } from '../../shared/wav';
 import { ApiFailure, type ApiClient } from './client';
 import { mockSiteCheck, mockSiteCheckDelay, unverifiedSiteCheck } from './mock-site-check';
+
+/** Texto fijo del dictado simulado: el mismo que devuelve el modo mock del servidor. */
+export const MOCK_TRANSCRIPT = 'Quiero renovar mi documento';
+const MOCK_SILENCE_RMS = 0.01;
 
 export interface MockOptions {
   /** Origen del servidor local de páginas de prueba, si está activo. */
@@ -32,6 +40,8 @@ export interface MockOptions {
    * desarrollo: una versión empaquetada sin backend responde «No pudimos verificarlo» y nunca inventa oficialidad.
    */
   demoSiteCheck?: boolean;
+  /** Espera entre pedazos del audio de /v1/speak. */
+  chunkDelayMs?: number;
 }
 
 interface MockSession {
@@ -71,6 +81,30 @@ export class MockApiClient implements ApiClient {
     const evidence = /confirm|registr|reservad|gracias|éxito/i.test(heading) ? heading.slice(0, 200) : undefined;
     const response: NextStepResponse & { evidence?: string } = { sessionId: request.sessionId, steps: [], done: true, ...(evidence ? { evidence } : {}) };
     return response;
+  }
+
+  /**
+   * /v1/transcribe sin Whisper: si el audio es casi silencio
+   * devuelve `""` («no te escuché»); si no, el mismo texto fijo que el modo
+   * mock del servidor.
+   */
+  async transcribe(wav: Uint8Array, signal: AbortSignal): Promise<TranscribeResponse> {
+    await this.#wait(signal);
+    if (!isTranscribableWav(wav)) throw new ApiFailure('BAD_REQUEST', false);
+    return { text: rms(wavSamples(wav)) < MOCK_SILENCE_RMS ? '' : MOCK_TRANSCRIPT };
+  }
+
+  /**
+   * /v1/speak sin voz real: un MP3 válido de silencio, con una duración
+   * proporcional al texto (para probar «Detener»). Llega en streaming como el
+   * servidor: el primer pedazo después de la latencia y el resto de a poco.
+   */
+  async speak(request: SpeakRequest, signal: AbortSignal): Promise<AsyncIterable<Uint8Array>> {
+    await this.#wait(signal);
+    const parsed = SpeakRequest.safeParse(request);
+    if (!parsed.success) throw new ApiFailure('BAD_REQUEST', false);
+    const seconds = Math.min(12, Math.max(1, parsed.data.text.length * 0.06));
+    return mockSpeechChunks(silentMp3(seconds), signal, this.config.chunkDelayMs ?? MOCK_CHUNK_DELAY_MS);
   }
 
   /** Protección de sitios: estados según el hostname de las páginas de demostración. */
@@ -124,6 +158,45 @@ export class MockApiClient implements ApiClient {
   }
 }
 
+/** Pedazos del MP3 simulado y la espera entre ellos (unos 1,4 s en total para la descarga completa). */
+const MOCK_SPEECH_CHUNKS = 8;
+const MOCK_CHUNK_DELAY_MS = 150;
+
+async function* mockSpeechChunks(mp3: Uint8Array, signal: AbortSignal, delayMs: number): AsyncGenerator<Uint8Array> {
+  const size = Math.ceil(mp3.byteLength / MOCK_SPEECH_CHUNKS);
+  for (let offset = 0; offset < mp3.byteLength; offset += size) {
+    if (offset > 0) await abortableDelay(delayMs, signal);
+    yield mp3.slice(offset, offset + size);
+  }
+}
+
+function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(new ApiFailure('ABORTED', false));
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(new ApiFailure('ABORTED', false));
+      },
+      { once: true },
+    );
+  });
+}
+
+/**
+ * MP3 de silencio: tramas MPEG-1 Layer III, 32 kbps, 44,1 kHz, mono, sin
+ * datos de audio (cada trama son 104 bytes y 1152 muestras, unos 26 ms).
+ */
+export function silentMp3(seconds: number): Uint8Array {
+  const FRAME_BYTES = 104;
+  const frames = Math.max(1, Math.round((seconds * 44_100) / 1152));
+  const out = new Uint8Array(frames * FRAME_BYTES);
+  for (let i = 0; i < frames; i++) out.set([0xff, 0xfb, 0x10, 0xc0], i * FRAME_BYTES);
+  return out;
+}
+
 /**
  * Reglas fijas para recorrer las tres respuestas:
  * - texto muy corto o sin una tarea reconocible → `question`
@@ -145,8 +218,8 @@ export function interpretMock(request: InterpretRequest, sites: SiteOption[]): M
     if (options.length >= 2) return { type: 'options', message: 'Encontré estos sitios. Elegí uno para abrirlo.', options };
   }
   if (matches.length === 1) return { type: 'redirect', message: `Te llevo a ${matches[0]!.title}.`, url: matches[0]!.url };
-  // «No estoy seguro»: no se insiste, se recomiendan sitios.
-  if (normalize(users.at(-1)?.content ?? '') === 'no estoy seguro')
+  // «No sé bien»: no se insiste, se recomiendan sitios.
+  if (normalize(users.at(-1)?.content ?? '') === normalize(UNSURE_ANSWER))
     return { type: 'options', message: 'Por lo que buscaste, estos sitios son los que mejor se ajustan.', options: sites.slice(0, 5) };
   if (users.length >= 3) return { type: 'options', message: 'No estoy seguro; estos sitios pueden servirte.', options: sites.slice(0, 5) };
   if (users.length > 1) return { type: 'question', message: '¿Podés contarme un poco más?' };

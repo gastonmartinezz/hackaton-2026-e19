@@ -40,12 +40,12 @@ export const MOCK_ORGANIZATION = 'Banco de Demostración';
 /** Fuentes simuladas de «Sitio oficial» (`identity.source`). Las fechas son de revisión de la fuente. */
 export const MOCK_SOURCES = {
   bcu: {
-    name: 'Registro de instituciones del BCU (simulado)',
+    name: 'Registro de instituciones del BCU, simulado',
     url: 'https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/Default.aspx',
     reviewedAt: '2026-10-01T12:00:00Z',
   },
-  gubUy: { name: 'Reglas del dominio .gub.uy (simulado)', url: 'https://www.gub.uy/', reviewedAt: '2026-09-20T12:00:00Z' },
-  catalog: { name: 'Lista de sitios oficiales de Mostrame (simulada)', reviewedAt: '2026-10-10T12:00:00Z' },
+  gubUy: { name: 'Reglas del dominio .gub.uy, simulado', url: 'https://www.gub.uy/', reviewedAt: '2026-09-20T12:00:00Z' },
+  catalog: { name: 'Lista de sitios oficiales de Guíame, simulada', reviewedAt: '2026-10-10T12:00:00Z' },
 } as const;
 
 const FRAUD: ReadonlySet<ReasonCode> = new Set([

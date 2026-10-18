@@ -1,14 +1,15 @@
 /**
- * Indicación visual dentro de la página (S08). Un borde de alto contraste con
- * dos tonos y un rótulo de texto, en un shadow root cerrado con estilos propios.
- * No tapa el control, no intercepta clics y no mueve el foco.
+ * Indicación visual dentro de la página (R8). Anillo blanco, borde azul y halo,
+ * con el rótulo «Acá», en un shadow root cerrado con estilos propios. No tapa
+ * el control, no intercepta clics y no mueve el foco.
  *
  * La página puede interferir con este overlay: nunca se usa como superficie de
  * seguridad ni de confirmación.
  */
 
-// Valores de --hl-* en design/tokens.css. La página no ve las variables de
-// Mostrame (shadow root cerrado), así que se repiten acá.
+// Valores de .g-highlight y .g-highlight__label en design/tokens/tokens.css. La
+// página no ve las variables de Guíame (shadow root cerrado), así que se
+// repiten acá. Poppins no está en la página: el rótulo cae a la letra del sistema.
 const STYLE = `
   :host { all: initial; }
   .frame {
@@ -16,7 +17,7 @@ const STYLE = `
     pointer-events: none;
     box-sizing: border-box;
     border-radius: 12px;
-    box-shadow: 0 0 0 3px #111111 inset, 0 0 0 4px #FFD23F;
+    box-shadow: 0 0 0 3px #FFFFFF inset, 0 0 0 4px #1F8BFF, 0 0 0 12px rgba(31, 139, 255, 0.25);
     z-index: 2147483646;
     animation: appear 280ms cubic-bezier(0.2, 0, 0, 1), breathe 900ms ease-in-out 280ms 2;
   }
@@ -24,33 +25,25 @@ const STYLE = `
     position: fixed;
     pointer-events: none;
     z-index: 2147483646;
-    font: 800 18px/1.3 system-ui, "Segoe UI", sans-serif;
-    color: #FFD23F;
-    background: #111111;
-    border: 2px solid #FFD23F;
-    border-radius: 6px;
-    padding: 3px 12px;
+    font: 600 20px/1.2 "Poppins", "Segoe UI", system-ui, sans-serif;
+    color: #FFFFFF;
+    background: linear-gradient(135deg, #3BA3FF 0%, #1D4ED8 100%);
+    border-radius: 8px;
+    padding: 6px 14px;
+    box-shadow: 0 0 0 3px #FFFFFF, 0 12px 26px -8px rgba(22, 56, 184, 0.75);
     white-space: nowrap;
   }
-  .badge::after {
-    content: "";
-    position: absolute;
-    border: 9px solid transparent;
-  }
-  .badge[data-place="above"]::after { left: 16px; top: 100%; border-top-color: #FFD23F; }
-  .badge[data-place="below"]::after { left: 16px; bottom: 100%; border-bottom-color: #FFD23F; }
-  .badge[data-place="side"]::after { right: 100%; top: 50%; transform: translateY(-50%); border-right-color: #FFD23F; }
   @keyframes appear { from { opacity: 0; } }
-  @keyframes breathe { 50% { box-shadow: 0 0 0 3px #111111 inset, 0 0 0 10px rgb(255 210 63 / 0.55); } }
+  @keyframes breathe { 50% { box-shadow: 0 0 0 3px #FFFFFF inset, 0 0 0 4px #1F8BFF, 0 0 0 18px rgba(31, 139, 255, 0.35); } }
   @media (prefers-reduced-motion: reduce) {
-    .frame { animation: none; box-shadow: 0 0 0 3px #111111 inset, 0 0 0 6px #FFD23F; }
+    .frame { animation: none; }
   }
 `;
 
-/** --hl-gap + --hl-inner-w: el anillo queda separado del control. */
+/** Padding de .g-highlight (4) + anillo blanco (3): el anillo queda separado del control. */
 const MARGIN = 7;
 const BADGE_GAP = 16;
-const BADGE_HEIGHT = 34;
+const BADGE_HEIGHT = 36;
 const BADGE_WIDTH = 72;
 
 export type HighlightResult = 'shown' | 'notVisible';
@@ -133,7 +126,7 @@ export class Highlighter {
       width: `${rect.width + MARGIN * 2}px`,
       height: `${rect.height + MARGIN * 2}px`,
     });
-    // Rótulo (handoff §4.7): arriba a la izquierda; al costado si es un campo
+    // Rótulo (R8): arriba a la izquierda; a la derecha si es un campo
     // (no tapa su etiqueta); abajo si arriba no entra.
     const view = this.doc.defaultView;
     const place = labelPlacement(target, rect, view?.innerWidth ?? Infinity);
