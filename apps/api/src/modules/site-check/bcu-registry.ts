@@ -23,7 +23,8 @@ import { errorKind, ProviderHttpError } from './types.js';
  * Todo se valida con Zod y cualquier cambio de formato hace fallar la descarga (identidad `unavailable`),
  * nunca una aprobación. El sitio publicado autoriza su dominio registrable y sus subdominios.
  * Para no castigar al BCU: una descarga completa son unos 240 pedidos (unos 50 MB: las fichas traen el
- * HTML entero del portal), 2 en paralelo, con tope de pedidos y una vez por día.
+ * HTML entero del portal), 2 en paralelo, con tope de pedidos, una vez por día y con espera creciente
+ * entre intentos fallidos.
  *
  * www.bcu.gub.uy no envía la cadena intermedia de su certificado: se agregan los intermedios de
  * `data/bcu-intermediates.pem` (con su origen y vencimiento, hoy el 02/05/2027) solo para ese host.
@@ -132,7 +133,7 @@ export interface BcuRegistryOptions {
   validForMs: number;
   /** Hasta acá la copia vieja se usa para detectar imitaciones, nunca para aprobar. */
   usableForMs: number;
-  /** Espera mínima entre intentos fallidos. */
+  /** Espera después del primer intento fallido; se duplica con cada falla seguida, hasta 6 h. */
   retryAfterMs?: number;
   /** Peticiones simultáneas al BCU. */
   concurrency?: number;
@@ -322,7 +323,9 @@ export class BcuRegistry {
   private fetchedAtMs = 0;
   private inflight: Promise<void> | null = null;
   private lastFailureMs = Number.NEGATIVE_INFINITY;
+  private failures = 0;
   private lastError: string | null = null;
+  private timer: NodeJS.Timeout | undefined;
   /** Vista de cada página del Sistema de Pagos: en los refrescos evita volver a bajar la página. */
   private readonly views = new Map<string, string>();
 
@@ -332,9 +335,13 @@ export class BcuRegistry {
     return (this.options.now ?? Date.now)();
   }
 
-  /** Inicia la descarga sin esperar (al arrancar el servidor). */
+  /**
+   * Inicia la descarga sin esperar (al arrancar el servidor) y revisa cada hora si toca refrescar,
+   * para que la copia no venza en un servidor sin consultas. `refreshIfNeeded` decide si corresponde.
+   */
   warmUp(): void {
     void this.refreshIfNeeded();
+    this.timer ??= setInterval(() => void this.refreshIfNeeded(), 60 * 60_000).unref();
   }
 
   /**
@@ -361,16 +368,19 @@ export class BcuRegistry {
   private refreshIfNeeded(): Promise<void> | null {
     if (this.inflight) return this.inflight;
     const due = !this.snapshot || this.now - this.fetchedAtMs >= this.options.refreshAfterMs;
-    const backoff = this.now - this.lastFailureMs < (this.options.retryAfterMs ?? 5 * 60_000);
-    if (!due || backoff) return null;
+    // Con el BCU caído no se insiste: 5 min, 10, 20… hasta 6 h entre intentos.
+    const wait = this.failures > 0 ? Math.min((this.options.retryAfterMs ?? 5 * 60_000) * 2 ** (this.failures - 1), 6 * 60 * 60_000) : 0;
+    if (!due || this.now - this.lastFailureMs < wait) return null;
     this.inflight = this.download()
       .then((snapshot) => {
         this.snapshot = snapshot;
         this.fetchedAtMs = Date.parse(snapshot.fetchedAt);
+        this.failures = 0;
         this.lastError = null;
       })
       .catch((error: unknown) => {
         this.lastFailureMs = this.now;
+        this.failures++;
         this.lastError = errorKind(error);
       })
       .finally(() => {

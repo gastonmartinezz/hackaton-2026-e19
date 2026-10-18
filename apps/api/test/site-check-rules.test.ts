@@ -6,7 +6,7 @@ import { rootCertificates } from 'node:tls';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { computeRisk } from '../src/modules/site-check/aggregate.js';
 import { AuthorityView, loadPopularDomains } from '../src/modules/site-check/authority.js';
-import { bcuFetch, BcuRegistry, parseWebsite, parseWebsites } from '../src/modules/site-check/bcu-registry.js';
+import { bcuFetch, BcuRegistry, parseWebsite, parseWebsites, type BcuRegistryOptions } from '../src/modules/site-check/bcu-registry.js';
 import { describeHost, editDistance, hostMatches } from '../src/modules/site-check/domain.js';
 import { lookalikeSignals } from '../src/modules/site-check/lookalike.js';
 import { DATA_DIR, loadOfficialSources } from '../src/modules/site-check/official-sources.js';
@@ -14,7 +14,7 @@ import { redactText, sanitizeUrl } from '../src/modules/site-check/sanitize.js';
 import { fakeRdapFetch, TEST_CATALOGS } from './site-check-helpers.js';
 
 const HOUR = 60 * 60_000;
-const registry = (fetchImpl = fakeRdapFetch().impl, now?: () => number, extra: { maxRequests?: number } = {}) =>
+const registry = (fetchImpl = fakeRdapFetch().impl, now?: () => number, extra: Partial<BcuRegistryOptions> = {}) =>
   new BcuRegistry({ enabled: true, fetchImpl, requestTimeoutMs: 1000, refreshAfterMs: 24 * HOUR, validForMs: 48 * HOUR, usableForMs: 168 * HOUR, retryAfterMs: 0, now, ...extra });
 
 let view: AuthorityView;
@@ -268,6 +268,24 @@ describe('registro del BCU', () => {
     now += 49 * HOUR;
     expect((await reg.state(1000)).snapshot?.fetchedAt).toBe('2026-10-20T01:00:00.000Z');
     expect(pages()).toBe(first); // el refresco usa la vista conocida, sin volver a bajar las páginas
+  });
+
+  it('con el BCU caído no insiste: la espera entre intentos se duplica', async () => {
+    let now = Date.parse('2026-10-18T00:00:00Z');
+    const rdap = fakeRdapFetch({ bcuDown: true });
+    const reg = registry(rdap.impl, () => now, { retryAfterMs: 60_000 });
+    const attempts = async (advanceMs: number) => {
+      now += advanceMs;
+      await reg.state(1000);
+      return rdap.calls.length; // cada intento falla en el primer pedido
+    };
+    expect(await attempts(0)).toBe(1);
+    expect(await attempts(59_000)).toBe(1);
+    expect(await attempts(1_000)).toBe(2); // 1 min después de la primera falla
+    expect(await attempts(60_000)).toBe(2);
+    expect(await attempts(60_000)).toBe(3); // 2 min después de la segunda
+    expect(await attempts(3 * 60_000)).toBe(3);
+    expect(await attempts(60_000)).toBe(4); // 4 min después de la tercera
   });
 
   it('solo se conecta a www.bcu.gub.uy', async () => {
