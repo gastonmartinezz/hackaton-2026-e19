@@ -157,7 +157,10 @@ export class SiteCheckService {
     // Vence con la fuente externa más corta, como mucho a los 10 min, y al minuto si una comprobación obligatoria quedó
     // incompleta, falta el contenido o el registro o la conexión fallaron de forma pasajera (sin caché: conviene
     // reintentar). Que `.uy` no tenga RDAP es permanente (se guarda en caché) y no acorta nada.
-    const transientFailure = [registration, connection].some((s) => s.coverage !== 'complete' && s.ttlMs === 0);
+    // `not_applicable` (IP directa, sin dominio registrable) y una fuente apagada a propósito no son fallas.
+    const transientFailure = [registration, connection].some(
+      (s) => (s.coverage === 'unavailable' || s.coverage === 'partial') && s.ttlMs === 0 && !s.errors.includes('disabled'),
+    );
     const incomplete = !mandatoryComplete || transientFailure;
     const sourceTtls = [registration, connection].filter((s) => s.ttlMs > 0).map((s) => s.ttlMs);
     const ttl = Math.min(...sourceTtls, CONTENT_TTL_MS, incomplete || !request.page ? INCOMPLETE_TTL_MS : Number.POSITIVE_INFINITY);

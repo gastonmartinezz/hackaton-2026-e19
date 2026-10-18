@@ -374,6 +374,18 @@ describe('POST /v1/site-check: navegación y versión', () => {
 });
 
 describe('POST /v1/site-check: vencimiento', () => {
+  it('una IP directa o una fuente apagada no son fallas pasajeras: vencen a los 10 min', async () => {
+    app = await testApp({ siteCheck: fakeProviders() });
+    const ip = await check(contentRequest('https://8.8.8.8/'));
+    expect(ip.coverage.registration).toBe('not_applicable');
+    expect(Date.parse(ip.expiresAt) - Date.parse(ip.checkedAt)).toBe(10 * 60_000);
+    await app.close();
+    app = await testApp({ siteCheck: fakeProviders() }, { SITE_CHECK_RDAP: 'false' });
+    const disabled = await check(contentRequest('https://www.ejemplo-comercio.com/'));
+    expect(disabled.coverage.registration).toBe('unavailable');
+    expect(Date.parse(disabled.expiresAt) - Date.parse(disabled.checkedAt)).toBe(10 * 60_000);
+  });
+
   it('un sitio .uy completo vence a los 10 min aunque no haya RDAP (no es obligatorio)', async () => {
     app = await testApp({ siteCheck: fakeProviders() });
     const r = await check(contentRequest('https://www.gub.uy/'));
