@@ -374,6 +374,17 @@ describe('POST /v1/site-check: navegación y versión', () => {
 });
 
 describe('POST /v1/site-check: reglas de contenido', () => {
+  it('una amenaza en la línea siguiente a «Contraseña:» se detecta (el resumen se depura una sola vez)', async () => {
+    app = await testApp({ siteCheck: fakeProviders() });
+    const page = {
+      ...emptyPage,
+      text: 'Ingresá tu usuario y contraseña:\nSu cuenta será bloqueada hoy si no verifica sus datos.',
+      forms: [{ method: 'post', action: null, fields: [{ type: 'password', label: 'Contraseña' }] }],
+    };
+    const r = await check(contentRequest('https://www.ejemplo-comercio.com.uy/', page));
+    expect(codes(r)).toContain('URGENCY_OR_THREAT');
+  });
+
   const url = 'https://www.ejemplo-comercio.com/';
 
   it('pedido de tarjeta en un sitio fuera del catálogo: riesgo medio', async () => {

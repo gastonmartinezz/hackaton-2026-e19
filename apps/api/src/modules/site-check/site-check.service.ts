@@ -102,11 +102,10 @@ export class SiteCheckService {
     let explanation: string | undefined;
     let contentCoverage: CoverageLevel = 'pending';
     if (request.page) {
-      // El backend vuelve a depurar el resumen: lo que sale de acá llega a la IA.
+      // El backend vuelve a depurar el resumen una sola vez: lo mismo llega a las reglas y a la IA. Una segunda
+      // pasada sobre el texto ya unido ocultaría todo lo que sigue a «Contraseña:», amenazas incluidas.
       const sanitized = sanitizePage(request.page);
-      // TODO: las reglas reciben el resumen depurado dos veces, como antes de esta limpieza. La segunda pasada
-      // oculta el resto del texto después de «Contraseña:» (ya sin saltos de línea) y con él frases de amenaza.
-      const analysis = analyzePage(sanitizePage(sanitized), url, host, authority, official !== null, checkedAt);
+      const analysis = analyzePage(sanitized, url, host, authority, official !== null, checkedAt);
       contentCoverage = 'complete';
       findings.push(...analysis.findings);
       if (!official && sanitized.declaredBrand) findings.push(...compareBrand(sanitized.declaredBrand, host, authority, checkedAt));
