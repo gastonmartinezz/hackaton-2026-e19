@@ -13,6 +13,7 @@ import circleSlash from './icons/circle-slash.svg?raw';
 import clock from './icons/clock.svg?raw';
 import externalLink from './icons/external-link.svg?raw';
 import fileText from './icons/file-text.svg?raw';
+import globe from './icons/globe.svg?raw';
 import house from './icons/house.svg?raw';
 import loaderCircle from './icons/loader-circle.svg?raw';
 import lock from './icons/lock.svg?raw';
@@ -53,6 +54,7 @@ export const ICONS = {
   'clock': clock,
   'external-link': externalLink,
   'file-text': fileText,
+  'globe': globe,
   'house': house,
   'loader-circle': loaderCircle,
   'lock': lock,
