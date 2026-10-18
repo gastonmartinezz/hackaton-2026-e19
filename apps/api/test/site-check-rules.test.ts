@@ -436,6 +436,7 @@ describe('dominios parecidos (sin lista manual)', () => {
     ['paquete-correo.com', 'LOOKALIKE_DOMAIN'],
     ['correo-aduana-tasas.xyz', 'LOOKALIKE_DOMAIN'],
     ['correo.envios-uy.com', 'MISLEADING_SUBDOMAIN'],
+    ['correo-envios.algo.com', 'MISLEADING_SUBDOMAIN'],
   ])('Correo Uruguayo: %s → %s (palabra de sus estafas)', (hostname, code) => {
     expect(signals(hostname).map(([c]) => c)).toContain(code);
   });

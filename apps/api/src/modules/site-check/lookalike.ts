@@ -131,7 +131,8 @@ export function lookalikeSignals(host: HostInfo, references: readonly Reference[
           (labelTokens.includes(refLabel) && labelTokens.some((t) => t !== refLabel && scam.has(t))) ||
           [...scam].some((kw) => flat.startsWith(refFlat + kw) || flat === kw + refFlat);
         if (named) add('LOOKALIKE_DOMAIN', ref.organization, `${domain} combina ${refLabel} con una palabra de sus estafas conocidas`);
-        if (subTokens.includes(refLabel) && labelTokens.some((t) => scam.has(t))) {
+        // La palabra de estafa puede estar en el dominio (correo.envios-uy.com) o en el subdominio (correo-envios.algo.com).
+        if (subTokens.includes(refLabel) && [...subTokens, ...labelTokens].some((t) => t !== refLabel && scam.has(t))) {
           add('MISLEADING_SUBDOMAIN', ref.organization, `Un subdominio usa ${refLabel} sobre ${domain}`);
         }
       }
