@@ -4,7 +4,7 @@ import type { ChatMessage, GuideStep, Metadata, PageOption } from '@hackaton/con
 /** Cada llamada que se recuerda. No se guarda el HTML. */
 export type SessionEntry =
   | { type: 'interpret'; response: 'redirect' | 'question' | 'options'; goal: string; reason: string; urls: string[] }
-  | { type: 'options'; options: PageOption[] }
+  | { type: 'options'; goal?: string; options: PageOption[] }
   | {
       type: 'nextStep';
       optionId: string;

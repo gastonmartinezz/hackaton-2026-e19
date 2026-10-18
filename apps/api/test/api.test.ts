@@ -193,6 +193,27 @@ describe('POST /v1/options', () => {
     });
   });
 
+  it('pasa a Claude el objetivo escrito en la página y lo guarda en la sesión', async () => {
+    const { model, inputs } = recordingModel();
+    app = await testApp({ model });
+    const { sessionId } = (await post('/v1/options', { html })).json();
+    expect(inputs.options[0].goal).toBeNull();
+
+    const res = await post('/v1/options', { sessionId, html, goal: 'quiero iniciar sesion' });
+    expect(res.statusCode).toBe(200);
+    expect(inputs.options[1].goal).toBe('quiero iniciar sesion');
+
+    await post('/v1/options', { sessionId, html });
+    expect(inputs.options[2].context.history[1]).toMatchObject({ type: 'options', goal: 'quiero iniciar sesion' });
+    expect(inputs.options[2].context.history[0]).not.toHaveProperty('goal');
+  });
+
+  it('rechaza un objetivo vacío', async () => {
+    app = await testApp();
+    const res = await post('/v1/options', { html, goal: '   ' });
+    expect(res.statusCode).toBe(400);
+  });
+
   it('acumula el metadato: lo nuevo pisa lo anterior', async () => {
     const { model, inputs } = recordingModel();
     app = await testApp({ model });

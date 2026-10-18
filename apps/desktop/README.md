@@ -27,7 +27,7 @@ pnpm --filter @asistente/desktop package   # instalador sin firmar (release/)
 
 - **Sesión única** (`ApiSession`): la crea `POST /v1/interpret` y se reutiliza en `/v1/options` y `/v1/next-step`. Ante `SESSION_NOT_FOUND`, el chat reenvía el historial sin sesión. Si pasa durante la guía, se vuelve a analizar la página. «Inicio» la descarta.
 - **`POST /v1/interpret`** (`src/main/chat.ts`): un solo input. `redirect` abre la página; `question` y `options` convierten la home en chat. Los mensajes de la persona se minimizan antes de salir del equipo.
-- **`POST /v1/options`** (`src/main/assistant.ts`): se envía un HTML sintético armado con el snapshot depurado (`snapshotToHtml`), con un `id="el-N"` por elemento y nunca el HTML real. Se envía también `metadata.page` (título depurado con `sanitizeTitle` e idioma). Cada opción trae su guía completa (`steps`).
+- **`POST /v1/options`** (`src/main/assistant.ts`): se envía un HTML sintético armado con el snapshot depurado (`snapshotToHtml`), con un `id="el-N"` por elemento y nunca el HTML real. Se envía también `metadata.page` (título depurado con `sanitizeTitle` e idioma). Si la guía tiene objetivo (el del chat o lo que la persona escribió en «¿No está lo que buscás?», depurado con `minimizeIntent`), se envía como `goal`. Cada opción trae su guía completa (`steps`).
 - **Guía** (`@asistente/guidance`):
   - **Pasos reales:** se muestran uno tras otro sin llamar al backend.
   - **Paso teórico** (`element: null`): después de la acción se extrae la página y se llama a `POST /v1/next-step` con `expectedStep` y los `completedSteps`. `done: true` termina la tarea.

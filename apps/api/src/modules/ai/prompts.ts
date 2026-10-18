@@ -1,5 +1,5 @@
 // Instrucciones de sistema por endpoint. Versionarlas junto con los esquemas de salida.
-export const PROMPT_VERSION = '2026-10-18.2';
+export const PROMPT_VERSION = '2026-10-18.3';
 
 const BASE = `Sos el asistente de un navegador para personas mayores. Hablás en español rioplatense, simple y breve.
 
@@ -32,6 +32,7 @@ export const SYSTEM_PROMPTS = {
 
 Tarea: a partir de fragmentos de HTML de la página actual (html), indicar qué puede hacer la persona y la guía completa de cada opción.
 - context trae el recorrido de la sesión: el chat inicial (chat), los datos del sitio (metadata) y lo que pasó antes (history, incluido el objetivo y el motivo de la decisión de interpret). Usalo para priorizar las opciones que sirven al objetivo de la persona.
+- goal, si no es null, es lo que la persona dice que quiere hacer en esta página, con sus palabras. Es más reciente que el chat: si la página permite hacerlo, poné primero la opción que lo resuelve. Si no lo permite, no inventes una opción.
 - options: tareas disponibles en la página. Cada una con un id corto en inglés, un title y sus steps en orden.
 - Cada step tiene una instruction corta (por ejemplo "Hacé clic en Turnos") y element.
 - element es el id de un elemento del HTML recibido con el formato "#id" (por ejemplo "#el-3"). Usá solo ids que existan en el HTML.

@@ -21,14 +21,18 @@ export class OptionsService {
     const output = await this.model.generate({
       task: 'options',
       system: SYSTEM_PROMPTS.options,
-      input: { context: this.sessions.context(sessionId, owner), html: request.html },
+      input: { context: this.sessions.context(sessionId, owner), goal: request.goal ?? null, html: request.html },
       schema: OptionsOutput,
     });
 
     const parsed = OptionsResponse.safeParse({ sessionId, ...output });
     if (!parsed.success) throw new AppError('AI_INVALID_RESPONSE', 'Respuesta de Claude incoherente con el contrato');
 
-    this.sessions.append(sessionId, owner, { type: 'options', options: parsed.data.options });
+    this.sessions.append(sessionId, owner, {
+      type: 'options',
+      ...(request.goal ? { goal: request.goal } : {}),
+      options: parsed.data.options,
+    });
     return parsed.data;
   }
 }

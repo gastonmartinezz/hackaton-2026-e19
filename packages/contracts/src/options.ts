@@ -37,6 +37,8 @@ export const OptionsRequest = z.strictObject({
   /** Fragmentos de HTML que el front considera relevantes. */
   html: z.string().min(1).max(Limits.maxHtmlLength),
   metadata: Metadata.optional(),
+  /** Lo que la persona quiere hacer en esta página (por ejemplo, lo que escribió en «¿No está lo que buscás?»). */
+  goal: ShortText(Limits.maxMessageLength).optional(),
 });
 export type OptionsRequest = z.infer<typeof OptionsRequest>;
 
