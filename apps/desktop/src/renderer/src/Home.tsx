@@ -28,8 +28,9 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
   lastMode.current = mode;
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  // El texto dictado reemplaza lo escrito; el foco queda donde estaba.
-  const voice = useVoiceInput((heard) => setText(heard.slice(0, MAX_QUERY)));
+  // El texto dictado reemplaza lo escrito; el foco queda donde estaba. Con una
+  // búsqueda en curso no se puede escuchar y se corta lo que hubiera.
+  const voice = useVoiceInput((heard) => setText(heard.slice(0, MAX_QUERY)), { blocked: busy });
   const voiceBusy = voice.status.kind === 'transcribing';
 
   // Con pregunta o recomendación, el buscador conserva lo que la persona buscó.
@@ -40,8 +41,8 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
   // El micrófono es del buscador de inicio: fuera de 01 se deja de escuchar.
   const { cancel: cancelVoice } = voice;
   useEffect(() => {
-    if (mode !== 'search' || busy) cancelVoice();
-  }, [mode, busy, cancelVoice]);
+    if (mode !== 'search') cancelVoice();
+  }, [mode, cancelVoice]);
 
   const submit = (guide: boolean, event?: FormEvent) => {
     event?.preventDefault();
@@ -68,7 +69,8 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
             readOnly={busy || voiceBusy}
             autoComplete="off"
           />
-          {mode === 'search' ? <MicButton status={voice.status} onToggle={voice.toggle} /> : null}
+          {/* Voz apagada en el servidor: el micrófono no se ofrece más en esta ejecución. */}
+          {mode === 'search' && voice.available ? <MicButton status={voice.status} onToggle={voice.toggle} blocked={busy} /> : null}
           {mode === 'reco' ? (
             <Button variant="primary" icon="sparkles" type="submit" className="go">
               Mostrame cómo
@@ -85,7 +87,7 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
             </Button>
           </div>
         ) : null}
-        {mode === 'search' && !busy ? <VoiceMessages status={voice.status} /> : null}
+        {mode === 'search' ? <VoiceMessages status={voice.status} /> : null}
         {busy ? (
           <p className="home-status" role="status">
             <LoadingDots />

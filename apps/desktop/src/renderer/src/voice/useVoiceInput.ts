@@ -2,9 +2,15 @@
  * Estado del dictado del buscador. Tocar el micrófono empieza a escuchar;
  * tocarlo de nuevo (o 2,5 s de silencio, o 30 s) termina. El texto vuelve por
  * `onText` para que la persona lo revise: nunca se envía la búsqueda.
+ *
+ * - `blocked` (búsqueda en curso): no se puede empezar a escuchar y, si había
+ *   una captura o una transcripción en curso, se cancela y se cierran las
+ *   pistas del micrófono.
+ * - Si el servidor tiene la voz apagada (`off`), el micrófono deja de
+ *   ofrecerse por el resto de la ejecución de la app.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { TranscribeResult } from '../../../shared/ipc';
+import type { TranscribeErrorReason, TranscribeResult } from '../../../shared/ipc';
 import { MicError, VoiceCapture, type MicProblem } from './capture';
 
 export type VoiceStatus =
@@ -17,7 +23,7 @@ export type VoiceStatus =
   | { kind: 'heard'; text: string }
   /** No se entendió nada (o fue demasiado corto). */
   | { kind: 'empty' }
-  | { kind: 'error'; reason: 'busy' | 'failed' }
+  | { kind: 'error'; reason: TranscribeErrorReason }
   | { kind: 'mic'; problem: MicProblem };
 
 export interface VoiceDeps {
@@ -25,12 +31,18 @@ export interface VoiceDeps {
   transcribe(wav: ArrayBuffer): Promise<TranscribeResult>;
 }
 
+/**
+ * La voz está apagada en el servidor. Vive en el módulo (no en el componente)
+ * para que dure toda la ejecución aunque el inicio se desmonte al abrir un sitio.
+ */
+export const voiceAvailability = { off: false };
+
 const defaultDeps: VoiceDeps = {
   open: (onAutoStop) => VoiceCapture.open(onAutoStop),
   transcribe: (wav) => window.asistente.transcribe(wav),
 };
 
-export function useVoiceInput(onText: (text: string) => void, deps: VoiceDeps = defaultDeps) {
+export function useVoiceInput(onText: (text: string) => void, { blocked = false, deps = defaultDeps }: { blocked?: boolean; deps?: VoiceDeps } = {}) {
   const [status, setStatus] = useState<VoiceStatus>({ kind: 'idle' });
   const capture = useRef<Pick<VoiceCapture, 'finish' | 'close'> | null>(null);
   /** Cambia en cada intento: descarta resultados de intentos viejos o cancelados. */
@@ -63,7 +75,10 @@ export function useVoiceInput(onText: (text: string) => void, deps: VoiceDeps = 
       onTextRef.current(result.text);
       setStatus({ kind: 'heard', text: result.text });
     } else if (result.status === 'empty') setStatus({ kind: 'empty' });
-    else setStatus({ kind: 'error', reason: result.reason });
+    else {
+      if (result.reason === 'off') voiceAvailability.off = true;
+      setStatus({ kind: 'error', reason: result.reason });
+    }
   }, [deps]);
 
   const start = useCallback(async () => {
@@ -92,12 +107,18 @@ export function useVoiceInput(onText: (text: string) => void, deps: VoiceDeps = 
     setStatus({ kind: 'idle' });
   }, []);
 
-  /** El botón del micrófono: empieza o termina. Mientras transcribe, no hace nada. */
+  /** El botón del micrófono: empieza o termina. Mientras transcribe o con `blocked`, no hace nada. */
   const toggle = useCallback(() => {
+    if (blocked || voiceAvailability.off) return;
     if (status.kind === 'listening') void finish();
     else if (status.kind === 'starting') cancel();
     else if (status.kind !== 'transcribing') void start();
-  }, [status.kind, finish, start, cancel]);
+  }, [blocked, status.kind, finish, start, cancel]);
+
+  // Búsqueda en curso: se corta lo que hubiera (captura o transcripción).
+  useEffect(() => {
+    if (blocked) cancel();
+  }, [blocked, cancel]);
 
   // Al desmontar se cierran las pistas del micrófono.
   useEffect(
@@ -109,5 +130,5 @@ export function useVoiceInput(onText: (text: string) => void, deps: VoiceDeps = 
     [],
   );
 
-  return { status, toggle, cancel };
+  return { status, toggle, cancel, available: !voiceAvailability.off };
 }

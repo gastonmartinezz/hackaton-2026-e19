@@ -5,13 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscribeResult } from '../../../shared/ipc';
 import { MicError } from './capture';
 import { MicButton, VOICE_TEXTS, VoiceMessages } from './VoiceSearch';
-import { useVoiceInput, type VoiceDeps, type VoiceStatus } from './useVoiceInput';
+import { useVoiceInput, voiceAvailability, type VoiceDeps, type VoiceStatus } from './useVoiceInput';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 let container: HTMLElement;
 let root: Root;
 beforeEach(() => {
+  voiceAvailability.off = false;
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -77,14 +78,14 @@ describe('VoiceMessages', () => {
   });
 });
 
-/** El buscador mínimo: campo + micrófono, como en Home. */
-function Harness({ deps }: { deps: VoiceDeps }) {
+/** El buscador mínimo: campo + micrófono, como en Home (`busy` = búsqueda en curso). */
+function Harness({ deps, busy = false }: { deps: VoiceDeps; busy?: boolean }) {
   const [text, setText] = useState('');
-  const voice = useVoiceInput(setText, deps);
+  const voice = useVoiceInput(setText, { deps, blocked: busy });
   return (
     <>
       <input aria-label="buscador" value={text} onChange={(e) => setText(e.target.value)} />
-      <MicButton status={voice.status} onToggle={voice.toggle} />
+      {voice.available ? <MicButton status={voice.status} onToggle={voice.toggle} blocked={busy} /> : null}
       <VoiceMessages status={voice.status} />
     </>
   );
@@ -152,5 +153,67 @@ describe('useVoiceInput', () => {
     await act(async () => button().click());
     act(() => root.render(null));
     expect(capture.close).toHaveBeenCalled();
+  });
+
+  it('con una búsqueda en curso el micrófono queda aria-disabled y no empieza a escuchar', async () => {
+    const { deps } = fakeDeps({ status: 'ok', text: 'x' });
+    render(<Harness deps={deps} busy />);
+    expect(button().getAttribute('aria-disabled')).toBe('true');
+    await act(async () => button().click());
+    expect(deps.open).not.toHaveBeenCalled();
+    expect(button().getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('si empieza una búsqueda mientras escucha, se cancela la captura y se cierran las pistas', async () => {
+    const { deps, capture } = fakeDeps({ status: 'ok', text: 'no tiene que llegar' });
+    render(<Harness deps={deps} />);
+    await act(async () => button().click());
+    expect(button().getAttribute('aria-pressed')).toBe('true');
+    render(<Harness deps={deps} busy />);
+    await flush();
+    expect(capture.close).toHaveBeenCalled();
+    expect(capture.finish).not.toHaveBeenCalled();
+    expect(deps.transcribe).not.toHaveBeenCalled();
+    expect(button().getAttribute('aria-pressed')).toBe('false');
+    expect(container.querySelector('input')!.value).toBe('');
+  });
+
+  it('si empieza una búsqueda mientras transcribe, el resultado se descarta', async () => {
+    let resolve: (r: TranscribeResult) => void = () => {};
+    const { deps } = fakeDeps({ status: 'ok', text: 'x' });
+    deps.transcribe = vi.fn(() => new Promise<TranscribeResult>((r) => (resolve = r)));
+    render(<Harness deps={deps} />);
+    await act(async () => button().click());
+    await act(async () => button().click());
+    await flush();
+    render(<Harness deps={deps} busy />);
+    await act(async () => resolve({ status: 'ok', text: 'tarde' }));
+    expect(container.querySelector('input')!.value).toBe('');
+  });
+
+  it('voz apagada en el servidor (off): se explica sin «probá de nuevo» y el micrófono no se ofrece más', async () => {
+    const { deps } = fakeDeps({ status: 'error', reason: 'off' });
+    render(<Harness deps={deps} />);
+    await act(async () => button().click());
+    await act(async () => button().click());
+    await flush();
+    const alert = container.querySelector('[role="alert"] p')?.textContent ?? '';
+    expect(alert).toBe(VOICE_TEXTS.off);
+    expect(alert).not.toMatch(/prob/i);
+    expect(container.querySelector('button.mic')).toBeNull();
+    // Dura toda la ejecución: un inicio nuevo tampoco lo muestra.
+    act(() => root.render(null));
+    render(<Harness deps={deps} />);
+    expect(container.querySelector('button.mic')).toBeNull();
+  });
+
+  it('ocupado (retryable): el micrófono sigue disponible', async () => {
+    const { deps } = fakeDeps({ status: 'error', reason: 'busy' });
+    render(<Harness deps={deps} />);
+    await act(async () => button().click());
+    await act(async () => button().click());
+    await flush();
+    expect(container.querySelector('[role="alert"] p')?.textContent).toBe(VOICE_TEXTS.busy);
+    expect(button()).not.toBeNull();
   });
 });

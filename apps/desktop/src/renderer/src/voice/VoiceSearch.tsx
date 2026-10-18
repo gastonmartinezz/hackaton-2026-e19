@@ -20,6 +20,7 @@ export const VOICE_TEXTS = {
   empty: 'No te escuché bien. Probá de nuevo más cerca del micrófono, o escribilo en el buscador.',
   failed: 'No pude pasar tu voz a texto. Fue un problema de mi lado, no tuyo. Probá de nuevo o escribilo en el buscador.',
   busy: 'Estoy recibiendo muchos pedidos. Esperá un momento y probá de nuevo, o escribilo en el buscador.',
+  off: 'Hablar no está disponible por ahora. Podés escribir lo que buscás en el buscador.',
   denied: 'No tengo permiso para usar el micrófono. Podés darlo en la configuración del equipo, o escribir en el buscador.',
   missing: 'No encuentro un micrófono en este equipo. Podés escribir lo que buscás en el buscador.',
   micFailed: 'No pude usar el micrófono. Fue un problema de mi lado, no tuyo. Podés escribir lo que buscás en el buscador.',
@@ -33,9 +34,10 @@ const listening = (status: VoiceStatus) => status.kind === 'listening' || status
  * «Terminar» queda visible. Mientras transcribe no se deshabilita (el foco no
  * se pierde): queda `aria-disabled` y no hace nada.
  */
-export function MicButton({ status, onToggle }: { status: VoiceStatus; onToggle: () => void }) {
+export function MicButton({ status, onToggle, blocked = false }: { status: VoiceStatus; onToggle: () => void; blocked?: boolean }) {
   const pressed = listening(status);
-  const working = status.kind === 'transcribing';
+  // Transcribiendo o con una búsqueda en curso: no se puede empezar a escuchar.
+  const working = status.kind === 'transcribing' || blocked;
   return (
     <button
       type="button"
@@ -74,7 +76,7 @@ export function voiceMessage(status: VoiceStatus): string | null {
 
 /** Errores: van aparte, con role="alert". */
 export function voiceError(status: VoiceStatus): string | null {
-  if (status.kind === 'error') return status.reason === 'busy' ? VOICE_TEXTS.busy : VOICE_TEXTS.failed;
+  if (status.kind === 'error') return status.reason === 'busy' ? VOICE_TEXTS.busy : status.reason === 'off' ? VOICE_TEXTS.off : VOICE_TEXTS.failed;
   if (status.kind === 'mic') return status.problem === 'denied' ? VOICE_TEXTS.denied : status.problem === 'missing' ? VOICE_TEXTS.missing : VOICE_TEXTS.micFailed;
   return null;
 }
