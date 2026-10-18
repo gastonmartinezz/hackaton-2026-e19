@@ -4,14 +4,16 @@
  * escucha comandos autorizados del proceso principal (extraer, mostrar, limpiar)
  * y le informa cambios e interacciones sin valores.
  *
- * Excepción pedida por el equipo (18/10/2026): en un dato de formulario que no
- * es sensible, escribe lo que la persona dictó (`fill`) y la persona lo revisa.
- * Nunca escribe en un dato sensible (ahí solo pone el cursor, `focus`), nunca
- * hace clic ni envía el formulario, y nunca lee ni informa el valor.
+ * Además (CLAUDE.md §2): en un dato de formulario que no es sensible, escribe
+ * lo que la persona dictó (`fill`) y la persona lo revisa; en uno sensible solo
+ * pone el cursor (`focus`). Toca un botón o enlace (`click`) solo si la persona
+ * lo confirmó y nunca uno de pagar, comprar o borrar. Nunca lee ni informa el
+ * valor de un lugar.
  */
 import { extractPageSummary, extractSnapshot, pageSignature, resolveSelector, snapshotToHtml, type ElementRegistry } from '@asistente/page-analyzer';
 import { ipcRenderer } from 'electron';
 import {
+  ClickRequestSchema,
   ExtractRequestSchema,
   FillRequestSchema,
   FocusRequestSchema,
@@ -21,6 +23,7 @@ import {
   type FillResult,
   type ShowResult,
 } from '../../shared/ipc';
+import { clickControl, isClickable } from './click';
 import { fillableType, focusField, looksSensitive, writeDictated } from './fill';
 import { Highlighter, isField } from './highlighter';
 import { isRelevantChange, observePage } from './observer';
@@ -76,7 +79,18 @@ ipcRenderer.on(PAGE_CHANNELS.show, async (_event, raw: unknown) => {
     field: isField(element),
     fillable: fillableType(element) !== null,
     sensitive: looksSensitive(element),
+    clickable: isClickable(element),
   });
+});
+
+// La persona confirmó en la tarjeta que Guíame toque el botón señalado (solo ese).
+ipcRenderer.on(PAGE_CHANNELS.click, (_event, raw: unknown) => {
+  const request = ClickRequestSchema.safeParse(raw);
+  if (!request.success) return;
+  const { requestId, navigationId, elementId } = request.data;
+  const element = resolveCurrent(navigationId, elementId);
+  const result = !element || element !== highlighter?.target ? 'stale' : clickControl(element);
+  ipcRenderer.send(PAGE_CHANNELS.clicked, { requestId, result });
 });
 
 ipcRenderer.on(PAGE_CHANNELS.fill, (_event, raw: unknown) => {

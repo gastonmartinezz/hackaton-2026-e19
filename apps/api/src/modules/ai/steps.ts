@@ -2,9 +2,17 @@
 // contrato. El resultado se valida después contra el contrato en cada servicio.
 import type { StepOutput } from './schemas.js';
 
-/** `field: null` → sin field. Un field sobre un paso teórico (element null) se descarta: no hay lugar donde escribir. */
+/**
+ * `field: null` → sin field. Un field sobre un paso teórico (element null) se
+ * descarta: no hay lugar donde escribir. `safeToClick` solo queda si es true,
+ * en un paso real y que no pide un dato.
+ */
 export function toGuideSteps(steps: StepOutput[]) {
-  return steps.map(({ field, ...step }) => (field && step.element !== null ? { ...step, field } : step));
+  return steps.map(({ field, safeToClick, ...step }) => {
+    const real = step.element !== null;
+    if (field && real) return { ...step, field };
+    return safeToClick && real && !field ? { ...step, safeToClick: true as const } : step;
+  });
 }
 
 const MAX_EVIDENCE = 200;

@@ -46,6 +46,7 @@ class FakePage implements PagePort {
     return {
       result: 'shown' as const,
       elementId,
+      clickable: ['button', 'a'].includes(element.localName),
       field: isField(element),
       fillable: element.localName === 'select' || DICTATABLE_TYPES.has(type),
       sensitive: isSensitiveField({ inputType: element.getAttribute('type') ?? undefined, name: element.getAttribute('name') ?? undefined }),
@@ -68,6 +69,15 @@ class FakePage implements PagePort {
   }
   focus(_navigationId: string, elementId: string) {
     this.focused.push(elementId);
+  }
+  clicked: string[] = [];
+  /** Como el preload: toca el control señalado (el clic lo informa el observador; acá lo hace la prueba). */
+  async click(navigationId: string, elementId: string) {
+    const element = this.registry?.navigationId === navigationId ? this.registry.resolve(elementId) : undefined;
+    if (!element) return 'stale' as const;
+    this.clicked.push(elementId);
+    (element as HTMLElement).click();
+    return 'clicked' as const;
   }
   clear() {}
   cancelPending() {}
@@ -313,6 +323,72 @@ describe('Assistant', () => {
     // «Volver un paso» muestra las demás opciones de la página.
     assistant.back();
     expect(assistant.state.phase).toBe('choosing');
+  });
+
+  it('toca el botón por la persona solo si lo confirma, la IA lo marcó seguro y no hay riesgo alto', async () => {
+    load('horarios.html');
+    const mock = mockApi();
+    let links: GuideStep[] = [];
+    const { api } = recording(mock, {
+      options: async (r, s) => {
+        const response = await mock.options(r, s);
+        const go = response.options.filter((o) => o.id.startsWith('go-'));
+        // El simulador marca sus enlaces como seguros: el segundo paso se deja sin marcar.
+        const { safeToClick: _, ...unmarked } = go[1]!.steps[0]!;
+        links = [{ ...go[0]!.steps[0]!, waitFor: 'userInteraction', safeToClick: true }, { ...unmarked, waitFor: 'userInteraction' }];
+        return { ...response, options: [{ id: 'x', title: 'X', steps: links }] };
+      },
+      nextStep: async (r) => ({ sessionId: r.sessionId, steps: links, done: false }),
+    });
+    const { assistant, until, page } = setup(api);
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    assistant.select('x');
+    await until(() => assistant.state.phase === 'waitingForUser' && assistant.state.step?.targetElementId !== undefined);
+    expect(assistant.offerClick).toBe(true);
+
+    // Con riesgo alto no se ofrece ni se toca.
+    assistant.setRiskHold(true);
+    await until(() => !assistant.offerClick);
+    expect(await assistant.clickForMe()).toBe('notAllowed');
+    assistant.setRiskHold(false);
+    assistant.repeat();
+    await until(() => assistant.offerClick);
+
+    // La persona confirma: se toca solo el control señalado y el paso avanza como si lo hubiera tocado ella.
+    const target = assistant.state.step!.targetElementId!;
+    expect(await assistant.clickForMe()).toBe('clicked');
+    expect(page.clicked).toEqual([target]);
+    assistant.interaction(target, 'click');
+    await until(() => assistant.state.step?.instruction === links[1]!.instruction && assistant.state.step?.targetElementId !== undefined);
+    // El paso siguiente no está marcado como seguro: lo toca la persona.
+    expect(assistant.offerClick).toBe(false);
+    expect(await assistant.clickForMe()).toBe('notAllowed');
+    expect(page.clicked).toHaveLength(1);
+  });
+
+  it('nunca ofrece tocar pagar o comprar, aunque la IA lo haya marcado seguro', async () => {
+    load('horarios.html');
+    const mock = mockApi();
+    let steps: GuideStep[] = [];
+    const { api } = recording(mock, {
+      options: async (r, s) => {
+        const response = await mock.options(r, s);
+        const go = response.options.find((o) => o.id.startsWith('go-'))!;
+        steps = [{ ...go.steps[0]!, instruction: 'Hacé clic en «Pagar».', waitFor: 'userInteraction', safeToClick: true }];
+        return { ...response, options: [{ id: 'x', title: 'X', steps }] };
+      },
+      nextStep: async (r) => ({ sessionId: r.sessionId, steps, done: false }),
+    });
+    const { assistant, until } = setup(api);
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    assistant.select('x');
+    await until(() => assistant.state.phase === 'waitingForUser' && assistant.state.step?.targetElementId !== undefined);
+    expect(assistant.offerClick).toBe(false);
+    expect(await assistant.clickForMe()).toBe('notAllowed');
   });
 
   it('con pasos reales recibidos de /v1/next-step sigue guiando', async () => {

@@ -406,7 +406,7 @@ describe('POST /v1/next-step', () => {
     const model = new MockModel({
       ...defaultMockHandlers,
       nextStep: () => ({
-        steps: [{ element: null, instruction: 'Escribí tu correo en «Correo».', presentation: 'highlight', waitFor: 'userConfirmation', field: { question: '¿Cuál es tu correo?', sensitive: false } }],
+        steps: [{ element: null, instruction: 'Escribí tu correo en «Correo».', presentation: 'highlight', waitFor: 'userConfirmation', field: { question: '¿Cuál es tu correo?', sensitive: false }, safeToClick: false }],
         done: false,
         evidence: null,
       }),

@@ -350,14 +350,21 @@ function CurrentStep({ state }: { state: AppState }) {
   const askAloud = guide.ask !== null && state.prefs.voiceMode !== 'off';
   // En un campo no hay clic que observar sin leer lo escrito: la persona avisa.
   const confirm = field || guide.waitFor === 'userConfirmation';
+  // La IA marcó el botón como seguro: con la confirmación de la persona, Guíame lo toca.
+  const offerClick = guide.offerClick && !field && !confirm;
   const support =
     guide.targetVisible === false
       ? 'No veo el lugar en pantalla. Probá desplazarte por la página.'
       : field
         ? null
-        : guide.targetVisible
-          ? 'Te lo marqué con un borde azul. Te espero.'
-          : 'Te espero. Cuando hagas clic, sigo con vos.';
+        : offerClick
+          ? 'Te lo marqué con un borde azul. Tocalo vos o, si querés, lo toco yo.'
+          : guide.targetVisible
+            ? 'Te lo marqué con un borde azul. Te espero.'
+            : 'Te espero. Cuando hagas clic, sigo con vos.';
+  const clickLabel = clickForMeLabel(guide.instruction);
+  /** Modo voz: terminó de leerse la instrucción; se puede contestar «sí» para que Guíame toque el botón. */
+  const [readDone, setReadDone] = useState(0);
   return (
     <section className="hc-section" aria-label="Paso actual">
       {/* Única región que anuncia instrucciones; cambia la clave al volver a mostrarla. No mueve el foco. */}
@@ -366,14 +373,31 @@ function CurrentStep({ state }: { state: AppState }) {
       </div>
       {support ? <p className="support">{support}</p> : null}
       {/* Leer en voz alta (opcional, S11): solo si la persona lo pide o con el modo voz; se corta al cambiar de instrucción. */}
-      <SpeakButton text={guideSpeech(guide)} auto={state.voice.active || askAloud} contentKey={stepSpeechKey(guide)} />
+      <SpeakButton
+        text={guideSpeech(guide)}
+        auto={state.voice.active || askAloud}
+        contentKey={stepSpeechKey(guide)}
+        onDone={(outcome) => outcome === 'ended' && setReadDone((n) => n + 1)}
+      />
       {field ? (
         <p className="soft-box">
           <Icon name="lock" />
           <span>{SPEECH_TEXTS.fieldNote}</span>
         </p>
       ) : null}
-      {confirm ? (
+      {offerClick ? (
+        <>
+          <Button variant="primary" block icon="arrow-right" onClick={() => send({ type: 'clickForMe' })}>
+            {clickLabel}
+          </Button>
+          <VoiceAnswer
+            choices={[{ label: clickLabel, kind: 'yes', aliases: ['Tocalo', 'Tocalo vos', 'Hacelo'], run: () => send({ type: 'clickForMe' }) }]}
+            active={state.voice.active}
+            trigger={readDone}
+            onMessage={() => undefined}
+          />
+        </>
+      ) : confirm ? (
         <Button variant="primary" block icon="check" onClick={() => send({ type: 'confirmDone' })}>
           {field ? 'Ya lo escribí' : 'Ya lo hice'}
         </Button>
@@ -415,6 +439,12 @@ function DictateStep({ state }: { state: AppState }) {
       <Progress count={guide.done.length} />
     </section>
   );
+}
+
+/** «Tocá «Continuar» por mí» con el nombre del control de la instrucción, o «Tocalo por mí». */
+function clickForMeLabel(instruction: string | null): string {
+  const control = instruction?.match(/«[^»]+»/)?.[0];
+  return control ? `Tocá ${control} por mí` : 'Tocalo por mí';
 }
 
 /** «Vas bien: ya hiciste N pasos.» Solo acciones hechas en el sitio; sin línea con 0 (R5). */

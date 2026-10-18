@@ -63,6 +63,10 @@
               "sensitive"
             ],
             "additionalProperties": false
+          },
+          "safeToClick": {
+            "type": "boolean",
+            "const": true
           }
         },
         "required": [

@@ -1,6 +1,6 @@
 import type { GuideStep, PageOption } from '@hackaton/contracts';
 import { describe, expect, it } from 'vitest';
-import { evaluateObservation, expectedStep, initialState, isSensitiveField, isSensitiveStep, transition, type GuideEvent, type GuideState } from './index';
+import { evaluateObservation, expectedStep, initialState, isIrreversibleAction, isSensitiveField, isSensitiveStep, transition, type GuideEvent, type GuideState } from './index';
 
 const real = (id: string, waitFor: GuideStep['waitFor'] = 'userInteraction'): GuideStep => ({
   element: `#${id}`,
@@ -224,5 +224,17 @@ describe('isSensitiveField', () => {
   it('nombre, correo, teléfono, dirección y fechas se pueden dictar', () => {
     for (const label of ['Nombre completo', 'Correo electrónico', 'Teléfono', 'Dirección', 'Fecha de nacimiento', 'Código postal', 'Departamento', 'Pinar'])
       expect(isSensitiveField({ label, inputType: 'text' })).toBe(false);
+  });
+});
+
+describe('isIrreversibleAction', () => {
+  it('pagar, comprar, transferir, firmar, dar de baja o borrar nunca se tocan por la persona', () => {
+    for (const text of ['Hacé clic en «Pagar».', 'Confirmar compra', 'Comprar ahora', 'Transferir', 'Firmar el trámite', 'Dar de baja el servicio', 'Eliminar cuenta', 'Cancelar la suscripción', 'Suscribirme', 'Pay now'])
+      expect(isIrreversibleAction(text)).toBe(true);
+  });
+
+  it('continuar, seguir, confirmar un paso o abrir una sección sí se pueden tocar', () => {
+    for (const text of ['Hacé clic en «Continuar».', 'Siguiente', 'Confirmar turno', 'Aceptar', 'Ir a «Agenda»', 'Buscar', 'Pagina siguiente', 'Página de pagos frecuentes'])
+      expect(isIrreversibleAction(text)).toBe(text.includes('pagos'));
   });
 });
