@@ -71,8 +71,9 @@ const EnvSchema = z
     GOOGLE_SAFE_BROWSING_API_KEY: z.string().optional(),
     GOOGLE_WEB_RISK_API_KEY: z.string().optional(),
     SITE_CHECK_RDAP: flag('true'),
-    // Registro de instituciones del BCU (fuente de oficialidad de bancos, financieras, cambios y medios de pago).
-    // Se descarga al arrancar y se refresca cada 24 h. El tiempo máximo es por petición (algunas fichas pesan 1 MB).
+    // Registro de instituciones del BCU (fuente de oficialidad de bancos, financieras, cambios, AFAP, seguros y
+    // medios de pago). Se descarga al arrancar y se refresca cada 24 h. El tiempo máximo es por petición (algunas
+    // fichas pesan 1 MB).
     SITE_CHECK_BCU_REGISTRY: flag('true'),
     SITE_CHECK_BCU_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
     // Lista opcional de dominios populares (CSV de CrUX u otro), solo como referencia de dominios parecidos.

@@ -22,7 +22,7 @@ import { errorKind, ProviderHttpError } from './types.js';
  *   lista con la vista propia de la entidad (`d.viewName = '06'` en Prex).
  * Todo se valida con Zod y cualquier cambio de formato hace fallar la descarga (identidad `unavailable`),
  * nunca una aprobación. El sitio publicado autoriza su dominio registrable y sus subdominios.
- * Para no castigar al BCU: una descarga completa son unos 170 pedidos (unos 30 MB: las fichas traen el
+ * Para no castigar al BCU: una descarga completa son unos 240 pedidos (unos 50 MB: las fichas traen el
  * HTML entero del portal), 2 en paralelo, con tope de pedidos y una vez por día.
  *
  * www.bcu.gub.uy no envía la cadena intermedia de su certificado: se agregan los intermedios de
@@ -41,18 +41,24 @@ const PAYMENTS_LIST = 'Datos Generales';
 export const bcuFichaUrl = (nroinst: string) => `${SSF_PAGES}InformacionInstitucion.aspx?nroinst=${nroinst}`;
 
 /**
- * Listas de la SSF con instituciones que atienden a personas. Quedan afuera los emisores de valores
- * (empresas que cotizan), las calificadoras, la bolsa y los representantes de entidades extranjeras.
+ * Listas de la SSF con instituciones que atienden a personas: las mismas de las que salieron las
+ * entradas financieras del catálogo. Quedan afuera los emisores de valores (empresas que cotizan), los
+ * intermediarios de valores, las calificadoras, la bolsa, las instituciones financieras externas, los
+ * proveedores de activos virtuales y los representantes de entidades extranjeras.
  */
 export const SSF_LISTS = [
   { page: 'bancos_Instituciones_Lst.aspx', kind: 'Banco' },
   { page: 'casas_Financieras_Lst.aspx', kind: 'Casa financiera' },
   { page: 'coo_Int_Fin_Lst.aspx', kind: 'Cooperativa de intermediación financiera' },
   { page: 'emp_admin_cred.aspx', kind: 'Empresa administradora de crédito' },
+  { page: 'EntidadesOtorCreMayActivi.aspx', kind: 'Entidad otorgante de crédito de mayor actividad' },
   { page: 'emp_Serv_Fin_Lst.aspx', kind: 'Empresa de servicios financieros' },
+  { page: 'casas_cambio.aspx', kind: 'Casa de cambio' },
   { page: 'emp_Trans_Fondos_Lst.aspx', kind: 'Empresa de transferencia de fondos' },
   { page: 'emp_Adm_Plat_Prestamos_Lst.aspx', kind: 'Plataforma de préstamos' },
   { page: 'emp_Admin_ahorro_prev_Lst.aspx', kind: 'Administradora de grupos de ahorro previo' },
+  { page: 'afaps.aspx', kind: 'Administradora de fondos de ahorro previsional (AFAP)' },
+  { page: 'empresas_Seguros.aspx', kind: 'Empresa de seguros' },
 ] as const;
 
 // Sitios que no identifican a una institución: autorizarlos aprobaría a cualquiera que publique ahí.
@@ -130,7 +136,7 @@ export interface BcuRegistryOptions {
   retryAfterMs?: number;
   /** Peticiones simultáneas al BCU. */
   concurrency?: number;
-  /** Tope de peticiones por descarga completa (hoy son unas 170). */
+  /** Tope de peticiones por descarga completa (hoy son unas 240). */
   maxRequests?: number;
   now?: () => number;
 }
@@ -378,7 +384,7 @@ export class BcuRegistry {
     let requests = 0;
     const request = async (url: string, body?: string): Promise<Response> => {
       // Tope por descarga: un cambio en el sitio del BCU no puede multiplicar los pedidos.
-      if (++requests > (this.options.maxRequests ?? 300)) throw new BudgetExceededError();
+      if (++requests > (this.options.maxRequests ?? 400)) throw new BudgetExceededError();
       const response = await withTimeout(this.options.requestTimeoutMs, (signal) =>
         (this.options.fetchImpl ?? bcuFetch)(url, {
           method: body === undefined ? 'GET' : 'POST',

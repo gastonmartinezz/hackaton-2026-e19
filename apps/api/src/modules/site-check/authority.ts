@@ -211,7 +211,11 @@ export class AuthorityView {
       }),
     );
     if (matches.length > 0) {
-      found.push({ organization: this.institutionName(matches[0]!), keys: matches.map((m) => `bcu:${m.id}`), via: 'financial_regulator' });
+      // Se nombra la que menos palabras agrega a lo declarado: «Cooperativa Artigas» es la cooperativa
+      // José Artigas, no la Agrupación Magisterial José Artigas, aunque las dos coinciden.
+      const extra = (i: BcuInstitution) => Math.min(...[i.name, i.tradeName ?? i.name].map((name) => coreTokens(name).filter((t) => !declared.includes(t)).length));
+      const best = [...matches].sort((a, b) => extra(a) - extra(b))[0]!;
+      found.push({ organization: this.institutionName(best), keys: matches.map((m) => `bcu:${m.id}`), via: 'financial_regulator' });
     }
     return found;
   }

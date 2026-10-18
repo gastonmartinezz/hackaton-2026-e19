@@ -81,7 +81,15 @@ describe('fuentes de autoridad', () => {
     expect(view.official('www.paigo.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'Paigo' });
     expect(view.official('www.credisol.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'Paigo' });
     expect(view.registry.snapshot?.skipped).toContainEqual({ id: 'ssf-7835', name: 'CREDIYI S.A.', reason: 'sin sitio web' });
-    expect(view.registry.snapshot?.institutions).toHaveLength(99);
+    expect(view.registry.snapshot?.institutions).toHaveLength(161);
+  });
+
+  it('registro del BCU: AFAP, aseguradoras, casas de cambio y cooperativas de crédito', () => {
+    expect(view.official('www.rafap.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'República AFAP' });
+    expect(view.official('www.rafap.com.uy')?.source.url).toContain('nroinst=3302');
+    expect(view.official('www.bse.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'BSE' });
+    expect(view.official('www.cambiofagalde.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'CAMBIO FAGALDE' });
+    expect(view.official('www.acac.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'COOPERATIVA ACAC' });
   });
 
   it('catálogo curado con fuente y fecha por entrada; alcance exact', () => {
@@ -158,6 +166,10 @@ describe('fuentes de autoridad', () => {
       ['financial_regulator', 'Banco República (BROU)'],
     ]);
     expect(view.claims('Billetera Prex')[0]?.keys).toEqual(['bcu:sp-prex']);
+    // Dos cooperativas con «Artigas» en el nombre: las dos claves, y se nombra la que coincide mejor.
+    expect(view.claims('Cooperativa Artigas')).toEqual([
+      { organization: 'Cooperativa Artigas', keys: ['bcu:ssf-4291', 'bcu:ssf-4316'], via: 'financial_regulator' },
+    ]);
     expect(view.claims('Verde')).toEqual([]); // nombre de fantasía que es una palabra común
     expect(view.claims('Antel')[0]).toMatchObject({ via: 'official_catalog', keys: ['catalog:antel'] });
     expect(view.claims('BROU')[0]?.keys).toEqual(['catalog:brou']);
