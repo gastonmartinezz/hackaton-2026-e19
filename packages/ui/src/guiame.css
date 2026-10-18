@@ -539,13 +539,10 @@ select {
 .sbox input::placeholder {
   color: var(--g-ink-secondary);
 }
-.home-go.btn-primary {
-  padding: 0 36px;
-  font-size: var(--fs-answer);
-}
 /*
  * «Hablar» (docs/02 › Botón de voz): píldora azul con gradiente, ícono blanco y
- * texto visible. Acción secundaria fuerte: no reemplaza a «Guíame».
+ * texto visible. Desde v2.4 el inicio no tiene «Guíame»: la misma píldora
+ * dice «Enviar» cuando la persona escribe (SearchAction).
  */
 .mic {
   flex: none;

@@ -1,11 +1,13 @@
 /**
  * Inicio: un buscador, no un chat.
- * - 01: ícono, «¿Qué querés hacer hoy?», el buscador con «Hablar» y «Guíame».
- *   Si la búsqueda alcanza, el proceso principal abre el sitio directo.
+ * - 01 (v2.4): ícono, «¿Qué querés hacer hoy?» y el buscador. Se envía con
+ *   Enter o con el botón de la píldora, que dice «Hablar» y pasa a «Enviar»
+ *   cuando la persona escribe. Si la búsqueda alcanza, el proceso principal
+ *   abre el sitio directo.
  * - 02/03: si falta un dato, una pregunta por vez debajo del buscador.
  * - 10: con varios sitios (o «No sé bien»), el más afín y alternativas.
  * - «Hablar» (01, 02, 03, 10): dictar. Lo entendido queda en el buscador y se
- *   busca solo, como «Guíame».
+ *   busca solo, como al tocar «Enviar».
  * - Modo voz (02, 03, 10): al terminar de leer, se puede contestar hablando
  *   («Responder con la voz»).
  * - Accesos del historial (01, v2.4): los sitios que más abre; tocar uno lo abre con ayuda.
@@ -17,7 +19,7 @@ import { SpeakButton } from './speech/SpeakButton';
 import { questionSpeech, recommendationSpeech, SPEECH_TEXTS } from './speech/speechText';
 import { send } from './useAppState';
 import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
-import { MicButton, VoiceMessages } from './voice/VoiceSearch';
+import { SearchAction, VoiceMessages } from './voice/VoiceSearch';
 import { useVoiceInput } from './voice/useVoiceInput';
 
 /** Igual que el máximo de `submitIntent`. */
@@ -42,6 +44,9 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
     onSubmit: (heard) => send({ type: 'submitIntent', text: heard.slice(0, MAX_QUERY).trim(), guide: true, dictated: true }),
   });
   const voiceBusy = voice.status.kind === 'transcribing';
+  // Hay algo nuevo para enviar: lo escrito, salvo la búsqueda que ya está en el buscador (02, 03, 10).
+  const value = text.trim();
+  const canSend = value !== '' && !voiceBusy && !(mode !== 'search' && value === chat.query);
 
   // Con pregunta o recomendación, el buscador conserva lo que la persona buscó.
   useEffect(() => setText(mode === 'search' ? '' : (chat.query ?? '')), [mode, chat.query]);
@@ -54,8 +59,7 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
 
   const submit = (event?: FormEvent) => {
     event?.preventDefault();
-    const value = text.trim();
-    if (!value || busy || voiceBusy || (mode !== 'search' && value === chat.query)) return;
+    if (!canSend || busy) return;
     // Búsqueda escrita: el dictado anterior (y su aviso) ya no corresponde.
     voice.cancel();
     send({ type: 'submitIntent', text: value, guide: true });
@@ -84,14 +88,16 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
         {/*
           Voz apagada en el servidor: «Hablar» no se ofrece más en esta ejecución. Con el modo voz
           prendido, en una pregunta o recomendación se contesta hablando (VoiceAnswer): un solo micrófono.
+          «Enviar» aparece igual cuando hay algo escrito.
         */}
-        {voice.available && (mode === 'search' || !state.voice.active) ? <MicButton status={voice.status} onToggle={voice.toggle} blocked={busy} /> : null}
+        <SearchAction
+          status={voice.status}
+          onToggle={voice.toggle}
+          canSend={canSend}
+          voiceAvailable={voice.available && (mode === 'search' || !state.voice.active)}
+          blocked={busy}
+        />
       </form>
-      {mode === 'search' ? (
-        <Button variant="primary" icon="navigation" className="home-go" disabled={busy} onClick={() => submit()}>
-          Guíame
-        </Button>
-      ) : null}
       {mode === 'search' && !busy ? <FrequentSites sites={state.frequentSites} /> : null}
       <VoiceMessages status={voice.status} />
       {busy ? (

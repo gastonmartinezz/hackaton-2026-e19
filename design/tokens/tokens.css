@@ -1,4 +1,4 @@
-/* Guíame v2.2 · design tokens. Fuente de verdad: tokens.json */
+/* Guíame v2.3 · design tokens. Fuente de verdad: tokens.json */
 @font-face { font-family: 'Poppins'; src: url('../assets/fonts/Poppins-Light.ttf') format('truetype'); font-weight: 300; font-display: swap; }
 @font-face { font-family: 'Poppins'; src: url('../assets/fonts/Poppins-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'Poppins'; src: url('../assets/fonts/Poppins-Medium.ttf') format('truetype'); font-weight: 500; font-display: swap; }
@@ -24,7 +24,6 @@
   --g-gradient-action: linear-gradient(135deg, #3B74FF 0%, #1D4ED8 55%, #1638B8 100%);
   --g-gradient-bar: linear-gradient(90deg, #3A9BFF 0%, #2B86FF 50%, #1F74F0 100%);
   --g-gradient-card-head: linear-gradient(180deg, #EAF3FF 0%, #FFFFFF 100%);
-  --g-gradient-ground: linear-gradient(180deg, #FFFFFF 0%, #F1F5FF 38%, #C9D8FF 72%, #5B8BFF 92%, #2F6BFF 100%);
 
   --g-font: 'Poppins', 'Segoe UI', system-ui, sans-serif;
   --g-size-instruction: 32px;
@@ -54,9 +53,9 @@
 .g-highlight__label { position: absolute; padding: 6px 14px; border-radius: 8px; background: linear-gradient(135deg, #3BA3FF 0%, #1D4ED8 100%); color: #FFFFFF; font: 600 20px/1.2 var(--g-font); white-space: nowrap; box-shadow: 0 0 0 3px #FFFFFF, 0 12px 26px -8px rgba(22,56,184,0.75); }
 
 /* Velo sobre el sitio: la capa Guíame es protagonista */
-.g-site-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(11,27,63,0.08) 0%, rgba(11,27,63,0.16) 55%, rgba(22,56,184,0.30) 100%); }
+.g-site-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: rgba(11,27,63,0.12); }
 
-.g-ground { background-color: #FFFFFF; background-image: radial-gradient(circle, rgba(29,78,216,0.10) 1.3px, transparent 1.6px), var(--g-gradient-ground); background-size: 32px 32px, 100% 100%; background-position: 16px 16px, 0 0; }
+.g-ground { background-color: #FFFFFF; background-image: radial-gradient(circle, rgba(29,78,216,0.10) 1.3px, transparent 1.6px); background-size: 32px 32px; background-position: 16px 16px; }
 
 /* Botón de voz «Hablar» (v2.2): píldora dentro del buscador y de los campos de respuesta.
    Texto visible «Hablar» + ícono mic blanco; aria-label «Hablar: decirlo en voz alta». Alto = alto del campo. */

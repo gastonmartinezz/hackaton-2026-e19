@@ -1,15 +1,15 @@
 ---
 name: guiame-ui
-description: Implementar o revisar pantallas, componentes y textos de la capa de ayuda de Guíame (navegador con IA para personas de 50+) siguiendo su marca, tokens y las 51 pantallas de referencia v2.2. Usar al crear, modificar o revisar cualquier vista, componente o texto visible de Guíame.
+description: Implementar o revisar pantallas, componentes y textos de la capa de ayuda de Guíame (navegador con IA para personas de 50+) siguiendo su marca, tokens y las 51 pantallas de referencia v2.4. Usar al crear, modificar o revisar cualquier vista, componente o texto visible de Guíame.
 ---
 
-# Guíame UI (v2.2)
+# Guíame UI (v2.4)
 
 Seguí siempre `CLAUDE.md` (raíz). Este skill dice **cómo** trabajar una pantalla.
 
 ## Flujo de trabajo
 
-1. **Ubicá la pantalla.** Buscá su archivo en la tabla de abajo y mirá `design/png/<archivo>.png` (leelo como imagen). Si lo que te piden no está en la tabla, ubicá en qué punto del recorrido entra (`design/docs/03-pantallas-y-flujos.md`, «Recorridos») y proponé un nombre antes de construir. Si está en «Casos sin diseño» de `CLAUDE.md`, no lo diseñes: usá el respaldo y avisá.
+1. **Ubicá la pantalla.** Buscá su archivo en la tabla de abajo y mirá `design/png/<archivo>.png` (leelo como imagen; es la captura de `design/preview/<archivo>.html`). Si lo que te piden no está en la tabla, ubicá en qué punto del recorrido entra (`design/docs/03-pantallas-y-flujos.md`, «Recorridos») y proponé un nombre antes de construir. Si está en «Casos sin diseño» de `CLAUDE.md`, no lo diseñes: usá el respaldo y avisá.
 2. **Leé la referencia.** Abrí `design/preview/<archivo>.html` (HTML estático, sin internet) o la fuente `design/pantallas/<archivo>.dc.html`. Sacá estructura, medidas y textos exactos. **No copies los estilos inline:** traducilos a los tokens y a los componentes del repositorio.
 3. **Ubicá el estado de tarjeta.** En `design/docs/04-contrato-backend.md` §3, buscá el `tipo` de la tarjeta (columna «Tipo» de la tabla) y qué datos necesita. El componente recibe esos datos por props o estado; **no llama al backend**.
 4. **Tokens primero.** Importá `design/tokens/tokens.css` y usá sus clases base (`.g-bar`, `.g-card`, `.g-primary`, `.g-secondary`, `.g-voice`, `.g-highlight`, `.g-site-veil`, `.g-ground`). No declares valores propios si hay token.
@@ -21,7 +21,8 @@ Seguí siempre `CLAUDE.md` (raíz). Este skill dice **cómo** trabajar una panta
 | Componente | Dónde se ve | Referencia |
 |---|---|---|
 | Barra del navegador | Todas | `.g-bar`, `.g-bar__logo` (`guiame-blanco.png`, sin ojos) · R6, R7 |
-| Buscador de inicio + «Hablar» | A-01, B-C01 | `.g-ground`, `.g-voice--home`, `.g-primary` |
+| Buscador de inicio + «Hablar»/«Enviar» | A-01, B-C01 | `.g-ground` (blanco con puntos), `.g-voice--home`; sin botón «Guíame» (v2.4) |
+| Accesos del historial | A-01 | `nav[aria-label="Lo que hiciste antes"]` · `docs/02` › «Accesos del historial» |
 | Tarjeta de pregunta | A-02, A-03, A-17, B-C02, B-C03 | 880px centrada; `.g-voice` en el campo · `docs/02` |
 | Recomendación de sitio | A-10, B-C04 | 880px; sello, motivo, «Ir con ayuda» + «Solo abrir el sitio» |
 | Tarjeta flotante | A-04 a A-22, N-*, B-C04B a B-C11 | `.g-card`, `.g-card__head` · R4 |
@@ -37,7 +38,7 @@ Seguí siempre `CLAUDE.md` (raíz). Este skill dice **cómo** trabajar una panta
 
 | Archivo | Pantalla | Tipo de tarjeta | Recorrido |
 |---|---|---|---|
-| `A-01-inicio` | 01 Inicio | inicio | Recorrido A · camino principal |
+| `A-01-inicio` | 01 Inicio | inicio + historial | Recorrido A · camino principal |
 | `A-02-que-documento` | 02 ¿Qué documento? | pregunta | Recorrido A · camino principal |
 | `A-03-pais` | 03 ¿Es en Uruguay? | pregunta | Recorrido A · camino principal |
 | `A-04-abriendo` | 04 Abriendo el sitio | espera | Recorrido A · camino principal |

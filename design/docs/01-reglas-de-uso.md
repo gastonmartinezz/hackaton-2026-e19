@@ -1,4 +1,4 @@
-# 01 · Reglas de uso (v2.2)
+# 01 · Reglas de uso (v2.4)
 
 Estas reglas **no son negociables** al implementar. Vienen de validar el recorrido con personas de 50+ (Marta, 67, trámite; Jorge, 71, compra). Si una necesidad técnica choca con una regla, se para y se consulta a producto: no se resuelve en código.
 
@@ -54,7 +54,7 @@ Cada vista muestra una pregunta, una instrucción o un estado. Nunca dos.
 - En la instrucción, el nombre del control va entre « » en un chip azul suave. El apoyo dice «Te lo marqué con un borde azul.».
 
 ## R9 · Protagonismo de la capa Guíame
-- Con la tarjeta abierta o achicada, el sitio lleva un velo suave (`z-index: 1`, más oscuro hacia la tarjeta). Lo único que sube por encima es el control resaltado.
+- Con la tarjeta abierta o achicada, el sitio lleva un velo suave y parejo (`z-index: 1`, navy al 12%, **sin gradiente**). Lo único que sube por encima es el control resaltado.
 - Sin tarjeta (pantalla 21) no hay velo.
 
 ## R10 · Confianza
@@ -90,4 +90,5 @@ Voseo rioplatense. «No sé bien» en lugar de «No estoy seguro». Sin tecnicis
 - Controles reales: `<button>`, `<a href>`, `<input>` + `<label>`; `aria-label` en botones de solo ícono; el logo lleva `alt="Guíame"`.
 - «Tamaño de letra» escala toda la capa Guíame; los diseños están a 1.2×.
 - Sin animaciones que distraigan; respetar `prefers-reduced-motion`.
-- El patrón de puntos y el gradiente de fondo solo van en pantallas propias de Guíame, nunca sobre el sitio.
+- Las pantallas propias de Guíame tienen **fondo blanco con el patrón de puntos, sin gradiente azul** (v2.3). El patrón nunca va sobre el sitio.
+- **Prohibido el gradiente de pantalla completa.** El gradiente queda solo en la barra, la tarjeta flotante, los botones principales, «Hablar» y el rótulo «Acá».

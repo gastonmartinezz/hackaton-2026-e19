@@ -1,6 +1,7 @@
 /**
- * Botón «Hablar» del buscador (01, 02, 03, 10) y sus mensajes. Solo
- * presentación: el estado sale de useVoiceInput.
+ * Botón del buscador (01, 02, 03, 10): «Hablar», o «Enviar» cuando la persona
+ * escribió algo, y los mensajes del dictado. Solo presentación: el estado sale
+ * de useVoiceInput.
  */
 import { Icon, LoadingDots } from '@asistente/ui';
 import type { VoiceStatus } from './useVoiceInput';
@@ -15,6 +16,8 @@ export const VOICE_TEXTS = {
   speak: 'Hablar',
   /** Completa el nombre accesible: «Hablar: decirlo en voz alta» (WCAG 2.5.3). */
   speakDescription: ': decirlo en voz alta',
+  /** TODO(copy): el inicio v2.4 no tiene botón de enviar; «Enviar» ya se usa en la tarjeta (11). */
+  send: 'Enviar',
   stop: 'Terminar',
   starting: 'Preparando el micrófono…',
   listening: 'Te escucho. Cuando termines, tocá «Terminar» o quedate unos segundos en silencio.',
@@ -61,6 +64,38 @@ export function MicButton({ status, onToggle, blocked = false }: { status: Voice
       )}
     </button>
   );
+}
+
+/**
+ * El botón de la píldora del buscador. v2.4 sacó «Guíame» del inicio: la
+ * búsqueda se envía con Enter o con este botón, que reutiliza la píldora de
+ * «Hablar» (decisión de Agustin):
+ * - escuchando: «Terminar» (el dictado manda sobre lo escrito);
+ * - con algo escrito para enviar (`canSend`): «Enviar», que envía el formulario;
+ * - si no: «Hablar» (o nada, con la voz apagada en el servidor).
+ */
+export function SearchAction({
+  status,
+  onToggle,
+  canSend,
+  voiceAvailable,
+  blocked = false,
+}: {
+  status: VoiceStatus;
+  onToggle: () => void;
+  canSend: boolean;
+  voiceAvailable: boolean;
+  blocked?: boolean;
+}) {
+  if (canSend && !listening(status)) {
+    return (
+      <button type="submit" className="mic" aria-disabled={blocked || undefined} onClick={(event) => blocked && event.preventDefault()}>
+        <Icon name="send" />
+        <span className="mic-label">{VOICE_TEXTS.send}</span>
+      </button>
+    );
+  }
+  return voiceAvailable ? <MicButton status={status} onToggle={onToggle} blocked={blocked} /> : null;
 }
 
 /** Texto de estado para la región `aria-live="polite"`; null si no hay nada que decir. */

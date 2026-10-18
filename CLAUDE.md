@@ -1,4 +1,4 @@
-# Guíame · Reglas para Claude Code (v2.2)
+# Guíame · Reglas para Claude Code (v2.4)
 
 Guíame es un **navegador de escritorio con IA** que acompaña, paso a paso, a personas de 50+ (Uruguay y Argentina) mientras usan sitios web reales: sacar un turno, comprar algo. **Guíame muestra; la persona hace.** Nunca hace clic ni envía nada por ella. La única excepción es escribir en un formulario un dato no sensible que la persona le dictó, y lo tiene que confirmar (§2).
 
@@ -15,12 +15,12 @@ Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una secci
 ## 1. Fuente de verdad (en este orden)
 
 1. Lo que pida la persona del equipo en la sesión.
-2. `design/png/<pantalla>.png` y `design/preview/<pantalla>.html`: **cómo se ve**. Si un documento y una pantalla no coinciden, manda la pantalla.
+2. `design/preview/<pantalla>.html` y su captura `design/png/<pantalla>.png` (generada desde el preview a 1440×900): **cómo se ve**. Si un documento y una pantalla no coinciden, manda la pantalla.
 3. `design/docs/03-pantallas-y-flujos.md`: textos, sello, estado de «Ayuda» y números de progreso de cada pantalla.
 4. `design/docs/01-reglas-de-uso.md`: reglas R1–R14, no negociables.
 5. `design/docs/04-contrato-backend.md`: estados de tarjeta, eventos, privacidad (propuesta).
 6. `design/docs/02-sistema-visual.md` + `design/tokens/`: medidas y valores.
-7. `design/docs/historial/`: guion v1.7 (textos de detalle). Sus valores visuales quedaron reemplazados.
+7. `design/docs/historial/`: guion v1.7 (textos de detalle; sus valores visuales quedaron reemplazados) y los cambios de cada versión (`v2.2-cambios.md` a `v2.4-cambios.md`).
 
 `design/pantallas/*.dc.html` es la fuente de las pantallas en formato de lienzo de Claude Design. **Es referencia, no código de producción**: copiá valores y estructura, no la arquitectura ni los estilos inline.
 
@@ -34,6 +34,7 @@ Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una secci
   - Guíame nunca hace clic ni envía el formulario: el botón final siempre lo toca la persona.
 - **La guía llega hasta el final.** Al elegir una opción, o al pedir algo que no estaba entre las opciones, el backend investiga en internet el paso a paso de esa tarea en el sitio. Después, `/v1/next-step` avanza hasta que la página confirma que terminó. La guía nunca da la tarea por terminada por su cuenta.
 - **El inicio es un buscador, no un chat** (A-01, B-C01). Si la búsqueda alcanza, se abre el sitio directo; si falta un dato, aparece **una pregunta por vez** debajo del buscador (A-02, A-03, B-C02, B-C03) con respuestas en botones y «No sé bien».
+- **Inicio v2.4:** sin botón «Guíame». La búsqueda se envía con Enter o con la píldora del buscador, que dice «Hablar» y pasa a «Enviar» cuando la persona escribe (decisión de Agustín). Debajo van hasta tres accesos del historial («Lo que hiciste antes»), nombrados por lo que se hace. Falta en el contrato `historial[] {texto, url, icono}` y queda [DECIDIR] dónde se guarda y cuánto tiempo.
 - **El sitio ocupa todo el ancho.** La ayuda es una **tarjeta flotante** a la derecha (R4), nunca una columna lateral. Nunca tapa el control resaltado.
 - **Un estado de tarjeta por respuesta (R1)** y **una sola acción principal por vista (R2)**.
 - **Contador (R5):** solo acciones confirmadas en el sitio, de a 1. Responder a Guíame no suma. Sin línea de progreso con 0.
@@ -53,9 +54,10 @@ Si el repositorio ya tiene un `CLAUDE.md`, agregá este contenido como una secci
 ## 4. Marca
 
 - El nombre es siempre **«Guíame»**, con tilde.
-- Azul y blanco con gradientes, **Poppins** (local, `design/assets/fonts/`, pesos 300–700), bordes curvos. Solo modo claro.
+- Azul y blanco, **Poppins** (local, `design/assets/fonts/`, pesos 300–700), bordes curvos. Solo modo claro.
+- **Sin gradiente de pantalla completa** (v2.3). El gradiente queda solo en la barra, la tarjeta flotante, los botones principales, «Hablar» y el rótulo «Acá». Las pantallas propias van sobre blanco con puntos (`.g-ground`) y el velo del sitio es parejo, navy al 12% (`.g-site-veil`).
 - **Logo de la barra:** `design/assets/logo/guiame-blanco.png`, «Guíame» en blanco con avioncito, **sin ojos**, 38px de alto y **sin contenedor**. `guiame-blanco-ojos.png` ya no va en la barra. Las versiones con contenedor celeste (`guiame-icono.png`, `guiame-pill*.png`) van solo sobre fondo claro (R12). No redibujes, recolorees ni deformes los logos.
-- **Micrófono:** píldora azul con gradiente, ícono blanco y texto visible **«Hablar»** (clase `.g-voice`, `.g-voice--home` en el inicio). Nombre accesible «Hablar: decirlo en voz alta». No es la acción principal: «Guíame» sigue siendo el único botón principal. El estado «escuchando» (pantalla 33) **no está diseñado**: no lo inventes.
+- **Micrófono:** píldora azul con gradiente, ícono blanco y texto visible **«Hablar»** (clase `.g-voice`, `.g-voice--home` en el inicio). Nombre accesible «Hablar: decirlo en voz alta». Con algo escrito, la misma píldora dice «Enviar» y envía la búsqueda. El estado «escuchando» (pantalla 33) **no está diseñado**: no lo inventes.
 - **Resaltado (R8):** anillo blanco + azul `#1F8BFF` + rótulo «Acá» azul. Nunca amarillo ni negro. En un overlay con `pointer-events: none` y `aria-hidden`, por encima del velo (`z-index: 2`), sin envolver ni modificar el control del sitio. Nunca tapa texto ni etiquetas y nunca lleva instrucciones.
 - Verde solo para «Sitio oficial» y «Listo», nunca en botones.
 - Íconos Lucide en línea, trazo 2, `aria-hidden="true"`, siempre con texto visible. Sin emojis.
