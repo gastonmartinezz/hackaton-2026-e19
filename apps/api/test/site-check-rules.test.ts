@@ -80,6 +80,8 @@ describe('fuentes de autoridad', () => {
     expect(parseWebsite('')).toEqual({ reason: 'sin sitio web' });
     expect(parseWebsite('https://www.facebook.com/financiera')).toEqual({ reason: 'sitio web en una plataforma compartida' });
     expect(parseWebsite('https://www.itau.com.uy/inst/')).toMatchObject({ domain: 'itau.com.uy' });
+    // Un subdominio que no es www autoriza solo ese host, no el dominio registrable de otra organización.
+    expect(parseWebsite('balumacambio.enjoypuntadeleste.com.uy/')).toMatchObject({ domain: 'balumacambio.enjoypuntadeleste.com.uy' });
     expect(parseWebsites('www.floder.uy,  www.paigo.com.uy ,https://www.paigo.com.uy')).toEqual({ domains: ['floder.uy', 'paigo.com.uy'] });
     // Floder S.A. (nombre de fantasía «Paigo») publica ocho sitios en la ficha.
     expect(view.official('www.paigo.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'Paigo' });
@@ -250,6 +252,24 @@ describe('fuentes de autoridad', () => {
 });
 
 describe('registro del BCU', () => {
+  it('un sitio publicado en un subdominio ajeno no hace oficial al dominio entero ni es referencia de parecido', () => {
+    // El BCU publica la casa de cambio Balumacambio en balumacambio.enjoypuntadeleste.com.uy (fixture real).
+    expect(view.official('balumacambio.enjoypuntadeleste.com.uy')).toMatchObject({ basis: 'financial_regulator', matched: 'balumacambio.enjoypuntadeleste.com.uy' });
+    expect(view.official('www.enjoypuntadeleste.com.uy')).toBeNull();
+    expect(view.official('otra-cosa.enjoypuntadeleste.com.uy')).toBeNull();
+    expect(view.references().some((ref) => ref.domain === 'enjoypuntadeleste.com.uy')).toBe(false);
+  });
+
+  it('desactivado no descarga nada, tampoco al calentar', async () => {
+    const calls: string[] = [];
+    const base = fakeRdapFetch().impl;
+    const fetchImpl = ((input: string | URL | Request, init?: RequestInit) => (calls.push(String(input)), base(input, init))) as typeof fetch;
+    const reg = registry(fetchImpl, undefined, { enabled: false });
+    reg.warmUp();
+    expect(await reg.state(1000)).toMatchObject({ status: 'unavailable', error: 'disabled' });
+    expect(calls).toEqual([]);
+  });
+
   it('caído y sin copia: no disponible', async () => {
     const state = await registry(fakeRdapFetch({ bcuDown: true }).impl).state(1000);
     expect(state).toMatchObject({ status: 'unavailable', snapshot: null, error: 'http_503' });

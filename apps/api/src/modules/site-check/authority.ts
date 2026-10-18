@@ -85,7 +85,8 @@ export class AuthorityView {
     for (const entry of this.sources.entries) {
       for (const { domain } of entry.domains) {
         const registrable = describeHost(domain).registrableDomain;
-        for (const institution of (registrable && this.byDomain.get(registrable)) || []) {
+        const keys = new Set([registrable, domain].filter((key): key is string => Boolean(key)));
+        for (const institution of [...keys].flatMap((key) => this.byDomain.get(key) ?? [])) {
           link(`catalog:${entry.id}`, `bcu:${institution.id}`);
           link(`bcu:${institution.id}`, `catalog:${entry.id}`);
         }
@@ -97,10 +98,26 @@ export class AuthorityView {
     return this.sources.entries.find((entry) => catalogAuthorizes(entry, hostname));
   }
 
-  /** Instituciones del BCU cuyo sitio publicado tiene el mismo dominio registrable que el host (nunca por sufijo de texto). */
+  /**
+   * Instituciones del BCU que autorizan el host y la clave con la que lo hacen: el dominio registrable del sitio
+   * publicado o, si el BCU publicó un subdominio, ese host y los que cuelgan de él. Se recorren las etiquetas
+   * enteras desde el host hasta el dominio registrable: nunca por sufijo de texto.
+   */
+  private registryMatch(hostname: string): { key: string; institutions: BcuInstitution[] } | null {
+    const host = describeHost(hostname);
+    if (!host.registrableDomain) return null;
+    const labels = host.hostname.split('.');
+    const minLabels = host.registrableDomain.split('.').length;
+    for (let i = 0; labels.length - i >= minLabels; i++) {
+      const key = labels.slice(i).join('.');
+      const institutions = this.byDomain.get(key);
+      if (institutions) return { key, institutions };
+    }
+    return null;
+  }
+
   private registryInstitutions(hostname: string): BcuInstitution[] {
-    const domain = describeHost(hostname).registrableDomain;
-    return (domain && this.byDomain.get(domain)) || [];
+    return this.registryMatch(hostname)?.institutions ?? [];
   }
 
   /** Nombre que ve la persona: el corto del catálogo enlazado, el de fantasía o la razón social. */
@@ -114,15 +131,16 @@ export class AuthorityView {
   official(hostname: string): OfficialMatch | null {
     const entry = this.catalogEntry(hostname);
     const domain = describeHost(hostname).registrableDomain;
-    const candidates = this.registry.status === 'fresh' && domain && !this.sources.discarded.has(domain) ? this.registryInstitutions(hostname) : [];
+    const match = this.registry.status === 'fresh' && domain && !this.sources.discarded.has(domain) ? this.registryMatch(hostname) : null;
+    const candidates = match && !this.sources.discarded.has(match.key) ? match.institutions : [];
     const institution = candidates.find((i) => atRoot(i.website)) ?? candidates[0];
-    if (domain && institution && this.registry.snapshot) {
+    if (match && institution && this.registry.snapshot) {
       return {
         basis: 'financial_regulator',
         organization: entry ? entry.organization : this.institutionName(institution),
-        matched: domain,
+        matched: match.key,
         source: { name: BCU_SOURCE_NAME, url: institution.sourceUrl, reviewedAt: this.registry.snapshot.fetchedAt },
-        detail: `${domain} es el sitio que el BCU publica para ${institution.name}`,
+        detail: `${match.key} es el sitio que el BCU publica para ${institution.name}`,
       };
     }
     if (entry) {
@@ -246,7 +264,10 @@ export class AuthorityView {
       const host = describeHost(domain);
       if (host.registrableDomain && host.label) refs.push({ domain: host.registrableDomain, label: host.label, organization, kind, commonWord: this.commonWord(host.label) });
     };
-    for (const institution of this.institutions) for (const domain of institution.domains) push(domain, this.institutionName(institution), 'financial_regulator');
+    // Un sitio publicado en un subdominio ajeno no es referencia: su dominio registrable es de otra organización.
+    for (const institution of this.institutions) {
+      for (const domain of institution.domains) if (describeHost(domain).registrableDomain === domain) push(domain, this.institutionName(institution), 'financial_regulator');
+    }
     for (const entry of this.sources.entries) for (const d of entry.domains) push(d.domain, entry.organization, 'official_catalog');
     refs.push(...this.popular.map((ref) => ({ ...ref, commonWord: this.commonWord(ref.label) })));
     return refs;

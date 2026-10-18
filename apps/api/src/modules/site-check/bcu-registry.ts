@@ -202,7 +202,11 @@ export function parseWebsite(raw: string | null | undefined): { website: string;
   const host = describeHost(url.hostname);
   if (host.internal || host.isIp || !host.registrableDomain) return { reason: 'sitio web no público' };
   if (SHARED_DOMAINS.has(host.registrableDomain)) return { reason: 'sitio web en una plataforma compartida' };
-  return { website, domain: host.registrableDomain };
+  // Un sitio publicado en un subdominio que no es www (una casa de cambio dentro del dominio de un casino:
+  // balumacambio.enjoypuntadeleste.com.uy) autoriza solo ese host y los que cuelgan de él, nunca el dominio
+  // registrable entero. La ruta no cambia el alcance: con host propio, `/home` o `/uy` es solo la portada.
+  const scoped = host.hostname !== host.registrableDomain && host.hostname !== `www.${host.registrableDomain}`;
+  return { website, domain: scoped ? host.hostname : host.registrableDomain };
 }
 
 /** Uno o varios sitios separados por comas o punto y coma. Si alguno no es utilizable, se informa el primer motivo. */
@@ -340,6 +344,8 @@ export class BcuRegistry {
    * para que la copia no venza en un servidor sin consultas. `refreshIfNeeded` decide si corresponde.
    */
   warmUp(): void {
+    // Con SITE_CHECK_BCU_REGISTRY=false no se descarga nada ni se programa el refresco.
+    if (!this.options.enabled) return;
     void this.refreshIfNeeded();
     this.timer ??= setInterval(() => void this.refreshIfNeeded(), 60 * 60_000).unref();
   }
@@ -366,6 +372,7 @@ export class BcuRegistry {
   }
 
   private refreshIfNeeded(): Promise<void> | null {
+    if (!this.options.enabled) return null;
     if (this.inflight) return this.inflight;
     const due = !this.snapshot || this.now - this.fetchedAtMs >= this.options.refreshAfterMs;
     // Con el BCU caído no se insiste: 5 min, 10, 20… hasta 6 h entre intentos.
