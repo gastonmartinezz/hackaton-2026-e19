@@ -1,7 +1,8 @@
 /**
  * Preferencias locales en un JSON versionado dentro de userData. Sin secretos.
  * También guarda los datos de la pantalla inicial: solo salen del equipo
- * dentro de /v1/interpret (ver user-context.ts).
+ * dentro de /v1/interpret (ver user-context.ts). Y los sitios que la persona
+ * abre más seguido (frequent-sites.ts), que nunca salen del equipo.
  * Un archivo corrupto o de otra versión vuelve a los valores por defecto; uno
  * que no se pudo leer (permisos, disco) no se pisa.
  */
@@ -10,6 +11,7 @@ import { dirname, join } from 'node:path';
 import { AgeRange, CountryCode } from '@hackaton/contracts';
 import { z } from 'zod';
 import { DEFAULT_TEXT_SCALE, TEXT_SCALES, VOICE_MODES } from '../shared/ipc';
+import { FrequentSiteSchema, MAX_STORED_SITES } from './frequent-sites';
 
 /** Lo que la persona cuenta de sí misma en la pantalla inicial. Todo opcional. */
 const ProfileSchema = z.object({
@@ -31,6 +33,8 @@ const PrefsSchema = z.object({
   profile: ProfileSchema.default({ country: null, region: '', city: '', ageRange: null }),
   /** Modo voz: `auto` (se prende al dictar), `on` u `off`. Un valor desconocido vuelve a `auto`. */
   voiceMode: z.enum(VOICE_MODES).catch('auto').default('auto'),
+  /** Sitios que más abre, para el inicio. Una lista dañada se descarta sin perder lo demás. */
+  frequentSites: z.array(FrequentSiteSchema).max(MAX_STORED_SITES).catch([]).default([]),
 });
 export type Prefs = z.infer<typeof PrefsSchema>;
 type PrefsPatch = Partial<Omit<Prefs, 'version'>>;
@@ -42,6 +46,7 @@ export const DEFAULT_PREFS: Prefs = {
   termsAccepted: null,
   profile: { country: null, region: '', city: '', ageRange: null },
   voiceMode: 'auto',
+  frequentSites: [],
 };
 
 function nearestScale(value: unknown): unknown {
