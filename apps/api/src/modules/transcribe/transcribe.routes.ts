@@ -1,7 +1,16 @@
-import { ApiError, TRANSCRIBE_CONTENT_TYPE, TRANSCRIBE_MAX_BYTES, TranscribeResponse } from '@hackaton/contracts';
+import {
+  ApiError,
+  TRANSCRIBE_CONTENT_TYPE,
+  TRANSCRIBE_HEADER_HEADROOM_BYTES,
+  TRANSCRIBE_MAX_BYTES,
+  TranscribeResponse,
+} from '@hackaton/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { TranscribeService } from './transcribe.service.js';
+
+// 30 s con cabecera canónica más margen para chunks extra; la duración se valida al leer el WAV.
+const BODY_LIMIT = TRANSCRIBE_MAX_BYTES + TRANSCRIBE_HEADER_HEADROOM_BYTES;
 
 export interface TranscribeRoutesOptions {
   service: TranscribeService;
@@ -12,14 +21,14 @@ export const transcribeRoutes: FastifyPluginAsyncZod<TranscribeRoutesOptions> = 
   // Parser y límite de cuerpo propios de este plugin: el resto de la API sigue con JSON y 512 KB.
   app.addContentTypeParser(
     TRANSCRIBE_CONTENT_TYPE,
-    { parseAs: 'buffer', bodyLimit: TRANSCRIBE_MAX_BYTES },
+    { parseAs: 'buffer', bodyLimit: BODY_LIMIT },
     (_request, body, done) => done(null, body),
   );
 
   app.post(
     '/v1/transcribe',
     {
-      bodyLimit: TRANSCRIBE_MAX_BYTES,
+      bodyLimit: BODY_LIMIT,
       config: { rateLimit },
       schema: {
         tags: ['transcribe'],

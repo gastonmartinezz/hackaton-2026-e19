@@ -114,5 +114,11 @@ export function cleanTranscript(raw: string): string {
     .trim();
   if (!text || /^[\s.,;:!?¡¿…-]*$/.test(text)) return '';
   if (HALLUCINATIONS.some((pattern) => pattern.test(text))) return '';
-  return text.slice(0, MAX_TEXT_LENGTH).trim();
+  return truncate(text, MAX_TEXT_LENGTH).trim();
+}
+
+/** Corta en unidades UTF-16 (lo que cuenta el contrato) sin dejar un surrogate suelto al final. */
+function truncate(text: string, max: number): string {
+  const cut = text.slice(0, max);
+  return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
 }

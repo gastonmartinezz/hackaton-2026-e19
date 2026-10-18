@@ -1,4 +1,4 @@
-import { TRANSCRIBE_MAX_BYTES } from '@hackaton/contracts';
+import { TRANSCRIBE_HEADER_HEADROOM_BYTES, TRANSCRIBE_MAX_BYTES } from '@hackaton/contracts';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AppError } from '../src/lib/errors.js';
@@ -76,6 +76,15 @@ describe('POST /v1/transcribe', () => {
     const res = await postWav(buildWav({ seconds: 31 }));
     expect(res.statusCode).toBe(413);
     expect(res.json().error).toMatchObject({ code: 'PAYLOAD_TOO_LARGE', retryable: false });
+  });
+
+  it('acepta 30 s con chunks extra antes de data (WAV no canónico)', async () => {
+    app = await testApp({}, { STT_PROVIDER: 'mock' });
+    const extraChunks = [{ id: 'LIST', data: Buffer.alloc(512) }];
+    const wav = buildWav({ seconds: 30, extraChunks });
+    expect(wav.length).toBeGreaterThan(TRANSCRIBE_MAX_BYTES);
+    expect(wav.length).toBeLessThanOrEqual(TRANSCRIBE_MAX_BYTES + TRANSCRIBE_HEADER_HEADROOM_BYTES);
+    expect((await postWav(wav)).statusCode).toBe(200);
   });
 
   it('no cambia el límite de cuerpo del resto de la API', async () => {
@@ -239,6 +248,12 @@ describe('cleanTranscript', () => {
     ['¡Gracias por ver el video!', ''],
   ])('%j → %j', (raw, expected) => {
     expect(cleanTranscript(raw)).toBe(expected);
+  });
+
+  it('corta a 1000 unidades UTF-16 sin dejar un surrogate suelto', () => {
+    const text = cleanTranscript(`${'a'.repeat(999)}😀`);
+    expect(text).toBe('a'.repeat(999));
+    expect(() => encodeURIComponent(text)).not.toThrow();
   });
 
   it('recorta a 1000 caracteres', () => {

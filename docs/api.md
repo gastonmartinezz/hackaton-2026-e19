@@ -195,7 +195,7 @@ Contrato en `packages/contracts/src/transcribe.ts` (`TRANSCRIBE_*` y `Transcribe
 **Solicitud:** cuerpo **binario** (no JSON) con `Content-Type: audio/wav` y el Bearer de siempre.
 
 - WAV RIFF con PCM entero de **16 bits little-endian, mono, 16 000 Hz** (`TRANSCRIBE_SAMPLE_RATE`).
-- Entre **0,3 s y 30 s** (`TRANSCRIBE_MAX_SECONDS`), o sea hasta `TRANSCRIBE_MAX_BYTES` = 960 044 bytes.
+- Entre **0,3 s y 30 s** (`TRANSCRIBE_MAX_SECONDS`), o sea hasta `TRANSCRIBE_MAX_BYTES` = 960 044 bytes. El servidor acepta además `TRANSCRIBE_HEADER_HEADROOM_BYTES` = 4096 bytes de margen para WAV con chunks extra (LIST, fact…) antes de `data`; la duración se controla igual al leer el audio.
 - El servidor no convierte formatos: el front graba o remuestrea a 16 kHz mono antes de enviar. Se aceptan chunks extra (`LIST`, etc.) antes de `data`.
 
 ```bash
@@ -218,7 +218,7 @@ curl -X POST "$API/v1/transcribe" \
 | Caso | Código | HTTP | `retryable` |
 |---|---|---|---|
 | No es WAV, otro formato (estéreo, 44,1 kHz, 8 bits, float), truncado o menos de 0,3 s | `BAD_REQUEST` | 400 | no |
-| Más de 30 s o más de `TRANSCRIBE_MAX_BYTES` | `PAYLOAD_TOO_LARGE` | 413 | no |
+| Más de 30 s o más de `TRANSCRIBE_MAX_BYTES` + `TRANSCRIBE_HEADER_HEADROOM_BYTES` | `PAYLOAD_TOO_LARGE` | 413 | no |
 | Voz a texto apagada en este servidor (`STT_PROVIDER=off`) | `AI_UNAVAILABLE` | 503 | **no**: ocultar el micrófono |
 | El modelo se está cargando (primeros segundos tras un arranque), se reinició o la cola está llena | `AI_UNAVAILABLE` | 503 | sí, salvo `/v1/transcribe` apagado (`retryable: false`) |
 | La transcripción tardó más que `STT_TIMEOUT_MS` (30 s por defecto) | `TIMEOUT` | 504 | sí |
