@@ -4,6 +4,8 @@ import {
   InterpretResponse,
   NextStepResponse,
   OptionsResponse,
+  SPEAK_MAX_CHARS,
+  SpeakRequest,
   TRANSCRIBE_MAX_BYTES,
   TranscribeResponse,
 } from '../src/index.js';
@@ -94,5 +96,18 @@ describe('TranscribeResponse', () => {
 
   it('fija el tope de bytes en 30 s de PCM de 16 bits mono a 16 kHz', () => {
     expect(TRANSCRIBE_MAX_BYTES).toBe(960_044);
+  });
+});
+
+describe('SpeakRequest', () => {
+  it('recorta el texto y exige entre 1 y SPEAK_MAX_CHARS caracteres', () => {
+    expect(SpeakRequest.parse({ text: '  Tocá «Iniciar trámite».  ' })).toEqual({ text: 'Tocá «Iniciar trámite».' });
+    expect(SpeakRequest.safeParse({ text: '   ' }).success).toBe(false);
+    expect(SpeakRequest.safeParse({ text: 'a'.repeat(SPEAK_MAX_CHARS) }).success).toBe(true);
+    expect(SpeakRequest.safeParse({ text: 'a'.repeat(SPEAK_MAX_CHARS + 1) }).success).toBe(false);
+  });
+
+  it('rechaza campos de más', () => {
+    expect(SpeakRequest.safeParse({ text: 'Hola', voice: 'marin' }).success).toBe(false);
   });
 });
