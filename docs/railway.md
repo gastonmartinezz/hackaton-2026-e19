@@ -53,6 +53,7 @@ No es alpine: si algún día se usa Whisper local, los binarios de `onnxruntime-
 | `OPENAI_STT_KEYWORDS`, `OPENAI_STT_PROMPT` | *(opcionales)* | Vacías por defecto. Valor propuesto y fuentes en [api.md](api.md#vocabulario-para-openai-openai_stt_prompt-y-openai_stt_keywords) |
 | `OPENAI_STT_MODEL` | *(opcional)* `gpt-transcribe` | |
 | `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE` | *(opcionales)* `gpt-4o-mini-tts`, `marin` | |
+| `TTS_TIMEOUT_MS` | *(opcional)* `30000` | Tope de cada lectura, incluido el streaming del audio |
 | `OPENAI_TIMEOUT_MS`, `OPENAI_MAX_RETRIES` | *(opcionales)* `30000`, `1` | El timeout cuenta hasta que OpenAI empieza a responder |
 | `STT_RATE_LIMIT_MAX`, `TTS_RATE_LIMIT_MAX` | *(opcionales)* `20`, `30` | Por token y por `RATE_LIMIT_WINDOW_MS` |
 | `STT_CONCURRENCY`, `STT_QUEUE_MAX` | *(opcionales)* | Con `openai`, 8 transcripciones en paralelo y 4 en espera |

@@ -88,6 +88,8 @@ const EnvSchema = z
     OPENAI_TTS_MODEL: z.string().min(1).default('gpt-4o-mini-tts'),
     OPENAI_TTS_VOICE: z.string().min(1).default('marin'),
     TTS_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+    // Tope de la lectura completa, incluido el streaming del audio.
+    TTS_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
   })
   .superRefine((env, ctx) => {
     if (env.AI_PROVIDER === 'anthropic' && !env.ANTHROPIC_API_KEY) {

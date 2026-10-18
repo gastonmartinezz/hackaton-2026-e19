@@ -123,7 +123,9 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
   let openaiClient = deps.openai;
   const openai = () => (openaiClient ??= createOpenAI(config));
   const transcriber = deps.transcriber !== undefined ? deps.transcriber : createTranscriber(config, app, openai);
-  const speakService = new SpeakService(deps.speaker !== undefined ? deps.speaker : createSpeaker(config, openai), app.log);
+  const speakService = new SpeakService(deps.speaker !== undefined ? deps.speaker : createSpeaker(config, openai), app.log, {
+    timeoutMs: config.TTS_TIMEOUT_MS,
+  });
   app.addHook('onClose', async () => transcriber?.close?.());
   const transcribeService = new TranscribeService(
     transcriber,

@@ -270,4 +270,32 @@ describe('SpeakService', () => {
     expect(closed).toBe(true);
     expect(entries.at(-1)?.[0]).toMatchObject({ outcome: 'CLIENT_CLOSED' });
   });
+
+  const stalled = (chunks: number): SpeechProvider => ({
+    speak: async () =>
+      (async function* () {
+        for (let i = 0; i < chunks; i++) yield new Uint8Array([i]);
+        await new Promise(() => {});
+      })(),
+  });
+
+  it('responde TIMEOUT si el proveedor no manda el primer audio a tiempo', async () => {
+    const { logger, entries } = recordingLogger();
+    const service = new SpeakService(stalled(0), logger, { timeoutMs: 30 });
+    await expect(service.speak('Hola')).rejects.toMatchObject({ code: 'TIMEOUT' });
+    expect(entries.at(-1)?.[0]).toMatchObject({ outcome: 'TIMEOUT' });
+  });
+
+  it('corta el streaming si el proveedor se cuelga a mitad del audio', async () => {
+    const { logger, entries } = recordingLogger();
+    const stream = await new SpeakService(stalled(1), logger, { timeoutMs: 50 }).speak('Hola');
+    const received: Buffer[] = [];
+    await expect(
+      (async () => {
+        for await (const chunk of stream) received.push(Buffer.from(chunk));
+      })(),
+    ).rejects.toMatchObject({ code: 'TIMEOUT' });
+    expect(Buffer.concat(received)).toEqual(Buffer.from([0]));
+    expect(entries.at(-1)?.[0]).toMatchObject({ outcome: 'TIMEOUT', bytes: 1 });
+  });
 });
