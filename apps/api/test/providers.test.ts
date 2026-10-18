@@ -17,16 +17,16 @@ describe('RDAP', () => {
     expect(fetch.calls).toHaveLength(2);
   });
 
-  it('un TLD sin servicio RDAP (.uy) queda unavailable con el motivo', async () => {
+  it('un TLD sin servicio RDAP (.uy) queda unavailable y se guarda tanto como el bootstrap', async () => {
     const rdap = new RdapClient({ ...limits, enabled: true, fetchImpl: fakeRdapFetch().impl });
     const result = await rdap.lookup('ejemplo.uy');
-    expect(result).toMatchObject({ coverage: 'unavailable', errors: ['no_rdap_service'], findings: [] });
+    expect(result).toMatchObject({ coverage: 'unavailable', ttlMs: 24 * 60 * 60_000, findings: [] });
   });
 
   it('los dominios .uy no gastan el cupo por minuto ni repiten la consulta', async () => {
     const fetch = fakeRdapFetch();
     const rdap = new RdapClient({ timeoutMs: 1000, maxPerMinute: 1, enabled: true, fetchImpl: fetch.impl });
-    for (const domain of ['a.uy', 'b.uy', 'c.uy', 'a.uy']) expect(await rdap.lookup(domain)).toMatchObject({ errors: ['no_rdap_service'] });
+    for (const domain of ['a.uy', 'b.uy', 'c.uy', 'a.uy']) expect(await rdap.lookup(domain)).toMatchObject({ coverage: 'unavailable' });
     // El único lugar del cupo sigue libre para un dominio con RDAP.
     expect(await rdap.lookup('ejemplo.net')).toMatchObject({ coverage: 'complete' });
   });
@@ -36,13 +36,13 @@ describe('RDAP', () => {
     const rdap = new RdapClient({ timeoutMs: 1000, maxPerMinute: 1, enabled: true, fetchImpl: fetch.impl });
     await rdap.lookup('a.com');
     const calls = fetch.calls.length;
-    expect(await rdap.lookup('b.com')).toMatchObject({ coverage: 'unavailable', errors: ['rate_limited'] });
+    expect(await rdap.lookup('b.com')).toMatchObject({ coverage: 'unavailable', ttlMs: 0 });
     expect(fetch.calls).toHaveLength(calls);
   });
 
   it('el tiempo máximo produce unavailable', async () => {
     const rdap = new RdapClient({ timeoutMs: 20, maxPerMinute: 10, enabled: true, fetchImpl: fakeRdapFetch({ hang: true }).impl });
-    expect(await rdap.lookup('ejemplo.com')).toMatchObject({ coverage: 'unavailable', errors: ['timeout'] });
+    expect(await rdap.lookup('ejemplo.com')).toMatchObject({ coverage: 'unavailable', ttlMs: 0 });
   });
 });
 

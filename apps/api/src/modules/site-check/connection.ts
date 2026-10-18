@@ -5,7 +5,7 @@ import type { TLSSocket } from 'node:tls';
 import { cacheKey, ProviderBudget, TtlCache, withTimeout } from './cache.js';
 import { describeHost } from './domain.js';
 import { BlockedHostError, resolvePublic, systemResolver, type HostResolver, type ResolvedAddress } from './net-guard.js';
-import { errorKind, unavailable, type Finding, type SourceResult } from './types.js';
+import { unavailable, type Finding, type SourceResult } from './types.js';
 
 const MAX_REDIRECTS = 5;
 const CONNECTION_TTL_MS = 60 * 60_000;
@@ -93,15 +93,15 @@ export class ConnectionInspector {
   inspect(url: URL): Promise<SourceResult> {
     const checkedAt = new Date((this.options.now ?? Date.now)()).toISOString();
     // SITE_CHECK_CONNECTION=false
-    if (!this.options.enabled) return Promise.resolve(unavailable(['disabled']));
+    if (!this.options.enabled) return Promise.resolve({ ...unavailable(), disabled: true });
     return this.cache.getOrLoad(
       cacheKey('connection', url.toString()),
       async () => {
         try {
           this.budget.take();
           return await withTimeout(this.options.timeoutMs, (signal) => this.follow(url, checkedAt, signal));
-        } catch (error) {
-          return unavailable([errorKind(error)]);
+        } catch {
+          return unavailable();
         }
       },
       (result) => result.ttlMs,
@@ -117,8 +117,6 @@ export class ConnectionInspector {
     // Los certificados no válidos se registran en cualquier salto.
     const badCertificates: string[] = [];
     let finished = false;
-    let blocked = false;
-    let unreachable = false;
 
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       let address: ResolvedAddress;
@@ -129,8 +127,6 @@ export class ConnectionInspector {
         // El primer destino que falla invalida todo; una redirección bloqueada o que no resuelve
         // deja lo observado hasta ahí (certificados y redirecciones de los saltos anteriores).
         if (hop === 0) throw error;
-        if (error instanceof BlockedHostError) blocked = true;
-        else unreachable = true;
         break;
       }
       let result: HopResult;
@@ -138,7 +134,6 @@ export class ConnectionInspector {
         result = await requester(current, address, this.options.timeoutMs, signal);
       } catch (error) {
         if (hop === 0 || signal.aborted) throw error;
-        unreachable = true;
         break;
       }
       reached = current;
@@ -165,7 +160,6 @@ export class ConnectionInspector {
     return {
       coverage: finished ? 'complete' : 'partial',
       ttlMs: CONNECTION_TTL_MS,
-      errors: blocked ? ['blocked_destination'] : unreachable ? ['redirect_unreachable'] : [],
       findings,
     };
   }

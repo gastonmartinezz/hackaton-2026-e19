@@ -50,7 +50,6 @@ describe('inspect_connection', () => {
     const requester = recordingRequester();
     const result = await inspector(requester).inspect(new URL(url));
     expect(result.coverage).toBe('unavailable');
-    expect(result.errors).toEqual(['blocked_destination']);
     expect(requester.calls).toEqual([]);
   });
 
@@ -61,7 +60,7 @@ describe('inspect_connection', () => {
       { address: '10.0.0.1', family: 4 },
     ];
     const result = await inspector(requester, resolver).inspect(new URL('https://rebinding.example.com/'));
-    expect(result.errors).toEqual(['blocked_destination']);
+    expect(result.coverage).toBe('unavailable');
     expect(requester.calls).toEqual([]);
   });
 
@@ -75,7 +74,6 @@ describe('inspect_connection', () => {
     const result = await inspector(requester).inspect(new URL('https://sitio.com.uy/'));
     expect(requester.calls).toEqual(['https://sitio.com.uy/']);
     expect(result.coverage).toBe('partial');
-    expect(result.errors).toEqual(['blocked_destination']);
     // El destino bloqueado no se informa como redirección a otro dominio.
     expect(result.findings).toEqual([]);
   });
@@ -131,7 +129,7 @@ describe('inspect_connection', () => {
       return [{ address: PUBLIC_IP, family: 4 }];
     };
     const result = await inspector(requester, resolver).inspect(new URL('https://sitio.com.uy/'));
-    expect(result).toMatchObject({ coverage: 'partial', errors: ['redirect_unreachable'] });
+    expect(result.coverage).toBe('partial');
     expect(result.findings.map((f) => f.code)).toEqual(['CERTIFICATE_PROBLEM']);
   });
 
@@ -143,7 +141,7 @@ describe('inspect_connection', () => {
     const result = await new ConnectionInspector({ timeoutMs: 1000, maxPerMinute: 100, enabled: true, resolver: publicResolver, requester }).inspect(
       new URL('https://sitio.com.uy/'),
     );
-    expect(result).toMatchObject({ coverage: 'partial', errors: ['redirect_unreachable'], findings: [] });
+    expect(result).toMatchObject({ coverage: 'partial', findings: [] });
   });
 
   it('una caída devuelve unavailable', async () => {
@@ -156,6 +154,7 @@ describe('inspect_connection', () => {
         throw new Error('ECONNREFUSED');
       },
     }).inspect(new URL('https://sitio.com.uy/'));
-    expect(result).toMatchObject({ coverage: 'unavailable', errors: ['provider_error'] });
+    // Sin caché: conviene reintentar.
+    expect(result).toMatchObject({ coverage: 'unavailable', ttlMs: 0 });
   });
 });

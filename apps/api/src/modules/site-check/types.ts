@@ -13,13 +13,13 @@ export interface Finding {
   impersonatedOrganization?: string;
 }
 
-/** Resultado de una fuente externa (RDAP, inspección de conexión): alcance, vigencia, errores y hallazgos. */
+/** Resultado de una fuente externa (RDAP, inspección de conexión): alcance, vigencia y hallazgos. */
 export interface SourceResult {
   coverage: CoverageLevel;
   /** Vigencia del dato según la fuente. 0 si falló (no se guarda en caché). */
   ttlMs: number;
-  /** Motivo técnico de una falla o de un resultado parcial (`timeout`, `rate_limited`, `http_503`…). */
-  errors: string[];
+  /** Fuente apagada por configuración (SITE_CHECK_RDAP o SITE_CHECK_CONNECTION en false): no es una falla pasajera. */
+  disabled?: true;
   findings: Finding[];
 }
 
@@ -28,7 +28,6 @@ export const errorKind = (error: unknown): string => {
   if (error instanceof Error) {
     if (error.name === 'TimeoutError' || error.name === 'AbortError') return 'timeout';
     if (error.name === 'BudgetExceededError') return 'rate_limited';
-    if (error.name === 'BlockedHostError') return 'blocked_destination';
     if (error.name === 'ProviderHttpError') return error.message;
   }
   return 'provider_error';
@@ -41,6 +40,6 @@ export class ProviderHttpError extends Error {
   }
 }
 
-export function unavailable(errors: string[]): SourceResult {
-  return { coverage: 'unavailable', ttlMs: 0, errors, findings: [] };
+export function unavailable(): SourceResult {
+  return { coverage: 'unavailable', ttlMs: 0, findings: [] };
 }

@@ -159,7 +159,7 @@ export class SiteCheckService {
     // reintentar). Que `.uy` no tenga RDAP es permanente (se guarda en caché) y no acorta nada.
     // `not_applicable` (IP directa, sin dominio registrable) y una fuente apagada a propósito no son fallas.
     const transientFailure = [registration, connection].some(
-      (s) => (s.coverage === 'unavailable' || s.coverage === 'partial') && s.ttlMs === 0 && !s.errors.includes('disabled'),
+      (s) => (s.coverage === 'unavailable' || s.coverage === 'partial') && s.ttlMs === 0 && !s.disabled,
     );
     const incomplete = !mandatoryComplete || transientFailure;
     const sourceTtls = [registration, connection].filter((s) => s.ttlMs > 0).map((s) => s.ttlMs);
@@ -183,7 +183,7 @@ export class SiteCheckService {
   /** Se consulta siempre el dominio registrable, nunca el host completo. Una IP no tiene registro de dominio. */
   private registration(host: HostInfo): Promise<SourceResult> {
     if (host.isIp || !host.registrableDomain) {
-      return Promise.resolve({ coverage: 'not_applicable', ttlMs: 0, errors: [], findings: [] });
+      return Promise.resolve({ coverage: 'not_applicable', ttlMs: 0, findings: [] });
     }
     return this.deps.rdap.lookup(host.registrableDomain);
   }
