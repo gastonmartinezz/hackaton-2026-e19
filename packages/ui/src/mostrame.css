@@ -521,6 +521,17 @@ body {
   color: var(--color-danger);
   text-align: end;
 }
+/* Responder con la voz (modo voz): «Te escucho» y «Terminar» debajo de las opciones. */
+.voice-answer {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+.voice-answer .voice-status {
+  width: auto;
+  justify-content: flex-start;
+  text-align: start;
+}
 /* Vacía sigue montada (región aria-live), pero sin ocupar lugar. */
 .voice-status:empty {
   position: absolute;

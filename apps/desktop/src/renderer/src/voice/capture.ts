@@ -5,6 +5,7 @@
  * error.
  */
 import { downmix, encodeWav, fitDuration, rms, WAV_SAMPLE_RATE } from '../../../shared/wav';
+import type { VoiceDiagnostic } from '../../../shared/ipc';
 import { SilenceDetector, type SilenceVerdict } from './silence';
 
 /** Por qué cortó solo: habló y se quedó en silencio, nunca habló, o llegó a 30 s. */
@@ -35,10 +36,14 @@ export class VoiceCapture {
   readonly #context: AudioContext;
   readonly #chunks: Blob[] = [];
   readonly #timer: ReturnType<typeof setInterval>;
+  readonly #detector = new SilenceDetector();
+  readonly #started = performance.now();
+  /** Por qué terminó, para el diagnóstico (sin audio ni texto). */
+  #reason: VoiceDiagnostic['reason'] | null = null;
   #closed = false;
 
   /** Pide el micrófono (solo audio) y empieza a grabar. `onAutoStop`: 5 s de silencio, sin habla o 30 s. */
-  static async open(onAutoStop: (reason: AutoStopReason) => void): Promise<VoiceCapture> {
+  static async open(onAutoStop: (reason: AutoStopReason) => void, report: (data: VoiceDiagnostic) => void = () => {}): Promise<VoiceCapture> {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') throw new MicError('missing');
     let stream: MediaStream;
     try {
@@ -50,14 +55,18 @@ export class VoiceCapture {
       throw new MicError(micProblem(error));
     }
     try {
-      return new VoiceCapture(stream, onAutoStop);
+      return new VoiceCapture(stream, onAutoStop, report);
     } catch (error) {
       for (const track of stream.getTracks()) track.stop();
       throw new MicError(micProblem(error));
     }
   }
 
-  private constructor(stream: MediaStream, onAutoStop: (reason: AutoStopReason) => void) {
+  private constructor(
+    stream: MediaStream,
+    onAutoStop: (reason: AutoStopReason) => void,
+    private readonly report: (data: VoiceDiagnostic) => void,
+  ) {
     this.#stream = stream;
     const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find((t) => MediaRecorder.isTypeSupported(t));
     this.#recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -69,12 +78,12 @@ export class VoiceCapture {
     analyser.fftSize = 2048;
     this.#context.createMediaStreamSource(stream).connect(analyser);
     const frame = new Float32Array(analyser.fftSize);
-    const detector = new SilenceDetector();
     this.#timer = setInterval(() => {
       analyser.getFloatTimeDomainData(frame);
-      const verdict = detector.push(rms(frame), performance.now());
+      const verdict = this.#detector.push(rms(frame), performance.now());
       if (verdict !== 'continue') {
         clearInterval(this.#timer);
+        this.#reason = verdict;
         onAutoStop(verdict);
       }
     }, POLL_MS);
@@ -84,6 +93,7 @@ export class VoiceCapture {
   /** Termina de grabar y devuelve el WAV, o null si fue demasiado corto. */
   async finish(): Promise<ArrayBuffer | null> {
     if (this.#closed) return null;
+    this.#reason ??= 'manual';
     const stopped = new Promise<void>((resolve) => this.#recorder.addEventListener('stop', () => resolve(), { once: true }));
     if (this.#recorder.state !== 'inactive') this.#recorder.stop();
     else return (this.close(), null);
@@ -98,6 +108,7 @@ export class VoiceCapture {
     if (this.#closed) return;
     this.#closed = true;
     clearInterval(this.#timer);
+    this.report({ ...this.#detector.stats, durationMs: Math.round(performance.now() - this.#started), reason: this.#reason ?? 'cancel' });
     if (this.#recorder.state !== 'inactive') {
       try {
         this.#recorder.stop();

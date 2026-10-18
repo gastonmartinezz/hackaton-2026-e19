@@ -31,7 +31,18 @@ export const SPEECH_TEXTS = {
   optionsLead: 'Encontré estas opciones en esta página',
   recommended: 'Sitio recomendado',
   why: 'Por qué te lo recomiendo',
+  /** TEMPORAL: el botón visible «Ver otras opciones», nombrado como una opción más al final de la lista. */
+  moreOptions: 'ver otras opciones',
+  /** TEMPORAL: las dos acciones del sitio recomendado (los botones visibles). */
+  recoActions: 'Podés elegir «Ir con ayuda» o «Solo abrir el sitio»',
+  /** Título visible de las alternativas en la recomendación. */
+  otherOptions: 'Otras opciones',
 } as const;
+
+/** «a, b o c». */
+export function listSpeech(items: string[]): string {
+  return items.length > 1 ? `${items.slice(0, -1).join(', ')} o ${items.at(-1)}` : (items[0] ?? '');
+}
 
 /** Tarjeta flotante: la instrucción actual (06, 08), «Listo» sin la cita (09) o «¿Pudiste terminar?» (16). */
 export function guideSpeech(guide: Pick<AppState['guide'], 'phase' | 'instruction' | 'targetField' | 'evidence'>): string {
@@ -55,11 +66,20 @@ export function stepSpeechKey(guide: Pick<AppState['guide'], 'stepCount' | 'anno
   return `${guide.contentKey}:${guide.stepCount}:${guide.announceKey}`;
 }
 
-/** Tarjeta (05): la pregunta y las opciones de la página (sin «Ver otras opciones»). */
-export function optionsSpeech(titles: string[]): string {
+/**
+ * Modo voz: clave de lectura de las opciones (05). Cambia con cada aparición
+ * de la lista de opciones y con cada vuelta de «Ver otras opciones» (`visit`),
+ * así volver a las opciones las lee de nuevo y vuelve a escuchar.
+ */
+export function optionsReadKey(contentKey: AppState['guide']['contentKey'], visit: number): string {
+  return `opciones:${contentKey}:${visit}`;
+}
+
+/** Tarjeta (05): la pregunta y las opciones de la página; si hay más, «… o ver otras opciones». */
+export function optionsSpeech(titles: string[], hasMore = false): string {
   if (titles.length === 0) return '';
-  const list = titles.length > 1 ? `${titles.slice(0, -1).join(', ')} o ${titles.at(-1)}` : titles[0];
-  return joinSpeech(SPEECH_TEXTS.optionsTitle, `${SPEECH_TEXTS.optionsLead}: ${list}`);
+  const items = hasMore ? [...titles, SPEECH_TEXTS.moreOptions] : titles;
+  return joinSpeech(SPEECH_TEXTS.optionsTitle, `${SPEECH_TEXTS.optionsLead}: ${listSpeech(items)}`);
 }
 
 /** Inicio (02, 03): la pregunta, las respuestas sugeridas y el porqué. */
@@ -69,7 +89,16 @@ export function questionSpeech(question: { text: string; answers: string[]; reas
   return joinSpeech(question.text, `${SPEECH_TEXTS.choices}: ${list}`, question.reason);
 }
 
-/** Inicio (10): por qué, el sitio recomendado y su motivo (sin la dirección). */
-export function recommendationSpeech(intro: string, candidate: Pick<CandidateView, 'title' | 'reason'>): string {
-  return joinSpeech(intro, `${SPEECH_TEXTS.recommended}: ${candidate.title}`, `${SPEECH_TEXTS.why}: ${candidate.reason}`);
+/**
+ * Inicio (10): por qué, el sitio recomendado y su motivo (sin la dirección),
+ * las dos acciones y, si hay, las otras opciones.
+ */
+export function recommendationSpeech(intro: string, candidate: Pick<CandidateView, 'title' | 'reason'>, others: string[] = []): string {
+  return joinSpeech(
+    intro,
+    `${SPEECH_TEXTS.recommended}: ${candidate.title}`,
+    `${SPEECH_TEXTS.why}: ${candidate.reason}`,
+    SPEECH_TEXTS.recoActions,
+    others.length > 0 && `${SPEECH_TEXTS.otherOptions}: ${listSpeech(others)}`,
+  );
 }

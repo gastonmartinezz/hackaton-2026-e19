@@ -8,7 +8,8 @@ import { Fragment, useLayoutEffect, useRef, useState, type FormEvent, type React
 import type { AppState, CardMode, OptionView } from '../../shared/ipc';
 import { Notices } from './Notices';
 import { SpeakButton } from './speech/SpeakButton';
-import { guideSpeech, optionsSpeech, stepSpeechKey } from './speech/speechText';
+import { guideSpeech, optionsReadKey, optionsSpeech, stepSpeechKey } from './speech/speechText';
+import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
 import { send, useAppState } from './useAppState';
 
 /** Margen transparente de la vista para la sombra (CARD_SHADOW en main/help-card.ts). */
@@ -20,6 +21,8 @@ export function HelpCard() {
   /** Instrucción para la que la persona abrió la tarjeta aunque tapara el control. */
   const [expandedFor, setExpandedFor] = useState<number | null>(null);
   const [more, setMore] = useState(false);
+  /** Cuántas veces se volvió de «Ver otras opciones»: cada vuelta es una aparición nueva para el modo voz. */
+  const [optionsVisit, setOptionsVisit] = useState(0);
   const hostRef = useRef<HTMLDivElement>(null);
 
   const mode: CardMode = state ? cardMode(state, minimized, expandedFor) : 'none';
@@ -82,7 +85,14 @@ export function HelpCard() {
     );
   }
 
-  const body = cardBody(state, { more, setMore });
+  const body = cardBody(state, {
+    more,
+    setMore: (value) => {
+      if (more && !value) setOptionsVisit((n) => n + 1);
+      setMore(value);
+    },
+    optionsVisit,
+  });
   return (
     <div className="card-host" ref={hostRef}>
       <aside
@@ -156,7 +166,7 @@ interface Body {
   foot: 'full' | 'exit' | 'none';
 }
 
-function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) => void }): Body {
+function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) => void; optionsVisit: number }): Body {
   const { guide, nav } = state;
   switch (guide.phase) {
     case 'idle':
@@ -175,7 +185,7 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
       };
 
     case 'choosing':
-      return { foot: 'exit', content: view.more ? <MoreOptions state={state} onBack={() => view.setMore(false)} /> : <Options state={state} onMore={() => view.setMore(true)} /> };
+      return { foot: 'exit', content: view.more ? <MoreOptions state={state} onBack={() => view.setMore(false)} /> : <Options state={state} visit={view.optionsVisit} onMore={() => view.setMore(true)} /> };
 
     case 'guiding':
     case 'verifying':
@@ -253,17 +263,28 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
 }
 
 /** 05: hasta 3 opciones de la página. */
-function Options({ state, onMore }: { state: AppState; onMore: () => void }) {
-  const { primary } = state.guide;
+function Options({ state, visit, onMore }: { state: AppState; visit: number; onMore: () => void }) {
+  const { primary, secondary } = state.guide;
+  // Modo voz: al terminar de leer las opciones, se puede contestar hablando.
+  const [readDone, setReadDone] = useState(0);
+  const choices: VoiceChoice[] = [
+    ...primary.map((o) => ({ label: o.title, run: () => send({ type: 'selectOption', optionId: o.id }) })),
+    // Se nombra al leer solo si hay secundarias; si no, se puede elegir por su nombre pero no por número.
+    { label: 'Ver otras opciones', kind: 'more', unnumbered: secondary.length === 0, run: onMore },
+  ];
   return (
     <>
       <div>
         <div className="speak-row">
           <h2 className="title">¿Qué querés hacer acá?</h2>
           <SpeakButton
-            text={optionsSpeech(primary.map((o) => o.title))}
+            text={optionsSpeech(
+              primary.map((o) => o.title),
+              secondary.length > 0,
+            )}
             auto={state.voice.active}
-            contentKey={`opciones:${state.guide.contentKey}`}
+            contentKey={optionsReadKey(state.guide.contentKey, visit)}
+            onDone={(outcome) => outcome === 'ended' && setReadDone((n) => n + 1)}
           />
         </div>
         <p className="lead-s">Encontré estas opciones en esta página.</p>
@@ -278,6 +299,7 @@ function Options({ state, onMore }: { state: AppState; onMore: () => void }) {
       <button type="button" className="linkish" onClick={onMore}>
         Ver otras opciones
       </button>
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} />
       <p className="panel-note">
         <Icon name="lock" />
         <span>Mostrame no recibe lo que escribís en la página.</span>
