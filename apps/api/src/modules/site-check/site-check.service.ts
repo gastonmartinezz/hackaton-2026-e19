@@ -33,9 +33,9 @@ const AI_SOURCE = 'Análisis con IA';
 export interface IdentityData {
   hostname: string;
   registrableDomain: string | null;
-  /** Fuente de autoridad que hace oficial al host (zona de gobierno, padrón del BCRA o catálogo curado). */
+  /** Fuente de autoridad que hace oficial al host (zona de gobierno, registro del BCU o catálogo curado). */
   official: OfficialMatch | null;
-  /** Versiones de las fuentes locales y estado del padrón usado. */
+  /** Versiones de las fuentes locales y estado del registro del BCU usado. */
   sources: { versions: string[]; registry: string; registryStatus: 'fresh' | 'stale' | 'unavailable' };
 }
 
@@ -63,7 +63,7 @@ const internalResult = <T>(source: string, checkedAt: string): SourceResult<T> =
 });
 
 const IDENTITY_LIMITATIONS = [
-  '«Oficial» solo sale de una autoridad: zonas de dominio reservadas al Estado, el padrón de entidades financieras del BCRA o un catálogo curado con fuente por entrada. La IA, HTTPS, rankings o la antigüedad nunca lo otorgan.',
+  '«Oficial» solo sale de una autoridad: zonas de dominio reservadas al Estado, el registro de instituciones del Banco Central del Uruguay (BCU) o un catálogo curado con fuente por entrada. La IA, HTTPS, rankings o la antigüedad nunca lo otorgan.',
   'Que un sitio no figure en esas fuentes no significa que sea falso.',
   'Un sitio oficial comprometido sigue siendo oficial: por eso cualquier riesgo tiene prioridad.',
 ];
@@ -175,7 +175,7 @@ export class SiteCheckService {
       ttlMs: CONTENT_TTL_MS,
       limitations: [
         'La marca declarada por el sitio nunca prueba su identidad; solo se usa para detectar imitaciones.',
-        'Se reconocen organismos del Estado, entidades del padrón del BCRA y organizaciones de los catálogos curados.',
+        'Se reconocen organismos del Estado uruguayo, instituciones del registro del BCU y organizaciones de los catálogos curados.',
         authority.describe().registry,
       ],
       errors: [],

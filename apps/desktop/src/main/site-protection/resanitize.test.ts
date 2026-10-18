@@ -8,7 +8,7 @@ describe('resanitizeSummary', () => {
       title: 'Hola, Marta - Banco',
       text: 'Hola, Marta Gómez\nTu clave: Secreto123!\nEscribinos a marta@correo.com',
       declaredBrand: 'Banco',
-      forms: [{ method: 'post', action: 'https://x.com/a?dni=30123456', fields: [{ type: 'text', label: 'DNI 30123456' }] }],
+      forms: [{ method: 'post', action: 'https://x.com/a?cedula=30123456', fields: [{ type: 'text', label: 'Cédula 30123456' }] }],
       links: [{ text: 'www.banco.com/x?token=abc', href: 'https://evil.com/r/tok_9f8e7d6c5b4a3210zz#ana@correo.com' }],
       scriptHosts: ['cdn.example'],
       iframeHosts: [],

@@ -4,9 +4,9 @@ import { SiteCheckRequest, SiteCheckResponse, siteIndicatorState, type SiteCheck
 const base = {
   navigationId: 'nav-1',
   contentVersion: 0,
-  url: 'https://www.argentina.gob.ar/',
-  hostname: 'www.argentina.gob.ar',
-  registrableDomain: 'argentina.gob.ar',
+  url: 'https://www.gub.uy/',
+  hostname: 'www.gub.uy',
+  registrableDomain: 'gub.uy',
 };
 
 const page = { text: 'Hola', forms: [], links: [], scriptHosts: [], iframeHosts: [] };

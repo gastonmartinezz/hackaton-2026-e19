@@ -9,8 +9,8 @@ export type SensitiveKind = 'password' | 'card' | 'bank' | 'tax_key' | 'otp';
 
 const LABEL_RULES: ReadonlyArray<readonly [SensitiveKind, RegExp]> = [
   ['card', /\b(tarjeta|card ?number|n[uú]mero de (la )?tarjeta|cvv|cvc|c[oó]digo de seguridad|vencimiento|expiraci[oó]n)\b/],
-  ['bank', /\b(cbu|cvu|alias (bancario|cbu|cvu)|clave (bancaria|de cajero|de home ?banking)|home ?banking|pin de cajero)\b/],
-  ['tax_key', /\b(clave fiscal|clave de la seguridad social|clave de seguridad social)\b/],
+  ['bank', /\b(numero de cuenta bancaria|clave (bancaria|de cajero|de home ?banking|de e ?banking)|home ?banking|e ?banking|pin de cajero)\b/],
+  ['tax_key', /\b(clave fiscal|clave (de la )?seguridad social|(clave|contrasena) (de |del )?(dgi|bps))\b/],
   ['otp', /\b(c[oó]digo (de )?(verificaci[oó]n|validaci[oó]n|sms|que (te )?lleg[oó])|token|clave (din[aá]mica|token)|segundo factor|pin)\b/],
   ['password', /\b(contrase[nñ]a|password|clave)\b/],
 ];
@@ -145,7 +145,7 @@ export interface BrandComparison {
 
 /**
  * Contrasta la organización que el sitio dice ser con las fuentes de autoridad (zonas de gobierno,
- * padrón del BCRA, catálogos curados). Una marca declarada nunca prueba identidad: solo puede
+ * registro del BCU, catálogos curados). Una marca declarada nunca prueba identidad: solo puede
  * producir BRAND_IMPERSONATION cuando nombra a una organización conocida y el host no le pertenece.
  * En un sitio oficial no se evalúa (un portal oficial nombra a otros organismos).
  */
@@ -172,7 +172,7 @@ export function compareBrand(
       source: options.source ?? SOURCE,
       checkedAt,
       observedBy: options.observedBy ?? 'user_browser',
-      detail: `El sitio se presenta como ${what}, pero ${host.registrableDomain ?? host.hostname} no le pertenece según ${impersonated.via === 'government_domain' ? 'las zonas de gobierno' : impersonated.via === 'financial_regulator' ? 'el padrón del BCRA' : 'el catálogo curado'}`,
+      detail: `El sitio se presenta como ${what}, pero ${host.registrableDomain ?? host.hostname} no le pertenece según ${impersonated.via === 'government_domain' ? 'las zonas de gobierno' : impersonated.via === 'financial_regulator' ? 'el registro del BCU' : 'el catálogo curado'}`,
       impersonatedOrganization: impersonated.organization.slice(0, 120),
     });
   }

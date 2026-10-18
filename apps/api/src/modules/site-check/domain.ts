@@ -9,11 +9,11 @@ export interface HostInfo {
   unicode: string;
   /** eTLD+1 según la Public Suffix List (incluye la sección privada: github.io, web.app…). */
   registrableDomain: string | null;
-  /** Sufijo público ("gob.ar", "com.ar", "web.app"). */
+  /** Sufijo público ("gub.uy", "com.uy", "web.app"). */
   publicSuffix: string | null;
-  /** Dominio registrable sin sufijo ("anses" en anses.gob.ar). */
+  /** Dominio registrable sin sufijo ("bps" en bps.gub.uy). */
   label: string | null;
-  /** Lo que está a la izquierda del dominio registrable ("www", "argentina.gob.ar" en argentina.gob.ar.evil.com). */
+  /** Lo que está a la izquierda del dominio registrable ("www", "bps.gub.uy" en bps.gub.uy.evil.com). */
   subdomain: string;
   isIp: boolean;
   /** Local, privado o sin sufijo público: se excluye del análisis externo. */

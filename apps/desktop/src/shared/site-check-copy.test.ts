@@ -80,13 +80,13 @@ describe('textos del indicador', () => {
   });
 
   it('posible estafa: «parece imitar» solo con evidencia de suplantación', () => {
-    const imitates = response({ risk: 'high', identity: { status: 'unknown', impersonatedOrganization: 'Banco Nación' }, reasons: [reason('LOOKALIKE_DOMAIN')] });
-    expect(scamSummary(imitates)).toBe('Este sitio parece imitar a Banco Nación. No ingreses contraseñas ni códigos.');
+    const imitates = response({ risk: 'high', identity: { status: 'unknown', impersonatedOrganization: 'Banco del Sur Demo' }, reasons: [reason('LOOKALIKE_DOMAIN')] });
+    expect(scamSummary(imitates)).toBe('Este sitio parece imitar a Banco del Sur Demo. No ingreses contraseñas ni códigos.');
     const copy = siteCheckCopy('possible_scam', imitates);
     expect(copy.panel.primary).toEqual({ id: 'leave', label: 'Salir de este sitio' });
 
     // Organización informada pero el motivo es otro: no se afirma suplantación.
-    const malware = response({ risk: 'high', identity: { status: 'unknown', impersonatedOrganization: 'Banco Nación' }, reasons: [reason('KNOWN_MALWARE')] });
+    const malware = response({ risk: 'high', identity: { status: 'unknown', impersonatedOrganization: 'Banco del Sur Demo' }, reasons: [reason('KNOWN_MALWARE')] });
     expect(scamSummary(malware)).not.toContain('imitar');
     expect(scamSummary(malware)).toContain('dañar tu equipo');
     expect(scamSummary(response({ risk: 'high', reasons: [reason('KNOWN_PHISHING')] }))).toContain('robar datos');
@@ -120,29 +120,29 @@ describe('nota de cobertura', () => {
 });
 
 describe('sitio oficial según la fuente de autoridad (identity.basis)', () => {
-  const SOURCE = { name: 'Fuente de prueba', url: 'https://www.fuente.gob.ar/padron', reviewedAt: '2026-10-01T12:00:00Z' };
+  const SOURCE = { name: 'Fuente de prueba', url: 'https://www.fuente.gub.uy/padron', reviewedAt: '2026-10-01T12:00:00Z' };
   const official = (
     basis: 'government_domain' | 'financial_regulator' | 'official_catalog',
     organization: string,
     source: { name: string; url?: string; reviewedAt: string } = SOURCE,
   ) => response({ identity: { status: 'verified_official', basis, organization, source }, checkedAt: '2026-10-17T22:00:00Z' });
 
-  it('dominio del Estado argentino: nombra la terminación real de la dirección', () => {
-    const r = official('government_domain', 'Estado argentino');
-    expect(siteCheckCopy('official', r, 'www.argentina.gob.ar').panel.body).toEqual([
-      'Es un sitio del Estado argentino: su dirección termina en .gob.ar, que solo pueden usar organismos públicos.',
+  it('dominio del Estado uruguayo: nombra la terminación real de la dirección', () => {
+    const r = official('government_domain', 'Estado uruguayo');
+    expect(siteCheckCopy('official', r, 'www.tramites.gub.uy').panel.body).toEqual([
+      'Es un sitio del Estado uruguayo: su dirección termina en .gub.uy, que solo pueden usar organismos públicos.',
     ]);
-    expect(siteCheckCopy('official', r, 'www.ejercito.mil.ar').panel.body[0]).toContain('termina en .mil.ar');
-    expect(siteCheckCopy('official', r, 'www.ejemplo.gov.ar').panel.body[0]).toContain('termina en .gov.ar');
+    expect(siteCheckCopy('official', r, 'www.ejercito.mil.uy').panel.body[0]).toContain('termina en .mil.uy');
     // Sin hostname no se inventa la terminación.
-    expect(siteCheckCopy('official', r).panel.body[0]).toBe('Es un sitio del Estado argentino: su dirección usa una terminación que solo pueden usar organismos públicos.');
-    expect(siteCheckCopy('official', r, 'www.argentina.gob.ar').panel.sources).toEqual([
-      'Las direcciones terminadas en .gob.ar solo se entregan a organismos del Estado argentino.',
-      'Fuente: Fuente de prueba (fuente.gob.ar).',
+    expect(siteCheckCopy('official', r).panel.body[0]).toBe('Es un sitio del Estado uruguayo: su dirección usa una terminación que solo pueden usar organismos públicos.');
+    expect(siteCheckCopy('official', r, 'www.tramites.gub.uy').panel.sources).toEqual([
+      'Las direcciones terminadas en .gub.uy solo se entregan a organismos del Estado uruguayo.',
+      'Fuente: Fuente de prueba (fuente.gub.uy).',
       // La fecha de revisión de la fuente, no la de la consulta (checkedAt).
       'Revisado el 1 de octubre de 2026.',
     ]);
-    expect(announcementText('official', r)).toBe('Sitio oficial del Estado argentino.');
+    expect(siteCheckCopy('official', r, 'www.gub.uy').panel.body[0]).toContain('termina en .gub.uy');
+    expect(announcementText('official', r)).toBe('Sitio oficial del Estado uruguayo.');
   });
 
   it('dominio del Gobierno de Estados Unidos', () => {
@@ -151,15 +151,6 @@ describe('sitio oficial según la fuente de autoridad (identity.basis)', () => {
       'Es un sitio del Gobierno de Estados Unidos: su dirección termina en .gov, que solo pueden usar organismos públicos.',
     ]);
     expect(siteCheckCopy('official', r, 'www.army.mil').panel.body[0]).toContain('termina en .mil');
-  });
-
-  it('dominio del Estado uruguayo: sin asumir Argentina', () => {
-    const r = official('government_domain', 'Estado uruguayo');
-    const { panel } = siteCheckCopy('official', r, 'www.gub.uy');
-    expect(panel.body).toEqual(['Es un sitio del Estado uruguayo: su dirección termina en .gub.uy, que solo pueden usar organismos públicos.']);
-    expect(panel.sources[0]).toBe('Las direcciones terminadas en .gub.uy solo se entregan a organismos del Estado uruguayo.');
-    expect([...panel.body, ...panel.sources].join(' ')).not.toMatch(/argentin|Banco Central/i);
-    expect(announcementText('official', r)).toBe('Sitio oficial del Estado uruguayo.');
   });
 
   it('catálogo curado (sitios de Uruguay)', () => {
@@ -175,25 +166,26 @@ describe('sitio oficial según la fuente de autoridad (identity.basis)', () => {
     expect(announcementText('official', r)).toBe('Sitio oficial de UTE.');
   });
 
-  it('entidad del padrón del BCRA', () => {
-    const r = official('financial_regulator', 'Banco de la Nación Argentina', {
-      name: 'Padrón de entidades financieras del BCRA',
-      url: 'https://www.bcra.gob.ar/SistemasFinancierosYdePagos/Entidades_financieras.asp',
+  it('institución del registro del Banco Central del Uruguay', () => {
+    const r = official('financial_regulator', 'Banco del Sur Demo', {
+      name: 'Registro de instituciones del BCU',
+      url: 'https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/Bancos.aspx',
       reviewedAt: '2026-10-15T12:00:00Z',
     });
-    const { panel } = siteCheckCopy('official', r, 'www.bna.com.ar');
-    expect(panel.body).toEqual(['La dirección pertenece a Banco de la Nación Argentina, según el registro de entidades del Banco Central.']);
+    const { panel } = siteCheckCopy('official', r, 'www.bancodelsur-demo.com.uy');
+    expect(panel.body).toEqual(['La dirección pertenece a Banco del Sur Demo, según el registro de instituciones del Banco Central del Uruguay.']);
     expect(panel.sources).toEqual([
-      'Figura en el registro de entidades financieras del Banco Central.',
-      'Fuente: Padrón de entidades financieras del BCRA (bcra.gob.ar).',
+      'Figura en el registro de instituciones del Banco Central del Uruguay.',
+      // La fuente sale de identity.source.name, con el dominio de su dirección.
+      'Fuente: Registro de instituciones del BCU (bcu.gub.uy).',
       'Revisado el 15 de octubre de 2026.',
     ]);
-    expect(announcementText('official', r)).toBe('Sitio oficial de Banco de la Nación Argentina.');
+    expect(announcementText('official', r)).toBe('Sitio oficial de Banco del Sur Demo.');
   });
 
   it('ya no menciona un registro propio ni dice «seguro»; los demás estados no llevan fuente', () => {
-    for (const r of [official('government_domain', 'Estado argentino'), official('financial_regulator', 'Banco X'), official('official_catalog', 'Antel')]) {
-      const { panel } = siteCheckCopy('official', r, 'a.gob.ar');
+    for (const r of [official('government_domain', 'Estado uruguayo'), official('financial_regulator', 'Banco X'), official('official_catalog', 'Antel')]) {
+      const { panel } = siteCheckCopy('official', r, 'a.gub.uy');
       const text = [...panel.body, ...panel.sources].join(' ');
       expect(text).not.toMatch(/nuestro registro|segur/i);
     }
@@ -201,11 +193,12 @@ describe('sitio oficial según la fuente de autoridad (identity.basis)', () => {
   });
 
   it('governmentSuffix reconoce solo zonas reservadas al Estado', () => {
-    expect(governmentSuffix('tramites.mostrame-demo.gob.ar')).toBe('.gob.ar');
+    expect(governmentSuffix('tramites.mostrame-demo.gub.uy')).toBe('.gub.uy');
     expect(governmentSuffix('www.usa.gov')).toBe('.gov');
-    expect(governmentSuffix('tramites.gub.uy')).toBe('.gub.uy');
-    expect(governmentSuffix('gob.ar.evil.com')).toBeNull();
-    expect(governmentSuffix('migob.ar')).toBeNull();
+    expect(governmentSuffix('www.ejercito.mil.uy')).toBe('.mil.uy');
+    expect(governmentSuffix('www.army.mil')).toBe('.mil');
+    expect(governmentSuffix('gub.uy.evil.com')).toBeNull();
+    expect(governmentSuffix('migub.uy')).toBeNull();
     expect(governmentSuffix(null)).toBeNull();
   });
 });

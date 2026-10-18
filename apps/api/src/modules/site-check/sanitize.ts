@@ -78,7 +78,7 @@ const TEXT_PATTERNS: ReadonlyArray<readonly [RegExp, string | ((match: string) =
   [/\b(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{8,}\b/g, '[dato]'],
 ];
 
-/** Texto sin correos, URLs completas, tokens ni números largos (documentos, tarjetas, CBU, teléfonos). */
+/** Texto sin correos, URLs completas, tokens ni números largos (documentos, tarjetas, cuentas, teléfonos). */
 export function redactText(input: string, maxLength: number): string {
   let text = input.normalize('NFC').replace(/[­​-‏‪-‮⁠-⁯﻿]/g, '');
   text = text.replace(CREDENTIAL_VALUE, '$1$2[dato]');

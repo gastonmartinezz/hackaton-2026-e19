@@ -5,7 +5,7 @@ import { HttpApiClient } from './http';
 const base = new URL('https://api.ejemplo.test');
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const signal = () => new AbortController().signal;
-const ask = { messages: [{ role: 'user' as const, content: 'renovar dni' }] };
+const ask = { messages: [{ role: 'user' as const, content: 'renovar la cédula' }] };
 
 describe('HttpApiClient', () => {
   it('envía Authorization y X-Request-Id, y devuelve la respuesta validada', async () => {
@@ -21,7 +21,7 @@ describe('HttpApiClient', () => {
   });
 
   it('no envía Authorization si no hay token', async () => {
-    const fetch = vi.fn(async () => json(200, { sessionId: 's-1', type: 'redirect', message: 'Vamos', url: 'https://a.gob.ar/' }));
+    const fetch = vi.fn(async () => json(200, { sessionId: 's-1', type: 'redirect', message: 'Vamos', url: 'https://a.gub.uy/' }));
     await new HttpApiClient({ baseUrl: base, token: null, fetch }).interpret(ask, signal());
     const [, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
     expect((init.headers as Record<string, string>).authorization).toBeUndefined();

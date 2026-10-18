@@ -35,15 +35,15 @@ function setupWith(userContext: () => UserContext | undefined, ...responses: Rep
 }
 
 const sites = [
-  { title: 'Turnos', url: 'https://turnos.gob.ar/', reason: 'Turnos para el documento.' },
-  { title: 'Mi Argentina', url: 'https://mi.argentina.gob.ar/', reason: 'Trámites personales.' },
+  { title: 'Turnos', url: 'https://turnos.ejemplo.gub.uy/', reason: 'Turnos para el documento.' },
+  { title: 'Trámites en línea', url: 'https://tramites.ejemplo.gub.uy/', reason: 'Trámites personales.' },
 ];
 
 describe('Chat (/v1/interpret)', () => {
   it('question: muestra la pregunta y reenvía todo el historial y la sesión con la respuesta', async () => {
     const { chat, sent, session } = setup(
       { type: 'question', message: '¿En qué país?' },
-      { type: 'redirect', message: 'Te llevo.', url: 'https://turnos.gob.ar/' },
+      { type: 'redirect', message: 'Te llevo.', url: 'https://turnos.ejemplo.gub.uy/' },
     );
     await chat.submit('Quiero renovar mi documento');
     expect(chat.phase).toBe('clarifying');
@@ -55,21 +55,21 @@ describe('Chat (/v1/interpret)', () => {
     expect(sent[0]!.sessionId).toBeUndefined();
     expect(session.id).toBe('s-1');
 
-    await chat.submit('Argentina');
+    await chat.submit('Uruguay');
     expect(sent[1]!.sessionId).toBe('s-1');
     expect(sent[1]!.messages).toEqual([
       { role: 'user', content: 'Quiero renovar mi documento' },
       { role: 'assistant', content: '¿En qué país?' },
-      { role: 'user', content: 'Argentina' },
+      { role: 'user', content: 'Uruguay' },
     ]);
   });
 
   it('redirect: abre la URL de la respuesta', async () => {
-    const { chat, onRedirect } = setup({ type: 'redirect', message: 'Te llevo al sitio de turnos.', url: 'https://turnos.gob.ar/' });
-    await chat.submit('sacar turno para el dni');
+    const { chat, onRedirect } = setup({ type: 'redirect', message: 'Te llevo al sitio de turnos.', url: 'https://turnos.ejemplo.gub.uy/' });
+    await chat.submit('sacar turno para la cédula');
     expect(chat.phase).toBe('redirected');
-    expect(onRedirect).toHaveBeenCalledWith('https://turnos.gob.ar/');
-    expect(chat.goal).toBe('sacar turno para el dni');
+    expect(onRedirect).toHaveBeenCalledWith('https://turnos.ejemplo.gub.uy/');
+    expect(chat.goal).toBe('sacar turno para la cédula');
   });
 
   it('options: guarda los sitios para elegir, sin abrir ninguno', async () => {
@@ -77,30 +77,30 @@ describe('Chat (/v1/interpret)', () => {
     await chat.submit('trámites del documento');
     expect(chat.phase).toBe('results');
     expect(chat.candidates.map((c) => c.id)).toEqual(['c-0', 'c-1']);
-    expect(chat.candidate('c-1')?.url).toBe('https://mi.argentina.gob.ar/');
+    expect(chat.candidate('c-1')?.url).toBe('https://tramites.ejemplo.gub.uy/');
     expect(onRedirect).not.toHaveBeenCalled();
   });
 
   it('minimiza datos personales antes de enviarlos, pero los muestra como se escribieron', async () => {
     const { chat, sent } = setup({ type: 'question', message: '¿Algo más?' });
-    await chat.submit('mi dni es 30123456 y mi mail marta@correo.com');
+    await chat.submit('mi cédula es 30123456 y mi mail marta@correo.com');
     expect(chat.messages[0]!.text).toContain('30123456');
     expect(JSON.stringify(sent)).not.toContain('30123456');
     expect(JSON.stringify(sent)).not.toContain('marta@correo.com');
   });
 
   it('envía los datos de la persona en cada llamada, también al reintentar por sesión vencida', async () => {
-    let user: UserContext = { location: { country: 'AR', city: 'Rosario' } };
+    let user: UserContext = { location: { country: 'UY', city: 'Salto' } };
     const { chat, sent } = setupWith(
       () => user,
       { type: 'question', message: '¿Qué trámite?' },
       new ApiFailure('SESSION_NOT_FOUND', false),
-      { type: 'redirect', message: 'Vamos.', url: 'https://www.rosario.gob.ar/' },
+      { type: 'redirect', message: 'Vamos.', url: 'https://www.ejemplo-salto.gub.uy/' },
     );
     await chat.submit('pagar la tasa municipal');
-    user = { location: { country: 'AR', city: 'Funes' }, ageRange: '65-74' };
+    user = { location: { country: 'UY', city: 'Paysandú' }, ageRange: '65-74' };
     await chat.submit('la del auto');
-    expect(sent.map((r) => r.user)).toEqual([{ location: { country: 'AR', city: 'Rosario' } }, user, user]);
+    expect(sent.map((r) => r.user)).toEqual([{ location: { country: 'UY', city: 'Salto' } }, user, user]);
   });
 
   it('sin datos de la persona no envía el campo', async () => {
@@ -160,10 +160,10 @@ describe('Chat (/v1/interpret)', () => {
     const { chat, sent, session } = setup(
       { type: 'question', message: '¿Qué?' },
       new ApiFailure('SESSION_NOT_FOUND', false),
-      { type: 'redirect', message: 'Vamos.', url: 'https://turnos.gob.ar/' },
+      { type: 'redirect', message: 'Vamos.', url: 'https://turnos.ejemplo.gub.uy/' },
     );
     await chat.submit('turno');
-    await chat.submit('para el dni');
+    await chat.submit('para la cédula');
     expect(chat.phase).toBe('redirected');
     expect(sent.map((r) => r.sessionId)).toEqual([undefined, 's-1', undefined]);
     expect(sent[2]!.messages).toHaveLength(3);

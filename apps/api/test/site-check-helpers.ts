@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { BCRA_ENDPOINT } from '../src/modules/site-check/bcra-registry.js';
+import { BCU_HOST, BCU_LISTS_HANDLER } from '../src/modules/site-check/bcu-registry.js';
 import type { HopRequester, HopResult } from '../src/modules/site-check/connection.js';
 import type { SiteCheckOverrides } from '../src/modules/site-check/factory.js';
 import type { HostResolver } from '../src/modules/site-check/net-guard.js';
@@ -38,37 +38,49 @@ export interface FakeFetchOptions {
   fail?: boolean;
   /** Nunca responde (para probar el tiempo máximo). */
   hang?: boolean;
-  /** El padrón del BCRA responde 502 (como su CDN cuando falla). */
-  bcraDown?: boolean;
+  /** El sitio del BCU responde 503. */
+  bcuDown?: boolean;
 }
 
-/** Respuestas grabadas del padrón del BCRA (test/fixtures/bcra), o 502 si está caído. */
-function bcraResponse(url: string, down: boolean): Response | null {
-  if (!url.startsWith(BCRA_ENDPOINT)) return null;
-  if (down) return new Response('<html>502 Bad Gateway</html>', { status: 502, headers: { 'content-type': 'text/html' } });
-  const params = new URL(url).searchParams;
-  if (params.get('action') === 'list') return Response.json(readFixture('bcra/list.json'));
-  try {
-    return Response.json(readFixture(`bcra/detail-${params.get('category')}.json`));
-  } catch {
-    return new Response('not found', { status: 404 });
+/**
+ * Respuestas reales del BCU grabadas el 18/10/2026 (test/fixtures/bcu), recortadas a lo que lee el
+ * parser: la tabla de cada lista de la SSF, los campos de cada ficha, el listado del Sistema de
+ * Pagos, la vista de cada entidad y el fragmento de su página que la nombra.
+ */
+const BCU = { ssf: readFixture('bcu/ssf.json'), pagos: readFixture('bcu/pagos.json') } as {
+  ssf: { lists: Record<string, string>; fichas: Record<string, string> };
+  pagos: { listado: unknown; paginas: Record<string, string>; vistas: Record<string, unknown> };
+};
+
+/** Registro del BCU desde las fixtures, o 503 si está caído. */
+function bcuResponse(url: string, init: RequestInit | undefined, down: boolean): Response | null {
+  if (new URL(url).hostname !== BCU_HOST) return null;
+  if (down) return new Response('<html>Servicio no disponible</html>', { status: 503, headers: { 'content-type': 'text/html' } });
+  const notFound = new Response('not found', { status: 404 });
+  if (url === BCU_LISTS_HANDLER) {
+    const view = new URLSearchParams(String(init?.body ?? '')).get('viewName') ?? '';
+    const data = view === 'Publicar' ? BCU.pagos.listado : BCU.pagos.vistas[view];
+    return data ? Response.json(data) : notFound;
   }
+  const nroinst = new URL(url).searchParams.get('nroinst');
+  const html = nroinst ? BCU.ssf.fichas[nroinst] : (BCU.ssf.lists[url.split('/').pop()!] ?? BCU.pagos.paginas[url]);
+  return html === undefined ? notFound : new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } });
 }
 
-/** fetch falso para RDAP (bootstrap de IANA y un servidor de prueba) y el padrón del BCRA. */
-export function fakeRdapFetch({ registeredAt = '2001-05-10T00:00:00Z', fail = false, hang = false, bcraDown = false }: FakeFetchOptions = {}) {
+/** fetch falso para RDAP (bootstrap de IANA y un servidor de prueba) y el registro del BCU. */
+export function fakeRdapFetch({ registeredAt = '2001-05-10T00:00:00Z', fail = false, hang = false, bcuDown = false }: FakeFetchOptions = {}) {
   const calls: string[] = [];
   const impl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     calls.push(url);
-    const bcra = bcraResponse(url, bcraDown);
-    if (bcra) return bcra;
+    const bcu = bcuResponse(url, init, bcuDown);
+    if (bcu) return bcu;
     if (hang) {
       return new Promise<Response>((_, reject) => init?.signal?.addEventListener('abort', () => reject(init.signal!.reason)));
     }
     if (fail) return new Response('error', { status: 503 });
     if (url === 'https://data.iana.org/rdap/dns.json') {
-      return Response.json({ services: [[['ar', 'com', 'app'], ['https://rdap.prueba/']]] });
+      return Response.json({ services: [[['com', 'net', 'app'], ['https://rdap.prueba/']]] });
     }
     if (url.startsWith('https://rdap.prueba/domain/')) {
       return Response.json({
