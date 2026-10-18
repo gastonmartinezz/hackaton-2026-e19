@@ -33,4 +33,11 @@ describe('prompts', () => {
     expect(prompt).toContain('con verbo y objeto');
     expect(prompt).not.toContain('devolvé la página principal del sitio. El servidor');
   });
+
+  it('options y nextStep no eligen por la persona cuando hay varias formas de hacer lo mismo', () => {
+    expect(SYSTEM_PROMPTS.options).toContain('cada forma es una opción aparte');
+    expect(SYSTEM_PROMPTS.optionsForRequest).toContain('cada forma es una opción aparte');
+    expect(SYSTEM_PROMPTS.nextStep).toContain('devolvé un solo paso para que elija');
+    for (const prompt of [SYSTEM_PROMPTS.options, SYSTEM_PROMPTS.nextStep]) expect(prompt).toContain('No elijas por la persona');
+  });
 });
