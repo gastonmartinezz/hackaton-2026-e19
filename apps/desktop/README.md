@@ -47,7 +47,7 @@ Spec: `proteccion-sitios-agentes.md`. Contrato: `packages/contracts/src/site-che
 5. **Respuestas**: se descartan las de otra navegación y las de una versión anterior a la última pedida (salvo que traigan un riesgo mayor que el mostrado: aviso temprano). Dentro de una navegación el riesgo no baja. Error, tiempo vencido (15 s), resumen imposible o contenido «pendiente» sin nada en curso (20 s) → «No pudimos verificarlo».
 6. **Direcciones locales** (`localhost`, `127.0.0.0/8`, redes privadas, link-local, CGNAT, `::1`, `fc00::/7`, nombres sin punto, `.local`, `.internal`, `.test`, `.home.arpa`…) no se envían: «Página local, sin revisar». `about:`/`file:`/páginas internas no muestran indicador. Una IPv6 pública no entra en el `Hostname` del contrato: «No pudimos verificarlo» sin enviar.
 
-**Qué se envía** (siempre sin valores de formularios, cookies, almacenamiento, tokens ni historial): título y marca declarada depurados; texto visible por bloque, redactado (`redactText`) y acotado a 4000 caracteres, sin saludos personalizados ni texto editable; formularios con tipo, etiqueta y `autocomplete` de cada campo, método y destino depurado; hasta 50 enlaces (primero los que van a otro sitio o muestran una dirección, cuyo texto queda solo como hostname); hostnames de scripts e iframes.
+**Qué se envía** (siempre sin valores de formularios, cookies, almacenamiento, tokens ni historial): título y marca declarada depurados; texto visible por bloque, redactado (`redactText`) y acotado a 4000 caracteres, sin saludos personalizados ni texto editable; formularios con tipo, etiqueta y `autocomplete` de cada campo, método y destino depurado; hasta 50 enlaces (primero los que van a otro sitio o muestran una dirección, cuyo texto queda solo como hostname).
 
 **Interfaz** (`src/renderer/src/SiteCheck.tsx` y `site-check.css` con los tokens de `design/tokens.css`; textos en `src/shared/site-check-copy.ts`, también agregados a `design/textos.es.json` bajo `proteccion.*`):
 
@@ -78,7 +78,7 @@ Cualquier otro sitio con el simulador da «No pudimos verificarlo»: no consulta
 
 **Limitaciones de acceso al contenido** (arquitectura actual):
 
-- Solo se lee el documento principal y el shadow DOM abierto. Los iframes (sobre todo cross-origin) no se leen: solo se informa su host. El shadow DOM cerrado, el canvas y el contenido dibujado como imagen no se ven.
+- Solo se lee el documento principal y el shadow DOM abierto. Los iframes (sobre todo cross-origin) no se leen. El shadow DOM cerrado, el canvas y el contenido dibujado como imagen no se ven.
 - El texto se acota a 4000 caracteres y 20 000 elementos recorridos; en páginas largas puede quedar afuera lo relevante.
 - Lo que ve la persona puede diferir de lo que vería un escáner del backend (sesión, cookies, ubicación, A/B). El resumen describe lo observado en el navegador de la persona.
 - Un cambio sin cambio de formularios ni identidad (p. ej. solo texto nuevo) no dispara reanálisis; tampoco más de 6 por navegación.

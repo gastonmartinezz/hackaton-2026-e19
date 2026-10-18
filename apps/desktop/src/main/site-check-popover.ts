@@ -36,7 +36,7 @@ export const POPOVER_COMMANDS: ReadonlySet<UiCommand['type']> = new Set([
   'siteCheckPopoverLayout',
 ]);
 
-export interface PopoverPlacement {
+interface PopoverPlacement {
   /** Contenido sin el halo, en px de la ventana. */
   box: Rect;
   maxWidth: number;

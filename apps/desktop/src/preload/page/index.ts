@@ -98,9 +98,9 @@ ipcRenderer.on(PAGE_CHANNELS.summarize, (_event, raw: unknown) => {
   const request = SummarizeRequestSchema.safeParse(raw);
   if (!request.success) return;
   const { requestId, navigationId, contentVersion } = request.data;
-  const { summary, notes } = extractPageSummary(document);
+  const summary = extractPageSummary(document);
   signature = pageSignature(document);
-  ipcRenderer.send(PAGE_CHANNELS.summary, { requestId, navigationId, contentVersion, summary, notes });
+  ipcRenderer.send(PAGE_CHANNELS.summary, { requestId, navigationId, contentVersion, summary });
 });
 
 ipcRenderer.on(PAGE_CHANNELS.clear, () => {

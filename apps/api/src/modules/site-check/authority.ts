@@ -30,8 +30,6 @@ export type Basis = 'government_domain' | 'financial_regulator' | 'official_cata
 export interface OfficialMatch {
   basis: Basis;
   organization: string;
-  /** Zona o dominio que autoriza al host. */
-  matched: string;
   source: { name: string; url?: string; reviewedAt: string };
 }
 
@@ -81,7 +79,7 @@ export class AuthorityView {
   private readonly byDomain = new Map<string, BcuInstitution[]>();
   /** Catálogo y BCU enlazados por dominio: la entrada del catálogo que lista un dominio del BCU es esa institución. */
   private readonly linked = new Map<string, Set<string>>();
-  /** Zonas de gobierno de la más específica a la menos (gub.uy antes que uy, si existiera). */
+  /** Zonas de gobierno de la más específica a la menos (x.gub.uy antes que gub.uy, si existiera). */
   private readonly zonesBySpecificity: GovernmentZone[];
   /** Nombres de organismos del Estado, normalizados. */
   private readonly claimGroups: Array<{ group: ClaimGroup; names: Named[]; acronyms: Named[]; contextNames: Named[]; context: string[] }>;
@@ -177,16 +175,13 @@ export class AuthorityView {
       return {
         basis: 'financial_regulator',
         organization: entry ? entry.organization : this.institutionName(institution),
-        matched: match.key,
         source: { name: BCU_SOURCE_NAME, url: institution.sourceUrl, reviewedAt: this.registry.snapshot.fetchedAt },
       };
     }
     if (entry) {
-      const domain = entry.domains.find((d) => catalogAuthorizes({ ...entry, domains: [d] }, hostname))!;
       return {
         basis: 'official_catalog',
         organization: entry.organization,
-        matched: domain.domain,
         source: { name: entry.source.name, ...(entry.source.url ? { url: entry.source.url } : {}), reviewedAt: asDateTime(entry.reviewedAt) },
       };
     }
@@ -195,7 +190,6 @@ export class AuthorityView {
       return {
         basis: 'government_domain',
         organization: zone.organization,
-        matched: zone.suffix,
         source: { name: zone.source.name, ...(zone.source.url ? { url: zone.source.url } : {}), reviewedAt: asDateTime(zone.reviewedAt) },
       };
     }

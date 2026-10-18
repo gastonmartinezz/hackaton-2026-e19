@@ -28,7 +28,7 @@ function setup() {
   const sent: SiteCheckRequest[] = [];
   const protection = new SiteProtection({
     api: { siteCheck: (r, s) => (sent.push(structuredClone(r)), api.siteCheck(r, s)) },
-    summarize: async () => resanitizeSummary(extractPageSummary(document).summary),
+    summarize: async () => resanitizeSummary(extractPageSummary(document)),
     onChange: () => {},
     settleMs: 0,
     requestTimeoutMs: 10_000,

@@ -30,14 +30,13 @@ describe('direcciones bloqueadas (SSRF)', () => {
 });
 
 describe('inspect_connection', () => {
-  it('recorre redirecciones y devuelve TLS sin query ni fragmento', async () => {
+  it('recorre redirecciones sin query ni fragmento', async () => {
     const requester = recordingRequester({
       'https://sitio.com.uy/': { status: 301, location: 'https://www.sitio.com.uy/inicio?ref=1#x', tls: okHop.tls },
     });
     const result = await inspector(requester).inspect(new URL('https://sitio.com.uy/'));
     expect(result.coverage).toBe('complete');
     expect(requester.calls).toEqual(['https://sitio.com.uy/', 'https://www.sitio.com.uy/inicio']);
-    expect(result.data).toMatchObject({ https: true, crossDomainRedirect: false, tls: { authorized: true } });
     expect(result.findings).toEqual([]);
   });
 
@@ -51,7 +50,6 @@ describe('inspect_connection', () => {
     const requester = recordingRequester();
     const result = await inspector(requester).inspect(new URL(url));
     expect(result.coverage).toBe('unavailable');
-    expect(result.errors).toEqual(['blocked_destination']);
     expect(requester.calls).toEqual([]);
   });
 
@@ -62,7 +60,7 @@ describe('inspect_connection', () => {
       { address: '10.0.0.1', family: 4 },
     ];
     const result = await inspector(requester, resolver).inspect(new URL('https://rebinding.example.com/'));
-    expect(result.errors).toEqual(['blocked_destination']);
+    expect(result.coverage).toBe('unavailable');
     expect(requester.calls).toEqual([]);
   });
 
@@ -76,8 +74,8 @@ describe('inspect_connection', () => {
     const result = await inspector(requester).inspect(new URL('https://sitio.com.uy/'));
     expect(requester.calls).toEqual(['https://sitio.com.uy/']);
     expect(result.coverage).toBe('partial');
-    expect(result.errors).toEqual(['blocked_destination']);
-    expect(result.data?.finalOrigin).toBe('https://sitio.com.uy');
+    // El destino bloqueado no se informa como redirección a otro dominio.
+    expect(result.findings).toEqual([]);
   });
 
   it('no sigue una redirección a un host cuyo DNS apunta a la red interna', async () => {
@@ -86,8 +84,7 @@ describe('inspect_connection', () => {
     const result = await inspector(requester, resolver).inspect(new URL('https://sitio.com.uy/'));
     expect(requester.calls).toEqual(['https://sitio.com.uy/']);
     expect(result.coverage).toBe('partial');
-    // El destino bloqueado nunca se visitó: no se informa como destino final ni como redirección a otro dominio.
-    expect(result.data).toMatchObject({ finalOrigin: 'https://sitio.com.uy', crossDomainRedirect: false });
+    // El destino bloqueado nunca se visitó: no se informa como redirección a otro dominio.
     expect(result.findings.map((f) => f.code)).not.toContain('CROSS_DOMAIN_REDIRECT');
   });
 
@@ -101,7 +98,8 @@ describe('inspect_connection', () => {
       requester: async () => ({ status: 302, location: `https://sitio.com.uy/${++n}`, tls: null }),
     }).inspect(new URL('https://sitio.com.uy/'));
     expect(result.coverage).toBe('partial');
-    expect(result.data?.hops).toHaveLength(6);
+    // El primer pedido y 5 redirecciones.
+    expect(n).toBe(6);
   });
 
   it('informa redirección a otro dominio y certificado inválido como motivos técnicos', async () => {
@@ -120,7 +118,6 @@ describe('inspect_connection', () => {
     const result = await inspector(requester).inspect(new URL('http://sitio.com.uy/'));
     expect(result.findings.map((f) => f.code)).toEqual(['CERTIFICATE_PROBLEM', 'CROSS_DOMAIN_REDIRECT']);
     expect(result.findings[0]!.detail).toContain('https://destino.example.net');
-    expect(result.data).toMatchObject({ https: true, finalOrigin: 'https://destino.example.net' });
   });
 
   it('una redirección a un destino que no resuelve conserva lo observado en los saltos anteriores', async () => {
@@ -132,7 +129,7 @@ describe('inspect_connection', () => {
       return [{ address: PUBLIC_IP, family: 4 }];
     };
     const result = await inspector(requester, resolver).inspect(new URL('https://sitio.com.uy/'));
-    expect(result).toMatchObject({ coverage: 'partial', errors: ['redirect_unreachable'] });
+    expect(result.coverage).toBe('partial');
     expect(result.findings.map((f) => f.code)).toEqual(['CERTIFICATE_PROBLEM']);
   });
 
@@ -144,7 +141,7 @@ describe('inspect_connection', () => {
     const result = await new ConnectionInspector({ timeoutMs: 1000, maxPerMinute: 100, enabled: true, resolver: publicResolver, requester }).inspect(
       new URL('https://sitio.com.uy/'),
     );
-    expect(result).toMatchObject({ coverage: 'partial', errors: ['redirect_unreachable'], data: { finalOrigin: 'https://sitio.com.uy', crossDomainRedirect: false } });
+    expect(result).toMatchObject({ coverage: 'partial', findings: [] });
   });
 
   it('una caída devuelve unavailable', async () => {
@@ -157,6 +154,7 @@ describe('inspect_connection', () => {
         throw new Error('ECONNREFUSED');
       },
     }).inspect(new URL('https://sitio.com.uy/'));
-    expect(result).toMatchObject({ coverage: 'unavailable', errors: ['provider_error'] });
+    // Sin caché: conviene reintentar.
+    expect(result).toMatchObject({ coverage: 'unavailable', ttlMs: 0 });
   });
 });

@@ -63,7 +63,7 @@ describe('SiteProtection', () => {
     expect(protection.snapshot.kind).toBe('checking');
     expect(calls).toHaveLength(1);
     expect(calls[0]!.request).toEqual({
-      navigationId: protection.snapshot.navigationId,
+      navigationId: expect.stringMatching(/^nav-/),
       contentVersion: 0,
       url: 'https://www.banco.com.uy/ingresar?cedula=[dato]#x',
       hostname: 'www.banco.com.uy',
@@ -76,7 +76,8 @@ describe('SiteProtection', () => {
 
     protection.pageLoaded('https://www.banco.com.uy/ingresar');
     await vi.advanceTimersByTimeAsync(100);
-    expect(summarize).toHaveBeenCalledWith(protection.snapshot.navigationId, 1);
+    // Misma navegación que la fase dirección.
+    expect(summarize).toHaveBeenCalledWith(calls[0]!.request.navigationId, 1);
     expect(calls[1]!.request).toMatchObject({ contentVersion: 1, page: PAGE });
     calls[1]!.resolve({ identity: { status: 'verified_official', basis: 'financial_regulator', organization: 'Banco', source: { name: 'Registro de instituciones del BCU', reviewedAt: '2026-10-01T12:00:00Z' } } });
     await flush();

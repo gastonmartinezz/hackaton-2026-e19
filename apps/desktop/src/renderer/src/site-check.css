@@ -7,6 +7,12 @@
 :root {
   /* Panel con el ancho de la tarjeta flotante (R4): 520px a 1.2×. */
   --site-panel-w: calc(var(--g-card-width) + var(--s1) * 240px);
+  /*
+   * Ícono protagonista del sello: 22px a 1.2×, 23 a 1.45× y 24 a 1.75×, en una
+   * medalla redonda 4px más chica que la píldora por arriba y por abajo (30, 33 y 37px).
+   */
+  --site-badge-icon: calc(22px + var(--s1) * 4px);
+  --site-badge-medal: calc(var(--h-badge) - 2 * var(--space-1));
 }
 
 /* ---------- Sello (dentro de .omni, después del dominio) ---------- */
@@ -21,7 +27,8 @@
   gap: 6px;
   min-height: var(--h-badge);
   min-width: var(--target-min);
-  padding: 0 var(--space-3);
+  /* La medalla va pegada a la curva izquierda: mismo ancho total que con el ícono suelto. */
+  padding: 0 var(--space-3) 0 var(--space-1);
   border: var(--border-w-strong) solid transparent;
   border-radius: var(--radius-pill);
   background: var(--g-surface-soft);
@@ -36,28 +43,80 @@
 .site-badge:hover {
   border-color: var(--g-border-control);
 }
-.omni .site-badge .ic {
+/*
+ * Ícono protagonista: medalla redonda llena con el color del estado y el ícono
+ * en blanco (en peligro, al revés). Contraste ≥ 6:1 en todos los tonos. El
+ * texto corto queda al lado.
+ */
+.site-badge-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--site-badge-medal);
+  height: var(--site-badge-medal);
+  border-radius: var(--radius-pill);
+  background: var(--g-ink-secondary);
+  color: var(--g-on-brand);
+}
+.site-badge-icon .ic,
+.omni .site-badge-icon .ic {
+  width: var(--site-badge-icon);
+  height: var(--site-badge-icon);
   color: inherit;
 }
-/* Neutro: como «La tienda que elegiste» (fondo suave y borde). */
+/* Neutro: como «La tienda que elegiste» (fondo suave y borde); medalla gris azulada, sin verde ni ámbar. */
 .site-badge[data-tone='neutral'] {
   border-color: var(--g-border-control);
 }
+/* Éxito y advertencia: píldora suave, medalla llena del mismo tono e ícono blanco. */
 .site-badge[data-tone='positive'] {
   background: var(--g-success-soft);
   color: var(--g-success);
+}
+.site-badge[data-tone='positive'] .site-badge-icon {
+  background: var(--g-success);
+  color: var(--g-on-brand);
 }
 .site-badge[data-tone='warning'] {
   background: var(--g-warning-soft);
   color: var(--g-warning);
 }
+.site-badge[data-tone='warning'] .site-badge-icon {
+  background: var(--g-warning);
+  color: var(--g-on-brand);
+}
+/* Peligro: píldora roja llena, medalla blanca e ícono rojo. */
 .site-badge[data-tone='danger'] {
   background: var(--g-error);
   color: var(--g-on-brand);
 }
+.site-badge[data-tone='danger'] .site-badge-icon {
+  background: var(--g-surface);
+  color: var(--g-error);
+}
 .site-badge[data-state='checking'],
 .site-badge[data-state='local'] {
   color: var(--g-ink-secondary);
+}
+
+/* Ícono del estado (sello, panel y advertencia): «Revisando…» gira despacio. */
+.site-check-icon {
+  flex: none;
+  display: inline-flex;
+}
+.site-check-icon[data-state='checking'] svg {
+  animation: site-check-spin 1.4s linear infinite;
+}
+@keyframes site-check-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Con movimiento reducido, el ícono de «Revisando…» queda fijo. */
+@media (prefers-reduced-motion: reduce) {
+  .site-check-icon[data-state='checking'] svg {
+    animation: none;
+  }
 }
 .site-badge[aria-expanded='true'] {
   border-color: currentColor;
@@ -294,7 +353,7 @@
   flex: 1;
   min-width: 0;
 }
-.site-check-dialog .site-check-head > .ic {
+.site-check-dialog .site-check-head .ic {
   color: var(--g-error);
 }
 .site-check-dialog .muted {
