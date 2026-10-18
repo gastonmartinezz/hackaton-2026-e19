@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscribeResult } from '../../../shared/ipc';
 import { MicError, type AutoStopReason } from './capture';
-import { MicButton, VOICE_TEXTS, VoiceMessages } from './VoiceSearch';
+import { MicButton, SearchAction, VOICE_TEXTS, VoiceMessages } from './VoiceSearch';
 import { useVoiceInput, voiceAvailability, type VoiceDeps, type VoiceStatus } from './useVoiceInput';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -24,6 +24,68 @@ afterEach(() => {
 
 const render = (node: React.ReactNode) => act(() => root.render(node));
 const button = () => container.querySelector<HTMLButtonElement>('button.mic')!;
+
+describe('SearchAction: «Hablar» que pasa a «Enviar» al escribir', () => {
+  const idle: VoiceStatus = { kind: 'idle' };
+  const inForm = (node: React.ReactNode, onSubmit = vi.fn()) => {
+    render(
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}
+      >
+        {node}
+      </form>,
+    );
+    return onSubmit;
+  };
+
+  it('sin nada escrito es «Hablar» y tocarlo empieza a escuchar', () => {
+    const onToggle = vi.fn();
+    const onSubmit = inForm(<SearchAction status={idle} onToggle={onToggle} canSend={false} voiceAvailable />);
+    expect(button().type).toBe('button');
+    expect(button().textContent?.trim()).toBe(VOICE_TEXTS.speak);
+    act(() => button().click());
+    expect(onToggle).toHaveBeenCalledOnce();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('con algo escrito es «Enviar»: envía el formulario y no abre el micrófono', () => {
+    const onToggle = vi.fn();
+    const onSubmit = inForm(<SearchAction status={idle} onToggle={onToggle} canSend voiceAvailable />);
+    expect(button().type).toBe('submit');
+    expect(button().textContent?.trim()).toBe(VOICE_TEXTS.send);
+    expect(button().getAttribute('aria-pressed')).toBeNull();
+    expect(button().querySelector('.ic')?.getAttribute('aria-hidden')).toBe('true');
+    act(() => button().click());
+    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it('escuchando sigue siendo «Terminar» aunque haya texto', () => {
+    inForm(<SearchAction status={{ kind: 'listening' }} onToggle={() => {}} canSend voiceAvailable />);
+    expect(button().type).toBe('button');
+    expect(button().querySelector('.mic-label')?.textContent).toBe(VOICE_TEXTS.stop);
+  });
+
+  it('con la voz apagada: «Enviar» si hay texto, nada si no', () => {
+    inForm(<SearchAction status={idle} onToggle={() => {}} canSend voiceAvailable={false} />);
+    expect(button().textContent?.trim()).toBe(VOICE_TEXTS.send);
+    inForm(<SearchAction status={idle} onToggle={() => {}} canSend={false} voiceAvailable={false} />);
+    expect(container.querySelector('button')).toBeNull();
+  });
+
+  it('con una búsqueda en curso, «Enviar» queda aria-disabled (sin perder el foco) y no envía', () => {
+    const onSubmit = inForm(<SearchAction status={idle} onToggle={() => {}} canSend voiceAvailable blocked />);
+    button().focus();
+    expect(button().getAttribute('aria-disabled')).toBe('true');
+    expect(button().disabled).toBe(false);
+    act(() => button().click());
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(button());
+  });
+});
 
 describe('MicButton', () => {
   it('en reposo: «Hablar» visible, nombre accesible «Hablar: decirlo en voz alta» y sin presionar', () => {

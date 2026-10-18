@@ -1,4 +1,4 @@
-# 02 · Sistema visual y componentes (v2.2)
+# 02 · Sistema visual y componentes (v2.4)
 
 Valores exactos en `tokens/tokens.json` y `tokens/tokens.css`. Referencia visual: `preview/Componentes.html` y `preview/A-06-guia.html`. **Si este documento y una pantalla no coinciden, manda la pantalla.**
 
@@ -8,7 +8,7 @@ Azul y blanco con gradientes, moderno y minimalista, bordes curvos. La capa de G
 ## Marca
 - Nombre: **Guíame**.
 - Logos en `assets/logo/` (PNG transparentes):
-  - `guiame-blanco.png`: «Guíame» blanco con avioncito, sin ojos. **Logo de la barra** (v2.2).
+  - `guiame-blanco.png`: «Guíame» blanco con avioncito, sin ojos. **Logo de la barra** (desde v2.2).
   - `guiame-blanco-ojos.png`: la misma versión con ojos. Ya no va en la barra; se conserva como recurso.
   - `guiame-icono.png`: ícono cuadrado celeste con avioncito y ojos. Solo sobre fondos claros.
   - `guiame-pill-ojos.png` / `guiame-pill.png`: wordmark dentro de píldora celeste. Solo sobre fondos claros.
@@ -52,7 +52,10 @@ Los sitios de ejemplo usan Arial a propósito: representan un sitio ajeno.
 880px centrada bajo el buscador, blanca, borde `#DCE4FA`, radio 28, halo suave. Píldoras de respuestas dadas en `#E6EDFF`. Respuestas de 72px, borde 2px `#7A8CC9`, radio 18, ícono azul. «No sé bien» con borde punteado.
 
 ### Pantallas propias
-`.g-ground`: gradiente blanco → celeste → azul vivo abajo, con cuadrícula de puntos al 10% cada 32px. Inicio: ícono 78px + título 48px + buscador con borde azul + botón principal «Guíame».
+`.g-ground`: fondo blanco liso con cuadrícula de puntos al 10% cada 32px, **sin gradiente** (desde v2.3). Inicio: ícono 78px + título 48px + buscador con borde azul + **accesos del historial** (v2.4, sin botón «Guíame»).
+
+### Accesos del historial (inicio, v2.4)
+Tres pedidos anteriores de la persona debajo del buscador, como `nav[aria-label="Lo que hiciste antes"] > ul > li > a`. Cada fila: 60px de alto mínimo, padding 8/14, radio 16, ícono Lucide azul `#1D4ED8` en un cuadrado de 44px `#EAF1FF` (radio 14) y texto 22/500 `#47557A`. Hover y foco: fondo `#F2F5FF`, texto navy. El texto dice **qué se hace** (no el dominio) y enlaza al sitio. Ejemplos: «Declaración jurada DGI», «Horario de atención al cliente de BPS», «Pagar tarjeta Santander». La búsqueda se envía con Enter o con «Hablar».
 
 ### Bloques de estado
 Ícono 40px + título 31px + párrafo navy. Éxito `#E0F2E7`/`#13693D` · Aviso `#FFF0CC`/`#7A4D00` · Error de Guíame: blanco, borde 2px `#B42318`, título navy · ¿Pudiste terminar?: blanco, borde punteado `#7A8CC9`.
@@ -74,7 +77,7 @@ Blanca, borde 2px `#DCE4FA`, radio 18. Rótulo 20px secundario; cita 22px entre 
 `.g-highlight` + `.g-highlight__label` en `tokens.css`. Anillo blanco + borde `#1F8BFF` + halo; rótulo «Acá» en gradiente azul con texto blanco. Ver R8.
 
 ### Velo del sitio
-`.g-site-veil`: primer hijo del contenedor del sitio, `z-index: 1`, gradiente de navy al 8% (izquierda) a azul al 30% (derecha, hacia la tarjeta).
+`.g-site-veil`: primer hijo del contenedor del sitio, `z-index: 1`, tono parejo navy al 12% (`rgba(11,27,63,0.12)`), **sin gradiente** (desde v2.3).
 
 ### Diálogo (22)
 Scrim `rgba(11,27,63,0.45)` (`z-index: 6`) y diálogo de 640px (`z-index: 7`) con radio 28 y halo azul. Principal «Quedarme acá», secundario «Sí, ir al inicio».
@@ -82,7 +85,7 @@ Scrim `rgba(11,27,63,0.45)` (`z-index: 6`) y diálogo de 640px (`z-index: 7`) co
 ## Iconografía
 Lucide en línea, stroke 2, extremos redondeados, `aria-hidden="true"`. Sin emojis.
 
-## Botón de voz «Hablar» (v2.2)
+## Botón de voz «Hablar» (desde v2.2)
 
 Va dentro del buscador y de los campos de respuesta (A-01, A-02, A-03, A-10, B-C01 a B-C04, Main). Se destaca como acción secundaria fuerte, porque hablar es la forma más cómoda de pedir algo para muchas personas.
 

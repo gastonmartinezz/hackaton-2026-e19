@@ -13,7 +13,7 @@ Tabla generada desde las pantallas (es la fuente de verdad para textos y número
 
 | Archivo | Pantalla | Tipo de tarjeta | Texto principal | Dominio | Sello | Ayuda | Pasos hechos |
 |---|---|---|---|---|---|---|---|
-| `A-01-inicio` | 01 Inicio | inicio | ¿Qué querés hacer hoy? | — | — | — | — |
+| `A-01-inicio` | 01 Inicio | inicio + historial | ¿Qué querés hacer hoy? | — | — | — | — |
 | `A-02-que-documento` | 02 ¿Qué documento? | pregunta | ¿Qué documento querés renovar? | — | — | — | — |
 | `A-03-pais` | 03 ¿Es en Uruguay? | pregunta | ¿Es en Uruguay? | — | — | — | — |
 | `A-04-abriendo` | 04 Abriendo el sitio | espera | Estoy mirando la página… | agenda.ejemplo.gub.uy | Sitio oficial | abierta | — |
