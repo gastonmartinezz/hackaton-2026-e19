@@ -24,7 +24,7 @@ const LOCAL_SUFFIXES = ['localhost', 'local', 'internal', 'intranet', 'lan', 'ho
  */
 const SECOND_LEVEL = new Set(
   [
-    'com', 'gob', 'gov', 'org', 'net', 'edu', 'mil', 'int', 'tur', 'coop', 'mutual', 'musica', 'senasa', 'nom', 'co', 'ac', 'or', 'ne', 'go',
+    'com', 'gob', 'gub', 'gov', 'org', 'net', 'edu', 'mil', 'int', 'tur', 'coop', 'mutual', 'musica', 'senasa', 'nom', 'co', 'ac', 'or', 'ne', 'go',
   ].flatMap((sld) => ['ar', 'br', 'mx', 'uy', 'py', 'cl', 'pe', 'co', 'bo', 'ec', 've', 'uk', 'au', 'nz', 'jp', 'za', 'es'].map((cc) => `${sld}.${cc}`)),
 );
 
