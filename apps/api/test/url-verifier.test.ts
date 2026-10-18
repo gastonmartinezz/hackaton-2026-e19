@@ -210,3 +210,14 @@ describe('UrlVerifier', () => {
     expect(verifier.requests).toHaveLength(5);
   });
 });
+
+describe('título de la página', () => {
+  it('lee el <title> y lo deja legible y acotado', async () => {
+    const { titleIn, cleanTitle } = await import('../src/modules/urls/url-verifier.js');
+    expect(titleIn('<html><head><title>Documento Nacional de Identidad - Renovación | Trámites</title>')).toBe('Documento Nacional de Identidad - Renovación | Trámites');
+    expect(titleIn('<html><head><meta charset="utf-8">')).toBeNull();
+    expect(cleanTitle(' Pagar &amp; ver\n facturas &#8211; <b>BPS</b> ')).toBe('Pagar & ver facturas – BPS');
+    expect(cleanTitle('x'.repeat(300))).toHaveLength(200);
+  });
+});
+

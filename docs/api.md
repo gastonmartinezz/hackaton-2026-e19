@@ -113,6 +113,10 @@ Claude puede recordar mal una dirección (por ejemplo, devolver `https://www.bps
    - Sin IPs literales ni nombres locales (`localhost`, `.local`, sin dominio).
    - Sin nombres que resuelvan a redes privadas, loopback, link-local o reservadas. La IP se vuelve a comprobar al conectarse, contra DNS rebinding.
 2. **Pedido:** `HEAD` y, si el sitio no lo acepta, `GET` sin leer el cuerpo. Sigue hasta 3 redirecciones con un timeout de 5 s (`URL_CHECK_*`) y se identifica con un `User-Agent` honesto (`Mostrame-LinkCheck/1.0`). Es válida si la respuesta final es 2xx.
+   - **Que sea lo pedido:** de cada página válida se lee el `<title>`. Es un `GET` aparte que lee como mucho 64 KB, con las mismas protecciones de red. La tarea `pageCheck` (Claude con effort `low` por defecto; se cambia con `CLAUDE_MODEL_PAGE_CHECK` y `CLAUDE_EFFORT_PAGE_CHECK`) compara el título con lo que pidió la persona.
+     - Si la página es de otra acción o variante del trámite (por ejemplo, «Documento Nacional de Identidad - Primera Vez» cuando pidió renovar), cuenta como fallida, con motivo `off_topic`. El reintento recibe el título.
+     - Una URL `off_topic` nunca se reemplaza por la raíz del sitio.
+     - Sin título, o si `pageCheck` falla por un motivo pasajero, se usa la URL igual.
 3. **Si una URL falla:** un reintento con Claude, al que se le dice qué URL falló y por qué, sin datos de la persona. Si el reintento también falla:
    - Se usa la raíz del dominio, si existe.
    - Si no existe, se saca esa URL.

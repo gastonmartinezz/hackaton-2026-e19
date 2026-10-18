@@ -12,6 +12,8 @@ export interface UrlGuardStats {
   valid: number;
   invalid: Partial<Record<UrlRejection, number>>;
   rootFallbacks: number;
+  /** Páginas que existen pero, por su título, son de otra acción o variante. */
+  offTopic: number;
   dropped: number;
   converted: 'none' | 'redirect' | 'question';
   invalidDomains: string[];
@@ -71,6 +73,11 @@ export class UrlGuard {
     const fix = async (url: string): Promise<string | null> => {
       const check = checks.get(url) ?? (await this.verifier.verify(url));
       if (check.ok) return url;
+      // Otra acción u otra variante del trámite: la raíz del sitio tampoco es lo pedido.
+      if (check.reason === 'off_topic') {
+        stats.dropped++;
+        return null;
+      }
       const root = rootOf(url);
       if (root && root !== url && (await this.verifier.verify(root)).ok) {
         stats.rootFallbacks++;
@@ -112,7 +119,7 @@ export class UrlGuard {
 }
 
 export function emptyStats(): UrlGuardStats {
-  return { checked: 0, valid: 0, invalid: {}, rootFallbacks: 0, dropped: 0, converted: 'none', invalidDomains: [] };
+  return { checked: 0, valid: 0, invalid: {}, rootFallbacks: 0, offTopic: 0, dropped: 0, converted: 'none', invalidDomains: [] };
 }
 
 export function countChecks(checks: Map<string, UrlCheck>, stats: UrlGuardStats): void {
