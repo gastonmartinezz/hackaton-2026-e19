@@ -364,8 +364,8 @@ El BCU no publica una API documentada con los sitios web de las instituciones. S
 
 Las referencias salen, en este orden de peso, de:
 
-1. Dominios del padrón del BCRA (también de una copia vieja).
-2. Dominios de los catálogos curados.
+1. Dominios del registro del BCU (también de una copia vieja).
+2. Dominios del catálogo de Uruguay, incluidos los descartados.
 3. Zonas de gobierno.
 4. Opcionalmente, una lista de dominios populares (`SITE_CHECK_POPULAR_DOMAINS_FILE`).
 
@@ -373,12 +373,22 @@ Las heurísticas siguen el estilo de las advertencias de dominios parecidos de C
 
 - Mismo esqueleto visual (UTS #39: letras de otro alfabeto, `0`/`o`, `rn`/`m`) → `CONFUSABLE_CHARACTERS` si hay caracteres no ASCII; si no, `LOOKALIKE_DOMAIN`.
 - Una edición de distancia, solo con nombres de 7 o más letras.
-- El dominio de referencia embebido en otro: `bna.com.ar.verificacion.net` → `MISLEADING_SUBDOMAIN`.
-- Marca + palabra clave: `bna-seguro.com`, `antel-uy.com`, `macro-login.com`.
-- Cambio de terminación (`bancociudad.com` frente a `bancociudad.com.ar`): **solo si hay lista de dominios populares** configurada, para excluir sitios globales legítimos. En la prueba real, sin esa lista, la regla marcaba `santander.com`, `bbva.com` e `icbc.com` como estafa, así que queda apagada por defecto.
-- Zonas de gobierno imitadas: `anses-gob-ar.com`, `anses-gob.ar.com`, `anses.gob.ar.evil.com`, `gub-uy.com`, o `.gob.ar` falso con homoglifos.
+- El dominio de referencia embebido en otro: `brou.com.uy.verificacion.net` → `MISLEADING_SUBDOMAIN`.
+- Marca + palabra clave: `brou-seguro.com`, `antel-uy.com`, `itau-login.com`.
+- La marca como subdominio de otro dominio: `brou.secure-login.com`.
+- Cambio de terminación (`brou.com` frente a `brou.com.uy`): **solo si hay lista de dominios populares** configurada, para excluir sitios globales legítimos.
+- Zonas de gobierno imitadas: `bps-gub-uy.com`, `gub-uy.com`, `bps.gub.uy.evil.com`, o `.gub.uy` falso con homoglifos.
 
-«banco» no cuenta como palabra clave: `bancogalicia.com` no se marca.
+«banco» no cuenta como palabra clave.
+
+**Nombres que son palabras comunes (`data/common-words.json`).** Varias instituciones del BCU y del catálogo se llaman como palabras de uso diario (Correo, Verde, Pronto, Delta, Visa, Disco, Provincia, Universidad, Cabal…). Con todas las reglas, sitios inocentes como `correo.miempresa.com.uy`, `consorcios.com.uy` o `pronto.algunblog.com` daban «Posible estafa». La lista es una **heurística**, no una fuente de autoridad. Para esos nombres:
+
+- **Siguen aplicando** las reglas que no dan falsas alarmas: el dominio de referencia completo metido en otro (`correo.com.uy.evil.com`, `correo-com-uy.net`) y el mismo esqueleto visual (`c0rreo.com.uy`, letras cirílicas).
+- **No aplican:** el nombre como subdominio, una letra de diferencia, nombre + palabra clave y el cambio de terminación.
+- **En el texto de la página:** un alias del catálogo que es una palabra común solo cuenta con una palabra financiera («Tarjeta Verde») o con la pista de la IA. «Correo Uruguayo» completo sigue contando.
+- **Criterio para sumar una palabra:** es de uso diario y un sitio sin relación podría usarla como nombre, sección o subdominio. Los nombres propios (santander) y las palabras que en un dominio casi siempre son la marca (claro, oca) quedan afuera. Un test verifica que las marcas distintivas (brou, itau, antel, prexcard, ute, ose, bse, abitab, redpagos, mercadopago…) no estén en la lista.
+
+**Siglas de organismos (`acronyms` en `government-zones.json`).** BPS, DGI y BCU cuentan solas cuando son todo el nombre declarado o una parte separada por guion, barra o dos puntos («BPS», «BPS - Mi cuenta»). Dentro de un nombre más largo necesitan que el texto nombre a Uruguay o la pista de la IA: «BPS Logistics» o «DGI Consultores» no se toman como el organismo.
 
 **Lista de dominios populares.** No se incluye ninguna en el repositorio:
 
@@ -507,7 +517,7 @@ Todas exponen la URL, y con ella datos del recorrido de la persona. No se public
 - El registro del BCU se arma leyendo su portal, que no es una API documentada. Si deja de responder o cambia de formato, las instituciones financieras dejan de verse como oficiales por esa vía (nunca se aprueba en falso). Una institución que use otros dominios además del publicado solo es oficial en esos otros dominios si están en el catálogo.
 - Si el BCU publica un dominio que vence y otro lo registra, sigue saliendo oficial hasta que el BCU actualice la ficha (salvo que el catálogo lo haya descartado). `.uy` no tiene RDAP para notar el cambio de titular.
 - Si el BCU no publica un nombre de fantasía y la institución no está en el catálogo, `organization` puede venir en mayúsculas («CAMBIO FAGALDE»).
-- La detección de dominios parecidos puede dar falsos positivos (un dominio legítimo con un nombre parecido a una entidad) y falsos negativos (marcas cortas de 3 letras solo se detectan con una palabra clave).
+- La detección de dominios parecidos puede dar falsos positivos (un dominio legítimo con un nombre parecido a una institución, por ejemplo con `claro`) y falsos negativos. Por la lista de palabras comunes, desde la dirección sola **ya no se detectan** `correo-uy.com`, `visa-login.com`, `cabal-online.com` ni `correo.secure-login.com`. Se pueden detectar por el contenido si la página nombra a la organización completa («Correo Uruguayo») o con la pista de la IA.
 - Las reglas de contenido trabajan sobre el resumen que extrae el navegador: no ven el código de la página ni cambios posteriores, ni contenido dentro de iframes de otro origen.
 - La inspección de conexión ve lo que ve el servidor, que puede diferir de lo que ve la persona (sesión, geolocalización, cloaking).
 - Las cachés y los topes son en memoria, por proceso: se pierden al reiniciar y no se comparten entre réplicas.
