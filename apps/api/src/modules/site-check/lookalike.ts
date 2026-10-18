@@ -25,6 +25,8 @@ export interface Reference {
   kind: ReferenceKind;
   /** La etiqueta, sin guiones, es una palabra de uso corriente: solo cuentan el dominio completo y el aspecto. */
   commonWord?: boolean;
+  /** Para una palabra común muy imitada (correo): palabras de estafa con las que vuelve a contar como marca. */
+  brandKeywords?: ReadonlySet<string>;
 }
 
 export interface ZoneReference {
@@ -119,7 +121,23 @@ export function lookalikeSignals(host: HostInfo, references: readonly Reference[
     // Desde acá, reglas sobre el nombre solo. Con una palabra de uso corriente chocan con sitios sin relación
     // (correo.miempresa.com.uy, consorcios.com.uy, visa-uruguay.com, verde.com): esas referencias quedan solo
     // con las reglas de arriba (correo.com.uy.evil.com, correo-com-uy.net, c0rreo.com.uy).
-    if (ref.commonWord) continue;
+    if (ref.commonWord) {
+      // Excepción de common-words.json: «correo» + una palabra de sus estafas (correo-uy.com,
+      // correouruguayo-pagos.com, correo.envios-uy.com) sí es imitación; correo.miempresa.com.uy no.
+      const scam = ref.brandKeywords;
+      if (scam) {
+        const refFlat = compact(refLabel);
+        const named =
+          (labelTokens.includes(refLabel) && labelTokens.some((t) => t !== refLabel && scam.has(t))) ||
+          [...scam].some((kw) => flat.startsWith(refFlat + kw) || flat === kw + refFlat);
+        if (named) add('LOOKALIKE_DOMAIN', ref.organization, `${domain} combina ${refLabel} con una palabra de sus estafas conocidas`);
+        // La palabra de estafa puede estar en el dominio (correo.envios-uy.com) o en el subdominio (correo-envios.algo.com).
+        if (subTokens.includes(refLabel) && [...subTokens, ...labelTokens].some((t) => t !== refLabel && scam.has(t))) {
+          add('MISLEADING_SUBDOMAIN', ref.organization, `Un subdominio usa ${refLabel} sobre ${domain}`);
+        }
+      }
+      continue;
+    }
     // Sin guiones, como `flat`: banco-provincia se compara como bancoprovincia.
     const refFlat = compact(refLabel);
     // Una letra de diferencia, solo con nombres largos (los cortos chocan con sitios legítimos).

@@ -504,6 +504,7 @@ Las heurísticas siguen el estilo de las advertencias de dominios parecidos de C
 
 - **Siguen aplicando** las reglas que no dan falsas alarmas: el dominio de referencia completo metido en otro (`correo.com.uy.evil.com`, `correo-com-uy.net`) y el mismo esqueleto visual (`c0rreo.com.uy`, letras cirílicas).
 - **No aplican:** el nombre como subdominio, una letra de diferencia y nombre + palabra clave.
+- **Excepción para marcas muy imitadas (`brandKeywords`):** «correo» vuelve a contar como marca si el dominio la combina con una palabra de las estafas del Correo Uruguayo (`uy`, `uruguayo`, `envios`, `paquete`, `rastreo`, `aduana`, `tasas`, `pago`…): `correo-uy.com`, `correouruguayo-pagos.com`, `correo.envios-uy.com` dan `LOOKALIKE_DOMAIN` o `MISLEADING_SUBDOMAIN`; `correo.miempresa.com.uy` y `correo-electronico.com` no.
 - **En el texto de la página:** un alias del catálogo que es una palabra común solo cuenta con una palabra financiera («Tarjeta Verde») o con la pista de la IA. «Correo Uruguayo» completo sigue contando.
 - **Criterio para sumar una palabra:** es de uso diario y un sitio sin relación podría usarla como nombre, sección o subdominio. Los nombres propios (santander) y las palabras que en un dominio casi siempre son la marca (claro, oca) quedan afuera. Un test verifica que las marcas distintivas (brou, itau, antel, prexcard, ute, ose, bse, abitab, redpagos, mercadopago…) no estén en la lista.
 

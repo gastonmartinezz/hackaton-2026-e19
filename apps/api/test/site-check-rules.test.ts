@@ -427,6 +427,25 @@ describe('dominios parecidos (sin lista manual)', () => {
     expect(signals(hostname)).toEqual([]);
   });
 
+  it.each([
+    ['correo-uy.com', 'LOOKALIKE_DOMAIN'],
+    ['correouy.com', 'LOOKALIKE_DOMAIN'],
+    ['correo-uruguayo.net', 'LOOKALIKE_DOMAIN'],
+    ['correouruguayo-pagos.com', 'LOOKALIKE_DOMAIN'],
+    ['correo-envios.com', 'LOOKALIKE_DOMAIN'],
+    ['paquete-correo.com', 'LOOKALIKE_DOMAIN'],
+    ['correo-aduana-tasas.xyz', 'LOOKALIKE_DOMAIN'],
+    ['correo.envios-uy.com', 'MISLEADING_SUBDOMAIN'],
+    ['correo-envios.algo.com', 'MISLEADING_SUBDOMAIN'],
+  ])('Correo Uruguayo: %s → %s (palabra de sus estafas)', (hostname, code) => {
+    expect(signals(hostname).map(([c]) => c)).toContain(code);
+  });
+
+  it.each(['correo.miempresa.com.uy', 'correo-electronico.com', 'micorreo.com.uy', 'correo.universidad.edu.uy'])(
+    'Correo Uruguayo: %s sin palabras de estafa no es imitación',
+    (hostname) => expect(signals(hostname)).toEqual([]),
+  );
+
   it('una referencia que es una palabra común se detecta por el dominio completo o el aspecto', () => {
     const codes = (hostname: string) => signals(hostname).map(([code]) => code);
     expect(codes('correo.com.uy.evil.com')).toEqual(['MISLEADING_SUBDOMAIN']);
