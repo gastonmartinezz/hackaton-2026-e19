@@ -78,9 +78,9 @@ const EnvSchema = z
     OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     OPENAI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(1),
     OPENAI_STT_MODEL: z.string().min(1).default('gpt-transcribe'),
-    // Contexto opcional para la transcripción (vocabulario, estilo). Vacío por defecto; ver docs/voz-openai.md.
+    // Contexto opcional para la transcripción (vocabulario, estilo). Vacío por defecto; valor propuesto en docs/api.md.
     OPENAI_STT_PROMPT: z.string().max(2000).default(''),
-    // Palabras clave separadas por coma (solo gpt-transcribe). Vacío por defecto; ver docs/voz-openai.md.
+    // Palabras clave separadas por coma (solo gpt-transcribe). Vacío por defecto; valor propuesto en docs/api.md.
     OPENAI_STT_KEYWORDS: csv,
 
     // Texto a voz (POST /v1/speak). off: 503 no reintentable. mock: MP3 corto de silencio.
