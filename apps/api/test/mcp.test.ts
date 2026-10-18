@@ -87,7 +87,7 @@ describe('servidor MCP privado', () => {
   it.each([
     ['servicios.afip.gob.ar', 'government_domain', 'gob.ar', 'Estado argentino'],
     ['www.bna.com.ar', 'financial_regulator', 'bna.com.ar', 'BANCO DE LA NACION ARGENTINA'],
-    ['www.antel.com.uy', 'official_catalog', 'antel.com.uy', 'Antel (Administración Nacional de Telecomunicaciones)'],
+    ['www.antel.com.uy', 'official_catalog', 'antel.com.uy', 'Antel'],
   ])('lookup_official_identity: %s → %s con fuente y fecha', async (hostname, basis, matched, organization) => {
     await setup();
     const { structuredContent } = await callTool('lookup_official_identity', { hostname });

@@ -440,7 +440,7 @@ describe('POST /v1/site-check: IA', () => {
     app = await testApp({ siteCheck: fakeProviders() }, { SITE_CHECK_AI: 'false' });
     const page = { ...emptyPage, declaredBrand: 'BROU', forms: [{ method: 'post', action: null, fields: [{ type: 'password' }] }] };
     const r = await check(contentRequest(url, page));
-    expect(r.identity.impersonatedOrganization).toBe('Banco de la República Oriental del Uruguay (BROU)');
+    expect(r.identity.impersonatedOrganization).toBe('Banco República (BROU)');
     expect(r.risk).toBe('high');
     expect(siteIndicatorState(await check(contentRequest(url)))).toBe('no_alerts');
   });

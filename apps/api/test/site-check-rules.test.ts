@@ -56,7 +56,7 @@ describe('fuentes de autoridad', () => {
   });
 
   it('catálogo curado con fuente y fecha por entrada; alcance exact', () => {
-    expect(view.official('www.antel.com.uy')).toMatchObject({ basis: 'official_catalog', organization: 'Antel (Administración Nacional de Telecomunicaciones)' });
+    expect(view.official('www.antel.com.uy')).toMatchObject({ basis: 'official_catalog', organization: 'Antel' });
     expect(view.official('www.antel.com.uy')?.source).toEqual({ name: 'https://www.antel.com.uy/', url: 'https://www.antel.com.uy/', reviewedAt: '2026-10-16T00:00:00.000Z' });
     expect(view.official('ebanking.brou.uy')?.basis).toBe('official_catalog');
     expect(view.official('www.ebanking.brou.uy')).toBeNull();
@@ -127,8 +127,8 @@ describe('dominios parecidos (sin lista manual)', () => {
     ['bna.secure-login.com', 'MISLEADING_SUBDOMAIN', 'BANCO DE LA NACION ARGENTINA'],
     ['bancoprovincla.com.ar', 'LOOKALIKE_DOMAIN', 'BANCO DE LA PROVINCIA DE BUENOS AIR'], // una letra
     ['santander-login.com', 'LOOKALIKE_DOMAIN', 'BANCO SANTANDER ARGENTINA S.A.'],
-    ['antel-uy.com', 'LOOKALIKE_DOMAIN', 'Antel (Administración Nacional de Telecomunicaciones)'],
-    ['brou.com.uy.verificacion.net', 'MISLEADING_SUBDOMAIN', 'Banco de la República Oriental del Uruguay (BROU)'],
+    ['antel-uy.com', 'LOOKALIKE_DOMAIN', 'Antel'],
+    ['brou.com.uy.verificacion.net', 'MISLEADING_SUBDOMAIN', 'Banco República (BROU)'],
     ['xn--mcro-53d.com.ar', 'CONFUSABLE_CHARACTERS', 'BANCO MACRO S.A.'], // "mаcro" con a cirílica
     ['anses.xn--gb-jbc.ar', 'CONFUSABLE_CHARACTERS', 'Estado argentino'], // "gοb.ar" con ómicron griega
   ])('%s → %s', (hostname, code, organization) => {

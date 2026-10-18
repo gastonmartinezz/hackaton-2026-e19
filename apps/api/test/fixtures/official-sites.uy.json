@@ -13,7 +13,8 @@
   "entries": [
     {
       "id": "antel",
-      "organization": "Antel (Administración Nacional de Telecomunicaciones)",
+      "organization": "Antel",
+      "legalName": "Antel (Administración Nacional de Telecomunicaciones)",
       "category": "telecomunicaciones",
       "domains": [{ "domain": "antel.com.uy", "scope": "subdomains" }],
       "source": "https://www.antel.com.uy/",
@@ -22,7 +23,8 @@
     },
     {
       "id": "brou",
-      "organization": "Banco de la República Oriental del Uruguay (BROU)",
+      "organization": "Banco República (BROU)",
+      "legalName": "Banco de la República Oriental del Uruguay (BROU)",
       "category": "banco",
       "domains": [
         { "domain": "brou.com.uy", "scope": "subdomains" },

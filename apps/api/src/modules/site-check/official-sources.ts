@@ -59,7 +59,10 @@ const CatalogFile = z.object({
   entries: z.array(
     z.object({
       id: z.string().regex(/^[a-z0-9-]+$/),
-      organization: z.string().min(1).max(120),
+      /** Nombre corto que ve la persona («Antel», «Banco República (BROU)»). */
+      organization: z.string().min(1).max(40),
+      /** Razón social o nombre completo, solo como referencia. */
+      legalName: z.string().min(1).max(200).optional(),
       category: z.string().min(1),
       domains: z.array(z.object({ domain: Hostname, scope: z.enum(['exact', 'subdomains']) })).min(1),
       source: Source,
