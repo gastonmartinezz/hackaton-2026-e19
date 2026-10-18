@@ -7,7 +7,7 @@
  * No se guardan en disco ni se loguean (solo códigos y duración).
  */
 import { isTranscribableWav } from '../shared/wav';
-import type { TranscribeResult } from '../shared/ipc';
+import type { TranscribeErrorReason, TranscribeResult } from '../shared/ipc';
 import { ApiFailure, type ApiClient } from './api/client';
 import { log } from './log';
 
@@ -32,13 +32,27 @@ export function cleanTranscript(text: string): string {
     .trim();
 }
 
+/**
+ * Qué decirle a la interfaz según el error. Se usa el `retryable` que mandó el
+ * servidor, no se deduce del código: AI_UNAVAILABLE sin reintento es la voz
+ * apagada en el servidor (STT_PROVIDER=off).
+ */
+export function transcribeErrorReason(error: unknown): TranscribeErrorReason {
+  if (!(error instanceof ApiFailure)) return 'failed';
+  if (error.code === 'AI_UNAVAILABLE') return error.retryable ? 'busy' : 'off';
+  return error.code === 'RATE_LIMITED' ? 'busy' : 'failed';
+}
+
 export class Transcriber {
   #current: AbortController | null = null;
+  /** La voz está apagada en el servidor: no se vuelve a pedir en esta ejecución. */
+  #off = false;
 
   constructor(private readonly api: ApiClient) {}
 
   /** Una sola solicitud a la vez: una nueva cancela la anterior. */
   async transcribe(raw: unknown): Promise<TranscribeResult> {
+    if (this.#off) return { status: 'error', reason: 'off' };
     const wav = audioBytes(raw);
     if (!wav || !isTranscribableWav(wav)) {
       log('voice.invalid_audio');
@@ -56,7 +70,9 @@ export class Transcriber {
     } catch (error) {
       const code = error instanceof ApiFailure ? error.code : 'INTERNAL';
       log('voice.error', { code: `code:${code}`, ms: Date.now() - started });
-      return { status: 'error', reason: code === 'RATE_LIMITED' ? 'busy' : 'failed' };
+      const reason = transcribeErrorReason(error);
+      if (reason === 'off') this.#off = true;
+      return { status: 'error', reason };
     } finally {
       if (this.#current === controller) this.#current = null;
     }

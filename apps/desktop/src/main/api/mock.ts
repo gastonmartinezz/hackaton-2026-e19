@@ -22,8 +22,8 @@ import { isTranscribableWav, rms, wavSamples } from '../../shared/wav';
 import { ApiFailure, type ApiClient } from './client';
 import type { TranscribeResponse } from './pending-contract';
 
-/** Texto fijo del dictado simulado. */
-export const MOCK_TRANSCRIPT = 'horarios de la biblioteca';
+/** Texto fijo del dictado simulado: el mismo que devuelve el modo mock del servidor. */
+export const MOCK_TRANSCRIPT = 'Quiero renovar mi documento';
 const MOCK_SILENCE_RMS = 0.01;
 
 export interface MockOptions {
@@ -74,8 +74,8 @@ export class MockApiClient implements ApiClient {
   /**
    * TEMPORAL: /v1/transcribe todavía no está en el contrato (ver
    * api/pending-contract.ts). Sin Whisper: si el audio es casi silencio
-   * devuelve `""` («no te escuché»); si no, una búsqueda fija que abre la
-   * página de prueba de horarios.
+   * devuelve `""` («no te escuché»); si no, el mismo texto fijo que el modo
+   * mock del servidor.
    */
   async transcribe(wav: Uint8Array, signal: AbortSignal): Promise<TranscribeResponse> {
     await this.#wait(signal);

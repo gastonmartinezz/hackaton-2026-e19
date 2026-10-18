@@ -52,9 +52,33 @@ describe('Transcriber', () => {
   it('traduce los errores del servidor sin exponer detalles', async () => {
     const failing = (code: ConstructorParameters<typeof ApiFailure>[0]) => new Transcriber(fakeApi(vi.fn(async () => Promise.reject(new ApiFailure(code, false)))));
     await expect(failing('RATE_LIMITED').transcribe(tone(0.3))).resolves.toEqual({ status: 'error', reason: 'busy' });
-    for (const code of ['AI_UNAVAILABLE', 'TIMEOUT', 'PAYLOAD_TOO_LARGE', 'BAD_REQUEST', 'INVALID_RESPONSE', 'NETWORK'] as const) {
+    for (const code of ['TIMEOUT', 'PAYLOAD_TOO_LARGE', 'BAD_REQUEST', 'INVALID_RESPONSE', 'NETWORK'] as const) {
       await expect(failing(code).transcribe(tone(0.3))).resolves.toEqual({ status: 'error', reason: 'failed' });
     }
+  });
+
+  it('AI_UNAVAILABLE con retryable: true → «ocupado»; se puede volver a probar', async () => {
+    const transcribe = vi.fn(async () => Promise.reject(new ApiFailure('AI_UNAVAILABLE', true)));
+    const transcriber = new Transcriber(fakeApi(transcribe));
+    await expect(transcriber.transcribe(tone(0.3))).resolves.toEqual({ status: 'error', reason: 'busy' });
+    await expect(transcriber.transcribe(tone(0.3))).resolves.toEqual({ status: 'error', reason: 'busy' });
+    expect(transcribe).toHaveBeenCalledTimes(2);
+  });
+
+  it('AI_UNAVAILABLE con retryable: false → voz apagada: no se vuelve a llamar al servidor', async () => {
+    const transcribe = vi.fn(async () => Promise.reject(new ApiFailure('AI_UNAVAILABLE', false)));
+    const transcriber = new Transcriber(fakeApi(transcribe));
+    await expect(transcriber.transcribe(tone(0.3))).resolves.toEqual({ status: 'error', reason: 'off' });
+    await expect(transcriber.transcribe(tone(0.3))).resolves.toEqual({ status: 'error', reason: 'off' });
+    expect(transcribe).toHaveBeenCalledOnce();
+  });
+
+  it('el retryable sale de la respuesta del servidor (ApiError), no del código', async () => {
+    const apiError = (retryable: boolean) => json(503, { error: { code: 'AI_UNAVAILABLE', message: 'x', requestId: 'r', retryable } });
+    const off = new HttpApiClient({ baseUrl: base, token: null, fetch: vi.fn(async () => apiError(false)) });
+    await expect(new Transcriber(off).transcribe(tone(0.3))).resolves.toEqual({ status: 'error', reason: 'off' });
+    const busy = new HttpApiClient({ baseUrl: base, token: null, retries: 0, fetch: vi.fn(async () => apiError(true)) });
+    await expect(new Transcriber(busy).transcribe(tone(0.3))).resolves.toEqual({ status: 'error', reason: 'busy' });
   });
 
   it('cleanTranscript deja una línea de hasta 500 caracteres', () => {

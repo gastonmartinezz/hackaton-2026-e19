@@ -26,9 +26,13 @@ export const UI_TRANSCRIBE_CHANNEL = 'ui:transcribe';
 
 /**
  * Resultado del dictado. `empty`: no se entendió nada; `busy`: el servidor pide
- * esperar; `failed`: cualquier otro problema (la interfaz lo dice sin culpa).
+ * esperar (RATE_LIMITED o AI_UNAVAILABLE con `retryable: true`); `off`: el
+ * servidor tiene la voz apagada (AI_UNAVAILABLE con `retryable: false`), no
+ * se vuelve a ofrecer en esta ejecución; `failed`: cualquier otro problema
+ * (la interfaz lo dice sin culpa).
  */
-export type TranscribeResult = { status: 'ok'; text: string } | { status: 'empty' } | { status: 'error'; reason: 'busy' | 'failed' };
+export type TranscribeErrorReason = 'busy' | 'off' | 'failed';
+export type TranscribeResult = { status: 'ok'; text: string } | { status: 'empty' } | { status: 'error'; reason: TranscribeErrorReason };
 
 export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ready') }),
