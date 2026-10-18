@@ -79,7 +79,8 @@ export const SpeakRequestSchema = z.strictObject({ id: Id, text: z.string().min(
 export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ready') }),
   /** `guide: false` es «Solo ir al sitio»: se abre el destino sin la guía. Por defecto, «Mostrame cómo». */
-  z.strictObject({ type: z.literal('submitIntent'), text: z.string().trim().min(1).max(500), guide: z.boolean().optional() }),
+  /** `dictated`: la búsqueda salió del dictado (prende el modo voz si la preferencia es `auto`). */
+  z.strictObject({ type: z.literal('submitIntent'), text: z.string().trim().min(1).max(500), guide: z.boolean().optional(), dictated: z.literal(true).optional() }),
   z.strictObject({ type: z.literal('openCandidate'), candidateId: Id, guide: z.boolean().optional() }),
   z.strictObject({ type: z.literal('resetChat') }),
   z.strictObject({ type: z.literal('navigate'), input: z.string().trim().min(1).max(2048) }),

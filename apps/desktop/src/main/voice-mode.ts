@@ -7,7 +7,7 @@
  * - `off`: apagado; dictar no lo prende.
  * Tocar el interruptor «Voz» deja la preferencia en `on` u `off`.
  */
-import type { VoiceMode } from '../shared/ipc';
+import type { UiCommand, VoiceMode } from '../shared/ipc';
 
 export class VoiceModeState {
   /** En `auto`: la persona buscó dictando en este recorrido. */
@@ -40,4 +40,32 @@ export class VoiceModeState {
     this.mode = mode;
     this.#dictatedThisJourney = false;
   }
+}
+
+export interface VoiceModeEffects {
+  /** Guarda la preferencia (preferences.json). */
+  save(mode: 'on' | 'off'): Promise<void>;
+  /** Corta lo que esté sonando en todas las vistas. */
+  stopAll(): void;
+  publish(): void;
+}
+
+/**
+ * Interruptor «Voz»: primero se guarda y recién después se aplica, se corta
+ * el audio (al apagar) y se publica. Si guardar falla, el estado no cambia y
+ * el error sigue hacia quien lo pidió.
+ */
+export async function changeVoiceMode(state: VoiceModeState, mode: 'on' | 'off', effects: VoiceModeEffects): Promise<void> {
+  await effects.save(mode);
+  state.set(mode);
+  if (mode === 'off') effects.stopAll();
+  effects.publish();
+}
+
+/**
+ * ¿Es una búsqueda dictada que de verdad se envió? Solo eso prende el modo
+ * voz en `auto` (no una transcripción que la vista descartó).
+ */
+export function isDictatedSearch(command: UiCommand): boolean {
+  return command.type === 'submitIntent' && command.dictated === true && command.text.trim() !== '';
 }

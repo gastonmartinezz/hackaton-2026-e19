@@ -38,7 +38,7 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
     // solo, por el mismo camino que «Mostrame cómo» (con ayuda). «Solo ir al sitio» manda
     // `guide: false`: abre una dirección escrita directo y, si no es una dirección, abre el
     // destino sin la guía.
-    onSubmit: (heard) => send({ type: 'submitIntent', text: heard.slice(0, MAX_QUERY).trim(), guide: true }),
+    onSubmit: (heard) => send({ type: 'submitIntent', text: heard.slice(0, MAX_QUERY).trim(), guide: true, dictated: true }),
   });
   const voiceBusy = voice.status.kind === 'transcribing';
 

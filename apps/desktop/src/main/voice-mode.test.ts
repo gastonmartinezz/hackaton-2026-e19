@@ -1,9 +1,10 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { UiCommandSchema } from '../shared/ipc';
 import { PrefsStore } from './prefs';
-import { VoiceModeState } from './voice-mode';
+import { changeVoiceMode, isDictatedSearch, VoiceModeState } from './voice-mode';
 
 describe('VoiceModeState', () => {
   it('auto (por defecto): se prende al buscar dictando, para ese recorrido', () => {
@@ -38,6 +39,58 @@ describe('VoiceModeState', () => {
     expect(mode.dictated()).toBe(false);
     mode.set('on');
     expect([mode.preference, mode.active]).toEqual(['on', true]);
+  });
+});
+
+describe('changeVoiceMode: primero se guarda, después se aplica', () => {
+  const effects = () => {
+    const calls: string[] = [];
+    return {
+      calls,
+      save: vi.fn(async (mode: 'on' | 'off') => void calls.push(`save:${mode}`)),
+      stopAll: vi.fn(() => void calls.push('stopAll')),
+      publish: vi.fn(() => void calls.push('publish')),
+    };
+  };
+
+  it('guarda, aplica, corta el audio (al apagar) y publica, en ese orden', async () => {
+    const state = new VoiceModeState('on');
+    const fx = effects();
+    await changeVoiceMode(state, 'off', fx);
+    expect(fx.calls).toEqual(['save:off', 'stopAll', 'publish']);
+    expect([state.preference, state.active]).toEqual(['off', false]);
+  });
+
+  it('si guardar falla, el estado no cambia, no se corta ni se publica, y el error sigue', async () => {
+    const state = new VoiceModeState('on');
+    const fx = effects();
+    fx.save.mockRejectedValueOnce(new Error('disco lleno'));
+    await expect(changeVoiceMode(state, 'off', fx)).rejects.toThrow('disco lleno');
+    expect([state.preference, state.active]).toEqual(['on', true]);
+    expect(fx.stopAll).not.toHaveBeenCalled();
+    expect(fx.publish).not.toHaveBeenCalled();
+  });
+});
+
+describe('isDictatedSearch: solo una búsqueda dictada que se envió prende el modo', () => {
+  it('dictada con texto → sí; escrita, en blanco u otro comando → no', () => {
+    expect(isDictatedSearch({ type: 'submitIntent', text: 'renovar la cédula', guide: true, dictated: true })).toBe(true);
+    expect(isDictatedSearch({ type: 'submitIntent', text: 'renovar la cédula', guide: true })).toBe(false);
+    expect(isDictatedSearch({ type: 'submitIntent', text: '   ', dictated: true })).toBe(false);
+    expect(isDictatedSearch({ type: 'search', text: 'x' })).toBe(false);
+  });
+
+  it('el contrato IPC acepta `dictated: true` y rechaza otros valores', () => {
+    expect(UiCommandSchema.safeParse({ type: 'submitIntent', text: 'hola', guide: true, dictated: true }).success).toBe(true);
+    expect(UiCommandSchema.safeParse({ type: 'submitIntent', text: 'hola', dictated: false }).success).toBe(false);
+  });
+
+  it('una transcripción sola (sin búsqueda enviada) no prende el modo', () => {
+    // El proceso principal ya no lo prende al transcribir: solo al recibir la búsqueda dictada.
+    const state = new VoiceModeState('auto');
+    expect(state.active).toBe(false);
+    if (isDictatedSearch({ type: 'submitIntent', text: 'hola', dictated: true })) state.dictated();
+    expect(state.active).toBe(true);
   });
 });
 

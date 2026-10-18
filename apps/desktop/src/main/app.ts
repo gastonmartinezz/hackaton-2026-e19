@@ -40,7 +40,7 @@ import { SpeechHub } from './speech';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
 import { buildUserContext, type SystemInfo } from './user-context';
 import { Transcriber } from './voice';
-import { VoiceModeState } from './voice-mode';
+import { changeVoiceMode, isDictatedSearch, VoiceModeState } from './voice-mode';
 
 /** Igual que --chrome-h y --card-w de design/tokens.css, y el ancho de la tarjeta achicada. */
 const chromeHeight = (scale: number) => Math.round(72 + (scale - 1) * 16);
@@ -418,10 +418,8 @@ export class AppController {
     if (event.sender !== this.window.webContents || event.senderFrame !== event.sender.mainFrame || !this.#termsAccepted()) {
       return { status: 'error', reason: 'failed' };
     }
-    const result = await this.#transcriber.transcribe(raw);
-    // Buscar dictando prende el modo voz para este recorrido (si la preferencia es `auto`).
-    if (result.status === 'ok' && this.#voiceMode.dictated()) this.#publish();
-    return result;
+    // El modo voz se prende recién cuando la búsqueda dictada se envía (submitIntent con `dictated`).
+    return this.#transcriber.transcribe(raw);
   }
 
   async #onCommand(event: IpcMainInvokeEvent, raw: unknown): Promise<void> {
@@ -446,6 +444,8 @@ export class AppController {
         return;
       case 'submitIntent': {
         if (!this.#termsAccepted()) return;
+        // Buscar dictando prende el modo voz para este recorrido (si la preferencia es `auto`).
+        if (isDictatedSearch(command) && this.#voiceMode.dictated()) this.#publish();
         if (command.guide !== undefined) this.#wantGuide = command.guide;
         // «Solo ir al sitio» con una dirección escrita: se abre directo.
         const url = command.guide === false ? parseAddressInput(command.text) : null;
@@ -555,11 +555,17 @@ export class AppController {
         return;
       // TODO(UI final): setAiForSite no tiene control en la UI de Mostrame todavía.
       case 'setVoiceMode':
-        this.#voiceMode.set(command.mode);
-        // Apagarlo corta lo que esté sonando en todas las vistas.
-        if (command.mode === 'off') this.#speech.stopAll();
-        this.#publish();
-        await this.options.prefs.update({ voiceMode: command.mode });
+        // Como «Tamaño de letra»: primero se guarda; si falla, no cambia nada y se informa.
+        try {
+          await changeVoiceMode(this.#voiceMode, command.mode, {
+            save: (mode) => this.options.prefs.update({ voiceMode: mode }),
+            stopAll: () => this.#speech.stopAll(),
+            publish: () => this.#publish(),
+          });
+        } catch (error) {
+          log('prefs.error', { kind: 'kind:voiceMode' });
+          throw error;
+        }
         return;
       case 'setTextScale':
         await this.options.prefs.update({ textScale: command.scale });

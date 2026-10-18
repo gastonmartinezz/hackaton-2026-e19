@@ -86,6 +86,9 @@ function Harness({ deps, busy = false, onSubmit }: { deps: VoiceDeps; busy?: boo
     <>
       <input aria-label="buscador" value={text} onChange={(e) => setText(e.target.value)} />
       {voice.available ? <MicButton status={voice.status} onToggle={voice.toggle} blocked={busy} /> : null}
+      <button type="button" className="leave" onClick={voice.cancel}>
+        salir
+      </button>
       <VoiceMessages status={voice.status} />
     </>
   );
@@ -156,6 +159,30 @@ describe('useVoiceInput', () => {
     await flush();
     expect(onSubmit).not.toHaveBeenCalled();
     expect(container.querySelector('[aria-live="polite"]')?.textContent).toBe(VOICE_TEXTS.empty);
+  });
+
+  it('micrófono cancelado antes de que llegue el texto: no se busca', async () => {
+    let resolve: (r: TranscribeResult) => void = () => {};
+    const { deps } = fakeDeps({ status: 'ok', text: 'x' });
+    deps.transcribe = vi.fn(() => new Promise<TranscribeResult>((r) => (resolve = r)));
+    const onSubmit = vi.fn();
+    render(<Harness deps={deps} onSubmit={onSubmit} />);
+    await act(async () => button().click());
+    await act(async () => button().click());
+    await act(async () => container.querySelector<HTMLButtonElement>('button.leave')!.click());
+    await act(async () => resolve({ status: 'ok', text: 'tarde' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(container.querySelector('input')!.value).toBe('');
+  });
+
+  it('texto solo con espacios: no se busca', async () => {
+    const { deps } = fakeDeps({ status: 'ok', text: '   ' });
+    const onSubmit = vi.fn();
+    render(<Harness deps={deps} onSubmit={onSubmit} />);
+    await act(async () => button().click());
+    await act(async () => button().click());
+    await flush();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('no busca solo si ya hay una búsqueda en curso', async () => {
