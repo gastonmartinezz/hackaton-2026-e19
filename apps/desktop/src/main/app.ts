@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { Limits } from '@hackaton/contracts';
 import { minimizeIntent, sanitizeOrigin } from '@asistente/privacy';
-import { BrowserWindow, ipcMain, shell, systemPreferences, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
+import { BrowserWindow, ipcMain, shell, systemPreferences, type IpcMainEvent, type IpcMainInvokeEvent, type WebContents } from 'electron';
 import {
   TERMS_VERSION,
   UI_COMMAND_CHANNEL,
@@ -80,6 +80,8 @@ export interface AppControllerOptions {
 
 export class AppController {
   readonly window: BrowserWindow;
+  /** Contenido de la ventana: se guarda porque `window.webContents` tira error una vez cerrada. */
+  readonly #ui: WebContents;
   readonly #site: SiteView;
   readonly #bridge: PageBridge;
   readonly #assistant: Assistant;
@@ -123,6 +125,7 @@ export class AppController {
         spellcheck: true,
       },
     });
+    this.#ui = this.window.webContents;
     this.#hardenUi();
 
     this.#site = new SiteView(options.pagePreloadPath);
@@ -143,7 +146,7 @@ export class AppController {
     this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
     this.#transcriber = new Transcriber(options.api);
     // Una sola lectura en toda la app: el hub avisa a la ventana y a la tarjeta.
-    this.#speech = new SpeechHub(options.api, () => [this.window.webContents, this.#card.contents]);
+    this.#speech = new SpeechHub(options.api, () => [this.#ui, this.#card.contents]);
     this.#voiceMode = new VoiceModeState(options.prefs.value.voiceMode);
     this.#protection = new SiteProtection({
       api: options.api,
@@ -198,6 +201,12 @@ export class AppController {
       this.#transcriber.cancel();
       this.#speech.stopAll();
       this.#bridge.dispose();
+      // Lo que esté en curso ya no tiene dónde mostrarse. Las vistas del sitio y
+      // de la tarjeta no se cierran solas con la ventana.
+      this.#chat.reset();
+      this.#assistant.exit();
+      this.#protection.clear();
+      for (const contents of [this.#card.contents, this.#site.contents]) if (!contents.isDestroyed()) contents.close();
     });
   }
 
@@ -224,6 +233,7 @@ export class AppController {
    * nunca tapa el indicador ni los avisos.
    */
   #layout(): void {
+    if (this.window.isDestroyed()) return;
     const scale = this.options.prefs.value.textScale;
     const [width = 0, height = 0] = this.window.getContentSize();
     const protection = this.#protection.snapshot;
@@ -410,7 +420,7 @@ export class AppController {
       // El control señalado puede haber cambiado: se reubica la tarjeta.
       this.#layout();
       const state = this.#state();
-      this.window.webContents.send(UI_STATE_CHANNEL, state);
+      this.#ui.send(UI_STATE_CHANNEL, state);
       if (!this.#card.contents.isDestroyed()) this.#card.contents.send(UI_STATE_CHANNEL, state);
     });
   }
@@ -487,7 +497,7 @@ export class AppController {
   /* ------------------------------ Interfaz propia ------------------------------ */
 
   #hardenUi(): void {
-    const wc = this.window.webContents;
+    const wc = this.#ui;
     wc.setWindowOpenHandler(() => ({ action: 'deny' }));
     wc.on('will-navigate', (event) => event.preventDefault());
     wc.on('will-attach-webview', (event) => event.preventDefault());
@@ -519,7 +529,7 @@ export class AppController {
 
   /** La ventana o la tarjeta, desde su documento principal. */
   #isOwnUi(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
-    return (event.sender === this.window.webContents || event.sender === this.#card.contents) && event.senderFrame === event.sender.mainFrame;
+    return (event.sender === this.#ui || event.sender === this.#card.contents) && event.senderFrame === event.sender.mainFrame;
   }
 
   /** Leer en voz alta: desde la ventana o la tarjeta, con condiciones aceptadas. */
@@ -558,7 +568,7 @@ export class AppController {
 
   async #onCommand(event: IpcMainInvokeEvent, raw: unknown): Promise<void> {
     const fromCard = event.sender === this.#card.contents;
-    if ((event.sender !== this.window.webContents && !fromCard) || event.senderFrame !== event.sender.mainFrame) return;
+    if ((event.sender !== this.#ui && !fromCard) || event.senderFrame !== event.sender.mainFrame) return;
     const parsed = UiCommandSchema.safeParse(raw);
     if (!parsed.success) {
       log('ui.invalid_command');
