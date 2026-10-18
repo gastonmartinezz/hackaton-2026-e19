@@ -23,4 +23,14 @@ describe('prompts', () => {
       expect(prompt).not.toContain('que toca la persona, con waitFor');
     }
   });
+
+  it('interpret busca la página de la acción exacta, nunca un buscador ni otro trámite del mismo tema', () => {
+    const prompt = SYSTEM_PROMPTS.interpret;
+    expect(prompt).toContain('Renovar la cédula no es sacarla por primera vez');
+    expect(prompt).toContain('Nunca devuelvas un buscador ni una página de resultados');
+    expect(prompt).toContain('Nunca devuelvas la página de otro trámite');
+    expect(prompt).toContain('nunca ofrezcas como opción otra acción parecida');
+    expect(prompt).toContain('con verbo y objeto');
+    expect(prompt).not.toContain('devolvé la página principal del sitio. El servidor');
+  });
 });
