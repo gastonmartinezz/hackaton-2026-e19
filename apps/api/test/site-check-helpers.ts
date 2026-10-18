@@ -13,7 +13,7 @@ export const publicResolver: HostResolver = async () => [{ address: PUBLIC_IP, f
 export const okHop: HopResult = {
   status: 200,
   location: null,
-  tls: { authorized: true, error: null, validTo: '2027-01-01T00:00:00.000Z', issuer: 'CA de prueba', protocol: 'TLSv1.3' },
+  tls: { authorized: true, error: null },
 };
 
 /** Requester falso que registra los destinos pedidos. */
@@ -26,7 +26,7 @@ export function recordingRequester(responses: Record<string, HopResult> = {}) {
   return { requester, calls };
 }
 
-export const fixture = (name: string) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
+const fixture = (name: string) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
 const readFixture = (name: string) => JSON.parse(readFileSync(fixture(name), 'utf8'));
 
 /** Catálogo curado de prueba (Uruguay): no depende del archivo real de `data/`. */
@@ -34,7 +34,6 @@ export const TEST_CATALOGS = [fixture('official-sites.uy.json')];
 
 export interface FakeFetchOptions {
   registeredAt?: string;
-  fail?: boolean;
   /** Nunca responde (para probar el tiempo máximo). */
   hang?: boolean;
   /** El sitio del BCU responde 503. */
@@ -67,7 +66,7 @@ function bcuResponse(url: string, init: RequestInit | undefined, down: boolean):
 }
 
 /** fetch falso para RDAP (bootstrap de IANA y un servidor de prueba) y el registro del BCU. */
-export function fakeRdapFetch({ registeredAt = '2001-05-10T00:00:00Z', fail = false, hang = false, bcuDown = false }: FakeFetchOptions = {}) {
+export function fakeRdapFetch({ registeredAt = '2001-05-10T00:00:00Z', hang = false, bcuDown = false }: FakeFetchOptions = {}) {
   const calls: string[] = [];
   const impl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
@@ -77,14 +76,12 @@ export function fakeRdapFetch({ registeredAt = '2001-05-10T00:00:00Z', fail = fa
     if (hang) {
       return new Promise<Response>((_, reject) => init?.signal?.addEventListener('abort', () => reject(init.signal!.reason)));
     }
-    if (fail) return new Response('error', { status: 503 });
     if (url === 'https://data.iana.org/rdap/dns.json') {
       return Response.json({ services: [[['com', 'net', 'app'], ['https://rdap.prueba/']]] });
     }
     if (url.startsWith('https://rdap.prueba/domain/')) {
       return Response.json({
         events: [{ eventAction: 'registration', eventDate: registeredAt }],
-        entities: [{ roles: ['registrar'], vcardArray: ['vcard', [['fn', {}, 'text', 'Registrador de prueba']]] }],
       });
     }
     return new Response('not found', { status: 404 });

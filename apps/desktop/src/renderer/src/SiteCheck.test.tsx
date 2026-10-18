@@ -1,4 +1,7 @@
 // @vitest-environment happy-dom
+import { ICONS } from '@asistente/ui';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,8 +14,10 @@ import {
   SiteCheckIndicator,
   SiteCheckPanel,
   SiteCheckPopover,
+  SiteCheckProbe,
   SiteCheckUnderBar,
   SiteCheckWarning,
+  SITE_CHECK_ICONS,
 } from './SiteCheck';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -99,6 +104,87 @@ describe('SiteCheckIndicator', () => {
       expect(container.textContent).not.toMatch(/segur/i);
       expect(container.querySelector('.ic svg')).not.toBeNull();
     }
+  });
+});
+
+describe('Ícono por estado', () => {
+  const KINDS = ['checking', 'official', 'no_alerts', 'attention', 'possible_scam', 'unverified', 'local'] as const;
+  /** Nombre Lucide del SVG dibujado (clase `lucide-<nombre>` del archivo oficial). */
+  const drawn = (root: ParentNode) => [...(root.querySelector('svg')?.classList ?? [])].find((c) => c.startsWith('lucide-'))?.slice('lucide-'.length);
+
+  it('un ícono Lucide distinto por estado, todos en @asistente/ui', () => {
+    expect(SITE_CHECK_ICONS).toEqual({
+      checking: 'loader-circle',
+      official: 'shield-check',
+      no_alerts: 'shield',
+      attention: 'triangle-alert',
+      possible_scam: 'shield-x',
+      unverified: 'shield-question-mark',
+      local: 'monitor',
+    });
+    expect(new Set(Object.values(SITE_CHECK_ICONS)).size).toBe(KINDS.length);
+    for (const name of Object.values(SITE_CHECK_ICONS)) {
+      expect(ICONS[name]).toMatch(/viewBox="0 0 24 24"/);
+      expect(ICONS[name]).toMatch(/stroke-width="2"/);
+      expect(ICONS[name]).toMatch(/stroke="currentColor"/);
+      expect(ICONS[name]).toMatch(/fill="none"/);
+    }
+  });
+
+  it('el sello lleva el ícono del estado en su medalla, oculto, y siempre el texto visible', () => {
+    for (const kind of KINDS) {
+      const v = view(kind);
+      render(<SiteCheckIndicator view={v} />);
+      const button = container.querySelector('button')!;
+      const medal = button.querySelector('.site-badge-icon')!;
+      expect(drawn(medal)).toBe(SITE_CHECK_ICONS[kind]);
+      expect(medal.querySelector('.ic')!.getAttribute('aria-hidden')).toBe('true');
+      // El nombre accesible es el texto del estado, no el ícono.
+      expect(button.querySelector('.site-badge-label')!.textContent).toBe(v.label);
+      expect(v.label!.trim().length).toBeGreaterThan(0);
+      expect(button.getAttribute('aria-label')).toBe(`Revisión del sitio: ${v.label}. Ver detalles`);
+    }
+  });
+
+  it('la copia de medición tiene el mismo ícono y texto que el sello', () => {
+    for (const kind of KINDS) {
+      render(<SiteCheckProbe view={view(kind)} />);
+      const probe = container.querySelector('.site-badge-probe')!;
+      expect(probe.getAttribute('aria-hidden')).toBe('true');
+      expect(drawn(probe.querySelector('.site-badge-icon')!)).toBe(SITE_CHECK_ICONS[kind]);
+      expect(probe.querySelector('.site-badge-label')!.textContent).toBe(view(kind).label);
+    }
+  });
+
+  it('el panel usa el mismo ícono que el sello', () => {
+    for (const kind of KINDS) {
+      render(<SiteCheckPanel view={view(kind, { panelOpen: true })} />);
+      expect(drawn(container.querySelector('.status .head')!)).toBe(SITE_CHECK_ICONS[kind]);
+    }
+  });
+
+  it('la advertencia de riesgo alto y la guía pausada usan el ícono de «Posible estafa»', () => {
+    const scam = siteCheckCopy('possible_scam');
+    render(<SiteCheckWarning view={view('possible_scam', { warning: { ...scam.panel, continueAction: CONTINUE_ACTION } })} />);
+    expect(drawn(container.querySelector('.site-check-head')!)).toBe(SITE_CHECK_ICONS.possible_scam);
+    render(<GuidePausedNotice />);
+    expect(drawn(container.querySelector('.status .head')!)).toBe(SITE_CHECK_ICONS.possible_scam);
+  });
+
+  it('solo «Revisando…» se marca para girar (fijo con movimiento reducido, en CSS)', () => {
+    render(<SiteCheckIndicator view={view('checking')} />);
+    expect(container.querySelector('.site-check-icon')!.getAttribute('data-state')).toBe('checking');
+    render(<SiteCheckIndicator view={view('official')} />);
+    expect(container.querySelector('.site-check-icon')!.getAttribute('data-state')).toBe('official');
+  });
+
+  it('CSS: el giro se apaga con movimiento reducido y los colores salen de los tokens', () => {
+    // Vitest corre en apps/desktop (también con `pnpm -r test`).
+    const css = readFileSync(resolve(process.cwd(), 'src/renderer/src/site-check.css'), 'utf8');
+    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(reduced).toMatch(/\.site-check-icon\[data-state='checking'\] svg \{\s*animation: none;/);
+    // Sin colores sueltos: solo var(--…) de @asistente/ui/tokens.css.
+    expect(css.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
   });
 });
 

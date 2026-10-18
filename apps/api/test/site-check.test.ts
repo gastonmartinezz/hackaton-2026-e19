@@ -438,7 +438,7 @@ describe('POST /v1/site-check: reglas de contenido', () => {
   it('las debilidades técnicas no dan riesgo alto', async () => {
     app = await testApp({
       siteCheck: fakeProviders({
-        requester: async () => ({ status: 200, location: null, tls: { authorized: false, error: 'CERT_HAS_EXPIRED', validTo: null, issuer: null, protocol: null } }),
+        requester: async () => ({ status: 200, location: null, tls: { authorized: false, error: 'CERT_HAS_EXPIRED' } }),
       }),
     });
     const r = await check(contentRequest(url));

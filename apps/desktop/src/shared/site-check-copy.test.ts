@@ -58,10 +58,9 @@ describe('textos del indicador', () => {
     for (const text of Object.values(REASON_TEXT)) expect(text).not.toMatch(/segur|%/i);
   });
 
-  it('cada estado tiene ícono, texto y una acción principal', () => {
+  it('cada estado tiene texto y una acción principal', () => {
     for (const kind of KINDS) {
       const copy = siteCheckCopy(kind);
-      expect(copy.icon).toBe(kind);
       expect(copy.label.length).toBeGreaterThan(0);
       expect(copy.panel.primary.label.length).toBeGreaterThan(0);
       expect(copy.panel.body.length).toBeGreaterThanOrEqual(1);

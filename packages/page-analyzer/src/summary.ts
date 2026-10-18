@@ -6,12 +6,7 @@
  */
 import { isPersonalizedText, redactText, sanitizeLabel, sanitizeLinkText, sanitizeTitle, sanitizeUrl } from '@asistente/privacy';
 import { SiteCheckLimits, type PageForm, type PageFormField, type PageLink, type PageSummary } from '@hackaton/contracts';
-import { isVisible, looksLikeClosedShadow, visibleText, walk, type UnsupportedNote } from './index';
-
-export interface SummaryResult {
-  summary: PageSummary;
-  notes: UnsupportedNote[];
-}
+import { isVisible, visibleText, walk } from './index';
 
 /** Bloques de texto: el texto se agrupa y se depura por bloque, no por nodo suelto. */
 const BLOCK_TAGS = new Set([
@@ -44,29 +39,19 @@ const INPUT_TYPE_MAP: Record<string, PageFormField['type']> = {
   radio: 'radio',
 };
 
-export function extractPageSummary(doc: Document): SummaryResult {
-  const notes = new Set<UnsupportedNote>();
+export function extractPageSummary(doc: Document): PageSummary {
   const blocks = new Map<Element, string[]>();
   const fields: Element[] = [];
   const anchors: Element[] = [];
-  const frames: Element[] = [];
   let visited = 0;
 
   for (const element of walk(doc)) {
-    if (++visited > MAX_VISITED) {
-      notes.add('truncated');
-      break;
-    }
+    if (++visited > MAX_VISITED) break;
     const tag = element.localName;
     if (FIELD_TAGS.has(tag)) fields.push(element);
     else if (tag === 'a' && element.hasAttribute('href')) anchors.push(element);
-    else if (tag === 'iframe' || tag === 'frame') frames.push(element);
-    else if (tag.includes('-') && !element.shadowRoot && element.children.length === 0 && looksLikeClosedShadow(element)) {
-      notes.add('closedShadowSuspected');
-    }
     collectText(element, blocks);
   }
-  if (frames.length > 0) notes.add('frames');
 
   const summary: PageSummary = {
     text: joinBlocks(blocks),
@@ -79,7 +64,7 @@ export function extractPageSummary(doc: Document): SummaryResult {
   if (language && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8})*$/.test(language) && language.length <= 10) summary.language = language;
   const brand = declaredBrand(doc);
   if (brand) summary.declaredBrand = brand;
-  return { summary, notes: [...notes] };
+  return summary;
 }
 
 /**

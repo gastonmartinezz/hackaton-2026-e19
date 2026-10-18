@@ -34,7 +34,7 @@ describe('extractPageSummary', () => {
       <a href="mailto:x@y.com">Escribinos</a>
       <script src="https://cdn.example/app.js"></script>
       <iframe src="https://tracker.example/pixel"></iframe>`;
-    const { summary, notes } = extractPageSummary(document);
+    const summary = extractPageSummary(document);
     expect(PageSummary.safeParse(summary).success).toBe(true);
     expect(summary.title).toBe('Banco Demo - Ingresar');
     expect(summary.declaredBrand).toBe('Banco de Demostración');
@@ -57,7 +57,6 @@ describe('extractPageSummary', () => {
     expect(summary.links.some((l) => l.href.startsWith('mailto'))).toBe(false);
     expect(summary).not.toHaveProperty('scriptHosts');
     expect(summary).not.toHaveProperty('iframeHosts');
-    expect(notes).toContain('frames');
   });
 
   it('ningún valor de formulario, cookie, almacenamiento ni token sale', () => {
@@ -74,7 +73,7 @@ describe('extractPageSummary', () => {
       <div contenteditable="true">Calle Falsa 742</div>
       <a href="/cuenta/30123456?token=tok_9f8e7d6c5b4a3210zz">Mi cuenta</a>`;
     (document.querySelector('input[autocomplete=cc-number]') as HTMLInputElement).value = '4111111111111111';
-    const { summary } = extractPageSummary(document);
+    const summary = extractPageSummary(document);
     expect(PageSummary.safeParse(summary).success).toBe(true);
     expect(findLeaks(summary, SECRETS)).toEqual([]);
     expect(summary.text).toContain('Tu clave: [dato]');
@@ -86,7 +85,7 @@ describe('extractPageSummary', () => {
     const many = Array.from({ length: 80 }, (_, i) => `<a href="https://s${i}.example/">Enlace ${'x'.repeat(i % 5)}${String.fromCharCode(97 + (i % 26))}</a>`).join('');
     const forms = Array.from({ length: 15 }, () => '<form><input></form>').join('');
     document.body.innerHTML = `${'<p>texto largo de relleno para la página</p>'.repeat(300)}${many}${forms}<form><input type="password"></form>`;
-    const { summary } = extractPageSummary(document);
+    const summary = extractPageSummary(document);
     expect(PageSummary.safeParse(summary).success).toBe(true);
     expect(summary.text.length).toBeLessThanOrEqual(SiteCheckLimits.maxTextLength);
     expect(summary.links.length).toBeLessThanOrEqual(SiteCheckLimits.maxLinks);
@@ -97,7 +96,7 @@ describe('extractPageSummary', () => {
 
   it('agrupa campos sin formulario y omite los ocultos por estilo del texto', () => {
     document.body.innerHTML = '<p style="display:none">Oculto</p><div><input type="password" aria-label="Clave"></div>';
-    const { summary } = extractPageSummary(document);
+    const summary = extractPageSummary(document);
     expect(summary.text).not.toContain('Oculto');
     expect(summary.forms).toEqual([{ method: 'other', action: null, fields: [{ type: 'password', label: 'Clave' }] }]);
   });

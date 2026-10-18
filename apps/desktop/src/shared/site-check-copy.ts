@@ -40,8 +40,6 @@ export interface SiteCheckPanelCopy {
 
 export interface SiteCheckCopy {
   label: string;
-  /** Nombre del ícono; el texto acompaña siempre. */
-  icon: Exclude<SiteIndicatorKind, 'none'>;
   tone: SiteCheckTone;
   panel: SiteCheckPanelCopy;
 }
@@ -129,7 +127,7 @@ export function plainDate(iso: string): string {
  * La oficialidad nunca sale de la IA: solo de la zona reservada al Estado, del registro de instituciones
  * del Banco Central del Uruguay o del catálogo curado.
  */
-export function officialSummary(response: SiteCheckResponse | null, hostname?: string | null): string {
+function officialSummary(response: SiteCheckResponse | null, hostname?: string | null): string {
   const { basis, organization } = response?.identity ?? {};
   switch (basis) {
     case 'government_domain': {
@@ -176,7 +174,7 @@ function sourceDomain(url: string | undefined): string | null {
   }
 }
 
-export function reasonPhrases(response: SiteCheckResponse | null): string[] {
+function reasonPhrases(response: SiteCheckResponse | null): string[] {
   if (!response) return [];
   const ordered = [...response.reasons].sort((a, b) => Number(a.category === 'technical') - Number(b.category === 'technical'));
   const codes = [...new Set(ordered.map((r) => r.code))];
@@ -279,7 +277,7 @@ export function siteCheckCopy(
         };
     }
   })();
-  return { label, icon: kind, tone: TONES[kind], panel };
+  return { label, tone: TONES[kind], panel };
 }
 
 /** Texto para el anuncio accesible de un cambio de estado relevante. */

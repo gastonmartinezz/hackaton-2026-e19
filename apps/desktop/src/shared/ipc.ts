@@ -449,14 +449,12 @@ export const ValidationMessageSchema = z.strictObject({});
 /* ------------------------- Protección de sitios ------------------------- */
 
 export const SummarizeRequestSchema = z.strictObject({ requestId: Id, navigationId: Id, contentVersion: ContentVersion });
-export type SummarizeRequest = z.infer<typeof SummarizeRequestSchema>;
 
 export const SummaryMessageSchema = z.strictObject({
   requestId: Id,
   navigationId: Id,
   contentVersion: ContentVersion,
   summary: PageSummary,
-  notes: z.array(z.enum(EXTRACT_NOTES)).max(EXTRACT_NOTES.length),
 });
 
 /** Huella de formularios e identidad (hash): avisa que conviene reanalizar. Sin contenido. */

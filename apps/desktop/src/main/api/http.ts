@@ -39,7 +39,7 @@ type ReadBody = (response: Response) => Promise<unknown>;
 type SendOverrides = { timeoutMs?: number; retries?: number };
 const readJson: ReadBody = (response) => response.json().catch(() => null);
 /** Tiempo máximo de /v1/site-check; vencido, el indicador pasa a «No pudimos verificarlo». */
-export const SITE_CHECK_TIMEOUT_MS = 15_000;
+const SITE_CHECK_TIMEOUT_MS = 15_000;
 
 export interface HttpClientOptions {
   baseUrl: URL;

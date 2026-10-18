@@ -44,7 +44,6 @@ export interface SiteProtectionDeps {
 }
 
 export interface SiteProtectionSnapshot {
-  navigationId: string | null;
   kind: SiteIndicatorKind;
   /** Respuesta que produjo el estado mostrado (null si no hubo). */
   response: SiteCheckResponse | null;
@@ -99,7 +98,6 @@ export class SiteProtection {
   get snapshot(): SiteProtectionSnapshot {
     const nav = this.#nav;
     return {
-      navigationId: nav?.id ?? null,
       kind: nav?.kind ?? 'none',
       response: nav?.response ?? null,
       warningOpen: nav?.warningOpen ?? false,

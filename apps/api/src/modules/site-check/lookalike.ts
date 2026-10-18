@@ -82,7 +82,6 @@ export function lookalikeSignals(host: HostInfo, references: readonly Reference[
   // Zonas de gobierno: "gub.uy" embebido en otro dominio, "x-gub-uy.com", ".gub.uy" falso con homoglifos.
   for (const zone of zones) {
     const parts = zone.suffix.split('.');
-    if (parts.length < 2) continue; // una zona de una sola etiqueta sería demasiado genérica como palabra
     // El sufijo mismo (gub.uy) no se imita a sí mismo; su oficialidad la decide authority.
     if (host.hostname === zone.suffix || domain === zone.suffix) continue;
     if (dotted.includes(`.${zone.suffix}.`)) {
