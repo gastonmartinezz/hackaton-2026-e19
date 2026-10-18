@@ -7,10 +7,11 @@ import { describeHost, hostMatches } from './domain.js';
 
 /**
  * Fuentes de autoridad locales y versionadas (en `data/`):
- * - `government-zones.json`: zonas reservadas al Estado (.gov, .mil) y nombres de organismos (`claims`).
  * - `official-sites.<país>.json`: catálogos curados con fuente y fecha de revisión por entrada
- *   (por ejemplo, Uruguay). Sus `zones` también cuentan como zonas de gobierno, y sus `discarded`
+ *   (Uruguay). Sus `zones` (gub.uy, mil.uy) son las zonas reservadas al Estado, y sus `discarded`
  *   (dominios revisados a mano y descartados, con el motivo) no los aprueba el registro del BCU.
+ * - `government-claims.json`: nombres de organismos del Estado (`claims`), solo para detectar
+ *   suplantación; nunca otorgan oficialidad.
  * - `common-words.json`: palabras de uso corriente («correo», «verde», «delta»). No es una fuente de
  *   autoridad sino una heurística de dominios parecidos: una referencia con ese nombre solo se compara
  *   por su dominio completo o su aspecto (ver lookalike.ts).
@@ -34,19 +35,9 @@ const Source = z
 
 const ZoneSuffix = z.string().regex(/^[a-z0-9-]+(\.[a-z0-9-]+)*$/);
 
-const ZonesFile = z.strictObject({
+const ClaimsFile = z.strictObject({
   version: z.string().min(1),
   note: z.string().optional(),
-  zones: z.array(
-    z.strictObject({
-      suffix: ZoneSuffix,
-      organization: z.string().min(1).max(120),
-      country: z.string().length(2),
-      source: Source,
-      reviewedAt: z.iso.date(),
-      notes: z.string().optional(),
-    }),
-  ),
   claims: z.array(
     z.strictObject({
       country: z.string().length(2),
@@ -164,15 +155,15 @@ function describeError(file: string, error: unknown): Error {
 }
 
 /**
- * Carga zonas, catálogos y palabras comunes. Por defecto, `government-zones.json`, todos los
- * `official-sites.*.json` y `common-words.json` de `data/`. Lanza si alguno es inválido o si un
- * dominio aparece en dos entradas.
+ * Carga catálogos, nombres de organismos y palabras comunes. Por defecto, todos los
+ * `official-sites.*.json`, `government-claims.json` y `common-words.json` de `data/`. Lanza si alguno
+ * es inválido o si un dominio aparece en dos entradas.
  */
 export function loadOfficialSources(
-  options: { dataDir?: string; zonesFile?: string; catalogFiles?: string[]; commonWordsFile?: string } = {},
+  options: { dataDir?: string; claimsFile?: string; catalogFiles?: string[]; commonWordsFile?: string } = {},
 ): OfficialSources {
   const dataDir = options.dataDir ?? DATA_DIR;
-  const zonesPath = options.zonesFile ?? join(dataDir, 'government-zones.json');
+  const claimsPath = options.claimsFile ?? join(dataDir, 'government-claims.json');
   const commonWordsPath = options.commonWordsFile ?? join(dataDir, 'common-words.json');
   const catalogPaths =
     options.catalogFiles ??
@@ -184,15 +175,13 @@ export function loadOfficialSources(
   const sources: OfficialSources = { zones: [], entries: [], claims: [], discarded: new Map(), commonWords: new Set(), versions: [] };
 
   try {
-    const zones = ZonesFile.parse(readJson(zonesPath));
-    const origin = `government-zones ${zones.version}`;
-    sources.versions.push(origin);
-    sources.zones.push(...zones.zones.map((zone) => ({ ...zone, origin })));
+    const claims = ClaimsFile.parse(readJson(claimsPath));
+    sources.versions.push(`government-claims ${claims.version}`);
     sources.claims.push(
-      ...zones.claims.map(({ country, organization, names, acronyms, contextNames, context }) => ({ country, organization, names, acronyms, contextNames, context })),
+      ...claims.claims.map(({ country, organization, names, acronyms, contextNames, context }) => ({ country, organization, names, acronyms, contextNames, context })),
     );
   } catch (error) {
-    throw describeError(zonesPath, error);
+    throw describeError(claimsPath, error);
   }
 
   try {

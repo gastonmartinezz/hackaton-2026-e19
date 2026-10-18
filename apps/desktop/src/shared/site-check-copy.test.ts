@@ -158,14 +158,6 @@ describe('sitio oficial según la fuente de autoridad (identity.basis)', () => {
     expect(copy.panel.coverageNote).toBeNull();
   });
 
-  it('dominio del Gobierno de Estados Unidos', () => {
-    const r = official('government_domain', 'Gobierno de Estados Unidos');
-    expect(siteCheckCopy('official', r, 'www.usa.gov').panel.body).toEqual([
-      'Es un sitio del Gobierno de Estados Unidos: su dirección termina en .gov, que solo pueden usar organismos públicos.',
-    ]);
-    expect(siteCheckCopy('official', r, 'www.army.mil').panel.body[0]).toContain('termina en .mil');
-  });
-
   it('catálogo curado (sitios de Uruguay)', () => {
     // Sin url: la fuente va sin dominio.
     const r = official('official_catalog', 'UTE', { name: 'Sitio institucional de UTE', reviewedAt: '2026-10-10T12:00:00Z' });
@@ -205,11 +197,11 @@ describe('sitio oficial según la fuente de autoridad (identity.basis)', () => {
     expect(siteCheckCopy('no_alerts', response()).panel.sources).toEqual([]);
   });
 
-  it('governmentSuffix reconoce solo zonas reservadas al Estado', () => {
+  it('governmentSuffix reconoce solo zonas reservadas al Estado uruguayo', () => {
     expect(governmentSuffix('tramites.mostrame-demo.gub.uy')).toBe('.gub.uy');
-    expect(governmentSuffix('www.usa.gov')).toBe('.gov');
     expect(governmentSuffix('www.ejercito.mil.uy')).toBe('.mil.uy');
-    expect(governmentSuffix('www.army.mil')).toBe('.mil');
+    expect(governmentSuffix('www.usa.gov')).toBeNull();
+    expect(governmentSuffix('www.army.mil')).toBeNull();
     expect(governmentSuffix('gub.uy.evil.com')).toBeNull();
     expect(governmentSuffix('migub.uy')).toBeNull();
     expect(governmentSuffix(null)).toBeNull();

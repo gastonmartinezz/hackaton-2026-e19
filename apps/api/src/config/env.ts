@@ -94,9 +94,6 @@ const EnvSchema = z
     // fichas pesan 1 MB).
     SITE_CHECK_BCU_REGISTRY: flag('true'),
     SITE_CHECK_BCU_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
-    // Lista opcional de dominios populares (CSV de CrUX u otro), solo como referencia de dominios parecidos.
-    SITE_CHECK_POPULAR_DOMAINS_FILE: z.string().optional(),
-    SITE_CHECK_POPULAR_DOMAINS_LIMIT: z.coerce.number().int().positive().default(10_000),
     SITE_CHECK_CONNECTION: flag('true'),
     SITE_CHECK_AI: flag('true'),
     // Tiempo máximo por consulta RDAP y espera máxima de una solicitud a la descarga del registro del BCU.
@@ -104,7 +101,7 @@ const EnvSchema = z
     SITE_CHECK_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(4_000),
     SITE_CHECK_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
     SITE_CHECK_AI_TIMEOUT_MS: z.coerce.number().int().positive().default(8_000),
-    // Tope de consultas por minuto a cada proveedor externo (protege cuotas y costos).
+    // Tope de consultas por minuto a RDAP y a la inspección de conexión (cada uno por separado).
     SITE_CHECK_PROVIDER_MAX_PER_MINUTE: z.coerce.number().int().positive().default(120),
 
     ...SttEnvSchema.shape,

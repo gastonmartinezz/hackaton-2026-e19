@@ -409,7 +409,7 @@ Posible estafa (dominio parecido):
 
 | `basis` | Fuente | Cómo se obtiene | `source` |
 |---|---|---|---|
-| `government_domain` | Zonas de dominio reservadas al Estado: `gub.uy` → «Estado uruguayo» y `mil.uy` → «Fuerzas Armadas de Uruguay» (de `zones` del catálogo de Uruguay); `.gov` y `.mil` → «Gobierno de Estados Unidos» (de `data/government-zones.json`) | Regla de zona por límites de dominio. No se generaliza a otras terminaciones (`edu.uy`, por ejemplo, **no** está reservada al Estado) | Política de la zona: [nic.uy](https://nic.uy/) (AGESIC es el único registrador de `gub.uy` y `mil.uy`), [get.gov/domains/eligibility](https://get.gov/domains/eligibility), [IANA .mil](https://www.iana.org/domains/root/db/mil.html), con la fecha de revisión |
+| `government_domain` | Zonas de dominio reservadas al Estado uruguayo: `gub.uy` → «Estado uruguayo» y `mil.uy` → «Fuerzas Armadas de Uruguay» (de `zones` del catálogo de Uruguay). No se reconocen zonas de otros países (`.gov`, `.mil`) | Regla de zona por límites de dominio. No se generaliza a otras terminaciones (`edu.uy`, por ejemplo, **no** está reservada al Estado) | Política de la zona: [nic.uy](https://nic.uy/) (AGESIC es el único registrador de `gub.uy` y `mil.uy`), con la fecha de revisión |
 | `financial_regulator` | Registro de instituciones del Banco Central del Uruguay (BCU): bancos, financieras, administradoras de crédito, cooperativas, casas de cambio, AFAP, aseguradoras y entidades del Sistema de Pagos | Descarga automática del regulador (ver abajo). Autoriza el dominio registrable del sitio web publicado para cada institución y sus subdominios | «Registro de instituciones del BCU», URL de la ficha o de la página del Sistema de Pagos y fecha de descarga |
 | `official_catalog` | Catálogo de Uruguay `data/official-sites.uy.json` (153 entradas revisadas el 17/10/2026), con fuente y fecha **por entrada** | Archivo versionado validado con Zod al arrancar: si es inválido o repite un dominio, el servidor no arranca. Alcance `exact` o `subdomains` | `source` y `reviewedAt` de la entrada |
 
@@ -419,7 +419,7 @@ Posible estafa (dominio parecido):
 
 **Por qué la IA no aprueba.** En el informe de Netcraft (2025), el 34 % de los dominios de inicio de sesión que un LLM dio para marcas conocidas no pertenecían a la marca. La IA solo **identifica** qué organización dice ser la página (`declaredOrganization`, tipo y país) y si pide credenciales, pagos o códigos. Esa organización se busca en las fuentes de autoridad: si la página dice ser un organismo del Estado uruguayo (BPS, DGI, DNIC, una intendencia…), una institución del BCU o una organización del catálogo, y el dominio no le pertenece, el motivo es `BRAND_IMPERSONATION` con `impersonatedOrganization`, y el riesgo es alto si además pide datos sensibles.
 
-**Organismos del Estado uruguayo (`claims` en `data/government-zones.json`).** Algunos nombres alcanzan solos: BPS / Banco de Previsión Social, DGI / Dirección General Impositiva, DNIC / Identificación Civil, Migración, las 19 intendencias, SUCIVE, ID Uruguay / Usuario gub.uy, Agesic, BCU, URSEC, INAU, Corte Electoral, Catastro, Agencia Nacional de Vivienda y Fondo Nacional de Recursos, entre otros. Los nombres genéricos o siglas ambiguas (MSP, Ministerio del Interior, Registro Civil, MTSS, MEF, MIDES, Poder Judicial, Policía Nacional…) cuentan solo si el texto nombra a Uruguay («Uruguay», «uruguayo», «Montevideo», «República Oriental») o si la IA identifica un organismo de gobierno uruguayo. La IA nunca emite `verified_official` ni baja el riesgo. Con `AI_PROVIDER=mock` o `SITE_CHECK_AI=false`, las mismas reglas corren sobre `declaredBrand` del front.
+**Organismos del Estado uruguayo (`claims` en `data/government-claims.json`).** Algunos nombres alcanzan solos: BPS / Banco de Previsión Social, DGI / Dirección General Impositiva, DNIC / Identificación Civil, Migración, las 19 intendencias, SUCIVE, ID Uruguay / Usuario gub.uy, Agesic, BCU, URSEC, INAU, Corte Electoral, Catastro, Agencia Nacional de Vivienda y Fondo Nacional de Recursos, entre otros. Los nombres genéricos o siglas ambiguas (MSP, Ministerio del Interior, Registro Civil, MTSS, MEF, MIDES, Poder Judicial, Policía Nacional…) cuentan solo si el texto nombra a Uruguay («Uruguay», «uruguayo», «Montevideo», «República Oriental») o si la IA identifica un organismo de gobierno uruguayo. La IA nunca emite `verified_official` ni baja el riesgo. Con `AI_PROVIDER=mock` o `SITE_CHECK_AI=false`, las mismas reglas corren sobre `declaredBrand` del front.
 
 **Señales que no alcanzan para «oficial»** (no se implementan como oficialidad): Wikidata P856 (sitio web oficial), rankings de popularidad, certificados OV/EV, BIMI y antigüedad del dominio. Como mucho podrían sumar contexto.
 
@@ -449,7 +449,6 @@ Las referencias salen, en este orden de peso, de:
 1. Dominios del registro del BCU (también de una copia vieja).
 2. Dominios del catálogo de Uruguay, incluidos los descartados.
 3. Zonas de gobierno.
-4. Opcionalmente, una lista de dominios populares (`SITE_CHECK_POPULAR_DOMAINS_FILE`).
 
 Las heurísticas siguen el estilo de las advertencias de dominios parecidos de Chrome:
 
@@ -458,26 +457,18 @@ Las heurísticas siguen el estilo de las advertencias de dominios parecidos de C
 - El dominio de referencia embebido en otro: `brou.com.uy.verificacion.net` → `MISLEADING_SUBDOMAIN`.
 - Marca + palabra clave: `brou-seguro.com`, `antel-uy.com`, `itau-login.com`.
 - La marca como subdominio de otro dominio: `brou.secure-login.com`.
-- Cambio de terminación (`brou.com` frente a `brou.com.uy`): **solo si hay lista de dominios populares** configurada, para excluir sitios globales legítimos.
 - Zonas de gobierno imitadas: `bps-gub-uy.com`, `gub-uy.com`, `bps.gub.uy.evil.com`, o `.gub.uy` falso con homoglifos.
 
-«banco» no cuenta como palabra clave.
+«banco» no cuenta como palabra clave. La misma marca con otra terminación (`bancorepublica.com` frente a `bancorepublica.com.uy`) no se marca: muchas marcas tienen sitios legítimos en otras terminaciones (`santander.com`).
 
 **Nombres que son palabras comunes (`data/common-words.json`).** Varias instituciones del BCU y del catálogo se llaman como palabras de uso diario (Correo, Verde, Pronto, Delta, Visa, Disco, Provincia, Universidad, Cabal…). Con todas las reglas, sitios inocentes como `correo.miempresa.com.uy`, `consorcios.com.uy` o `pronto.algunblog.com` daban «Posible estafa». La lista es una **heurística**, no una fuente de autoridad. Para esos nombres:
 
 - **Siguen aplicando** las reglas que no dan falsas alarmas: el dominio de referencia completo metido en otro (`correo.com.uy.evil.com`, `correo-com-uy.net`) y el mismo esqueleto visual (`c0rreo.com.uy`, letras cirílicas).
-- **No aplican:** el nombre como subdominio, una letra de diferencia, nombre + palabra clave y el cambio de terminación.
+- **No aplican:** el nombre como subdominio, una letra de diferencia y nombre + palabra clave.
 - **En el texto de la página:** un alias del catálogo que es una palabra común solo cuenta con una palabra financiera («Tarjeta Verde») o con la pista de la IA. «Correo Uruguayo» completo sigue contando.
 - **Criterio para sumar una palabra:** es de uso diario y un sitio sin relación podría usarla como nombre, sección o subdominio. Los nombres propios (santander) y las palabras que en un dominio casi siempre son la marca (claro, oca) quedan afuera. Un test verifica que las marcas distintivas (brou, itau, antel, prexcard, ute, ose, bse, abitab, redpagos, mercadopago…) no estén en la lista.
 
-**Siglas de organismos (`acronyms` en `government-zones.json`).** BPS, DGI y BCU cuentan solas cuando son todo el nombre declarado o una parte separada por guion, barra o dos puntos («BPS», «BPS - Mi cuenta»). Dentro de un nombre más largo necesitan que el texto nombre a Uruguay o la pista de la IA: «BPS Logistics» o «DGI Consultores» no se toman como el organismo.
-
-**Lista de dominios populares.** No se incluye ninguna en el repositorio:
-
-- [CrUX](https://developer.chrome.com/docs/crux) por país está bajo licencia CC BY-SA 4.0. Si se usa, hay que atribuirla y compartir las obras derivadas con la misma licencia.
-- Tranco incluye datos de Cloudflare Radar bajo CC BY-NC (no comercial). Se omitió por esa licencia.
-
-El archivo acepta un dominio u origen por línea, o un CSV con el origen en la primera columna (formato CrUX). Solo agrega referencias de parecido: nunca otorga oficialidad.
+**Siglas de organismos (`acronyms` en `government-claims.json`).** BPS, DGI y BCU cuentan solas cuando son todo el nombre declarado o una parte separada por guion, barra o dos puntos («BPS», «BPS - Mi cuenta»). Dentro de un nombre más largo necesitan que el texto nombre a Uruguay o la pista de la IA: «BPS Logistics» o «DGI Consultores» no se toman como el organismo.
 
 ### Cómo se calcula
 
@@ -518,7 +509,7 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 
 | Código | Categoría | Fuente | Qué significa |
 |---|---|---|---|
-| `LOOKALIKE_DOMAIN` | fraud | Fuentes de autoridad | Dominio parecido a uno del BCU, del catálogo o a una zona de gobierno: letras sustituidas, una edición, marca + palabra clave, otra terminación |
+| `LOOKALIKE_DOMAIN` | fraud | Fuentes de autoridad | Dominio parecido a uno del BCU, del catálogo o a una zona de gobierno: letras sustituidas, una edición, marca + palabra clave |
 | `CONFUSABLE_CHARACTERS` | fraud | Fuentes de autoridad | Caracteres de otro alfabeto (punycode/IDN) que imitan un dominio de referencia o una zona de gobierno, o mezcla de alfabetos |
 | `MISLEADING_SUBDOMAIN` | fraud | Fuentes de autoridad | Una zona de gobierno, un dominio de referencia o una marca aparece en los subdominios de otro dominio (`bps.gub.uy.evil.com`) |
 | `BRAND_IMPERSONATION` | fraud | Contenido / IA | El sitio dice ser un organismo del Estado uruguayo, una institución del BCU o una organización del catálogo y el dominio no le pertenece |
@@ -555,7 +546,6 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 | `SITE_CHECK_RDAP` | `true`/`false` | Consulta RDAP |
 | `SITE_CHECK_BCU_REGISTRY` | `true`/`false` | Registro de instituciones del BCU. Con `false`, las instituciones financieras solo pueden ser «Sitio oficial» por el catálogo, y lo que no está en zonas ni en el catálogo queda sin verificar |
 | `SITE_CHECK_BCU_TIMEOUT_MS` | número | Tiempo máximo por pedido al BCU (15 s) |
-| `SITE_CHECK_POPULAR_DOMAINS_FILE`, `SITE_CHECK_POPULAR_DOMAINS_LIMIT` | ruta, número | Lista opcional de dominios populares (solo referencias de parecido) |
 | `SITE_CHECK_CONNECTION` | `true`/`false` | Inspección de TLS y redirecciones |
 | `SITE_CHECK_AI` | `true`/`false` | Identificación de la organización declarada y explicación (usa `AI_PROVIDER`) |
 | `SITE_CHECK_RATE_LIMIT_MAX` | número | Solicitudes por ventana y token en `/v1/site-check` |

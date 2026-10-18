@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import type { CoverageLevel } from '@hackaton/contracts';
 import { BCU_SOURCE_NAME, type BcuInstitution, type BcuRegistry, type RegistryState } from './bcu-registry.js';
 import { describeHost } from './domain.js';
@@ -21,7 +20,7 @@ import {
  *    en vez de la razón social). Los dominios que el catálogo revisó y descartó no los aprueba el BCU.
  * 2. Catálogo curado (`official_catalog`): entrada con fuente y fecha de revisión. Cubre lo que no está en
  *    el BCU y los dominios verificados que el BCU no publica (brou.com.uy, además de bancorepublica.com.uy).
- * 3. Zona reservada al Estado (`government_domain`): gub.uy, mil.uy, .gov… por regla de zona.
+ * 3. Zona reservada al Estado (`government_domain`): gub.uy y mil.uy, por regla de zona.
  * La IA, HTTPS, rankings, certificados o la antigüedad nunca otorgan oficialidad.
  */
 
@@ -74,7 +73,6 @@ export class AuthorityView {
   constructor(
     private readonly sources: OfficialSources,
     readonly registry: RegistryState,
-    private readonly popular: readonly Reference[],
   ) {
     this.institutions = registry.snapshot?.institutions ?? [];
     for (const institution of this.institutions) {
@@ -254,7 +252,7 @@ export class AuthorityView {
   }
 
   /**
-   * Referencias para dominios parecidos: registro del BCU (también viejo), catálogos y populares. Las que tienen
+   * Referencias para dominios parecidos: registro del BCU (también viejo) y catálogos. Las que tienen
    * por nombre una palabra de uso corriente («correo», «delta», «verde») van marcadas: solo se comparan por el
    * dominio completo y el aspecto (ver lookalike.ts).
    */
@@ -269,13 +267,7 @@ export class AuthorityView {
       for (const domain of institution.domains) if (describeHost(domain).registrableDomain === domain) push(domain, this.institutionName(institution), 'financial_regulator');
     }
     for (const entry of this.sources.entries) for (const d of entry.domains) push(d.domain, entry.organization, 'official_catalog');
-    refs.push(...this.popular.map((ref) => ({ ...ref, commonWord: this.commonWord(ref.label) })));
     return refs;
-  }
-
-  /** El cambio de terminación solo se evalúa si hay lista de populares para excluir sitios globales legítimos. */
-  get tldSwap(): boolean {
-    return this.popular.length > 0;
   }
 
   zoneReferences(): ZoneReference[] {
@@ -296,7 +288,6 @@ export class AuthorityService {
   constructor(
     private readonly sources: OfficialSources,
     private readonly registry: BcuRegistry,
-    private readonly popular: readonly Reference[],
     private readonly registryWaitMs: number,
   ) {}
 
@@ -305,31 +296,6 @@ export class AuthorityService {
   }
 
   async view(): Promise<AuthorityView> {
-    return new AuthorityView(this.sources, await this.registry.state(this.registryWaitMs), this.popular);
+    return new AuthorityView(this.sources, await this.registry.state(this.registryWaitMs));
   }
-}
-
-/**
- * Lista opcional de dominios populares (solo referencias de parecido, nunca oficialidad).
- * Acepta un dominio u origen por línea o CSV con el origen en la primera columna (formato CrUX).
- */
-export function loadPopularDomains(path: string, limit: number): Reference[] {
-  const refs: Reference[] = [];
-  const seen = new Set<string>();
-  for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
-    const first = line.split(',')[0]?.trim();
-    if (!first || first.startsWith('#') || first === 'origin') continue;
-    let hostname: string;
-    try {
-      hostname = new URL(/^https?:\/\//.test(first) ? first : `https://${first}`).hostname;
-    } catch {
-      continue;
-    }
-    const host = describeHost(hostname);
-    if (host.internal || !host.registrableDomain || !host.label || seen.has(host.registrableDomain)) continue;
-    seen.add(host.registrableDomain);
-    refs.push({ domain: host.registrableDomain, label: host.label, organization: host.registrableDomain, kind: 'popular' });
-    if (refs.length >= limit) break;
-  }
-  return refs;
 }

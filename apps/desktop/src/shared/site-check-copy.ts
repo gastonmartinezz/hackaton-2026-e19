@@ -93,8 +93,8 @@ export const CONTINUE_ACTION: SiteCheckAction = { id: 'continue', label: 'Contin
 
 const NO_DATA = 'No ingreses contraseñas ni códigos.';
 
-/** Terminaciones reservadas al Estado que reconoce el backend (`identity.basis: government_domain`): Uruguay y EE. UU. */
-const GOVERNMENT_SUFFIXES = ['gub.uy', 'mil.uy', 'gov', 'mil'];
+/** Terminaciones reservadas al Estado uruguayo que reconoce el backend (`identity.basis: government_domain`). */
+const GOVERNMENT_SUFFIXES = ['gub.uy', 'mil.uy'];
 
 /** Terminación reservada al Estado con la que termina el hostname («.gub.uy»), o null. */
 export function governmentSuffix(hostname: string | null | undefined): string | null {
@@ -104,7 +104,7 @@ export function governmentSuffix(hostname: string | null | undefined): string | 
   return suffix ? `.${suffix}` : null;
 }
 
-/** «del Estado uruguayo», «del Gobierno de Estados Unidos», «de Banco del Sur». */
+/** «del Estado uruguayo», «de Banco del Sur». */
 function ofOrganization(organization: string): string {
   return /^(estado|gobierno)\b/i.test(organization) ? `del ${organization}` : `de ${organization}`;
 }

@@ -1,6 +1,6 @@
 import type { AppConfig } from '../../config/env.js';
 import type { StructuredModel } from '../ai/model.js';
-import { AuthorityService, loadPopularDomains } from './authority.js';
+import { AuthorityService } from './authority.js';
 import { BcuRegistry } from './bcu-registry.js';
 import { ConnectionInspector, type HopRequester } from './connection.js';
 import type { HostResolver } from './net-guard.js';
@@ -36,8 +36,7 @@ export function createSiteCheckService(config: AppConfig, model: StructuredModel
     usableForMs: 7 * 24 * HOUR,
     now: overrides.now,
   });
-  const popular = config.SITE_CHECK_POPULAR_DOMAINS_FILE ? loadPopularDomains(config.SITE_CHECK_POPULAR_DOMAINS_FILE, config.SITE_CHECK_POPULAR_DOMAINS_LIMIT) : [];
-  const authority = new AuthorityService(sources, registry, popular, config.SITE_CHECK_PROVIDER_TIMEOUT_MS);
+  const authority = new AuthorityService(sources, registry, config.SITE_CHECK_PROVIDER_TIMEOUT_MS);
 
   const service = new SiteCheckService({
     authority,

@@ -1,22 +1,6 @@
 {
-  "version": "2026-10-18.2",
-  "note": "Zonas de dominio reservadas al Estado por la autoridad del registro. Es una regla de zona, no una lista de sitios: cualquier dominio bajo estas zonas es oficial por quién puede registrarlo. Un sitio de gobierno comprometido sigue siendo oficial, por eso el riesgo siempre tiene prioridad. Las zonas de Uruguay (gub.uy, mil.uy) están en official-sites.uy.json.",
-  "zones": [
-    {
-      "suffix": "gov",
-      "organization": "Gobierno de Estados Unidos",
-      "country": "US",
-      "source": { "name": "CISA .gov registrar, requisitos de elegibilidad", "url": "https://get.gov/domains/eligibility" },
-      "reviewedAt": "2026-10-17"
-    },
-    {
-      "suffix": "mil",
-      "organization": "Gobierno de Estados Unidos",
-      "country": "US",
-      "source": { "name": "IANA Root Zone Database: .mil (Departamento de Defensa)", "url": "https://www.iana.org/domains/root/db/mil.html" },
-      "reviewedAt": "2026-10-17"
-    }
-  ],
+  "version": "2026-10-18.3",
+  "note": "Nombres con los que una página se presenta como organismo del Estado, para detectar suplantación fuera de las zonas de gobierno. Nunca otorgan oficialidad. Las zonas reservadas al Estado uruguayo (gub.uy, mil.uy) están en `zones` de official-sites.uy.json; las de Estados Unidos (.gov, .mil) se quitaron el 2026-10-18 porque la app es para Uruguay.",
   "claims": [
     {
       "country": "UY",
