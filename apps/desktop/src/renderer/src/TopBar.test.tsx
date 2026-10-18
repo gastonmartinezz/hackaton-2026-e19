@@ -28,7 +28,9 @@ describe('Interruptor «Voz»', () => {
     act(() => root.render(<VoiceToggle active={false} />));
     expect(toggle().tagName).toBe('BUTTON');
     expect(toggle().getAttribute('aria-pressed')).toBe('false');
-    expect(toggle().textContent).toBe(`${VOICE_TOGGLE_TEXTS.label}${VOICE_TOGGLE_TEXTS.description}`);
+    // El nombre accesible incluye el texto visible (2.5.3), sin espacio antes de «:».
+    expect(toggle().textContent).toBe(VOICE_TOGGLE_TEXTS.label);
+    expect(toggle().getAttribute('aria-label')).toBe('Voz: leer en voz alta');
   });
 
   it('apagado: tocarlo lo deja en on; prendido: tocarlo lo deja en off', () => {
