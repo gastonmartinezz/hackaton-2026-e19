@@ -54,8 +54,13 @@ export class RdapClient {
       cacheKey('rdap', domain),
       async () => {
         try {
+          const tld = domain.slice(domain.lastIndexOf('.') + 1);
+          const base = (await withTimeout(this.options.timeoutMs, (signal) => this.services(signal))).get(tld);
+          // El TLD no publica RDAP en el bootstrap de IANA (.uy, por ejemplo): no se consulta afuera ni se gasta
+          // cupo, y la respuesta se guarda tanto como el bootstrap.
+          if (!base) return { ...unavailable<RegistrationData>(['no_rdap_service']), ttlMs: BOOTSTRAP_TTL_MS };
           this.budget.take();
-          return await withTimeout(this.options.timeoutMs, (signal) => this.query(domain, checkedAt, signal));
+          return await withTimeout(this.options.timeoutMs, (signal) => this.query(domain, base, checkedAt, signal));
         } catch (error) {
           return unavailable<RegistrationData>([errorKind(error)]);
         }
@@ -64,11 +69,7 @@ export class RdapClient {
     );
   }
 
-  private async query(domain: string, checkedAt: string, signal: AbortSignal): Promise<SourceResult<RegistrationData>> {
-    const tld = domain.slice(domain.lastIndexOf('.') + 1);
-    const base = (await this.services(signal)).get(tld);
-    // El TLD no publica un servicio RDAP en el bootstrap de IANA (.uy, por ejemplo).
-    if (!base) return unavailable(['no_rdap_service']);
+  private async query(domain: string, base: string, checkedAt: string, signal: AbortSignal): Promise<SourceResult<RegistrationData>> {
     const server = new URL(base).hostname;
     const response = await this.fetch(`${base}domain/${encodeURIComponent(domain)}`, signal);
     if (response.status === 404) return { ...unavailable<RegistrationData>(['not_found']), coverage: 'partial' };

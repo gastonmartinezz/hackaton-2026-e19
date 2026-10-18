@@ -23,6 +23,14 @@ describe('RDAP', () => {
     expect(result).toMatchObject({ coverage: 'unavailable', errors: ['no_rdap_service'], data: null, findings: [] });
   });
 
+  it('los dominios .uy no gastan el cupo por minuto ni repiten la consulta', async () => {
+    const fetch = fakeRdapFetch();
+    const rdap = new RdapClient({ timeoutMs: 1000, maxPerMinute: 1, enabled: true, fetchImpl: fetch.impl });
+    for (const domain of ['a.uy', 'b.uy', 'c.uy', 'a.uy']) expect(await rdap.lookup(domain)).toMatchObject({ errors: ['no_rdap_service'] });
+    // El único lugar del cupo sigue libre para un dominio con RDAP.
+    expect(await rdap.lookup('ejemplo.net')).toMatchObject({ coverage: 'complete' });
+  });
+
   it('con el tope por minuto alcanzado queda unavailable sin consultar', async () => {
     const fetch = fakeRdapFetch();
     const rdap = new RdapClient({ timeoutMs: 1000, maxPerMinute: 1, enabled: true, fetchImpl: fetch.impl });

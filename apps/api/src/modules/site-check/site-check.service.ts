@@ -154,8 +154,11 @@ export class SiteCheckService {
     const risk: SiteRisk = computeRisk(new Set(findings.map((f) => f.code)), mandatoryComplete);
 
     const status = !request.page ? 'pending' : mandatoryComplete ? 'complete' : 'partial';
-    // Vence con la fuente externa más corta, como mucho a los 10 min, y al minuto si algo quedó incompleto o falta el contenido.
-    const incomplete = Object.values(coverage).some((level) => level === 'unavailable' || level === 'partial');
+    // Vence con la fuente externa más corta, como mucho a los 10 min, y al minuto si una comprobación obligatoria quedó
+    // incompleta, falta el contenido o el registro o la conexión fallaron de forma pasajera (sin caché: conviene
+    // reintentar). Que `.uy` no tenga RDAP es permanente (se guarda en caché) y no acorta nada.
+    const transientFailure = [registration, connection].some((s) => s.coverage !== 'complete' && s.ttlMs === 0);
+    const incomplete = !mandatoryComplete || transientFailure;
     const sourceTtls = [registration, connection].filter((s) => s.ttlMs > 0).map((s) => s.ttlMs);
     const ttl = Math.min(...sourceTtls, CONTENT_TTL_MS, incomplete || !request.page ? INCOMPLETE_TTL_MS : Number.POSITIVE_INFINITY);
     const impersonated = findings.find((f) => f.impersonatedOrganization)?.impersonatedOrganization;

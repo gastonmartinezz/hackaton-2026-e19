@@ -373,6 +373,15 @@ describe('POST /v1/site-check: navegación y versión', () => {
   });
 });
 
+describe('POST /v1/site-check: vencimiento', () => {
+  it('un sitio .uy completo vence a los 10 min aunque no haya RDAP (no es obligatorio)', async () => {
+    app = await testApp({ siteCheck: fakeProviders() });
+    const r = await check(contentRequest('https://www.gub.uy/'));
+    expect(r.coverage.registration).toBe('unavailable');
+    expect(Date.parse(r.expiresAt) - Date.parse(r.checkedAt)).toBe(10 * 60_000);
+  });
+});
+
 describe('POST /v1/site-check: reglas de contenido', () => {
   it('una amenaza en la línea siguiente a «Contraseña:» se detecta (el resumen se depura una sola vez)', async () => {
     app = await testApp({ siteCheck: fakeProviders() });
