@@ -34,7 +34,14 @@ export default defineConfig({
     plugins: [react()],
     build: {
       // index: barra e inicio (ventana). card: tarjeta flotante de ayuda (vista sobre el sitio).
-      rollupOptions: { input: { index: resolve('src/renderer/index.html'), card: resolve('src/renderer/card.html') } },
+      // site-check: panel de Protección de sitios (vista sobre el sitio, debajo del indicador).
+      rollupOptions: {
+        input: {
+          index: resolve('src/renderer/index.html'),
+          card: resolve('src/renderer/card.html'),
+          'site-check': resolve('src/renderer/site-check.html'),
+        },
+      },
     },
   },
 });

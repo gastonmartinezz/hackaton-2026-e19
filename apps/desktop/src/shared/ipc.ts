@@ -9,6 +9,8 @@ import { z } from 'zod';
 import type { SiteCheckAction, SiteCheckPanelCopy, SiteCheckTone, SiteIndicatorKind } from './site-check-copy';
 
 const Id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
+/** Coordenada entera en px de la ventana. */
+const PxInt = z.number().int().min(0).max(20_000);
 
 /** Respuesta fija del botón «No sé bien» (R11): el backend no insiste y recomienda. */
 export const UNSURE_ANSWER = 'No sé bien';
@@ -128,12 +130,18 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('resolveNotice'), noticeId: Id, action: z.enum(['openHere', 'openExternal', 'dismiss']) }),
   z.strictObject({ type: z.literal('openCurrentExternally') }),
   // Protección de sitios.
-  z.strictObject({ type: z.literal('siteCheckPanel'), open: z.boolean() }),
+  /** Abre o cierra el panel. `restoreFocus`: al cerrar, el foco vuelve al indicador (Escape, «Cerrar», «Entendido»). */
+  z.strictObject({ type: z.literal('siteCheckPanel'), open: z.boolean(), restoreFocus: z.boolean().optional() }),
   z.strictObject({ type: z.literal('siteCheckRetry') }),
   z.strictObject({ type: z.literal('siteCheckLeave') }),
   z.strictObject({ type: z.literal('siteCheckContinue') }),
-  /** Alto de la franja de protección debajo de la barra (panel o indicador): la vista del sitio baja para no taparla. */
-  z.strictObject({ type: z.literal('siteCheckOverlay'), height: z.number().int().min(0).max(2000) }),
+  /**
+   * Solo desde la ventana: bordes de la píldora «Estás en» (px de la ventana) y si
+   * el indicador entra en ella. El panel flotante se ancla ahí.
+   */
+  z.strictObject({ type: z.literal('siteCheckAnchor'), left: PxInt, right: PxInt, inline: z.boolean() }),
+  /** Solo desde el panel flotante (site-check.html): cuánto mide lo que dibuja, sin el margen del halo. */
+  z.strictObject({ type: z.literal('siteCheckPopoverLayout'), width: z.number().int().min(0).max(5000), height: z.number().int().min(0).max(5000) }),
   /** «¿No está lo que buscás?» (pantalla 11): se vuelve a mirar la página con ese pedido. */
   z.strictObject({ type: z.literal('askOnPage'), text: z.string().trim().min(1).max(500) }),
   /** Solo desde la tarjeta flotante: qué muestra y cuánto mide. */
@@ -160,6 +168,21 @@ export interface CardLayout {
   placement: 'top' | 'bottom' | 'compact';
   /** Alto máximo de la tarjeta en px; el cuerpo se desplaza si no entra. */
   maxHeight: number;
+}
+
+/** Panel flotante de Protección de sitios (vista propia sobre el sitio, anclada debajo del indicador). */
+export interface SiteCheckLayout {
+  /** Ancho y alto máximos del contenido en px: lo que no entra se desplaza por dentro. */
+  maxWidth: number;
+  maxHeight: number;
+  /** El indicador entra en la píldora «Estás en». Si no, va en la vista flotante, debajo de la píldora. */
+  indicatorInline: boolean;
+  /**
+   * Con el indicador fuera de la píldora y el panel abierto, el panel se corre a
+   * la izquierda para no tapar la tarjeta: el indicador se corre esto a la
+   * derecha dentro de la vista, así no se mueve en la pantalla.
+   */
+  chipOffset: number;
 }
 
 export interface Notice {
@@ -196,7 +219,7 @@ export interface AppState {
   mockBackend: boolean;
   /** Opciones y guía dentro de la página. */
   guideEnabled: boolean;
-  layout: { topBarHeight: number; card: CardLayout };
+  layout: { topBarHeight: number; card: CardLayout; siteCheck: SiteCheckLayout };
   prefs: { textScale: number; aiEnabledForSite: boolean; voiceMode: VoiceMode };
   /** Modo voz activo ahora: Guíame lee solo lo que escribe apenas aparece. */
   voice: { active: boolean };
@@ -282,6 +305,8 @@ export interface SiteCheckView {
   announcement: { id: number; text: string } | null;
   /** La guía pausó las indicaciones que piden datos o confirmar operaciones. */
   guidePaused: boolean;
+  /** Cambia cada vez que el foco tiene que volver al indicador (se cerró el panel desde adentro). */
+  focusIndicator: number;
 }
 
 /** API expuesta a la interfaz propia por el preload. Métodos específicos, sin ipcRenderer. */

@@ -1,9 +1,13 @@
 /*
- * Protección de sitios en la ventana principal: el sello en la píldora «Estás
- * en» (R6), el panel anclado a la barra y la advertencia de riesgo alto. Los
- * valores salen de @asistente/ui/tokens.css (diseño v2.2). El color nunca es la
- * única señal: siempre hay ícono y texto.
+ * Protección de sitios: el sello en la píldora «Estás en» (R6), el panel que
+ * flota sobre el sitio (popover.css), la advertencia de riesgo alto y la pausa
+ * de la guía. Los valores salen de @asistente/ui/tokens.css (diseño v2.2). El
+ * color nunca es la única señal: siempre hay ícono y texto.
  */
+:root {
+  /* Panel con el ancho de la tarjeta flotante (R4): 520px a 1.2×. */
+  --site-panel-w: calc(var(--g-card-width) + var(--s1) * 240px);
+}
 
 /* ---------- Sello (dentro de .omni, después del dominio) ---------- */
 .omni .where {
@@ -59,7 +63,185 @@
   border-color: currentColor;
 }
 
-/* ---------- Panel anclado a la barra ---------- */
+/*
+ * La píldora «Estás en» suma el sello. El dominio principal nunca se corta.
+ * Cuando falta lugar (lo mide useIndicatorFit en SiteCheck.tsx) se compacta en
+ * este orden: sin «Estás en» (1), la conexión no segura solo con su ícono (2; el
+ * texto sigue para lectores de pantalla y el aviso completo está en la tarjeta) y
+ * el texto del sello en dos líneas (3). Si ni así entra, el sello flota debajo
+ * de la píldora. Las reglas apuntan a la píldora real, no a su copia invisible.
+ */
+.omni {
+  /* El ancho de la píldora no depende de su contenido: la medición no oscila. */
+  container-type: inline-size;
+  /* Píldora de dominio del diseño: relleno de 12px a la derecha (el dominio no toca la curva). */
+  padding-right: var(--space-3);
+}
+.omni .dom b {
+  flex: none;
+}
+.omni .insecure {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--g-warning);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+.insecure-icon {
+  display: none;
+}
+.omni[data-compact='1'] .where .k-estas,
+.omni[data-compact='2'] .where .k-estas,
+.omni[data-compact='3'] .where .k-estas,
+.omni[data-compact='4'] .where .k-estas {
+  display: none;
+}
+.omni[data-compact='2'] .where .insecure-icon,
+.omni[data-compact='3'] .where .insecure-icon {
+  display: inline-flex;
+}
+/* Último recurso para no cortar el dominio: tampoco el ícono (el aviso completo está en la tarjeta). */
+.omni[data-compact='4'] .where .insecure {
+  position: absolute;
+}
+.omni[data-compact='2'] .where .insecure-text,
+.omni[data-compact='3'] .where .insecure-text,
+.omni[data-compact='4'] .where .insecure-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+/* Subdominio oculto como último recurso (el nombre accesible lleva el dominio completo). */
+.omni[data-sub='none'] .where .sub {
+  display: none;
+}
+/* Ni el dominio principal entra: se recorta con un desvanecido, sin pasar por encima de «Ayuda». */
+.omni[data-overflow='true'] .where {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, var(--g-ink) calc(100% - var(--space-7)), transparent);
+}
+.omni[data-compact='3'] > .site-badge .site-badge-label,
+.site-badge--two-lines .site-badge-label {
+  white-space: normal;
+  max-width: 6.5em;
+  line-height: 1.05;
+  text-align: left;
+}
+
+/* Copia invisible de las piezas que se compactan, para medirlas (OmniProbe). */
+.omni-probe {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  visibility: hidden;
+  pointer-events: none;
+}
+.omni-probe > * {
+  flex: none;
+}
+
+/* ---------- Panel (vista flotante; lenguaje de la tarjeta, .hc de guiame.css) ---------- */
+.site-check-panel .hc-head .btn {
+  margin-left: auto;
+}
+.site-check-panel .hc-body {
+  padding: var(--space-5) var(--space-6);
+}
+.site-check-panel p,
+.site-check-dialog p,
+.site-check-paused p {
+  margin: 0;
+}
+/* Bloque de estado (docs/02): ícono de 40px alineado con la primera línea del título. */
+.site-check-panel .status .head,
+.site-check-paused .head {
+  align-items: flex-start;
+}
+.site-check-panel .status .hc-title,
+.site-check-paused .hc-title {
+  flex: 1;
+  min-width: 0;
+}
+/*
+ * Al abrir, el foco va al título (no es un control: tabindex -1) para que el
+ * lector lo anuncie; no lleva anillo. El siguiente Tab va a la acción principal.
+ */
+.site-check-panel .hc-title:focus {
+  box-shadow: none;
+  outline: none;
+}
+.site-check-body {
+  display: grid;
+  gap: var(--space-2);
+}
+/* Neutro («Sin alertas detectadas», «Revisando sitio…», página local): fondo suave, sin verde ni ámbar. */
+.status.neutral {
+  background: var(--g-surface-soft);
+}
+.status.neutral .ic {
+  color: var(--g-ink-secondary);
+}
+.site-check-actions {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* «Ver por qué»: enlace discreto (21px, azul, subrayado) con chevron Lucide. */
+.site-check-details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  padding-right: var(--space-2);
+  border-radius: var(--radius-chip);
+  color: var(--g-brand);
+  font-size: var(--fs-secondary);
+  list-style: none;
+  cursor: pointer;
+}
+.site-check-details summary::-webkit-details-marker {
+  display: none;
+}
+.site-check-details summary span {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.site-check-details summary .ic {
+  color: var(--g-brand);
+}
+.site-check-details[open] summary .ic {
+  transform: rotate(90deg);
+}
+/* Detalles en la caja suave de la tarjeta (docs/02: #F2F5FF, radio 24). */
+.site-check-why {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-box);
+  background: var(--g-surface-soft);
+}
+.site-check-why p {
+  margin: 0;
+}
+.site-check-why ul {
+  margin: 0;
+  padding-left: 1.2em;
+  display: grid;
+  gap: var(--space-2);
+}
+.site-check-ai {
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-min);
+}
+
+/* ---------- Con la advertencia abierta: sello y panel en la ventana, sobre ella ---------- */
 .site-check-band {
   position: relative;
   z-index: 2;
@@ -68,63 +250,23 @@
   background: var(--g-surface-soft);
   border-bottom: var(--border-w) solid var(--g-line);
 }
-.site-check-panel {
-  width: min(calc(560px + var(--s1) * 200px), calc(100vw - 2 * var(--space-5)));
-  max-width: calc(100vw - 2 * var(--space-5));
-  display: grid;
-  gap: var(--space-3);
-  padding: 20px var(--space-6) var(--space-5);
-  border-radius: var(--g-radius-card);
-  background: var(--g-surface);
+.site-check-band .site-check-panel {
+  width: min(var(--site-panel-w), calc(100vw - 2 * var(--space-5)));
   box-shadow: var(--g-shadow-card-view);
 }
-.site-check-panel p,
-.site-check-dialog p {
-  margin: 0;
-}
-.site-check-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-}
-.site-check-head .hc-title {
-  flex: 1;
-  min-width: 0;
-}
-.site-check-panel[data-tone='positive'] .site-check-head > .ic {
-  color: var(--g-success);
-}
-.site-check-panel[data-tone='warning'] .site-check-head > .ic {
-  color: var(--g-warning);
-}
-.site-check-panel[data-tone='danger'] .site-check-head > .ic,
-.site-check-dialog .site-check-head > .ic {
-  color: var(--g-error);
-}
-.site-check-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-.site-check-details summary {
-  cursor: pointer;
-  min-height: var(--target-min);
-  padding: var(--space-3) 0;
-  color: var(--g-brand);
-  font-size: var(--fs-secondary);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-.site-check-details ul {
-  margin: 0 0 var(--space-3);
-  padding-left: 1.2em;
+.site-check-stack {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  justify-items: start;
 }
-.site-check-ai {
-  color: var(--g-ink-secondary);
+/* Sello fuera de la píldora: objetivo de 48px y texto en una línea. */
+.site-check-strip .site-badge {
+  min-height: var(--target-min);
   font-size: var(--fs-min);
+}
+.site-check-strip .site-badge-label {
+  white-space: nowrap;
+  max-width: none;
 }
 
 /* ---------- Advertencia de riesgo alto (ocupa el lugar del sitio) ---------- */
@@ -148,83 +290,23 @@
   background: var(--g-surface);
   box-shadow: var(--g-shadow-card);
 }
+.site-check-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.site-check-head .hc-title {
+  flex: 1;
+  min-width: 0;
+}
+.site-check-dialog .site-check-head > .ic {
+  color: var(--g-error);
+}
 .site-check-dialog .muted {
   color: var(--g-ink-secondary);
   font-size: var(--fs-min);
 }
 .site-check-dialog .btn-link {
   justify-self: start;
-}
-
-/*
- * La píldora «Estás en» suma el sello. El dominio principal nunca se corta:
- * cuando falta lugar se oculta primero «Estás en», después la conexión no segura
- * queda solo con su ícono (el texto sigue para lectores de pantalla y el aviso
- * completo está en la tarjeta) y el texto del sello pasa a dos líneas.
- */
-.omni {
-  container-type: inline-size;
-}
-.omni .dom b {
-  flex: none;
-}
-.omni .insecure {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--g-warning);
-  font-weight: var(--fw-semibold);
-  white-space: nowrap;
-}
-.insecure-icon {
-  display: none;
-}
-@container (max-width: 560px) {
-  .omni .k-estas {
-    display: none;
-  }
-}
-@container (max-width: 480px) {
-  .insecure-icon {
-    display: inline-flex;
-  }
-  .insecure-text {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-}
-@container (max-width: 400px) {
-  .site-badge-label {
-    white-space: normal;
-    max-width: 6.5em;
-    line-height: 1.05;
-    text-align: left;
-  }
-}
-
-/* ---------- Sello en la franja (cuando no entra en la píldora) ---------- */
-.site-badge-probe {
-  position: absolute;
-  visibility: hidden;
-  pointer-events: none;
-  /* Mide con el texto en una o dos líneas, igual que dentro de la píldora. */
-  margin: 0;
-  left: -10000px;
-}
-.site-check-stack {
-  display: grid;
-  gap: var(--space-3);
-  justify-items: start;
-}
-.site-check-strip .site-badge {
-  min-height: var(--target-min);
-  font-size: var(--fs-min);
-}
-.site-check-strip .site-badge-label {
-  white-space: nowrap;
-  max-width: none;
 }
