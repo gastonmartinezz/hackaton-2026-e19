@@ -390,6 +390,8 @@ export const PAGE_CHANNELS = {
   fill: 'page:fill',
   filled: 'page:filled',
   focus: 'page:focus',
+  /** Velo del sitio (R9): `true` con la tarjeta de ayuda abierta o achicada. */
+  veil: 'page:veil',
 } as const;
 
 export const ExtractRequestSchema = z.strictObject({

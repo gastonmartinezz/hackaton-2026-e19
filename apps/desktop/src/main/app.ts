@@ -119,6 +119,8 @@ export class AppController {
   #visitedOrigin: string | null = null;
   /** Tarea del destino que se está abriendo desde una búsqueda con ayuda, hasta contar la visita. */
   #pendingTask: { origin: string; task: string } | null = null;
+  /** Lo último que se le dijo a la página sobre el velo (R9). */
+  #veiled = false;
   #notices: Array<Notice & { url?: string | undefined }> = [];
   #publishScheduled = false;
 
@@ -275,6 +277,7 @@ export class AppController {
       this.#cardLayout = layout;
       this.#publish();
     }
+    this.#syncVeil();
     // Con la advertencia abierta, el indicador y el panel van en la ventana (el sitio está oculto).
     const hasIndicator = this.#siteVisible && protection.kind !== 'none';
     const popoverShown = siteShown && hasIndicator && (protection.panelOpen || !this.#anchor.inline);
@@ -513,6 +516,8 @@ export class AppController {
       else {
         this.#protection.pageLoaded(url);
         this.#countVisit(url);
+        // Página nueva: su capa todavía no tiene el velo.
+        this.#syncVeil(true);
       }
       this.#assistant.navigated({ sameDocument, aiEnabled: this.#guideAllowed() });
     });
@@ -553,6 +558,14 @@ export class AppController {
     };
     site.contents.on('input-event', closePanelOnClick);
     this.#card.contents.on('input-event', closePanelOnClick);
+  }
+
+  /** Velo sobre el sitio (R9) mientras la tarjeta está abierta o achicada. `force`: volver a mandarlo (página nueva). */
+  #syncVeil(force = false): void {
+    const on = this.#card.veiled;
+    if (on === this.#veiled && !force) return;
+    this.#veiled = on;
+    this.#bridge.veil(on);
   }
 
   /** Suma una visita al sitio si es otro que el anterior. Solo sitios públicos; se guarda el origen, nunca la dirección completa. */

@@ -180,6 +180,11 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
     if (!this.site.contents.isDestroyed()) this.site.contents.send(PAGE_CHANNELS.clear);
   }
 
+  /** Velo sobre el sitio (R9): lo dibuja la capa del resaltado, sin recibir clics. */
+  veil(on: boolean): void {
+    if (!this.site.contents.isDestroyed()) this.site.contents.send(PAGE_CHANNELS.veil, on);
+  }
+
   /** Rechaza lo pendiente (p. ej. al navegar): las respuestas tardías se descartan. */
   cancelPending(): void {
     for (const [id, pending] of this.#snapshots) {
