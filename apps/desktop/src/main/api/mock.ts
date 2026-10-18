@@ -21,6 +21,7 @@ import type {
 } from '@hackaton/contracts';
 import { isTranscribableWav, rms, wavSamples } from '../../shared/wav';
 import { ApiFailure, type ApiClient } from './client';
+import { SpeakRequest } from './pending-contract';
 
 /** Texto fijo del dictado simulado: el mismo que devuelve el modo mock del servidor. */
 export const MOCK_TRANSCRIPT = 'Quiero renovar mi documento';
@@ -82,6 +83,19 @@ export class MockApiClient implements ApiClient {
     return { text: rms(wavSamples(wav)) < MOCK_SILENCE_RMS ? '' : MOCK_TRANSCRIPT };
   }
 
+  /**
+   * TEMPORAL: /v1/speak todavía no está en el contrato (ver
+   * api/pending-contract.ts). Sin voz real: devuelve un MP3 válido de
+   * silencio, con una duración proporcional al texto (para probar «Detener»).
+   */
+  async speak(request: SpeakRequest, signal: AbortSignal): Promise<Uint8Array> {
+    await this.#wait(signal);
+    const parsed = SpeakRequest.safeParse(request);
+    if (!parsed.success) throw new ApiFailure('BAD_REQUEST', false);
+    const seconds = Math.min(12, Math.max(1, parsed.data.text.length * 0.06));
+    return silentMp3(seconds);
+  }
+
   /** Devuelve la sesión indicada (o una nueva si no se indicó ninguna). */
   #session(id: string | undefined): string {
     if (id) {
@@ -120,6 +134,18 @@ export class MockApiClient implements ApiClient {
       );
     });
   }
+}
+
+/**
+ * MP3 de silencio: tramas MPEG-1 Layer III, 32 kbps, 44,1 kHz, mono, sin
+ * datos de audio (cada trama son 104 bytes y 1152 muestras, unos 26 ms).
+ */
+export function silentMp3(seconds: number): Uint8Array {
+  const FRAME_BYTES = 104;
+  const frames = Math.max(1, Math.round((seconds * 44_100) / 1152));
+  const out = new Uint8Array(frames * FRAME_BYTES);
+  for (let i = 0; i < frames; i++) out.set([0xff, 0xfb, 0x10, 0xc0], i * FRAME_BYTES);
+  return out;
 }
 
 /**

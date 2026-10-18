@@ -17,6 +17,7 @@ import type { z } from 'zod';
 import { isTranscribableWav } from '../../shared/wav';
 import { log } from '../log';
 import { ApiFailure, type ApiClient } from './client';
+import { SPEAK_CONTENT_TYPE, SpeakRequest } from './pending-contract';
 
 /** Cuerpo JSON máximo que acepta el servidor (docs/api.md). */
 const MAX_BODY_BYTES = 512 * 1024;
@@ -28,6 +29,11 @@ const MAX_BODY_BYTES = 512 * 1024;
  * TRANSCRIBE_MAX_BYTES (960 044 bytes, un WAV de 30 s).
  */
 const MAX_WAV_BODY_BYTES = TRANSCRIBE_MAX_BYTES;
+/** MP3 máximo que se acepta de /v1/speak (600 caracteres son menos de un minuto de voz). */
+const MAX_SPEECH_AUDIO_BYTES = 4 * 1024 * 1024;
+
+type ReadBody = (response: Response) => Promise<unknown>;
+const readJson: ReadBody = (response) => response.json().catch(() => null);
 
 export interface HttpClientOptions {
   baseUrl: URL;
@@ -64,6 +70,17 @@ export class HttpApiClient implements ApiClient {
     return this.#parse(TranscribeResponse, await this.#send('/v1/transcribe', new Uint8Array(wav), TRANSCRIBE_CONTENT_TYPE, MAX_WAV_BODY_BYTES, signal));
   }
 
+  /**
+   * El texto y el audio no se guardan ni se loguean. TEMPORAL: se descarga
+   * completo (textos cortos); reproducir mientras llega queda pendiente.
+   */
+  async speak(request: SpeakRequest, signal: AbortSignal): Promise<Uint8Array> {
+    const parsed = SpeakRequest.safeParse(request);
+    if (!parsed.success) throw new ApiFailure('BAD_REQUEST', false);
+    const audio = await this.#send('/v1/speak', JSON.stringify(parsed.data), 'application/json', MAX_BODY_BYTES, signal, readSpeechAudio, SPEAK_CONTENT_TYPE);
+    return audio as Uint8Array;
+  }
+
   #parse<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {
     const parsed = schema.safeParse(body);
     if (!parsed.success) throw new ApiFailure('INVALID_RESPONSE', false);
@@ -75,7 +92,15 @@ export class HttpApiClient implements ApiClient {
   }
 
   /** Cada camino trae su límite: 512 KiB para JSON y 960 044 bytes para el WAV. */
-  async #send(path: string, body: string | Uint8Array<ArrayBuffer>, contentType: string, maxBytes: number, signal: AbortSignal): Promise<unknown> {
+  async #send(
+    path: string,
+    body: string | Uint8Array<ArrayBuffer>,
+    contentType: string,
+    maxBytes: number,
+    signal: AbortSignal,
+    readOk: ReadBody = readJson,
+    accept = 'application/json',
+  ): Promise<unknown> {
     const size = typeof body === 'string' ? Buffer.byteLength(body) : body.byteLength;
     if (size > maxBytes) throw new ApiFailure('PAYLOAD_TOO_LARGE', false);
     const retries = this.config.retries ?? 1;
@@ -84,7 +109,7 @@ export class HttpApiClient implements ApiClient {
       try {
         const headers: Record<string, string> = {
           'content-type': contentType,
-          accept: 'application/json',
+          accept,
           'x-request-id': randomUUID().replace(/-/g, ''),
         };
         if (this.config.token) headers.authorization = `Bearer ${this.config.token}`;
@@ -95,8 +120,8 @@ export class HttpApiClient implements ApiClient {
           signal: AbortSignal.any([signal, AbortSignal.timeout(this.config.timeoutMs ?? 100_000)]),
         });
         log('api.response', { status: response.status, ms: Date.now() - started, attempt });
+        if (response.ok) return await readOk(response);
         const json: unknown = await response.json().catch(() => null);
-        if (response.ok) return json;
         const error = ApiError.safeParse(json);
         throw error.success
           ? new ApiFailure(error.data.error.code, error.data.error.retryable)
@@ -109,6 +134,16 @@ export class HttpApiClient implements ApiClient {
       }
     }
   }
+}
+
+/** MP3 de /v1/speak: tipo correcto, no vacío y con un tamaño razonable. */
+async function readSpeechAudio(response: Response): Promise<Uint8Array> {
+  if (!(response.headers.get('content-type') ?? '').toLowerCase().startsWith(SPEAK_CONTENT_TYPE)) throw new ApiFailure('INVALID_RESPONSE', false);
+  const declared = Number(response.headers.get('content-length') ?? 0);
+  if (declared > MAX_SPEECH_AUDIO_BYTES) throw new ApiFailure('INVALID_RESPONSE', false);
+  const audio = new Uint8Array(await response.arrayBuffer());
+  if (audio.byteLength === 0 || audio.byteLength > MAX_SPEECH_AUDIO_BYTES) throw new ApiFailure('INVALID_RESPONSE', false);
+  return audio;
 }
 
 function statusCode(status: number) {

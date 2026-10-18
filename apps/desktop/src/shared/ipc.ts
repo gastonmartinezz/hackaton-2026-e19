@@ -34,6 +34,18 @@ export const UI_TRANSCRIBE_CHANNEL = 'ui:transcribe';
 export type TranscribeErrorReason = 'busy' | 'off' | 'failed';
 export type TranscribeResult = { status: 'ok'; text: string } | { status: 'empty' } | { status: 'error'; reason: TranscribeErrorReason };
 
+/** Leer en voz alta: texto de Mostrame → MP3. Desde la ventana o la tarjeta. */
+export const UI_SPEAK_CHANNEL = 'ui:speak';
+/** «Detener»: corta la descarga en curso (la reproducción la corta la interfaz). */
+export const UI_SPEAK_STOP_CHANNEL = 'ui:speak-stop';
+/**
+ * `busy`: el servidor pide esperar; `off`: voz apagada en el servidor (la
+ * interfaz usa la voz del sistema); `stopped`: se cortó a pedido; `failed`:
+ * cualquier otro problema.
+ */
+export type SpeakErrorReason = 'busy' | 'off' | 'stopped' | 'failed';
+export type SpeakResult = { status: 'ok'; audio: Uint8Array } | { status: 'error'; reason: SpeakErrorReason };
+
 export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ready') }),
   /** `guide: false` es «Solo ir al sitio»: se abre el destino sin la guía. Por defecto, «Mostrame cómo». */
@@ -194,6 +206,9 @@ export interface AsistenteBridge {
   onState(listener: (state: AppState) => void): () => void;
   /** Pasa a texto un WAV PCM16 mono de 16 kHz. Nunca envía la búsqueda. */
   transcribe(wav: ArrayBuffer): Promise<TranscribeResult>;
+  /** Lee en voz alta un texto de Mostrame (nunca datos de la página). Devuelve el MP3. */
+  speak(text: string): Promise<SpeakResult>;
+  stopSpeaking(): void;
 }
 
 /* ---------------------------- Página externa ---------------------------- */
