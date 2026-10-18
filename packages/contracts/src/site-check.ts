@@ -17,7 +17,6 @@ export const SiteCheckLimits = {
   maxForms: 10,
   maxFieldsPerForm: 30,
   maxLinks: 50,
-  maxOrigins: 30,
   maxReasons: 20,
 } as const;
 
@@ -81,9 +80,6 @@ export const PageSummary = z.strictObject({
   declaredBrand: ShortText(120).optional(),
   forms: z.array(PageForm).max(SiteCheckLimits.maxForms),
   links: z.array(PageLink).max(SiteCheckLimits.maxLinks),
-  /** Hostnames de origen de scripts e iframes, sin código. */
-  scriptHosts: z.array(Hostname).max(SiteCheckLimits.maxOrigins),
-  iframeHosts: z.array(Hostname).max(SiteCheckLimits.maxOrigins),
 });
 export type PageSummary = z.infer<typeof PageSummary>;
 
@@ -115,7 +111,6 @@ export const CoverageLevel = z.enum(['complete', 'partial', 'unavailable', 'not_
 export type CoverageLevel = z.infer<typeof CoverageLevel>;
 
 export const SiteCheckCoverage = z.strictObject({
-  reputation: CoverageLevel,
   identity: CoverageLevel,
   content: CoverageLevel,
   registration: CoverageLevel,
@@ -129,8 +124,6 @@ export type SiteCheckCoverage = z.infer<typeof SiteCheckCoverage>;
  */
 export const ReasonCode = z.enum([
   // fraud
-  'KNOWN_PHISHING',
-  'KNOWN_MALWARE',
   'LOOKALIKE_DOMAIN',
   'CONFUSABLE_CHARACTERS',
   'MISLEADING_SUBDOMAIN',
@@ -151,11 +144,11 @@ export type ReasonCode = z.infer<typeof ReasonCode>;
 export const ReasonCategory = z.enum(['fraud', 'technical']);
 
 export const Evidence = z.strictObject({
-  /** Fuente: catálogo, proveedor de reputación, RDAP, reglas de contenido, etc. */
+  /** Fuente: fuentes de autoridad, RDAP, inspección de conexión, reglas de contenido, IA, etc. */
   source: ShortText(80),
   checkedAt: z.iso.datetime(),
-  /** Quién observó el dato: el navegador de la persona, un escáner externo o el servicio. */
-  observedBy: z.enum(['user_browser', 'external_scanner', 'service']),
+  /** Quién observó el dato: el navegador de la persona o el servicio (fuentes, RDAP, conexión, IA). */
+  observedBy: z.enum(['user_browser', 'service']),
   /** Detalle técnico breve. El front no lo muestra tal cual a la persona. */
   detail: ShortText(300),
 });
@@ -176,7 +169,7 @@ export const SiteIdentity = z.strictObject({
   status: z.enum(['verified_official', 'unknown']),
   /**
    * Fuente de la oficialidad. Obligatoria con `verified_official`.
-   * - `government_domain`: zona reservada al Estado (gub.uy, mil.uy, .gov, .mil).
+   * - `government_domain`: zona reservada al Estado uruguayo (gub.uy, mil.uy).
    * - `financial_regulator`: registro de instituciones del Banco Central del Uruguay (BCU), descargado
    *   del regulador: el dominio es el del sitio web que el BCU publica para una institución supervisada.
    * - `official_catalog`: catálogo curado y versionado (p. ej. sitios de Uruguay), con fuente y fecha
@@ -237,19 +230,21 @@ export type SiteIndicatorState =
 const enough = (level: CoverageLevel) => level === 'complete' || level === 'not_applicable';
 
 /**
- * Cobertura mínima acordada. Prioridad: riesgo alto, riesgo medio, pendiente, insuficiente, favorables.
- * - Un estado favorable exige `status: complete` y reputación, contenido e identidad completos
- *   (o no aplicables). Registro y conexión no son obligatorios: su ausencia nunca aprueba ni reprueba.
- * - «Sitio oficial» exige además identidad verificada por catálogo y ningún motivo de fraude.
+ * Cobertura mínima acordada. Prioridad: riesgo alto, riesgo medio, pendiente, oficial, insuficiente, sin alertas.
+ * - «Sitio oficial» exige identidad verificada por una autoridad (zona del Estado, registro del BCU o catálogo),
+ *   identidad y contenido completos y ningún motivo de fraude. Un riesgo alto sigue ganando (arriba): un sitio
+ *   oficial comprometido se ve como «Posible estafa».
+ * - «Sin alertas detectadas» exige `status: complete`, riesgo `no_signals`, identidad y contenido completos (o no
+ *   aplicables) y ningún motivo de fraude. Si alguna comprobación obligatoria falta, «No pudimos verificarlo».
+ * - Registro y conexión no son obligatorios: su ausencia nunca aprueba ni reprueba.
  */
 export function siteIndicatorState(r: SiteCheckResponse): SiteIndicatorState {
   if (r.risk === 'high') return 'possible_scam';
   if (r.risk === 'medium') return 'attention';
   if (r.status === 'pending') return 'checking';
-  if (r.status !== 'complete' || r.risk !== 'no_signals') return 'unverified';
   const c = r.coverage;
-  if (!enough(c.reputation) || !enough(c.content) || !enough(c.identity)) return 'unverified';
   const hasFraud = r.reasons.some((reason) => reason.category === 'fraud');
-  if (r.identity.status === 'verified_official' && c.identity === 'complete' && !hasFraud) return 'official';
+  if (r.status !== 'unavailable' && r.identity.status === 'verified_official' && c.identity === 'complete' && enough(c.content) && !hasFraud) return 'official';
+  if (r.status !== 'complete' || r.risk !== 'no_signals' || hasFraud || !enough(c.identity) || !enough(c.content)) return 'unverified';
   return 'no_alerts';
 }

@@ -115,7 +115,5 @@ export function sanitizePage(page: PageSummary): PageSummary {
       const text = redactText(link.text, 200);
       return href && text ? [{ text, href: href.toString() }] : [];
     }),
-    scriptHosts: page.scriptHosts,
-    iframeHosts: page.iframeHosts,
   };
 }

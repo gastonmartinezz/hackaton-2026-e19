@@ -5,10 +5,10 @@ import { join } from 'node:path';
 import { rootCertificates } from 'node:tls';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { computeRisk } from '../src/modules/site-check/aggregate.js';
-import { AuthorityView, loadPopularDomains } from '../src/modules/site-check/authority.js';
+import { AuthorityService, AuthorityView } from '../src/modules/site-check/authority.js';
 import { bcuFetch, BcuRegistry, parseWebsite, parseWebsites, type BcuRegistryOptions } from '../src/modules/site-check/bcu-registry.js';
 import { describeHost, editDistance, hostMatches } from '../src/modules/site-check/domain.js';
-import { lookalikeSignals } from '../src/modules/site-check/lookalike.js';
+import { lookalikeSignals, type Reference } from '../src/modules/site-check/lookalike.js';
 import { DATA_DIR, loadOfficialSources } from '../src/modules/site-check/official-sources.js';
 import { redactText, sanitizeUrl } from '../src/modules/site-check/sanitize.js';
 import { fakeRdapFetch, TEST_CATALOGS } from './site-check-helpers.js';
@@ -22,8 +22,8 @@ let view: AuthorityView;
 let realView: AuthorityView;
 beforeAll(async () => {
   const state = await registry().state(1000);
-  view = new AuthorityView(loadOfficialSources({ catalogFiles: TEST_CATALOGS }), state, []);
-  realView = new AuthorityView(loadOfficialSources(), state, []);
+  view = new AuthorityView(loadOfficialSources({ catalogFiles: TEST_CATALOGS }), state);
+  realView = new AuthorityView(loadOfficialSources(), state);
 });
 
 const signals = (hostname: string, authority = view) =>
@@ -33,7 +33,10 @@ describe('fuentes de autoridad', () => {
   it('zona de gobierno por límites de dominio, nunca por sufijo de texto', () => {
     expect(view.official('www.bps.gub.uy')).toMatchObject({ basis: 'government_domain', organization: 'Estado uruguayo', matched: 'gub.uy' });
     expect(view.official('www.bps.gub.uy')?.source).toMatchObject({ url: 'https://www.gub.uy/', reviewedAt: '2026-10-17T00:00:00.000Z' });
-    expect(view.official('www.irs.gov')).toMatchObject({ basis: 'government_domain', organization: 'Gobierno de Estados Unidos' });
+    // La app es para Uruguay: las zonas de Estados Unidos (.gov, .mil) no se reconocen.
+    expect(realView.official('www.irs.gov')).toBeNull();
+    expect(realView.official('www.army.mil')).toBeNull();
+    expect(realView.official('www.ejercito.mil.uy')).toMatchObject({ basis: 'government_domain', matched: 'mil.uy' });
     expect(view.official('bps.gub.uy.evil.com')).toBeNull();
     expect(view.official('bps-gub-uy.com')).toBeNull();
     expect(view.official('evilbps.gubuy.com')).toBeNull();
@@ -113,7 +116,7 @@ describe('fuentes de autoridad', () => {
     writeFileSync(file, JSON.stringify({ ...catalog, discarded }));
     const sources = loadOfficialSources({ catalogFiles: [file] });
     expect([...sources.discarded.keys()]).toEqual(['cash.com.uy', 'uinuin.com.uy', 'credisol.com.uy']);
-    const reviewed = new AuthorityView(sources, view.registry, []);
+    const reviewed = new AuthorityView(sources, view.registry);
     expect(view.official('www.cash.com.uy')?.basis).toBe('financial_regulator');
     expect(reviewed.official('www.cash.com.uy')).toBeNull();
     expect(reviewed.official('www.credisol.com.uy')).toBeNull();
@@ -252,6 +255,23 @@ describe('fuentes de autoridad', () => {
 });
 
 describe('registro del BCU', () => {
+  it('la vista de las fuentes se reutiliza mientras el registro no cambie y se rearma cuando cambia', async () => {
+    let now = Date.parse('2026-10-18T00:00:00Z');
+    let down = false;
+    const fetchImpl = ((input: string | URL | Request, init?: RequestInit) => fakeRdapFetch({ bcuDown: down }).impl(input, init)) as typeof fetch;
+    const authority = new AuthorityService(loadOfficialSources({ catalogFiles: TEST_CATALOGS }), registry(fetchImpl, () => now), 1000);
+    const fresh = await authority.view();
+    expect(await authority.view()).toBe(fresh);
+    expect(fresh.references()).toBe(fresh.references());
+    expect(fresh.official('www.itau.com.uy')?.basis).toBe('financial_regulator');
+    down = true;
+    now += 60 * HOUR; // la copia deja de estar vigente y el refresco falla
+    const stale = await authority.view();
+    expect(stale).not.toBe(fresh);
+    expect(stale.registry.status).toBe('stale');
+    expect(stale.official('www.itau.com.uy')).toBeNull();
+  });
+
   it('un sitio publicado en un subdominio ajeno no hace oficial al dominio entero ni es referencia de parecido', () => {
     // El BCU publica la casa de cambio Balumacambio en balumacambio.enjoypuntadeleste.com.uy (fixture real).
     expect(view.official('balumacambio.enjoypuntadeleste.com.uy')).toMatchObject({ basis: 'financial_regulator', matched: 'balumacambio.enjoypuntadeleste.com.uy' });
@@ -287,7 +307,7 @@ describe('registro del BCU', () => {
     now += 30 * HOUR;
     const stale = await reg.state(1000);
     expect(stale.status).toBe('stale');
-    const old = new AuthorityView(loadOfficialSources({ catalogFiles: [] }), stale, []);
+    const old = new AuthorityView(loadOfficialSources({ catalogFiles: [] }), stale);
     expect(old.official('www.bancorepublica.com.uy')).toBeNull();
     expect(old.coverage('www.bancorepublica.com.uy')).toBe('partial');
     expect(lookalikeSignals(describeHost('bancorepublica-seguro.com'), old.references(), []).map((s) => s.code)).toContain('LOOKALIKE_DOMAIN');
@@ -413,10 +433,8 @@ describe('dominios parecidos (sin lista manual)', () => {
     expect(codes('correo-com-uy.net')).toEqual(['LOOKALIKE_DOMAIN']);
     expect(codes('c0rreo.com.uy')).toEqual(['LOOKALIKE_DOMAIN']);
     expect(codes('xn--rreo-45dr.com.uy')).toEqual(['CONFUSABLE_CHARACTERS']); // «соrreo» con c y o cirílicas
-    // Con la lista de populares, el cambio de terminación tampoco aplica: verde.com no imita a verde.com.uy.
-    const tldSwap = (hostname: string) => lookalikeSignals(describeHost(hostname), view.references(), [], { tldSwap: true }).map((s) => s.code);
-    expect(tldSwap('verde.com')).toEqual([]);
-    expect(tldSwap('delta.com')).toEqual([]);
+    expect(codes('verde.com')).toEqual([]);
+    expect(codes('delta.com')).toEqual([]);
   });
 
   it('la lista de palabras comunes marca nombres de uso corriente, nunca las marcas', () => {
@@ -433,11 +451,9 @@ describe('dominios parecidos (sin lista manual)', () => {
     expect(signals('antel-uy.com', realView)).toEqual([['LOOKALIKE_DOMAIN', 'Antel']]);
   });
 
-  it('cambio de terminación: solo con lista de populares, para no marcar sitios globales', () => {
+  it('la misma marca con otra terminación no es imitación por sí sola (sitios globales legítimos)', () => {
     expect(signals('bancorepublica.com')).toEqual([]);
     expect(signals('www.santander.com')).toEqual([]);
-    const tldSwap = (hostname: string) => lookalikeSignals(describeHost(hostname), view.references(), [], { tldSwap: true }).map((s) => s.code);
-    expect(tldSwap('bancorepublica.com')).toEqual(['LOOKALIKE_DOMAIN']);
   });
 
   it('no marca sitios sin relación ni marcas dentro de otras palabras', () => {
@@ -449,19 +465,8 @@ describe('dominios parecidos (sin lista manual)', () => {
     expect(signals('www.antelope.com')).toEqual([]);
   });
 
-  it('una lista opcional de dominios populares suma referencias (nunca oficialidad)', () => {
-    const file = join(tmpdir(), `crux-${process.pid}.csv`);
-    writeFileSync(file, 'origin,rank\nhttps://www.tiendainglesa.com.uy,1000\nhttps://www.montevideo.com.uy,1000\n');
-    const popular = loadPopularDomains(file, 10);
-    expect(popular.map((p) => p.domain)).toEqual(['tiendainglesa.com.uy', 'montevideo.com.uy']);
-    expect(lookalikeSignals(describeHost('tiendainglesa-pagos.com'), popular, []).map((s) => s.code)).toContain('LOOKALIKE_DOMAIN');
-    expect(lookalikeSignals(describeHost('www.tiendainglesa.com.uy'), popular, [])).toEqual([]);
-  });
-
   it('compara sin guiones las referencias que los tienen (banco-ejemplo.com.uy)', () => {
-    const file = join(tmpdir(), `crux-guiones-${process.pid}.csv`);
-    writeFileSync(file, 'origin,rank\nhttps://www.banco-ejemplo.com.uy,1000\n');
-    const refs = loadPopularDomains(file, 10);
+    const refs: Reference[] = [{ domain: 'banco-ejemplo.com.uy', label: 'banco-ejemplo', organization: 'Banco Ejemplo', kind: 'official_catalog' }];
     const codes = (hostname: string) => lookalikeSignals(describeHost(hostname), refs, []).map((s) => s.code);
     // Una letra de diferencia y marca + palabra clave, escritas sin el guion.
     expect(codes('bancoejenplo.com.uy')).toContain('LOOKALIKE_DOMAIN');
@@ -510,8 +515,8 @@ describe('sanitización en el backend', () => {
 
 describe('riesgo determinístico', () => {
   it('una señal fuerte alcanza para riesgo alto', () => {
-    expect(computeRisk(new Set(['KNOWN_PHISHING']), true)).toBe('high');
     expect(computeRisk(new Set(['LOOKALIKE_DOMAIN']), false)).toBe('high');
+    expect(computeRisk(new Set(['MISLEADING_SUBDOMAIN']), true)).toBe('high');
   });
 
   it('las debilidades técnicas nunca dan riesgo alto por sí solas', () => {

@@ -386,9 +386,7 @@ Cada respuesta devuelve **exactamente** el `navigationId` y el `contentVersion` 
     "text": "Texto visible acotado y redactado…",
     "declaredBrand": "BPS",
     "forms": [{ "method": "post", "action": null, "fields": [{ "type": "password", "label": "Contraseña de BPS" }] }],
-    "links": [{ "text": "Servicios en línea", "href": "https://scp.bps.gub.uy/" }],
-    "scriptHosts": ["www.googletagmanager.com"],
-    "iframeHosts": []
+    "links": [{ "text": "Servicios en línea", "href": "https://scp.bps.gub.uy/" }]
   }
 }
 ```
@@ -413,7 +411,7 @@ Cada respuesta devuelve **exactamente** el `navigationId` y el `contentVersion` 
   },
   "risk": "no_signals",
   "reasons": [],
-  "coverage": { "reputation": "complete", "identity": "complete", "content": "complete", "registration": "unavailable", "connection": "complete" },
+  "coverage": { "identity": "complete", "content": "complete", "registration": "unavailable", "connection": "complete" },
   "explanation": "No encontramos señales de estafa en las comprobaciones realizadas.",
   "checkedAt": "2026-10-17T22:00:00.000Z",
   "expiresAt": "2026-10-17T22:10:00.000Z"
@@ -433,7 +431,7 @@ Posible estafa (dominio parecido):
     { "code": "LOOKALIKE_DOMAIN", "category": "fraud",
       "evidence": [{ "source": "Fuentes de autoridad", "checkedAt": "…", "observedBy": "service", "detail": "brou-seguro.com combina brou con una palabra de acceso o seguridad" }] }
   ],
-  "coverage": { "reputation": "complete", "identity": "complete", "content": "pending", "registration": "complete", "connection": "complete" },
+  "coverage": { "identity": "complete", "content": "pending", "registration": "complete", "connection": "complete" },
   "checkedAt": "…",
   "expiresAt": "…"
 }
@@ -441,7 +439,7 @@ Posible estafa (dominio parecido):
 
 - **`identity.status: "verified_official"`** sale **solo** de una fuente de autoridad (ver «Fuentes de oficialidad»), siempre con `basis` y `source`. La coincidencia es por límites de dominio: `gub.uy` cubre `www.bps.gub.uy`, pero no `bps.gub.uy.evil.com` ni `bps-gub-uy.com`. Ni la IA, ni HTTPS, ni la apariencia del sitio pueden otorgarla.
 - **`identity.impersonatedOrganization`** aparece cuando hay un motivo de imitación (dominio parecido, subdominio engañoso, caracteres confusos, marca declarada o enlace) que nombra a una organización de las fuentes de autoridad (el Estado, una institución del registro del BCU o una entrada del catálogo de Uruguay).
-- **`evidence[].observedBy`**: `user_browser` (lo vio el navegador de la persona), `external_scanner` (proveedor de reputación) o `service` (fuentes de autoridad, RDAP, inspección de conexión del backend, IA). Lo que ve el backend puede diferir de lo que ve la persona (sesión, ubicación).
+- **`evidence[].observedBy`**: `user_browser` (lo vio el navegador de la persona) o `service` (fuentes de autoridad, RDAP, inspección de conexión del backend, IA). Lo que ve el backend puede diferir de lo que ve la persona (sesión, ubicación).
 - **`explanation`** es complementaria y la genera la IA. No controla etiquetas ni acciones; el front usa sus propios textos revisados.
 
 ### Fuentes de oficialidad
@@ -450,7 +448,7 @@ Posible estafa (dominio parecido):
 
 | `basis` | Fuente | Cómo se obtiene | `source` |
 |---|---|---|---|
-| `government_domain` | Zonas de dominio reservadas al Estado: `gub.uy` → «Estado uruguayo» y `mil.uy` → «Fuerzas Armadas de Uruguay» (de `zones` del catálogo de Uruguay); `.gov` y `.mil` → «Gobierno de Estados Unidos» (de `data/government-zones.json`) | Regla de zona por límites de dominio. No se generaliza a otras terminaciones (`edu.uy`, por ejemplo, **no** está reservada al Estado) | Política de la zona: [nic.uy](https://nic.uy/) (AGESIC es el único registrador de `gub.uy` y `mil.uy`), [get.gov/domains/eligibility](https://get.gov/domains/eligibility), [IANA .mil](https://www.iana.org/domains/root/db/mil.html), con la fecha de revisión |
+| `government_domain` | Zonas de dominio reservadas al Estado uruguayo: `gub.uy` → «Estado uruguayo» y `mil.uy` → «Fuerzas Armadas de Uruguay» (de `zones` del catálogo de Uruguay). No se reconocen zonas de otros países (`.gov`, `.mil`) | Regla de zona por límites de dominio. No se generaliza a otras terminaciones (`edu.uy`, por ejemplo, **no** está reservada al Estado) | Política de la zona: [nic.uy](https://nic.uy/) (AGESIC es el único registrador de `gub.uy` y `mil.uy`), con la fecha de revisión |
 | `financial_regulator` | Registro de instituciones del Banco Central del Uruguay (BCU): bancos, financieras, administradoras de crédito, cooperativas, casas de cambio, AFAP, aseguradoras y entidades del Sistema de Pagos | Descarga automática del regulador (ver abajo). Autoriza el dominio registrable del sitio web publicado para cada institución y sus subdominios | «Registro de instituciones del BCU», URL de la ficha o de la página del Sistema de Pagos y fecha de descarga |
 | `official_catalog` | Catálogo de Uruguay `data/official-sites.uy.json` (153 entradas revisadas el 17/10/2026), con fuente y fecha **por entrada** | Archivo versionado validado con Zod al arrancar: si es inválido o repite un dominio, el servidor no arranca. Alcance `exact` o `subdomains` | `source` y `reviewedAt` de la entrada |
 
@@ -460,7 +458,7 @@ Posible estafa (dominio parecido):
 
 **Por qué la IA no aprueba.** En el informe de Netcraft (2025), el 34 % de los dominios de inicio de sesión que un LLM dio para marcas conocidas no pertenecían a la marca. La IA solo **identifica** qué organización dice ser la página (`declaredOrganization`, tipo y país) y si pide credenciales, pagos o códigos. Esa organización se busca en las fuentes de autoridad: si la página dice ser un organismo del Estado uruguayo (BPS, DGI, DNIC, una intendencia…), una institución del BCU o una organización del catálogo, y el dominio no le pertenece, el motivo es `BRAND_IMPERSONATION` con `impersonatedOrganization`, y el riesgo es alto si además pide datos sensibles.
 
-**Organismos del Estado uruguayo (`claims` en `data/government-zones.json`).** Algunos nombres alcanzan solos: BPS / Banco de Previsión Social, DGI / Dirección General Impositiva, DNIC / Identificación Civil, Migración, las 19 intendencias, SUCIVE, ID Uruguay / Usuario gub.uy, Agesic, BCU, URSEC, INAU, Corte Electoral, Catastro, Agencia Nacional de Vivienda y Fondo Nacional de Recursos, entre otros. Los nombres genéricos o siglas ambiguas (MSP, Ministerio del Interior, Registro Civil, MTSS, MEF, MIDES, Poder Judicial, Policía Nacional…) cuentan solo si el texto nombra a Uruguay («Uruguay», «uruguayo», «Montevideo», «República Oriental») o si la IA identifica un organismo de gobierno uruguayo. La IA nunca emite `verified_official` ni baja el riesgo. Con `AI_PROVIDER=mock` o `SITE_CHECK_AI=false`, las mismas reglas corren sobre `declaredBrand` del front.
+**Organismos del Estado uruguayo (`claims` en `data/government-claims.json`).** Algunos nombres alcanzan solos: BPS / Banco de Previsión Social, DGI / Dirección General Impositiva, DNIC / Identificación Civil, Migración, las 19 intendencias, SUCIVE, ID Uruguay / Usuario gub.uy, Agesic, BCU, URSEC, INAU, Corte Electoral, Catastro, Agencia Nacional de Vivienda y Fondo Nacional de Recursos, entre otros. Los nombres genéricos o siglas ambiguas (MSP, Ministerio del Interior, Registro Civil, MTSS, MEF, MIDES, Poder Judicial, Policía Nacional…) cuentan solo si el texto nombra a Uruguay («Uruguay», «uruguayo», «Montevideo», «República Oriental») o si la IA identifica un organismo de gobierno uruguayo. La IA nunca emite `verified_official` ni baja el riesgo. Con `AI_PROVIDER=mock` o `SITE_CHECK_AI=false`, las mismas reglas corren sobre `declaredBrand` del front.
 
 **Señales que no alcanzan para «oficial»** (no se implementan como oficialidad): Wikidata P856 (sitio web oficial), rankings de popularidad, certificados OV/EV, BIMI y antigüedad del dominio. Como mucho podrían sumar contexto.
 
@@ -490,7 +488,6 @@ Las referencias salen, en este orden de peso, de:
 1. Dominios del registro del BCU (también de una copia vieja).
 2. Dominios del catálogo de Uruguay, incluidos los descartados.
 3. Zonas de gobierno.
-4. Opcionalmente, una lista de dominios populares (`SITE_CHECK_POPULAR_DOMAINS_FILE`).
 
 Las heurísticas siguen el estilo de las advertencias de dominios parecidos de Chrome:
 
@@ -499,43 +496,36 @@ Las heurísticas siguen el estilo de las advertencias de dominios parecidos de C
 - El dominio de referencia embebido en otro: `brou.com.uy.verificacion.net` → `MISLEADING_SUBDOMAIN`.
 - Marca + palabra clave: `brou-seguro.com`, `antel-uy.com`, `itau-login.com`.
 - La marca como subdominio de otro dominio: `brou.secure-login.com`.
-- Cambio de terminación (`brou.com` frente a `brou.com.uy`): **solo si hay lista de dominios populares** configurada, para excluir sitios globales legítimos.
 - Zonas de gobierno imitadas: `bps-gub-uy.com`, `gub-uy.com`, `bps.gub.uy.evil.com`, o `.gub.uy` falso con homoglifos.
 
-«banco» no cuenta como palabra clave.
+«banco» no cuenta como palabra clave. La misma marca con otra terminación (`bancorepublica.com` frente a `bancorepublica.com.uy`) no se marca: muchas marcas tienen sitios legítimos en otras terminaciones (`santander.com`).
 
 **Nombres que son palabras comunes (`data/common-words.json`).** Varias instituciones del BCU y del catálogo se llaman como palabras de uso diario (Correo, Verde, Pronto, Delta, Visa, Disco, Provincia, Universidad, Cabal…). Con todas las reglas, sitios inocentes como `correo.miempresa.com.uy`, `consorcios.com.uy` o `pronto.algunblog.com` daban «Posible estafa». La lista es una **heurística**, no una fuente de autoridad. Para esos nombres:
 
 - **Siguen aplicando** las reglas que no dan falsas alarmas: el dominio de referencia completo metido en otro (`correo.com.uy.evil.com`, `correo-com-uy.net`) y el mismo esqueleto visual (`c0rreo.com.uy`, letras cirílicas).
-- **No aplican:** el nombre como subdominio, una letra de diferencia, nombre + palabra clave y el cambio de terminación.
+- **No aplican:** el nombre como subdominio, una letra de diferencia y nombre + palabra clave.
 - **En el texto de la página:** un alias del catálogo que es una palabra común solo cuenta con una palabra financiera («Tarjeta Verde») o con la pista de la IA. «Correo Uruguayo» completo sigue contando.
 - **Criterio para sumar una palabra:** es de uso diario y un sitio sin relación podría usarla como nombre, sección o subdominio. Los nombres propios (santander) y las palabras que en un dominio casi siempre son la marca (claro, oca) quedan afuera. Un test verifica que las marcas distintivas (brou, itau, antel, prexcard, ute, ose, bse, abitab, redpagos, mercadopago…) no estén en la lista.
 
-**Siglas de organismos (`acronyms` en `government-zones.json`).** BPS, DGI y BCU cuentan solas cuando son todo el nombre declarado o una parte separada por guion, barra o dos puntos («BPS», «BPS - Mi cuenta»). Dentro de un nombre más largo necesitan que el texto nombre a Uruguay o la pista de la IA: «BPS Logistics» o «DGI Consultores» no se toman como el organismo.
-
-**Lista de dominios populares.** No se incluye ninguna en el repositorio:
-
-- [CrUX](https://developer.chrome.com/docs/crux) por país está bajo licencia CC BY-SA 4.0. Si se usa, hay que atribuirla y compartir las obras derivadas con la misma licencia.
-- Tranco incluye datos de Cloudflare Radar bajo CC BY-NC (no comercial). Se omitió por esa licencia.
-
-El archivo acepta un dominio u origen por línea, o un CSV con el origen en la primera columna (formato CrUX). Solo agrega referencias de parecido: nunca otorga oficialidad.
+**Siglas de organismos (`acronyms` en `government-claims.json`).** BPS, DGI y BCU cuentan solas cuando son todo el nombre declarado o una parte separada por guion, barra o dos puntos («BPS», «BPS - Mi cuenta»). Dentro de un nombre más largo necesitan que el texto nombre a Uruguay o la pista de la IA: «BPS Logistics» o «DGI Consultores» no se toman como el organismo.
 
 ### Cómo se calcula
 
 | Campo | Regla |
 |---|---|
-| `risk: "high"` | Amenaza conocida (`KNOWN_*`) o imitación del dominio (`LOOKALIKE_DOMAIN`, `CONFUSABLE_CHARACTERS`, `MISLEADING_SUBDOMAIN`); o dos señales moderadas distintas |
+| `risk: "high"` | Imitación del dominio (`LOOKALIKE_DOMAIN`, `CONFUSABLE_CHARACTERS`, `MISLEADING_SUBDOMAIN`) o dos señales moderadas distintas |
 | `risk: "medium"` | Una señal moderada (`BRAND_IMPERSONATION`, `SENSITIVE_DATA_REQUEST`, `FORM_SENDS_TO_OTHER_DOMAIN`, `LINK_TEXT_MISMATCH`, `URGENCY_OR_THREAT`, `RECENTLY_REGISTERED`), un formulario con datos sensibles por `http`, o un motivo concreto agregado por la IA |
-| `risk: "no_signals"` | Sin motivos de fraude y con reputación, identidad (y contenido, en la fase de contenido) completas |
+| `risk: "no_signals"` | Sin motivos de fraude y con identidad (y contenido, en la fase de contenido) completas |
 | `risk: "unknown"` | Sin motivos, pero alguna verificación obligatoria no se pudo hacer |
 | `status: "pending"` | Fase de dirección (`coverage.content: "pending"`) |
-| `status: "complete"` | Fase de contenido con reputación, identidad y contenido `complete` o `not_applicable` |
-| `status: "partial"` | Fase de contenido con alguna verificación obligatoria `unavailable` o `partial` |
+| `status: "complete"` | Fase de contenido con identidad y contenido `complete` o `not_applicable` |
+| `status: "partial"` | Fase de contenido con identidad o contenido `unavailable` o `partial` (registro del BCU caído o viejo, falla de la IA) |
 | `status: "unavailable"` | Dirección local, privada o interna |
 
-- Una amenaza tiene prioridad sobre la identidad oficial: un dominio `.gub.uy` o del BCU con un reporte de phishing devuelve `identity: verified_official` **y** `risk: high` → el indicador muestra «Posible estafa».
+- El riesgo tiene prioridad sobre la identidad oficial: una página `.gub.uy` o del BCU comprometida (por ejemplo, con un formulario de clave que envía a otro dominio y un texto de amenaza) devuelve `identity: verified_official` **y** `risk: high` → el indicador muestra «Posible estafa».
 - Los motivos `technical` (`NO_HTTPS`, `CERTIFICATE_PROBLEM`, `CROSS_DOMAIN_REDIRECT`) nunca suben el riesgo por sí solos. `INSECURE_FORM_ACTION` solo aparece con datos sensibles y da, como mucho, riesgo medio.
-- Antigüedad, HTTPS y ausencia de reportes **nunca** generan un resultado favorable por sí solos: lo favorable solo surge de no encontrar motivos con las verificaciones obligatorias completas.
+- Antigüedad y HTTPS **nunca** generan un resultado favorable por sí solos: lo favorable solo surge de no encontrar motivos con las verificaciones obligatorias completas.
+- No se consultan listas de reportes de phishing o malware (Google Safe Browsing, Web Risk u otras): la detección sale de las fuentes de Uruguay, las reglas propias y la IA.
 - Una contraseña sola no es un pedido sensible (cualquier sitio con usuarios la pide). Cuenta como `SENSITIVE_DATA_REQUEST` cuando el sitio, sin identidad oficial, ya muestra otra señal de fraude (por ejemplo, dice ser el BPS). Tarjeta, cuenta bancaria, claves de BPS o DGI y códigos de verificación cuentan siempre en sitios sin identidad oficial.
 - La IA solo identifica la organización declarada y los pedidos (credenciales, pagos, códigos), con salida validada por Zod. Lo que identifica se contrasta con las fuentes de autoridad y puede sumar `BRAND_IMPERSONATION` o `SENSITIVE_DATA_REQUEST` (fuente «Análisis con IA»). Nunca baja el riesgo ni cambia `identity`. Si la IA falla o tarda más de `SITE_CHECK_AI_TIMEOUT_MS`, `coverage.content` queda `partial` (nunca favorable) y la respuesta sale sin `explanation`.
 
@@ -548,9 +538,9 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 | Posible estafa | `risk: high` (siempre primero, aunque sea oficial o parcial) |
 | Atención | `risk: medium` |
 | Revisando sitio… | `status: pending` |
-| No pudimos verificarlo | `status` distinto de `complete`, `risk` distinto de `no_signals`, o reputación, identidad o contenido sin `complete`/`not_applicable` |
-| Sitio oficial | Lo anterior completo, `identity.status: verified_official`, `coverage.identity: complete` y ningún motivo `fraud` |
-| Sin alertas detectadas | Lo anterior completo sin identidad oficial |
+| Sitio oficial | `identity.status: verified_official` (zona, BCU o catálogo), `coverage.identity: complete`, contenido `complete`/`not_applicable`, ningún motivo `fraud` y `status` distinto de `unavailable` |
+| No pudimos verificarlo | Sin identidad oficial: `status` distinto de `complete`, `risk` distinto de `no_signals`, algún motivo `fraud`, o identidad o contenido sin `complete`/`not_applicable` |
+| Sin alertas detectadas | Sin identidad oficial, con todo lo anterior completo |
 
 `registration` (RDAP) y `connection` (TLS/redirecciones) **no son obligatorias**: su ausencia nunca aprueba ni reprueba; se informan para transparencia y vencen pronto (`expiresAt`) para reintentar.
 
@@ -558,9 +548,7 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 
 | Código | Categoría | Fuente | Qué significa |
 |---|---|---|---|
-| `KNOWN_PHISHING` | fraud | Reputación | Reportado como phishing o ingeniería social |
-| `KNOWN_MALWARE` | fraud | Reputación | Reportado como malware o software no deseado |
-| `LOOKALIKE_DOMAIN` | fraud | Fuentes de autoridad | Dominio parecido a uno del BCU, del catálogo o a una zona de gobierno: letras sustituidas, una edición, marca + palabra clave, otra terminación |
+| `LOOKALIKE_DOMAIN` | fraud | Fuentes de autoridad | Dominio parecido a uno del BCU, del catálogo o a una zona de gobierno: letras sustituidas, una edición, marca + palabra clave |
 | `CONFUSABLE_CHARACTERS` | fraud | Fuentes de autoridad | Caracteres de otro alfabeto (punycode/IDN) que imitan un dominio de referencia o una zona de gobierno, o mezcla de alfabetos |
 | `MISLEADING_SUBDOMAIN` | fraud | Fuentes de autoridad | Una zona de gobierno, un dominio de referencia o una marca aparece en los subdominios de otro dominio (`bps.gub.uy.evil.com`) |
 | `BRAND_IMPERSONATION` | fraud | Contenido / IA | El sitio dice ser un organismo del Estado uruguayo, una institución del BCU o una organización del catálogo y el dominio no le pertenece |
@@ -578,17 +566,15 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 
 | Fuente | Clave | Vigencia |
 |---|---|---|
-| Reputación sin reportes | hash de proveedor + URL depurada | 10 min |
-| Reputación con reporte | ídem | la que indique el proveedor (máx. 30 min) |
 | RDAP | hash del dominio registrable | 24 h (bootstrap de IANA: 24 h) |
 | Conexión | hash de la URL depurada | 1 h |
 | Registro del BCU | en memoria, una copia | refresco cada 24 h; vigente 48 h; vieja (no aprueba) hasta 7 días |
-| Zonas, catálogos y contenido | sin caché (se evalúan en cada solicitud) | 10 min |
+| Zonas, catálogos y contenido | sin caché de resultados (se evalúan en cada solicitud). Los índices y nombres normalizados de las fuentes se arman una vez por copia del registro del BCU | 10 min |
 
 - `expiresAt` = la vigencia más corta de las fuentes usadas. Con alguna cobertura `unavailable`/`partial`, y en la fase de dirección, es de **60 segundos**.
 - Las fallas no se guardan en caché: «Intentar de nuevo» vuelve a consultar.
 - Consultas simultáneas a la misma URL comparten una sola llamada al proveedor.
-- Tiempos máximos: `SITE_CHECK_PROVIDER_TIMEOUT_MS` (reputación y RDAP, 4 s), `SITE_CHECK_CONNECTION_TIMEOUT_MS` (todas las redirecciones, 5 s) y `SITE_CHECK_AI_TIMEOUT_MS` (8 s). Las fuentes corren en paralelo.
+- Tiempos máximos: `SITE_CHECK_PROVIDER_TIMEOUT_MS` (RDAP y espera al registro del BCU, 4 s), `SITE_CHECK_CONNECTION_TIMEOUT_MS` (todas las redirecciones, 5 s) y `SITE_CHECK_AI_TIMEOUT_MS` (8 s). Las fuentes corren en paralelo.
 - Tope por proveedor: `SITE_CHECK_PROVIDER_MAX_PER_MINUTE` (120). Al superarlo, esa cobertura queda `unavailable`.
 - Logs: solo fase, estado, riesgo, códigos, coberturas y latencia. Nunca URLs, dominios, contenido de página ni claves.
 
@@ -596,46 +582,24 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 
 | Variable | Valores | Uso |
 |---|---|---|
-| `REPUTATION_PROVIDER` | `none` (defecto), `mock`, `safe_browsing`, `web_risk` | Fuente de reputación. `mock` no se permite en producción |
-| `GOOGLE_SAFE_BROWSING_API_KEY` | clave | Requerida con `safe_browsing` |
-| `GOOGLE_WEB_RISK_API_KEY` | clave | Requerida con `web_risk` |
 | `SITE_CHECK_RDAP` | `true`/`false` | Consulta RDAP |
 | `SITE_CHECK_BCU_REGISTRY` | `true`/`false` | Registro de instituciones del BCU. Con `false`, las instituciones financieras solo pueden ser «Sitio oficial» por el catálogo, y lo que no está en zonas ni en el catálogo queda sin verificar |
 | `SITE_CHECK_BCU_TIMEOUT_MS` | número | Tiempo máximo por pedido al BCU (15 s) |
-| `SITE_CHECK_POPULAR_DOMAINS_FILE`, `SITE_CHECK_POPULAR_DOMAINS_LIMIT` | ruta, número | Lista opcional de dominios populares (solo referencias de parecido) |
 | `SITE_CHECK_CONNECTION` | `true`/`false` | Inspección de TLS y redirecciones |
 | `SITE_CHECK_AI` | `true`/`false` | Identificación de la organización declarada y explicación (usa `AI_PROVIDER`) |
 | `SITE_CHECK_RATE_LIMIT_MAX` | número | Solicitudes por ventana y token en `/v1/site-check` |
 | `SITE_CHECK_PROVIDER_TIMEOUT_MS`, `SITE_CHECK_CONNECTION_TIMEOUT_MS`, `SITE_CHECK_AI_TIMEOUT_MS`, `SITE_CHECK_PROVIDER_MAX_PER_MINUTE` | número | Tiempos máximos y topes |
 
-Las claves viven solo en el servidor. Sin proveedor de reputación (`none`), la cobertura de reputación es `unavailable` y el indicador **nunca** muestra un estado favorable.
+Ninguna fuente de Protección de sitios necesita claves. No se usa ningún proveedor de reputación (Google Safe Browsing, Web Risk, VirusTotal, urlscan.io): ninguna URL de la persona se envía a listas de reportes ni a escaneos de terceros.
 
-**Consultar reportes vs. enviar a escanear.** Todas las implementaciones solo **consultan** listas de reportes existentes. Se evitan a propósito:
-
-- La Web Risk **Evaluate API**, porque envía la URL a evaluar.
-- Los escaneos de `urlscan.io`, porque publican o comparten la URL.
-- El envío de URLs a VirusTotal.
-
-Todas exponen la URL, y con ella datos del recorrido de la persona. No se publica nada automáticamente.
-
-**Licencias:**
-
-- Web Risk está pensada para uso comercial.
-- Safe Browsing Lookup v4 es gratuita, pero solo para uso no comercial.
-- La API pública de VirusTotal tampoco permite uso comercial.
-- Para un servicio comercial corresponde Web Risk.
-
-| Opción | Licencia y costo | Privacidad | Cobertura |
+| Fuente | Licencia y costo | Privacidad | Cobertura |
 |---|---|---|---|
-| Google Safe Browsing Lookup API v4 (`safe_browsing`) | Gratuita, **solo uso no comercial** según los términos de Google | La URL depurada viaja en claro a Google (sin query, fragmento ni secretos) | Phishing, malware, software no deseado; listas de Google |
-| Google Cloud Web Risk `uris.search` (`web_risk`) | **Comercial**, facturada por consulta en Google Cloud (ver la tarifa vigente) | Igual que Lookup: la URL depurada viaja a Google. La Update API (hashes locales) daría más privacidad y queda como mejora | Mismas listas que Safe Browsing, con SLA |
-| `mock` | Solo desarrollo | Sin red | Marca hosts con la etiqueta `phishing-demo` o `malware-demo` (por ejemplo `https://phishing-demo.example.com/`) |
 | RDAP vía bootstrap IANA | Público y gratuito; cada registro fija sus límites | Solo se envía el dominio registrable | Depende del TLD. **`.uy` no publica RDAP** (no figura en el bootstrap de IANA): para dominios uruguayos `registration` siempre queda `unavailable`, sin que eso cambie el indicador |
 | Inspección de conexión propia | Sin costo | El backend se conecta al sitio (sin cookies ni credenciales, solo encabezados, sin query) | TLS de cada salto, hasta 5 redirecciones |
 
 ### Limitaciones
 
-- No promete detectar todas las amenazas: un sitio de phishing nuevo puede no estar reportado todavía.
+- No promete detectar todas las amenazas. Sin listas de reportes, un sitio de phishing que no imita a una organización conocida ni muestra señales en su contenido (por ejemplo, una descarga de malware) puede quedar como «Sin alertas detectadas».
 - «Oficial» cubre solo lo que una autoridad respalda: organismos en zonas de gobierno, instituciones del registro del BCU y entradas del catálogo de Uruguay. Empresas legítimas fuera de esas fuentes (comercios, servicios que no están en el catálogo) se muestran como «Sin alertas detectadas», nunca como oficiales.
 - El registro del BCU se arma leyendo su portal, que no es una API documentada. Si deja de responder o cambia de formato, las instituciones financieras dejan de verse como oficiales por esa vía (nunca se aprueba en falso). Una institución que use otros dominios además del publicado solo es oficial en esos otros dominios si están en el catálogo.
 - Si el BCU publica un dominio que vence y otro lo registra, sigue saliendo oficial hasta que el BCU actualice la ficha (salvo que el catálogo lo haya descartado). `.uy` no tiene RDAP para notar el cambio de titular.
@@ -688,7 +652,7 @@ Con `AI_PROVIDER=mock` (el valor por defecto en desarrollo), el servidor respond
 - `/v1/interpret`: con un solo mensaje devuelve `question`; con más de uno devuelve `redirect` a `https://www.example.com/`.
 - `/v1/options`: devuelve una opción `start` con dos pasos: el primero sobre el primer `id="..."` del HTML y el segundo teórico (`element: null`). Si el HTML no tiene ids, devuelve `options: []`.
 - `/v1/next-step`: el paso a paso investigado es fijo y sin búsqueda. Si el HTML tiene un lugar para escribir que todavía no se completó (`<input>` de texto o `<textarea>`), devuelve un paso de datos con `field` (`sensitive: true` si es `type="password"`). Si no, devuelve un clic sobre el primer `id="..."` pendiente. Sin ids pendientes devuelve `steps: []` y `done: true`, con el primer título del HTML como `evidence` si lo hay.
-- `/v1/site-check`: la explicación es un texto fijo según el riesgo y la IA nunca agrega motivos. Con `REPUTATION_PROVIDER=mock` (el valor de `.env.example`), los hosts con la etiqueta `phishing-demo` o `malware-demo` figuran como amenaza conocida. RDAP y la inspección de conexión son reales salvo que se deshabiliten con `SITE_CHECK_RDAP=false` y `SITE_CHECK_CONNECTION=false`.
+- `/v1/site-check`: la explicación es un texto fijo según el riesgo y la IA nunca agrega motivos. El registro del BCU, RDAP y la inspección de conexión son reales salvo que se deshabiliten con `SITE_CHECK_BCU_REGISTRY=false`, `SITE_CHECK_RDAP=false` y `SITE_CHECK_CONNECTION=false`.
 - `/v1/transcribe` con `STT_PROVIDER=mock`: devuelve siempre `{ "text": "Quiero renovar la cédula de identidad" }` para cualquier WAV válido (con silencio devuelve `""`). Las validaciones del WAV y los errores son los reales.
 - `/v1/speak` con `TTS_PROVIDER=mock`: devuelve siempre el mismo MP3 válido de ~0,5 s de silencio, en dos partes. Las validaciones y los errores son los reales.
 
@@ -702,8 +666,8 @@ curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'conte
   -d '{"navigationId":"nav-1","contentVersion":0,"url":"https://www.bps.gub.uy/","hostname":"www.bps.gub.uy","registrableDomain":"bps.gub.uy"}'
 # Página que dice ser el BPS en otro dominio y pide la clave → risk high, BRAND_IMPERSONATION
 curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
-  -d '{"navigationId":"nav-2","contentVersion":1,"url":"https://tramites-online.com.uy/","hostname":"tramites-online.com.uy","registrableDomain":"tramites-online.com.uy","page":{"title":"BPS","declaredBrand":"BPS","text":"Su prestación será suspendida. Ingrese su contraseña.","forms":[{"method":"post","action":null,"fields":[{"type":"password","label":"Contraseña"}]}],"links":[],"scriptHosts":[],"iframeHosts":[]}}'
-# Amenaza simulada → KNOWN_PHISHING
+  -d '{"navigationId":"nav-2","contentVersion":1,"url":"https://tramites-online.com.uy/","hostname":"tramites-online.com.uy","registrableDomain":"tramites-online.com.uy","page":{"title":"BPS","declaredBrand":"BPS","text":"Su prestación será suspendida. Ingrese su contraseña.","forms":[{"method":"post","action":null,"fields":[{"type":"password","label":"Contraseña"}]}],"links":[]}}'
+# Dominio parecido al de un banco del BCU → risk high, LOOKALIKE_DOMAIN, ya en la fase de dirección
 curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
-  -d '{"navigationId":"nav-3","contentVersion":0,"url":"https://phishing-demo.example.com/","hostname":"phishing-demo.example.com","registrableDomain":"example.com"}'
+  -d '{"navigationId":"nav-3","contentVersion":0,"url":"https://itau-login.com/","hostname":"itau-login.com","registrableDomain":"itau-login.com"}'
 ```

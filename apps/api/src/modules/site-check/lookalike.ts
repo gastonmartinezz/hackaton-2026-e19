@@ -3,18 +3,18 @@ import { editDistance, hasMixedScripts, skeleton, type HostInfo } from './domain
 
 /**
  * Dominios parecidos sin lista manual. Las referencias salen de las fuentes de autoridad
- * (registro del BCU, catálogos curados, zonas de gobierno) y, opcionalmente, de una lista de
- * dominios populares. Heurísticas al estilo de las advertencias de lookalikes de Chrome, en dos grupos:
+ * (registro del BCU, catálogo de Uruguay, zonas de gobierno). Heurísticas al estilo de las
+ * advertencias de lookalikes de Chrome, en dos grupos:
  * - Sobre el dominio completo o su aspecto, que valen para toda referencia: dominio de referencia
  *   embebido (brou.com.uy.verificacion.net, brou-com-uy.net) y mismo esqueleto visual (UTS #39: br0u,
  *   letras cirílicas).
- * - Sobre el nombre solo: una letra de diferencia, marca + palabra clave, la marca como subdominio y
- *   cambio de terminación. No se aplican a las referencias cuyo nombre es una palabra de uso corriente
- *   (`commonWord`, de data/common-words.json): «correo», «delta» o «verde» aparecen en sitios sin
- *   relación (correo.miempresa.com.uy, consorcios.com.uy, visa-uruguay.com) y darían «Posible estafa».
+ * - Sobre el nombre solo: una letra de diferencia, marca + palabra clave y la marca como subdominio.
+ *   No se aplican a las referencias cuyo nombre es una palabra de uso corriente (`commonWord`, de
+ *   data/common-words.json): «correo», «delta» o «verde» aparecen en sitios sin relación
+ *   (correo.miempresa.com.uy, consorcios.com.uy, visa-uruguay.com) y darían «Posible estafa».
  */
 
-export type ReferenceKind = 'financial_regulator' | 'official_catalog' | 'popular';
+export type ReferenceKind = 'financial_regulator' | 'official_catalog';
 
 export interface Reference {
   /** Dominio registrable (eTLD+1) de referencia. */
@@ -52,18 +52,13 @@ const KEYWORDS = new Set([
 const compact = (label: string) => label.replace(/-/g, '');
 const tokens = (label: string) => label.split(/[-0-9]+/).filter(Boolean);
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const ORDER: ReferenceKind[] = ['financial_regulator', 'official_catalog', 'popular'];
+const ORDER: ReferenceKind[] = ['financial_regulator', 'official_catalog'];
 
 /**
  * Señales de imitación. El llamador garantiza que el host NO es oficial; si el dominio
- * registrable es una referencia (por ejemplo, un dominio popular), no hay señal.
+ * registrable es una referencia (por ejemplo, uno que el catálogo descartó), no hay señal.
  */
-export function lookalikeSignals(
-  host: HostInfo,
-  references: readonly Reference[],
-  zones: readonly ZoneReference[],
-  options: { tldSwap?: boolean } = {},
-): DomainSignal[] {
+export function lookalikeSignals(host: HostInfo, references: readonly Reference[], zones: readonly ZoneReference[]): DomainSignal[] {
   const domain = host.registrableDomain;
   const label = host.label;
   if (host.isIp || !domain || !label) return [];
@@ -85,7 +80,7 @@ export function lookalikeSignals(
   // Zonas de gobierno: "gub.uy" embebido en otro dominio, "x-gub-uy.com", ".gub.uy" falso con homoglifos.
   for (const zone of zones) {
     const parts = zone.suffix.split('.');
-    if (parts.length < 2) continue; // .gov / .mil: demasiado genéricos como palabra
+    if (parts.length < 2) continue; // una zona de una sola etiqueta sería demasiado genérica como palabra
     // El sufijo mismo (gub.uy) no se imita a sí mismo; su oficialidad la decide authority.
     if (host.hostname === zone.suffix || domain === zone.suffix) continue;
     if (dotted.includes(`.${zone.suffix}.`)) {
@@ -127,9 +122,6 @@ export function lookalikeSignals(
     if (ref.commonWord) continue;
     // Sin guiones, como `flat`: banco-provincia se compara como bancoprovincia.
     const refFlat = compact(refLabel);
-    // Misma marca con otra terminación: bancorepublica.com frente a bancorepublica.com.uy. Solo con una lista de
-    // dominios populares para excluir los sitios globales legítimos (santander.com, bbva.com).
-    if (options.tldSwap && label === refLabel && refLabel.length >= 4) add('LOOKALIKE_DOMAIN', ref.organization, `Mismo nombre que ${ref.domain} con otra terminación`);
     // Una letra de diferencia, solo con nombres largos (los cortos chocan con sitios legítimos).
     if (refFlat.length >= 7 && editDistance(flat, refFlat) === 1) add('LOOKALIKE_DOMAIN', ref.organization, `${domain} difiere en una letra de ${ref.domain}`);
     // Marca + palabra clave: brou-seguro.com, antel-uy.com, itaulogin.com.

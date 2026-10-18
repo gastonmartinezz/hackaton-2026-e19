@@ -11,7 +11,7 @@ interface Entry<T> {
 /**
  * Caché en memoria con vencimiento por entrada y deduplicación de consultas simultáneas:
  * dos navegaciones al mismo sitio comparten la misma consulta al proveedor.
- * Guarda solo resultados de fuentes (reputación, RDAP, conexión), nunca respuestas completas
+ * Guarda solo resultados de fuentes (RDAP, conexión), nunca respuestas completas
  * ni contenido de páginas: cada respuesta se arma para su navegación y versión.
  */
 export class TtlCache<T> {

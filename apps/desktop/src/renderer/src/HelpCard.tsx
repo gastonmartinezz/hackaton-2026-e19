@@ -506,7 +506,8 @@ function PageProblems({ state }: { state: AppState }) {
   const { nav, guide } = state;
   return (
     <>
-      {nav.secure ? null : (
+      {/* Con la guía pausada por riesgo alto, «Pausé esta indicación» ya pide no escribir datos: un solo aviso (R1). */}
+      {nav.secure || state.siteCheck.guidePaused ? null : (
         <p className="callout" role="alert">
           <Icon name="shield-alert" />
           <span>

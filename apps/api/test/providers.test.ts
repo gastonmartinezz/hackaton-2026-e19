@@ -1,66 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { TtlCache } from '../src/modules/site-check/cache.js';
 import { RdapClient } from '../src/modules/site-check/rdap.js';
-import { ReputationChecker, SafeBrowsingProvider, WebRiskProvider } from '../src/modules/site-check/reputation.js';
 import { fakeRdapFetch } from './site-check-helpers.js';
 
-function recordingFetch(body: unknown, status = 200) {
-  const calls: Array<{ url: string; init?: RequestInit }> = [];
-  const impl = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({ url: String(input), init });
-    return Response.json(body, { status });
-  }) as typeof fetch;
-  return { impl, calls };
-}
-
 const limits = { timeoutMs: 1000, maxPerMinute: 100 };
-
-describe('Google Safe Browsing (Lookup API v4)', () => {
-  it('consulta threatMatches:find y traduce los tipos de amenaza', async () => {
-    const fetch = recordingFetch({ matches: [{ threatType: 'SOCIAL_ENGINEERING', cacheDuration: '300s' }] });
-    const checker = new ReputationChecker(new SafeBrowsingProvider('clave-de-prueba', fetch.impl), limits);
-    const result = await checker.check(new URL('https://phish.example.com/login'));
-    expect(result).toMatchObject({ coverage: 'complete', ttlMs: 300_000, data: { threats: ['phishing'] } });
-    expect(result.findings[0]).toMatchObject({ code: 'KNOWN_PHISHING', observedBy: 'external_scanner' });
-    expect(fetch.calls[0]!.url).toMatch(/^https:\/\/safebrowsing\.googleapis\.com\/v4\/threatMatches:find\?key=/);
-    const body = JSON.parse(String(fetch.calls[0]!.init!.body));
-    expect(body.threatInfo.threatEntries).toEqual([{ url: 'https://phish.example.com/login' }, { url: 'https://phish.example.com/' }]);
-  });
-
-  it('sin coincidencias: cobertura completa sin motivos', async () => {
-    const checker = new ReputationChecker(new SafeBrowsingProvider('k', recordingFetch({}).impl), limits);
-    expect(await checker.check(new URL('https://ok.example.com/'))).toMatchObject({ coverage: 'complete', findings: [] });
-  });
-
-  it('un error HTTP queda como unavailable, sin la clave en el error', async () => {
-    const checker = new ReputationChecker(new SafeBrowsingProvider('clave-secreta', recordingFetch({ error: {} }, 403).impl), limits);
-    const result = await checker.check(new URL('https://ok.example.com/'));
-    expect(result).toMatchObject({ coverage: 'unavailable', errors: ['http_403'] });
-    expect(JSON.stringify(result)).not.toContain('clave-secreta');
-  });
-});
-
-describe('Google Web Risk', () => {
-  it('consulta uris:search por URL', async () => {
-    const fetch = recordingFetch({ threat: { threatTypes: ['MALWARE'], expireTime: new Date(Date.now() + 60_000).toISOString() } });
-    const checker = new ReputationChecker(new WebRiskProvider('k', fetch.impl), limits);
-    const result = await checker.check(new URL('https://malo.example.com/'));
-    expect(result.findings.map((f) => f.code)).toEqual(['KNOWN_MALWARE']);
-    expect(fetch.calls).toHaveLength(1); // la URL ya es la raíz
-    expect(fetch.calls[0]!.url).toMatch(/^https:\/\/webrisk\.googleapis\.com\/v1\/uris:search\?/);
-  });
-});
-
-describe('límites de uso', () => {
-  it('con el tope por minuto alcanzado la reputación queda unavailable', async () => {
-    const fetch = recordingFetch({});
-    const checker = new ReputationChecker(new SafeBrowsingProvider('k', fetch.impl), { timeoutMs: 1000, maxPerMinute: 1 });
-    await checker.check(new URL('https://a.example.com/'));
-    const second = await checker.check(new URL('https://b.example.com/'));
-    expect(second).toMatchObject({ coverage: 'unavailable', errors: ['rate_limited'] });
-    expect(fetch.calls).toHaveLength(1);
-  });
-});
 
 describe('RDAP', () => {
   it('usa el bootstrap de IANA y consulta solo el dominio registrable', async () => {
@@ -74,11 +17,27 @@ describe('RDAP', () => {
     expect(fetch.calls).toHaveLength(2);
   });
 
-  it('un TLD sin servicio RDAP queda unavailable con la limitación explicada', async () => {
+  it('un TLD sin servicio RDAP (.uy) queda unavailable con el motivo', async () => {
     const rdap = new RdapClient({ ...limits, enabled: true, fetchImpl: fakeRdapFetch().impl });
     const result = await rdap.lookup('ejemplo.uy');
-    expect(result).toMatchObject({ coverage: 'unavailable', errors: ['no_rdap_service'] });
-    expect(result.limitations[0]).toMatch(/\.uy/);
+    expect(result).toMatchObject({ coverage: 'unavailable', errors: ['no_rdap_service'], data: null, findings: [] });
+  });
+
+  it('los dominios .uy no gastan el cupo por minuto ni repiten la consulta', async () => {
+    const fetch = fakeRdapFetch();
+    const rdap = new RdapClient({ timeoutMs: 1000, maxPerMinute: 1, enabled: true, fetchImpl: fetch.impl });
+    for (const domain of ['a.uy', 'b.uy', 'c.uy', 'a.uy']) expect(await rdap.lookup(domain)).toMatchObject({ errors: ['no_rdap_service'] });
+    // El único lugar del cupo sigue libre para un dominio con RDAP.
+    expect(await rdap.lookup('ejemplo.net')).toMatchObject({ coverage: 'complete' });
+  });
+
+  it('con el tope por minuto alcanzado queda unavailable sin consultar', async () => {
+    const fetch = fakeRdapFetch();
+    const rdap = new RdapClient({ timeoutMs: 1000, maxPerMinute: 1, enabled: true, fetchImpl: fetch.impl });
+    await rdap.lookup('a.com');
+    const calls = fetch.calls.length;
+    expect(await rdap.lookup('b.com')).toMatchObject({ coverage: 'unavailable', errors: ['rate_limited'] });
+    expect(fetch.calls).toHaveLength(calls);
   });
 
   it('el tiempo máximo produce unavailable', async () => {

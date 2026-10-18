@@ -79,7 +79,7 @@ describe('HttpApiClient', () => {
       identity: { status: 'unknown' },
       risk: 'unknown',
       reasons: [],
-      coverage: { reputation: 'complete', identity: 'complete', content: 'pending', registration: 'unavailable', connection: 'unavailable' },
+      coverage: { identity: 'complete', content: 'pending', registration: 'unavailable', connection: 'unavailable' },
       checkedAt: '2026-10-17T22:00:00Z',
       expiresAt: '2026-10-17T22:15:00Z',
     };

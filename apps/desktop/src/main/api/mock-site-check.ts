@@ -18,7 +18,7 @@
  * | sin-alertas.example           | Sin alertas detectadas (Atención si aparece un campo de contraseña) |
  * | atencion.example              | Atención                 |
  * | bancodemo-acceso.example      | Posible estafa (imita a Banco de Demostración; ya en la fase dirección) |
- * | premio-gratis.example         | Posible estafa (malware, sin suplantación) |
+ * | premio-gratis.example         | Posible estafa (señales de contenido, sin suplantación) |
  * | falla.example                 | No pudimos verificarlo (error del servicio) |
  * | parcial.example               | No pudimos verificarlo (cobertura parcial) |
  * | lenta.example                 | Revisando sitio… durante 6 s y luego Sin alertas |
@@ -27,7 +27,6 @@
 import { randomUUID } from 'node:crypto';
 import {
   SiteCheckRequest,
-  type CoverageLevel,
   type ReasonCode,
   type SiteCheckCoverage,
   type SiteCheckReason,
@@ -49,8 +48,6 @@ export const MOCK_SOURCES = {
 } as const;
 
 const FRAUD: ReadonlySet<ReasonCode> = new Set([
-  'KNOWN_PHISHING',
-  'KNOWN_MALWARE',
   'LOOKALIKE_DOMAIN',
   'CONFUSABLE_CHARACTERS',
   'MISLEADING_SUBDOMAIN',
@@ -83,7 +80,6 @@ export function mockSiteCheck(raw: SiteCheckRequest): SiteCheckResponse {
     evidence: [{ source: 'simulador', checkedAt: now.toISOString(), observedBy: addressPhase ? 'service' : 'user_browser', detail }],
   });
   const coverage = (over: Partial<SiteCheckCoverage> = {}): SiteCheckCoverage => ({
-    reputation: 'complete',
     identity: 'complete',
     content: addressPhase ? 'pending' : 'complete',
     registration: 'unavailable',
@@ -145,17 +141,22 @@ export function mockSiteCheck(raw: SiteCheckRequest): SiteCheckResponse {
       });
     }
     case 'premio-gratis.example':
-      return respond({ risk: 'high', reasons: [reason('KNOWN_MALWARE', 'listado en fuente de malware simulada')] });
+      // Sin suplantación: las señales salen del contenido, así que la dirección sola no alcanza.
+      if (addressPhase) return respond({});
+      return respond({
+        risk: 'high',
+        reasons: [reason('URGENCY_OR_THREAT', 'premio con urgencia'), reason('SENSITIVE_DATA_REQUEST', 'pide datos de tarjeta para cobrar el premio')],
+      });
     case 'falla.example':
       throw new ApiFailure('AI_UNAVAILABLE', true);
     case 'parcial.example':
-      return respond({ status: 'partial', risk: 'no_signals', coverage: coverage({ reputation: 'unavailable' as CoverageLevel }) });
+      return respond({ status: 'partial', risk: 'no_signals', coverage: coverage({ identity: 'partial' }) });
     default:
       // El simulador no consulta fuentes reales: nunca aprueba un sitio desconocido.
       return respond({
         status: addressPhase ? 'pending' : 'partial',
         risk: addressPhase ? 'unknown' : 'no_signals',
-        coverage: coverage({ reputation: 'unavailable', identity: 'unavailable' }),
+        coverage: coverage({ identity: 'unavailable' }),
         explanation: 'Backend simulado: no consulta fuentes reales.',
       });
   }
@@ -172,7 +173,7 @@ export function unverifiedSiteCheck(request: SiteCheckRequest): SiteCheckRespons
     identity: { status: 'unknown' },
     risk: 'unknown',
     reasons: [],
-    coverage: { reputation: 'unavailable', identity: 'unavailable', content: 'unavailable', registration: 'unavailable', connection: 'unavailable' },
+    coverage: { identity: 'unavailable', content: 'unavailable', registration: 'unavailable', connection: 'unavailable' },
     checkedAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + 60_000).toISOString(),
   };

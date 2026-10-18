@@ -130,7 +130,8 @@ function Omni({ state, indicatorInline }: { state: AppState; indicatorInline: bo
         </button>
         {/*
           Sello (R6) de Protección de sitios: junto al dominio, en la interfaz del navegador (la página no puede taparlo).
-          Si no entra sin cortar el dominio, va en la franja de abajo (SiteCheckUnderBar).
+          Si no entra sin cortar el dominio, flota debajo de la píldora, en la vista del panel (SiteCheckPopover),
+          sin mover el sitio.
           TODO(contrato): «La tienda que elegiste» cuando el backend sepa qué tienda eligió la persona.
         */}
         {indicatorInline ? <SiteCheckIndicator view={state.siteCheck} /> : null}

@@ -9,7 +9,7 @@ const base = {
   registrableDomain: 'gub.uy',
 };
 
-const page = { text: 'Hola', forms: [], links: [], scriptHosts: [], iframeHosts: [] };
+const page = { text: 'Hola', forms: [], links: [] };
 
 describe('SiteCheckRequest', () => {
   it('la fase de dirección no lleva page y la de contenido sí', () => {
@@ -25,9 +25,10 @@ describe('SiteCheckRequest', () => {
   });
 });
 
-const SOURCE = { name: 'Disposición NIC Argentina 153/2016', reviewedAt: '2026-10-17T00:00:00Z' };
+const SOURCE = { name: 'nic.uy: gub.uy solo vía AGESIC', url: 'https://nic.uy/', reviewedAt: '2026-10-17T00:00:00Z' };
+const OFFICIAL = { status: 'verified_official', basis: 'government_domain', organization: 'Estado uruguayo', source: SOURCE } as const;
 
-const complete = { reputation: 'complete', identity: 'complete', content: 'complete', registration: 'unavailable', connection: 'unavailable' } as const;
+const complete = { identity: 'complete', content: 'complete', registration: 'unavailable', connection: 'unavailable' } as const;
 
 const response = (over: Partial<Response> = {}): Response =>
   SiteCheckResponse.parse({
@@ -44,28 +45,43 @@ const response = (over: Partial<Response> = {}): Response =>
     ...over,
   });
 
-const phishing: SiteCheckReason = { code: 'KNOWN_PHISHING', category: 'fraud', evidence: [{ source: 'test', checkedAt: '2026-10-17T22:00:00Z', observedBy: 'service', detail: 'listado' }] };
+const evidence = [{ source: 'test', checkedAt: '2026-10-17T22:00:00Z', observedBy: 'service', detail: 'x' }] as const;
+const lookalike: SiteCheckReason = { code: 'LOOKALIKE_DOMAIN', category: 'fraud', evidence: [...evidence] };
+const noHttps: SiteCheckReason = { code: 'NO_HTTPS', category: 'technical', evidence: [...evidence] };
 
 describe('siteIndicatorState', () => {
   it('el riesgo alto tiene prioridad sobre la identidad oficial', () => {
-    const r = response({ risk: 'high', identity: { status: 'verified_official', basis: 'government_domain', organization: 'X', source: SOURCE }, reasons: [phishing] });
-    expect(siteIndicatorState(r)).toBe('possible_scam');
+    expect(siteIndicatorState(response({ risk: 'high', identity: OFFICIAL, reasons: [lookalike] }))).toBe('possible_scam');
   });
 
-  it('oficial solo con identidad verificada y cobertura completa', () => {
-    expect(siteIndicatorState(response({ identity: { status: 'verified_official', basis: 'government_domain', organization: 'X', source: SOURCE } }))).toBe('official');
+  it('oficial solo con identidad verificada, identidad y contenido completos y sin motivos de fraude', () => {
+    expect(siteIndicatorState(response({ identity: OFFICIAL }))).toBe('official');
+    expect(siteIndicatorState(response({ identity: OFFICIAL, reasons: [noHttps] }))).toBe('official');
+    expect(siteIndicatorState(response({ identity: OFFICIAL, status: 'partial', coverage: { ...complete, identity: 'partial' } }))).toBe('unverified');
+    expect(siteIndicatorState(response({ identity: OFFICIAL, status: 'partial', coverage: { ...complete, content: 'partial' } }))).toBe('unverified');
+    expect(siteIndicatorState(response({ identity: OFFICIAL, risk: 'unknown', reasons: [lookalike] }))).toBe('unverified');
+  });
+
+  it('sin alertas exige status complete, riesgo sin señales, identidad y contenido completos y sin motivos de fraude', () => {
     expect(siteIndicatorState(response())).toBe('no_alerts');
-  });
-
-  it('un resultado parcial o con cobertura insuficiente no es favorable', () => {
+    expect(siteIndicatorState(response({ reasons: [noHttps] }))).toBe('no_alerts');
     expect(siteIndicatorState(response({ status: 'partial' }))).toBe('unverified');
-    expect(siteIndicatorState(response({ coverage: { ...complete, reputation: 'unavailable' } }))).toBe('unverified');
+    expect(siteIndicatorState(response({ risk: 'unknown' }))).toBe('unverified');
+    expect(siteIndicatorState(response({ coverage: { ...complete, identity: 'unavailable' } }))).toBe('unverified');
+    expect(siteIndicatorState(response({ coverage: { ...complete, content: 'partial' } }))).toBe('unverified');
+    expect(siteIndicatorState(response({ reasons: [lookalike] }))).toBe('unverified');
     expect(siteIndicatorState(response({ status: 'unavailable', risk: 'unknown' }))).toBe('unverified');
   });
 
   it('pending muestra revisando salvo que ya haya riesgo', () => {
     expect(siteIndicatorState(response({ status: 'pending', coverage: { ...complete, content: 'pending' } }))).toBe('checking');
     expect(siteIndicatorState(response({ status: 'pending', risk: 'medium' }))).toBe('attention');
+  });
+});
+
+describe('SiteCheckCoverage', () => {
+  it('no tiene reputación: el backend no consulta listas de reportes', () => {
+    expect(() => response({ coverage: { ...complete, reputation: 'complete' } as unknown as Response['coverage'] })).toThrow();
   });
 });
 

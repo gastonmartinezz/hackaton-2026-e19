@@ -44,7 +44,7 @@ export interface ConnectionData {
  * Petición real con node:http(s). Conecta a la IP validada (sin segunda resolución DNS), sin
  * cookies ni credenciales, y corta en cuanto llegan los encabezados: nunca descarga el cuerpo.
  */
-export const nodeHopRequester: HopRequester = (url, address, timeoutMs, signal) =>
+const nodeHopRequester: HopRequester = (url, address, timeoutMs, signal) =>
   new Promise<HopResult>((resolve, reject) => {
     const lookup: LookupFunction = (_hostname, options, callback) => {
       if (options.all) (callback as (e: null, a: Array<{ address: string; family: number }>) => void)(null, [{ address: address.address, family: address.family }]);
@@ -110,9 +110,8 @@ export class ConnectionInspector {
   /** `url` ya depurada (sin query ni fragmento). */
   inspect(url: URL): Promise<SourceResult<ConnectionData>> {
     const checkedAt = new Date((this.options.now ?? Date.now)()).toISOString();
-    if (!this.options.enabled) {
-      return Promise.resolve(unavailable(SOURCE, checkedAt, ['disabled'], ['Inspección de conexión deshabilitada (SITE_CHECK_CONNECTION=false).']));
-    }
+    // SITE_CHECK_CONNECTION=false
+    if (!this.options.enabled) return Promise.resolve(unavailable(['disabled']));
     return this.cache.getOrLoad(
       cacheKey('connection', url.toString()),
       async () => {
@@ -120,7 +119,7 @@ export class ConnectionInspector {
           this.budget.take();
           return await withTimeout(this.options.timeoutMs, (signal) => this.follow(url, checkedAt, signal));
         } catch (error) {
-          return unavailable<ConnectionData>(SOURCE, checkedAt, [errorKind(error)]);
+          return unavailable<ConnectionData>([errorKind(error)]);
         }
       },
       (result) => result.ttlMs,
@@ -184,16 +183,11 @@ export class ConnectionInspector {
     const crossDomainRedirect = startDomain !== finalDomain;
     if (crossDomainRedirect) finding('CROSS_DOMAIN_REDIRECT', `Redirige a otro dominio: ${finalDomain ?? reached.hostname}`);
 
-    const limitations = ['Lo observado por este servicio puede diferir de lo que ve la persona (sesión, ubicación o dispositivo).'];
-    if (blocked) limitations.push('Una redirección apunta a una dirección interna o no permitida: no se siguió.');
-    else if (unreachable) limitations.push('Una redirección lleva a un destino que no respondió: se informa lo observado hasta ahí.');
-    else if (!finished) limitations.push(`Se cortó después de ${MAX_REDIRECTS} redirecciones.`);
+    // Parcial si una redirección apunta a un destino bloqueado (no se sigue), no responde (queda lo observado
+    // hasta ahí) o se superan las MAX_REDIRECTS.
     return {
-      source: SOURCE,
-      checkedAt,
       coverage: finished ? 'complete' : 'partial',
       ttlMs: CONNECTION_TTL_MS,
-      limitations,
       errors: blocked ? ['blocked_destination'] : unreachable ? ['redirect_unreachable'] : [],
       data: { hops, finalOrigin: reached.origin, https: reached.protocol === 'https:', tls, crossDomainRedirect },
       findings,

@@ -29,6 +29,7 @@ import {
   type SpeakResult,
   type DictateFieldResult,
   type TranscribeResult,
+  type SiteCheckLayout,
   type SiteCheckView,
   type UiCommand,
 } from '../shared/ipc';
@@ -41,6 +42,7 @@ import { log } from './log';
 import { PageBridge } from './page-bridge';
 import { allowMicrophoneCheck, allowMicrophoneRequest } from './permissions';
 import type { PrefsStore } from './prefs';
+import { POPOVER_COMMANDS, SiteCheckPopoverView, type PopoverAnchor } from './site-check-popover';
 import { SiteProtection } from './site-protection/coordinator';
 import { checkEligibility } from './site-protection/eligibility';
 import { SiteView } from './site-view';
@@ -50,7 +52,10 @@ import { buildUserContext, type SystemInfo } from './user-context';
 import { Transcriber } from './voice';
 import { changeVoiceMode, isDictatedSearch, VOICE_MODE_TEXTS, VoiceModeState } from './voice-mode';
 
-/** Igual que --h-bar y --card-w de @asistente/ui/tokens.css (R4, R6): 76 y 520 a 1.2×. La achicada (12) mide lo mismo. */
+/**
+ * Igual que --h-bar y --card-w de @asistente/ui/tokens.css (R4, R6): 76 y 520 a 1.2×. La achicada (12) y el
+ * panel de Protección de sitios (--site-panel-w de renderer/src/site-check.css) miden lo mismo.
+ */
 const chromeHeight = (scale: number) => Math.round(76 + (scale - 1.2) * 16);
 const cardWidth = (scale: number) => Math.round(520 + (scale - 1.2) * 240);
 const pillWidth = cardWidth;
@@ -98,8 +103,15 @@ export class AppController {
   /** «Guíame» o «Ir con ayuda» (true), o «Solo abrir el sitio» (false), para el próximo destino. */
   #wantGuide = true;
   readonly #protection: SiteProtection;
-  /** Alto de la franja de protección debajo de la barra (la mide la interfaz). */
-  #overlayHeight = 0;
+  /** Panel de Protección de sitios: vista propia que flota sobre el sitio, debajo del indicador. */
+  readonly #popover: SiteCheckPopoverView;
+  /** Píldora «Estás en» (la mide la ventana): ancla del panel. */
+  #anchor: PopoverAnchor = { left: 0, right: 0, inline: true };
+  #popoverLayout: SiteCheckLayout = { maxWidth: 0, maxHeight: 0, indicatorInline: true, chipOffset: 0 };
+  /** El panel se abrió: cuando su vista se muestre, recibe el foco. */
+  #focusPopover = false;
+  /** Cambia cada vez que el foco tiene que volver al indicador. */
+  #focusIndicator = 0;
   /** Hosts con «Posible estafa» o «Atención» en esta sesión: «Salir de este sitio» no vuelve a ellos. */
   readonly #riskyHosts = new Set<string>();
   #notices: Array<Notice & { url?: string | undefined }> = [];
@@ -131,9 +143,11 @@ export class AppController {
     this.#site = new SiteView(options.pagePreloadPath);
     this.window.contentView.addChildView(this.#site.view);
     this.#site.view.setVisible(false);
-    // La tarjeta va después del sitio: queda encima.
+    // La tarjeta va después del sitio: queda encima. El panel de protección, encima de los dos.
     this.#card = new HelpCardView(options.uiPreloadPath);
     this.window.contentView.addChildView(this.#card.view);
+    this.#popover = new SiteCheckPopoverView(options.uiPreloadPath);
+    this.window.contentView.addChildView(this.#popover.view);
     this.#bridge = new PageBridge(this.#site);
     const session = new ApiSession();
     this.#chat = new Chat(
@@ -201,23 +215,26 @@ export class AppController {
       this.#transcriber.cancel();
       this.#speech.stopAll();
       this.#bridge.dispose();
-      // Lo que esté en curso ya no tiene dónde mostrarse. Las vistas del sitio y
-      // de la tarjeta no se cierran solas con la ventana.
+      // Lo que esté en curso ya no tiene dónde mostrarse. Las vistas del sitio, de
+      // la tarjeta y del panel de protección no se cierran solas con la ventana.
       this.#chat.reset();
       this.#assistant.exit();
       this.#protection.clear();
-      for (const contents of [this.#card.contents, this.#site.contents]) if (!contents.isDestroyed()) contents.close();
+      for (const contents of [this.#card.contents, this.#popover.contents, this.#site.contents]) if (!contents.isDestroyed()) contents.close();
     });
   }
 
   async load(): Promise<void> {
     const { rendererUrl, rendererFile } = this.options;
     if (rendererUrl) {
+      const base = rendererUrl.replace(/\/$/, '');
       await this.window.loadURL(rendererUrl);
-      await this.#card.contents.loadURL(`${rendererUrl.replace(/\/$/, '')}/card.html`);
+      await this.#card.contents.loadURL(`${base}/card.html`);
+      await this.#popover.contents.loadURL(`${base}/site-check.html`);
     } else {
       await this.window.loadFile(rendererFile);
       await this.#card.contents.loadFile(join(dirname(rendererFile), 'card.html'));
+      await this.#popover.contents.loadFile(join(dirname(rendererFile), 'site-check.html'));
     }
     this.#layout();
     this.#publish();
@@ -227,20 +244,18 @@ export class AppController {
 
   /**
    * El sitio ocupa todo el ancho debajo de la barra; la tarjeta flota encima.
-   * Protección de sitios: el panel anclado a la barra empuja el sitio (y la
-   * tarjeta) hacia abajo, y la advertencia de riesgo alto oculta ambos. Las
-   * vistas nativas quedan encima de la interfaz propia: así el contenido web
-   * nunca tapa el indicador ni los avisos.
+   * Protección de sitios: el panel flota encima de los dos, anclado debajo del
+   * indicador, sin mover nada; la advertencia de riesgo alto oculta el sitio y
+   * la tarjeta. Las vistas nativas quedan encima de la interfaz propia y el
+   * panel empieza debajo de la barra: así el contenido web nunca tapa el
+   * indicador, el panel ni los avisos.
    */
   #layout(): void {
     if (this.window.isDestroyed()) return;
     const scale = this.options.prefs.value.textScale;
     const [width = 0, height = 0] = this.window.getContentSize();
     const protection = this.#protection.snapshot;
-    const chrome = chromeHeight(scale);
-    // Franja de protección debajo de la barra (indicador cuando no entra en la píldora y/o panel abierto).
-    const overlay = this.#siteVisible ? Math.min(this.#overlayHeight, Math.max(0, height - chrome - 120)) : 0;
-    const top = chrome + overlay;
+    const top = chromeHeight(scale);
     const area = { x: 0, y: top, width, height: Math.max(0, height - top) };
     const siteShown = this.#siteVisible && !protection.warningOpen;
     this.#site.view.setBounds(area);
@@ -254,6 +269,29 @@ export class AppController {
     if (layout.placement !== this.#cardLayout.placement || layout.maxHeight !== this.#cardLayout.maxHeight) {
       this.#cardLayout = layout;
       this.#publish();
+    }
+    // Con la advertencia abierta, el indicador y el panel van en la ventana (el sitio está oculto).
+    const hasIndicator = this.#siteVisible && protection.kind !== 'none';
+    const popoverShown = siteShown && hasIndicator && (protection.panelOpen || !this.#anchor.inline);
+    const placed = this.#popover.layout({ width, height }, top, this.#anchor, popoverShown, {
+      card: this.#card.box,
+      panelOpen: protection.panelOpen,
+      panelWidth: cardWidth(scale),
+    });
+    const popover: SiteCheckLayout = { ...placed, indicatorInline: this.#anchor.inline };
+    const last = this.#popoverLayout;
+    if (
+      popover.maxWidth !== last.maxWidth ||
+      popover.maxHeight !== last.maxHeight ||
+      popover.indicatorInline !== last.indicatorInline ||
+      popover.chipOffset !== last.chipOffset
+    ) {
+      this.#popoverLayout = popover;
+      this.#publish();
+    }
+    if (this.#focusPopover && protection.panelOpen && this.#popover.visible) {
+      this.#focusPopover = false;
+      this.#popover.contents.focus();
     }
   }
 
@@ -271,7 +309,17 @@ export class AppController {
     const snap = this.#protection.snapshot;
     const kind = this.#siteVisible ? snap.kind : 'none';
     if (kind === 'none') {
-      return { indicator: 'none', label: null, tone: 'neutral', panel: null, panelOpen: false, warning: null, announcement: null, guidePaused: false };
+      return {
+        indicator: 'none',
+        label: null,
+        tone: 'neutral',
+        panel: null,
+        panelOpen: false,
+        warning: null,
+        announcement: null,
+        guidePaused: false,
+        focusIndicator: this.#focusIndicator,
+      };
     }
     const hostname = this.#protection.target?.hostname ?? null;
     const copy = siteCheckCopy(kind, snap.response, hostname);
@@ -288,6 +336,7 @@ export class AppController {
           ? { id: snap.announcement.id, text: announcementText(announced, snap.response) }
           : null,
       guidePaused: this.#assistant.paused,
+      focusIndicator: this.#focusIndicator,
     };
   }
 
@@ -342,7 +391,7 @@ export class AppController {
     return {
       mockBackend: this.options.api.isMock,
       guideEnabled: GUIDE_ENABLED,
-      layout: { topBarHeight: chromeHeight(this.options.prefs.value.textScale), card: this.#cardLayout },
+      layout: { topBarHeight: chromeHeight(this.options.prefs.value.textScale), card: this.#cardLayout, siteCheck: this.#popoverLayout },
       prefs: {
         textScale: this.options.prefs.value.textScale,
         aiEnabledForSite: this.options.prefs.isAiEnabled(this.#origin()),
@@ -422,6 +471,7 @@ export class AppController {
       const state = this.#state();
       this.#ui.send(UI_STATE_CHANNEL, state);
       if (!this.#card.contents.isDestroyed()) this.#card.contents.send(UI_STATE_CHANNEL, state);
+      if (!this.#popover.contents.isDestroyed()) this.#popover.contents.send(UI_STATE_CHANNEL, state);
     });
   }
 
@@ -479,6 +529,13 @@ export class AppController {
     this.#bridge.on('interaction', ({ elementId, event }) => this.#assistant.interaction(elementId, event));
     this.#bridge.on('validationError', () => this.#assistant.validationError());
     this.#bridge.on('signature', () => this.#protection.contentChanged());
+
+    // Tocar el sitio o la tarjeta cierra el panel de protección (clic afuera). El foco queda donde tocó la persona.
+    const closePanelOnClick = (_event: Electron.Event, input: Electron.InputEvent) => {
+      if (input.type === 'mouseDown' && this.#protection.snapshot.panelOpen) this.#protection.setPanelOpen(false);
+    };
+    site.contents.on('input-event', closePanelOnClick);
+    this.#card.contents.on('input-event', closePanelOnClick);
   }
 
   /** Destino elegido en el chat: al cargar, la guía analiza la página con ese objetivo. */
@@ -567,18 +624,38 @@ export class AppController {
   }
 
   async #onCommand(event: IpcMainInvokeEvent, raw: unknown): Promise<void> {
+    const fromWindow = event.sender === this.#ui;
     const fromCard = event.sender === this.#card.contents;
-    if ((event.sender !== this.#ui && !fromCard) || event.senderFrame !== event.sender.mainFrame) return;
+    const fromPopover = event.sender === this.#popover.contents;
+    if ((!fromWindow && !fromCard && !fromPopover) || event.senderFrame !== event.sender.mainFrame) return;
     const parsed = UiCommandSchema.safeParse(raw);
     if (!parsed.success) {
       log('ui.invalid_command');
       return;
     }
-    if (parsed.data.type === 'cardLayout') {
-      if (fromCard && this.#card.report(parsed.data)) this.#layout();
+    const command = parsed.data;
+    // El panel de protección solo puede pedir lo suyo.
+    if (fromPopover && !POPOVER_COMMANDS.has(command.type)) {
+      log('ui.invalid_command');
       return;
     }
-    await this.#run(parsed.data);
+    switch (command.type) {
+      case 'cardLayout':
+        if (fromCard && this.#card.report(command)) this.#layout();
+        return;
+      case 'siteCheckPopoverLayout':
+        if (fromPopover && this.#popover.report(command)) this.#layout();
+        return;
+      case 'siteCheckAnchor': {
+        const { left, right, inline } = command;
+        if (!fromWindow || (left === this.#anchor.left && right === this.#anchor.right && inline === this.#anchor.inline)) return;
+        this.#anchor = { left, right, inline };
+        this.#layout();
+        this.#publish();
+        return;
+      }
+    }
+    await this.#run(command);
   }
 
   async #run(command: UiCommand): Promise<void> {
@@ -681,6 +758,8 @@ export class AppController {
         return;
       }
       case 'cardLayout':
+      case 'siteCheckPopoverLayout':
+      case 'siteCheckAnchor':
         return;
       case 'selectOption':
         this.#assistant.select(command.optionId);
@@ -758,6 +837,17 @@ export class AppController {
         return;
       case 'siteCheckPanel':
         this.#protection.setPanelOpen(command.open);
+        if (command.open) {
+          // Al abrir, el foco entra al panel apenas su vista se muestra (#layout). Con la advertencia
+          // abierta, el panel está en la ventana y toma el foco ahí.
+          this.#focusPopover = !this.#protection.snapshot.warningOpen;
+        } else if (command.restoreFocus) {
+          // Escape, «Cerrar» o «Entendido»: el foco vuelve al indicador, en la barra o en la vista flotante.
+          this.#focusPopover = false;
+          this.#focusIndicator += 1;
+          (this.#anchor.inline ? this.#ui : this.#popover.contents).focus();
+          this.#publish();
+        }
         return;
       case 'siteCheckRetry':
         this.#protection.retry();
@@ -768,10 +858,6 @@ export class AppController {
       case 'siteCheckLeave':
         this.#protection.setPanelOpen(false);
         this.#leaveSite();
-        return;
-      case 'siteCheckOverlay':
-        this.#overlayHeight = command.height;
-        this.#layout();
         return;
     }
   }

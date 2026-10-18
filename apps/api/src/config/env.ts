@@ -92,34 +92,23 @@ const EnvSchema = z
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     SESSION_TTL_MINUTES: z.coerce.number().int().positive().default(30),
 
-    // Protección de sitios (POST /v1/site-check). Las claves de proveedores quedan solo en el servidor.
+    // Protección de sitios (POST /v1/site-check).
     SITE_CHECK_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
-    // none: sin proveedor (cobertura de reputación "unavailable", nunca aprobación). mock: solo desarrollo.
-    REPUTATION_PROVIDER: z.enum(['none', 'mock', 'safe_browsing', 'web_risk']).default('none'),
-    GOOGLE_SAFE_BROWSING_API_KEY: z.string().optional(),
-    GOOGLE_WEB_RISK_API_KEY: z.string().optional(),
     SITE_CHECK_RDAP: flag('true'),
     // Registro de instituciones del BCU (fuente de oficialidad de bancos, financieras, cambios, AFAP, seguros y
     // medios de pago). Se descarga al arrancar y se refresca cada 24 h. El tiempo máximo es por petición (algunas
     // fichas pesan 1 MB).
     SITE_CHECK_BCU_REGISTRY: flag('true'),
     SITE_CHECK_BCU_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
-    // Lista opcional de dominios populares (CSV de CrUX u otro), solo como referencia de dominios parecidos.
-    SITE_CHECK_POPULAR_DOMAINS_FILE: z.string().optional(),
-    SITE_CHECK_POPULAR_DOMAINS_LIMIT: z.coerce.number().int().positive().default(10_000),
     SITE_CHECK_CONNECTION: flag('true'),
     SITE_CHECK_AI: flag('true'),
-    // Tiempo máximo por consulta a reputación y RDAP, y por inspección de conexión (todas las redirecciones).
+    // Tiempo máximo por consulta RDAP y espera máxima de una solicitud a la descarga del registro del BCU.
+    // La inspección de conexión tiene el suyo (todas las redirecciones) y la IA también.
     SITE_CHECK_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(4_000),
     SITE_CHECK_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
     SITE_CHECK_AI_TIMEOUT_MS: z.coerce.number().int().positive().default(8_000),
-    // Tope de consultas por minuto a cada proveedor externo (protege cuotas y costos).
+    // Tope de consultas por minuto a RDAP y a la inspección de conexión (cada uno por separado).
     SITE_CHECK_PROVIDER_MAX_PER_MINUTE: z.coerce.number().int().positive().default(120),
-
-    // Servidor MCP privado. Sin tokens no se levanta. Por defecto escucha solo en loopback.
-    MCP_ACCESS_TOKENS: csv.pipe(z.array(z.string().min(24, 'Cada token MCP debe tener al menos 24 caracteres'))),
-    MCP_HOST: z.string().default('127.0.0.1'),
-    MCP_PORT: z.coerce.number().int().positive().default(3100),
 
     ...SttEnvSchema.shape,
 
@@ -149,18 +138,6 @@ const EnvSchema = z
     }
     if (env.NODE_ENV === 'production' && env.AI_PROVIDER === 'mock') {
       ctx.addIssue({ code: 'custom', path: ['AI_PROVIDER'], message: 'El modo mock no se permite en producción' });
-    }
-    if (env.REPUTATION_PROVIDER === 'safe_browsing' && !env.GOOGLE_SAFE_BROWSING_API_KEY) {
-      ctx.addIssue({ code: 'custom', path: ['GOOGLE_SAFE_BROWSING_API_KEY'], message: 'Requerida con REPUTATION_PROVIDER=safe_browsing' });
-    }
-    if (env.REPUTATION_PROVIDER === 'web_risk' && !env.GOOGLE_WEB_RISK_API_KEY) {
-      ctx.addIssue({ code: 'custom', path: ['GOOGLE_WEB_RISK_API_KEY'], message: 'Requerida con REPUTATION_PROVIDER=web_risk' });
-    }
-    if (env.NODE_ENV === 'production' && env.REPUTATION_PROVIDER === 'mock') {
-      ctx.addIssue({ code: 'custom', path: ['REPUTATION_PROVIDER'], message: 'El modo mock no se permite en producción' });
-    }
-    if (env.MCP_ACCESS_TOKENS.some((token) => env.API_ACCESS_TOKENS.includes(token))) {
-      ctx.addIssue({ code: 'custom', path: ['MCP_ACCESS_TOKENS'], message: 'Usar tokens distintos a los de la API' });
     }
     if (env.NODE_ENV === 'production' && env.STT_PROVIDER === 'mock') {
       ctx.addIssue({ code: 'custom', path: ['STT_PROVIDER'], message: 'El modo mock no se permite en producción' });

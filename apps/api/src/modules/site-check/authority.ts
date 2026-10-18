@@ -1,15 +1,15 @@
-import { readFileSync } from 'node:fs';
 import type { CoverageLevel } from '@hackaton/contracts';
 import { BCU_SOURCE_NAME, type BcuInstitution, type BcuRegistry, type RegistryState } from './bcu-registry.js';
 import { describeHost } from './domain.js';
 import type { Reference, ZoneReference } from './lookalike.js';
 import {
   catalogAuthorizes,
-  containsName,
   findZone,
   normalizeName,
   organizationAliases,
   type CatalogEntry,
+  type ClaimGroup,
+  type GovernmentZone,
   type OfficialSources,
 } from './official-sources.js';
 
@@ -21,7 +21,7 @@ import {
  *    en vez de la razón social). Los dominios que el catálogo revisó y descartó no los aprueba el BCU.
  * 2. Catálogo curado (`official_catalog`): entrada con fuente y fecha de revisión. Cubre lo que no está en
  *    el BCU y los dominios verificados que el BCU no publica (brou.com.uy, además de bancorepublica.com.uy).
- * 3. Zona reservada al Estado (`government_domain`): gub.uy, mil.uy, .gov… por regla de zona.
+ * 3. Zona reservada al Estado (`government_domain`): gub.uy y mil.uy, por regla de zona.
  * La IA, HTTPS, rankings, certificados o la antigüedad nunca otorgan oficialidad.
  */
 
@@ -33,7 +33,6 @@ export interface OfficialMatch {
   /** Zona o dominio que autoriza al host. */
   matched: string;
   source: { name: string; url?: string; reviewedAt: string };
-  detail: string;
 }
 
 /** Organización que un texto dice ser, con las claves de quién la autoriza. */
@@ -56,13 +55,25 @@ const GENERIC = new Set(
   'banco bank de la del las los el y s a sa sas srl sau r l ltda limitada sociedad anonima compania cia uruguay uruguaya uruguayo uy sucursal financiera financiero financieros servicios empresa cooperativa coop ahorro credito the of and n international association dinero electronico'.split(' '),
 );
 const FINANCIAL_WORDS = /\b(banco|bank|financiera|tarjeta|home ?banking|billetera|cooperativa|creditos?|prestamos?|cambio|cobranzas?|dinero electronico|red de pagos)\b/;
-const coreTokens = (text: string) => normalizeName(text).replace(/\./g, ' ').split(' ').filter((t) => t && !GENERIC.has(t));
+/** Palabras distintivas de un texto ya normalizado (sin las genéricas de GENERIC). */
+const tokensOf = (normalized: string) => normalized.replace(/\./g, ' ').split(' ').filter((t) => t && !GENERIC.has(t));
+const coreTokens = (text: string) => tokensOf(normalizeName(text));
 // Partes de una marca declarada: «BPS - Mi cuenta», «Mi cuenta | BPS», «Servicios en línea: DGI».
 const SEPARATORS = /\s-\s|[–—|:·•()[\],;/]/;
-const standsAlone = (text: string, name: string) => text.split(SEPARATORS).some((part) => normalizeName(part) === normalizeName(name));
 // El sitio publicado es la dirección raíz («https://scanntech.com/»), no una sección de otro sitio.
 const atRoot = (website: string) => /^(https?:\/\/)?[^/\s,;]+\/?$/i.test(website.trim());
 
+/** Nombre tal como se informa y normalizado como se busca en un texto (ver `claims`). */
+interface Named {
+  name: string;
+  needle: string;
+}
+const named = (name: string): Named => ({ name, needle: normalizeName(name) });
+
+/**
+ * Lo que las fuentes dicen con un estado del registro del BCU, con índices y nombres normalizados calculados
+ * una sola vez: AuthorityService reutiliza la misma vista mientras el registro no cambie.
+ */
 export class AuthorityView {
   private readonly institutions: BcuInstitution[];
   private readonly df = new Map<string, number>();
@@ -70,11 +81,20 @@ export class AuthorityView {
   private readonly byDomain = new Map<string, BcuInstitution[]>();
   /** Catálogo y BCU enlazados por dominio: la entrada del catálogo que lista un dominio del BCU es esa institución. */
   private readonly linked = new Map<string, Set<string>>();
+  /** Zonas de gobierno de la más específica a la menos (gub.uy antes que uy, si existiera). */
+  private readonly zonesBySpecificity: GovernmentZone[];
+  /** Nombres de organismos del Estado, normalizados. */
+  private readonly claimGroups: Array<{ group: ClaimGroup; names: Named[]; acronyms: Named[]; contextNames: Named[]; context: string[] }>;
+  /** Alias de cada entrada del catálogo, normalizados y marcados si son una palabra de uso corriente. */
+  private readonly catalogAliases: Array<{ entry: CatalogEntry; aliases: Array<{ needle: string; common: boolean }> }>;
+  /** Palabras de la razón social y del nombre de fantasía de cada institución del BCU (y las que solo ella usa). */
+  private readonly institutionTokens: Array<{ institution: BcuInstitution; names: Array<{ all: string[]; distinctive: string[] }> }>;
+  private referencesCache: Reference[] | undefined;
+  private zoneReferencesCache: ZoneReference[] | undefined;
 
   constructor(
     private readonly sources: OfficialSources,
     readonly registry: RegistryState,
-    private readonly popular: readonly Reference[],
   ) {
     this.institutions = registry.snapshot?.institutions ?? [];
     for (const institution of this.institutions) {
@@ -92,6 +112,25 @@ export class AuthorityView {
         }
       }
     }
+    this.zonesBySpecificity = [...this.sources.zones].sort((a, b) => b.suffix.length - a.suffix.length);
+    this.claimGroups = this.sources.claims.map((group) => ({
+      group,
+      names: group.names.map(named),
+      acronyms: group.acronyms.map(named),
+      contextNames: group.contextNames.map(named),
+      context: group.context.map(normalizeName),
+    }));
+    this.catalogAliases = this.sources.entries.map((entry) => ({
+      entry,
+      aliases: organizationAliases(entry.organization, entry.id).map((alias) => ({ needle: normalizeName(alias), common: this.commonWord(alias) })),
+    }));
+    this.institutionTokens = this.institutions.map((institution) => ({
+      institution,
+      names: [institution.name, institution.tradeName ?? ''].map((name) => {
+        const all = coreTokens(name);
+        return { all, distinctive: all.filter((t) => (this.df.get(t) ?? 0) === 1) };
+      }),
+    }));
   }
 
   private catalogEntry(hostname: string): CatalogEntry | undefined {
@@ -140,7 +179,6 @@ export class AuthorityView {
         organization: entry ? entry.organization : this.institutionName(institution),
         matched: match.key,
         source: { name: BCU_SOURCE_NAME, url: institution.sourceUrl, reviewedAt: this.registry.snapshot.fetchedAt },
-        detail: `${match.key} es el sitio que el BCU publica para ${institution.name}`,
       };
     }
     if (entry) {
@@ -150,17 +188,15 @@ export class AuthorityView {
         organization: entry.organization,
         matched: domain.domain,
         source: { name: entry.source.name, ...(entry.source.url ? { url: entry.source.url } : {}), reviewedAt: asDateTime(entry.reviewedAt) },
-        detail: `${domain.domain} figura en el catálogo curado (${entry.catalog})`,
       };
     }
-    const zone = findZone(this.sources.zones, hostname);
+    const zone = findZone(this.zonesBySpecificity, hostname);
     if (zone) {
       return {
         basis: 'government_domain',
         organization: zone.organization,
         matched: zone.suffix,
         source: { name: zone.source.name, ...(zone.source.url ? { url: zone.source.url } : {}), reviewedAt: asDateTime(zone.reviewedAt) },
-        detail: `Zona .${zone.suffix} reservada al Estado (${zone.origin})`,
       };
     }
     return null;
@@ -171,7 +207,7 @@ export class AuthorityView {
    * Con el registro viejo o caído, un sitio que no está en zona ni catálogo queda parcial o sin verificar.
    */
   coverage(hostname: string): CoverageLevel {
-    if (this.catalogEntry(hostname) || findZone(this.sources.zones, hostname)) return 'complete';
+    if (this.catalogEntry(hostname) || findZone(this.zonesBySpecificity, hostname)) return 'complete';
     return this.registry.status === 'fresh' ? 'complete' : this.registry.status === 'stale' ? 'partial' : 'unavailable';
   }
 
@@ -184,7 +220,7 @@ export class AuthorityView {
     };
     const entry = this.catalogEntry(hostname);
     if (entry) add(`catalog:${entry.id}`);
-    const zone = findZone(this.sources.zones, hostname);
+    const zone = findZone(this.zonesBySpecificity, hostname);
     if (zone) add(`gov:${zone.country}`);
     for (const institution of this.registryInstitutions(hostname)) add(`bcu:${institution.id}`);
     return [...keys];
@@ -206,43 +242,52 @@ export class AuthorityView {
   /** Organizaciones que el texto dice ser (marca declarada, texto de un enlace u organización extraída por la IA). */
   claims(text: string, hint?: ClaimHint): Claim[] {
     const found: Claim[] = [];
+    // El texto se normaliza una vez; cada nombre está normalizado desde que se armó la vista. Un nombre cuenta si
+    // aparece como palabras completas (y tiene al menos 3 caracteres).
+    const normalized = normalizeName(text);
+    const padded = ` ${normalized} `;
+    const contains = (needle: string) => needle.length >= 3 && padded.includes(` ${needle} `);
+    let parts: string[] | undefined;
+    const standsAlone = (needle: string) => (parts ??= text.split(SEPARATORS).map(normalizeName)).includes(needle);
     // Organismos del Estado. Los nombres ambiguos («MEF», «MSP») piden una palabra del país o la pista de la IA.
     // Las siglas («BPS», «DGI») alcanzan solas si son toda la marca o una parte separada («BPS - Mi cuenta»);
     // dentro de un nombre más largo («BPS Logistics», «DGI Consultores») también piden contexto.
-    for (const group of this.sources.claims) {
+    for (const { group, names, acronyms, contextNames, context } of this.claimGroups) {
       const governmentHint = hint?.kind === 'government' && (!hint.country || hint.country.toUpperCase() === group.country);
-      const withContext = governmentHint || group.context.some((word) => containsName(text, word));
+      const withContext = governmentHint || context.some(contains);
       const name =
-        group.names.find((n) => containsName(text, n)) ??
-        group.acronyms.find((n) => (withContext ? containsName(text, n) : standsAlone(text, n))) ??
-        (withContext ? group.contextNames.find((n) => containsName(text, n)) : undefined);
+        names.find((n) => contains(n.needle))?.name ??
+        acronyms.find((n) => (withContext ? contains(n.needle) : standsAlone(n.needle)))?.name ??
+        (withContext ? contextNames.find((n) => contains(n.needle))?.name : undefined);
       if (name) found.push({ organization: name, keys: [`gov:${group.country}`], via: 'government_domain' });
     }
     if (hint?.kind === 'government' && hint.country && !found.some((c) => c.via === 'government_domain')) {
       const country = hint.country.toUpperCase();
       if (this.sources.zones.some((z) => z.country === country)) found.push({ organization: text.slice(0, 120), keys: [`gov:${country}`], via: 'government_domain' });
     }
-    const declared = coreTokens(text);
-    const financial = FINANCIAL_WORDS.test(normalizeName(text)) || hint?.kind === 'financial_entity';
+    const declared = tokensOf(normalized);
+    const financial = FINANCIAL_WORDS.test(normalized) || hint?.kind === 'financial_entity';
     // Catálogos curados. Un alias que es una palabra de uso corriente («Verde», «ASI», «correo», «Universal») solo
     // cuenta con una palabra financiera o la pista de la IA, como los nombres de fantasía del BCU: si no, un enlace
     // «Así funciona» o «Mi correo» se tomaría como la entidad. Los demás alias («Correo Uruguayo») alcanzan solos.
-    for (const entry of this.sources.entries) {
-      if (organizationAliases(entry.organization, entry.id).some((alias) => containsName(text, alias) && (financial || !this.commonWord(alias)))) {
+    for (const { entry, aliases } of this.catalogAliases) {
+      if (aliases.some((alias) => contains(alias.needle) && (financial || !alias.common))) {
         found.push({ organization: entry.organization, keys: [`catalog:${entry.id}`], via: 'official_catalog' });
       }
     }
     // Registro del BCU: razón social («BANCO ITAU URUGUAY S.A.») o nombre de fantasía («OCA Card», «Prex»).
-    const matches = this.institutions.filter((institution) =>
-      [institution.name, institution.tradeName ?? ''].some((name) => {
-        const all = coreTokens(name);
-        const distinctive = all.filter((t) => (this.df.get(t) ?? 0) === 1);
-        const declaredInName = declared.length > 0 && declared.every((t) => all.includes(t)) && declared.some((t) => (this.df.get(t) ?? 0) <= 4);
-        const nameInDeclared = distinctive.length > 0 && distinctive.every((t) => declared.includes(t));
-        // Sin una palabra financiera (o la pista de la IA) no alcanza: «Verde» o «Pronto» también son palabras comunes.
-        return (declaredInName || nameInDeclared) && financial;
-      }),
-    );
+    // Sin una palabra financiera (o la pista de la IA) no alcanza: «Verde» o «Pronto» también son palabras comunes.
+    const matches = !financial
+      ? []
+      : this.institutionTokens
+          .filter(({ names }) =>
+            names.some(({ all, distinctive }) => {
+              const declaredInName = declared.length > 0 && declared.every((t) => all.includes(t)) && declared.some((t) => (this.df.get(t) ?? 0) <= 4);
+              const nameInDeclared = distinctive.length > 0 && distinctive.every((t) => declared.includes(t));
+              return declaredInName || nameInDeclared;
+            }),
+          )
+          .map(({ institution }) => institution);
     if (matches.length > 0) {
       // Se nombra la que menos palabras agrega a lo declarado: «Cooperativa Artigas» es la cooperativa
       // José Artigas, no la Agrupación Magisterial José Artigas, aunque las dos coinciden.
@@ -254,11 +299,12 @@ export class AuthorityView {
   }
 
   /**
-   * Referencias para dominios parecidos: registro del BCU (también viejo), catálogos y populares. Las que tienen
+   * Referencias para dominios parecidos: registro del BCU (también viejo) y catálogos. Las que tienen
    * por nombre una palabra de uso corriente («correo», «delta», «verde») van marcadas: solo se comparan por el
    * dominio completo y el aspecto (ver lookalike.ts).
    */
-  references(): Reference[] {
+  references(): readonly Reference[] {
+    if (this.referencesCache) return this.referencesCache;
     const refs: Reference[] = [];
     const push = (domain: string, organization: string, kind: Reference['kind']) => {
       const host = describeHost(domain);
@@ -269,34 +315,20 @@ export class AuthorityView {
       for (const domain of institution.domains) if (describeHost(domain).registrableDomain === domain) push(domain, this.institutionName(institution), 'financial_regulator');
     }
     for (const entry of this.sources.entries) for (const d of entry.domains) push(d.domain, entry.organization, 'official_catalog');
-    refs.push(...this.popular.map((ref) => ({ ...ref, commonWord: this.commonWord(ref.label) })));
-    return refs;
+    return (this.referencesCache = refs);
   }
 
-  /** El cambio de terminación solo se evalúa si hay lista de populares para excluir sitios globales legítimos. */
-  get tldSwap(): boolean {
-    return this.popular.length > 0;
-  }
-
-  zoneReferences(): ZoneReference[] {
-    return this.sources.zones.map((z) => ({ suffix: z.suffix, organization: z.organization }));
-  }
-
-  /** Versiones y estado de las fuentes, para la evidencia y las limitaciones. */
-  describe(): { versions: string[]; registry: string } {
-    const snapshot = this.registry.snapshot;
-    const registry = snapshot
-      ? `${BCU_SOURCE_NAME}: ${snapshot.institutions.length} instituciones con sitio web (${snapshot.skipped.length} sin sitio utilizable o no activas), descargado ${snapshot.fetchedAt}${this.registry.status === 'stale' ? ' (copia vieja: no aprueba)' : ''}`
-      : `${BCU_SOURCE_NAME}: no disponible (${this.registry.error ?? 'sin copia'})`;
-    return { versions: this.sources.versions, registry };
+  zoneReferences(): readonly ZoneReference[] {
+    return (this.zoneReferencesCache ??= this.sources.zones.map((z) => ({ suffix: z.suffix, organization: z.organization })));
   }
 }
 
 export class AuthorityService {
+  private cached: AuthorityView | undefined;
+
   constructor(
     private readonly sources: OfficialSources,
     private readonly registry: BcuRegistry,
-    private readonly popular: readonly Reference[],
     private readonly registryWaitMs: number,
   ) {}
 
@@ -304,32 +336,13 @@ export class AuthorityService {
     this.registry.warmUp();
   }
 
+  /** La vista se arma de nuevo solo cuando cambia el estado del registro del BCU (copia, vigencia o error). */
   async view(): Promise<AuthorityView> {
-    return new AuthorityView(this.sources, await this.registry.state(this.registryWaitMs), this.popular);
-  }
-}
-
-/**
- * Lista opcional de dominios populares (solo referencias de parecido, nunca oficialidad).
- * Acepta un dominio u origen por línea o CSV con el origen en la primera columna (formato CrUX).
- */
-export function loadPopularDomains(path: string, limit: number): Reference[] {
-  const refs: Reference[] = [];
-  const seen = new Set<string>();
-  for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
-    const first = line.split(',')[0]?.trim();
-    if (!first || first.startsWith('#') || first === 'origin') continue;
-    let hostname: string;
-    try {
-      hostname = new URL(/^https?:\/\//.test(first) ? first : `https://${first}`).hostname;
-    } catch {
-      continue;
+    const state = await this.registry.state(this.registryWaitMs);
+    const cached = this.cached?.registry;
+    if (!cached || cached.snapshot !== state.snapshot || cached.status !== state.status || cached.error !== state.error) {
+      this.cached = new AuthorityView(this.sources, state);
     }
-    const host = describeHost(hostname);
-    if (host.internal || !host.registrableDomain || !host.label || seen.has(host.registrableDomain)) continue;
-    seen.add(host.registrableDomain);
-    refs.push({ domain: host.registrableDomain, label: host.label, organization: host.registrableDomain, kind: 'popular' });
-    if (refs.length >= limit) break;
+    return this.cached!;
   }
-  return refs;
 }

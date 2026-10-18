@@ -21,7 +21,7 @@ const AUTOCOMPLETE_RULES: ReadonlyArray<readonly [SensitiveKind, RegExp]> = [
   ['password', /\b(current|new)-password\b/],
 ];
 
-export function classifyField(field: PageFormField): SensitiveKind | null {
+function classifyField(field: PageFormField): SensitiveKind | null {
   const autocomplete = field.autocomplete ?? '';
   for (const [kind, pattern] of AUTOCOMPLETE_RULES) if (pattern.test(autocomplete)) return kind;
   const label = normalizeName(field.label ?? '');
@@ -54,8 +54,6 @@ export interface PageAnalysis {
   findings: Finding[];
   /** Formularios con datos sensibles cuyo destino es otro dominio, y destinos http. */
   forms: Array<{ method: PageForm['method']; actionDomain: string | null; sensitive: SensitiveKind[]; insecure: boolean }>;
-  /** Dominios de scripts e iframes que no son del sitio (solo informativo). */
-  thirdPartyHosts: string[];
 }
 
 const SOURCE = 'Reglas de contenido';
@@ -117,8 +115,7 @@ export function analyzePage(page: PageSummary, pageUrl: URL, host: HostInfo, aut
   const urgency = urgencyKind(page, sensitive.size > 0);
   if (urgency) add('URGENCY_OR_THREAT', `El texto combina ${urgency}`);
 
-  const thirdPartyHosts = [...new Set([...page.scriptHosts, ...page.iframeHosts])].filter((h) => !sameSite(h)).slice(0, 30);
-  return { sensitiveKinds: [...sensitive], findings, forms, thirdPartyHosts };
+  return { sensitiveKinds: [...sensitive], findings, forms };
 }
 
 /**
@@ -136,18 +133,12 @@ function urgencyKind(page: PageSummary, asksSensitive: boolean): string | null {
   return null;
 }
 
-export interface BrandComparison {
-  declaredBrand: string;
-  /** Organizaciones de las fuentes de autoridad que coinciden con la marca declarada. */
-  matches: Array<{ organization: string; via: string; authorized: boolean }>;
-  findings: Finding[];
-}
-
 /**
  * Contrasta la organización que el sitio dice ser con las fuentes de autoridad (zonas de gobierno,
  * registro del BCU, catálogos curados). Una marca declarada nunca prueba identidad: solo puede
  * producir BRAND_IMPERSONATION cuando nombra a una organización conocida y el host no le pertenece.
- * En un sitio oficial no se evalúa (un portal oficial nombra a otros organismos).
+ * El llamador garantiza que el host NO es oficial: en un sitio oficial no se evalúa (un portal oficial
+ * nombra a otros organismos).
  */
 export function compareBrand(
   declaredBrand: string,
@@ -155,26 +146,20 @@ export function compareBrand(
   authority: AuthorityView,
   checkedAt: string,
   options: { hint?: ClaimHint; source?: string; observedBy?: Finding['observedBy'] } = {},
-): BrandComparison {
-  const official = authority.official(host.hostname) !== null;
+): Finding[] {
   const hostKeys = authority.keys(host.hostname);
-  const matches = authority.claims(declaredBrand, options.hint).map((claim) => ({
-    organization: claim.organization,
-    via: claim.via,
-    authorized: claim.keys.some((key) => hostKeys.includes(key)),
-  }));
-  const findings: Finding[] = [];
-  const impersonated = matches.find((m) => !m.authorized);
-  if (!official && impersonated) {
-    const what = impersonated.via === 'government_domain' ? `un organismo del Estado (${impersonated.organization})` : impersonated.organization;
-    findings.push({
+  const impersonated = authority.claims(declaredBrand, options.hint).find((claim) => !claim.keys.some((key) => hostKeys.includes(key)));
+  if (!impersonated) return [];
+  const what = impersonated.via === 'government_domain' ? `un organismo del Estado (${impersonated.organization})` : impersonated.organization;
+  const according = impersonated.via === 'government_domain' ? 'las zonas de gobierno' : impersonated.via === 'financial_regulator' ? 'el registro del BCU' : 'el catálogo curado';
+  return [
+    {
       code: 'BRAND_IMPERSONATION',
       source: options.source ?? SOURCE,
       checkedAt,
       observedBy: options.observedBy ?? 'user_browser',
-      detail: `El sitio se presenta como ${what}, pero ${host.registrableDomain ?? host.hostname} no le pertenece según ${impersonated.via === 'government_domain' ? 'las zonas de gobierno' : impersonated.via === 'financial_regulator' ? 'el registro del BCU' : 'el catálogo curado'}`,
+      detail: `El sitio se presenta como ${what}, pero ${host.registrableDomain ?? host.hostname} no le pertenece según ${according}`,
       impersonatedOrganization: impersonated.organization.slice(0, 120),
-    });
-  }
-  return { declaredBrand, matches, findings };
+    },
+  ];
 }

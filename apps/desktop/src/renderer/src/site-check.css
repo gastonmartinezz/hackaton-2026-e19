@@ -1,9 +1,13 @@
 /*
- * Protección de sitios en la ventana principal: el sello en la píldora «Estás
- * en» (R6), el panel anclado a la barra y la advertencia de riesgo alto. Los
- * valores salen de @asistente/ui/tokens.css (diseño v2.2). El color nunca es la
- * única señal: siempre hay ícono y texto.
+ * Protección de sitios: el sello en la píldora «Estás en» (R6), el panel que
+ * flota sobre el sitio (popover.css), la advertencia de riesgo alto y la pausa
+ * de la guía. Los valores salen de @asistente/ui/tokens.css (diseño v2.2). El
+ * color nunca es la única señal: siempre hay ícono y texto.
  */
+:root {
+  /* Panel con el ancho de la tarjeta flotante (R4): 520px a 1.2×. */
+  --site-panel-w: calc(var(--g-card-width) + var(--s1) * 240px);
+}
 
 /* ---------- Sello (dentro de .omni, después del dominio) ---------- */
 .omni .where {
@@ -59,103 +63,6 @@
   border-color: currentColor;
 }
 
-/* ---------- Panel anclado a la barra ---------- */
-.site-check-band {
-  position: relative;
-  z-index: 2;
-  flex: none;
-  padding: var(--space-3) var(--space-5);
-  background: var(--g-surface-soft);
-  border-bottom: var(--border-w) solid var(--g-line);
-}
-.site-check-panel {
-  width: min(calc(560px + var(--s1) * 200px), calc(100vw - 2 * var(--space-5)));
-  max-width: calc(100vw - 2 * var(--space-5));
-  display: grid;
-  gap: var(--space-3);
-  padding: 20px var(--space-6) var(--space-5);
-  border-radius: var(--g-radius-card);
-  background: var(--g-surface);
-  box-shadow: var(--g-shadow-card-view);
-}
-.site-check-panel p,
-.site-check-dialog p {
-  margin: 0;
-}
-.site-check-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-}
-.site-check-head .hc-title {
-  flex: 1;
-  min-width: 0;
-}
-.site-check-panel[data-tone='positive'] .site-check-head > .ic {
-  color: var(--g-success);
-}
-.site-check-panel[data-tone='warning'] .site-check-head > .ic {
-  color: var(--g-warning);
-}
-.site-check-panel[data-tone='danger'] .site-check-head > .ic,
-.site-check-dialog .site-check-head > .ic {
-  color: var(--g-error);
-}
-.site-check-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-.site-check-details summary {
-  cursor: pointer;
-  min-height: var(--target-min);
-  padding: var(--space-3) 0;
-  color: var(--g-brand);
-  font-size: var(--fs-secondary);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-.site-check-details ul {
-  margin: 0 0 var(--space-3);
-  padding-left: 1.2em;
-  display: grid;
-  gap: var(--space-2);
-}
-.site-check-ai {
-  color: var(--g-ink-secondary);
-  font-size: var(--fs-min);
-}
-
-/* ---------- Advertencia de riesgo alto (ocupa el lugar del sitio) ---------- */
-.site-check-warning {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: grid;
-  place-items: start center;
-  padding: var(--space-7) var(--space-5);
-  background: var(--g-surface-soft);
-}
-/* Bloque de error de docs/02 en tamaño de diálogo: blanco, borde rojo y halo. */
-.site-check-dialog {
-  width: min(calc(640px + var(--s1) * 200px), 100%);
-  display: grid;
-  gap: var(--space-4);
-  padding: var(--space-6);
-  border: var(--border-w-strong) solid var(--g-error);
-  border-radius: var(--g-radius-card);
-  background: var(--g-surface);
-  box-shadow: var(--g-shadow-card);
-}
-.site-check-dialog .muted {
-  color: var(--g-ink-secondary);
-  font-size: var(--fs-min);
-}
-.site-check-dialog .btn-link {
-  justify-self: start;
-}
-
 /*
  * La píldora «Estás en» suma el sello. El dominio principal se corta solo como
  * último recurso, por el principio (ver guiame.css). Cuando falta lugar se oculta primero «Estás en», después la conexión no segura
@@ -164,6 +71,8 @@
  */
 .omni {
   container-type: inline-size;
+  /* Píldora de dominio del diseño: relleno de 12px a la derecha (el dominio no toca la curva). */
+  padding-right: var(--space-3);
 }
 .omni .dom b {
   flex: none;
@@ -221,7 +130,7 @@
   }
 }
 
-/* ---------- Sello en la franja (cuando no entra en la píldora) ---------- */
+/* Copia invisible del sello para medir si entra en la píldora (useIndicatorFits). */
 .site-badge-probe {
   position: absolute;
   visibility: hidden;
@@ -230,11 +139,121 @@
   margin: 0;
   left: -10000px;
 }
+
+/* ---------- Panel (vista flotante; lenguaje de la tarjeta, .hc de guiame.css) ---------- */
+.site-check-panel .hc-head .btn {
+  margin-left: auto;
+}
+.site-check-panel .hc-body {
+  padding: var(--space-5) var(--space-6);
+}
+.site-check-panel p,
+.site-check-dialog p,
+.site-check-paused p {
+  margin: 0;
+}
+/* Bloque de estado (docs/02): ícono de 40px alineado con la primera línea del título. */
+.site-check-panel .status .head,
+.site-check-paused .head {
+  align-items: flex-start;
+}
+.site-check-panel .status .hc-title,
+.site-check-paused .hc-title {
+  flex: 1;
+  min-width: 0;
+}
+/*
+ * Al abrir, el foco va al título (no es un control: tabindex -1) para que el
+ * lector lo anuncie; no lleva anillo. El siguiente Tab va a la acción principal.
+ */
+.site-check-panel .hc-title:focus {
+  box-shadow: none;
+  outline: none;
+}
+.site-check-body {
+  display: grid;
+  gap: var(--space-2);
+}
+/* Neutro («Sin alertas detectadas», «Revisando sitio…», página local): fondo suave, sin verde ni ámbar. */
+.status.neutral {
+  background: var(--g-surface-soft);
+}
+.status.neutral .ic {
+  color: var(--g-ink-secondary);
+}
+.site-check-actions {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* «Ver por qué»: enlace discreto (21px, azul, subrayado) con chevron Lucide. */
+.site-check-details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  padding-right: var(--space-2);
+  border-radius: var(--radius-chip);
+  color: var(--g-brand);
+  font-size: var(--fs-secondary);
+  list-style: none;
+  cursor: pointer;
+}
+.site-check-details summary::-webkit-details-marker {
+  display: none;
+}
+.site-check-details summary span {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.site-check-details summary .ic {
+  color: var(--g-brand);
+}
+.site-check-details[open] summary .ic {
+  transform: rotate(90deg);
+}
+/* Detalles en la caja suave de la tarjeta (docs/02: #F2F5FF, radio 24). */
+.site-check-why {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-box);
+  background: var(--g-surface-soft);
+}
+.site-check-why p {
+  margin: 0;
+}
+.site-check-why ul {
+  margin: 0;
+  padding-left: 1.2em;
+  display: grid;
+  gap: var(--space-2);
+}
+.site-check-ai {
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-min);
+}
+
+/* ---------- Con la advertencia abierta: sello y panel en la ventana, sobre ella ---------- */
+.site-check-band {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  padding: var(--space-3) var(--space-5);
+  background: var(--g-surface-soft);
+  border-bottom: var(--border-w) solid var(--g-line);
+}
+.site-check-band .site-check-panel {
+  width: min(var(--site-panel-w), calc(100vw - 2 * var(--space-5)));
+  box-shadow: var(--g-shadow-card-view);
+}
 .site-check-stack {
   display: grid;
   gap: var(--space-3);
   justify-items: start;
 }
+/* Sello fuera de la píldora: objetivo de 48px y texto en una línea. */
 .site-check-strip .site-badge {
   min-height: var(--target-min);
   font-size: var(--fs-min);
@@ -242,4 +261,46 @@
 .site-check-strip .site-badge-label {
   white-space: nowrap;
   max-width: none;
+}
+
+/* ---------- Advertencia de riesgo alto (ocupa el lugar del sitio) ---------- */
+.site-check-warning {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  place-items: start center;
+  padding: var(--space-7) var(--space-5);
+  background: var(--g-surface-soft);
+}
+/* Bloque de error de docs/02 en tamaño de diálogo: blanco, borde rojo y halo. */
+.site-check-dialog {
+  width: min(calc(640px + var(--s1) * 200px), 100%);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border: var(--border-w-strong) solid var(--g-error);
+  border-radius: var(--g-radius-card);
+  background: var(--g-surface);
+  box-shadow: var(--g-shadow-card);
+}
+.site-check-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.site-check-head .hc-title {
+  flex: 1;
+  min-width: 0;
+}
+.site-check-dialog .site-check-head > .ic {
+  color: var(--g-error);
+}
+.site-check-dialog .muted {
+  color: var(--g-ink-secondary);
+  font-size: var(--fs-min);
+}
+.site-check-dialog .btn-link {
+  justify-self: start;
 }
