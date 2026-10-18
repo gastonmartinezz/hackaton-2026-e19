@@ -62,6 +62,14 @@ const EnvSchema = z
     // default: si el clasificador de seguridad rechaza, la API reintenta en el modelo que Anthropic
     // recomienda para esa categoría (solo modelos que lo admiten). off: sin reintento.
     CLAUDE_FALLBACKS: z.enum(['default', 'off']).default('default'),
+
+    // Verificación de las URLs que devuelve interpret antes de mostrarlas (S03). Siempre activa.
+    URL_CHECK_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(5000),
+    URL_CHECK_MAX_REDIRECTS: z.coerce.number().int().min(0).max(10).default(3),
+    URL_CHECK_CACHE_TTL_MS: z.coerce.number().int().min(0).default(10 * 60_000),
+    // on: Claude usa la búsqueda web del servidor de Anthropic para elegir entre resultados reales.
+    INTERPRET_WEB_SEARCH: z.enum(['off', 'on']).default('off'),
+    INTERPRET_WEB_SEARCH_MAX_USES: z.coerce.number().int().min(1).max(10).default(3),
     CLAUDE_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     CLAUDE_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
     // Tope de tokens por respuesta, thinking incluido.

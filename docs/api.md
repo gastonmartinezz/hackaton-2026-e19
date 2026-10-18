@@ -98,8 +98,29 @@ La respuesta tiene siempre `sessionId`, `type` y `message`:
   "options": [ { "title": "...", "url": "https://...", "reason": "..." } ] }
 ```
 
-- Las URLs siempre son `http` o `https`. Si Claude devuelve otra cosa, el servidor responde con el error `AI_INVALID_RESPONSE`.
-- Las URLs las propone Claude: el backend no comprueba que el sitio exista ni que sea el correcto.
+- **Toda URL está verificada:** el backend comprueba que exista antes de devolverla (ver abajo). Siempre es `https`.
+- El backend comprueba que la página exista, no que sea la correcta: eso sigue siendo decisión de Claude.
+
+#### Verificación de URLs
+
+Claude puede recordar mal una dirección (por ejemplo, devolver `https://www.bps.gub.uy/agendarse`, que da 404, o `https://agenda.bps.gub.uy`, un dominio que no existe). Por eso ninguna URL de `redirect` ni de `options` llega al front sin comprobar (S03):
+
+1. **Reglas, en cada salto de redirección:**
+   - Solo `https:`: `http:` queda bloqueado hasta que la UI muestre una razón visible.
+   - Sin credenciales en la URL y sin puertos fuera del estándar.
+   - Sin IPs literales ni nombres locales (`localhost`, `.local`, sin dominio).
+   - Sin nombres que resuelvan a redes privadas, loopback, link-local o reservadas. La IP se vuelve a comprobar al conectarse, contra DNS rebinding.
+2. **Pedido:** `HEAD` y, si el sitio no lo acepta, `GET` sin leer el cuerpo. Sigue hasta 3 redirecciones con un timeout de 5 s (`URL_CHECK_*`) y se identifica con un `User-Agent` honesto (`Mostrame-LinkCheck/1.0`). Es válida si la respuesta final es 2xx.
+3. **Si una URL falla:** un reintento con Claude, al que se le dice qué URL falló y por qué, sin datos de la persona. Si el reintento también falla:
+   - Se usa la raíz del dominio, si existe.
+   - Si no existe, se saca esa URL.
+   - En `options`, si queda un solo sitio, la respuesta pasa a `redirect`. Si no queda ninguno, pasa a `question` con «¿No está lo que buscás? Contame qué querés hacer.».
+4. **Caché:** los resultados se recuerdan 10 minutos; los negativos, menos.
+5. **Logs:** solo números, motivos y dominios. Nunca la URL completa con su ruta o parámetros.
+
+Para el front no cambia el contrato. Puede llegar `question` donde antes llegaba una URL inventada, y la latencia de `/v1/interpret` sube lo que tarde la comprobación (en general, menos de 1 s) o un reintento cuando Claude se equivoca.
+
+**Búsqueda web (opcional, `INTERPRET_WEB_SEARCH=on`):** Claude elige entre resultados reales de la búsqueda web de Anthropic en lugar de recordar URLs. El verificador sigue activo igual. Está apagada por defecto: ver el benchmark en `docs/railway.md`.
 
 ### POST /v1/options
 

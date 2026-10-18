@@ -29,7 +29,7 @@ pnpm contracts:schemas   # regenera packages/contracts/schemas/v1/*.json
 
 `dev:desktop:api` toma el puerto y el primer token de `API_ACCESS_TOKENS` de `apps/api/.env`, y los pasa como `ASISTENTE_API_URL` y `ASISTENTE_API_TOKEN`. Si esas variables ya están definidas, se respetan.
 
-En desarrollo, `AI_PROVIDER=mock` permite trabajar sin clave de Anthropic. Para usar Claude, definir `AI_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`. El modelo se elige con `CLAUDE_MODEL` y el esfuerzo con `CLAUDE_EFFORT`, o por tarea con `CLAUDE_MODEL_INTERPRET`, `CLAUDE_EFFORT_NEXT_STEP`, etc.
+En desarrollo, `AI_PROVIDER=mock` permite trabajar sin clave de Anthropic. Para usar Claude, definir `AI_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`. El modelo se elige con `CLAUDE_MODEL` y el esfuerzo con `CLAUDE_EFFORT`, o por tarea con `CLAUDE_EFFORT_INTERPRET`, `CLAUDE_EFFORT_NEXT_STEP`, etc. Las tres tareas van con Claude Opus 5.5. Las URLs que devuelve `/v1/interpret` se verifican antes de mostrarse (ver `docs/api.md`).
 
 La voz también tiene modo simulado: `STT_PROVIDER=mock` y `TTS_PROVIDER=mock` (los de `.env.example`). Para la voz real con OpenAI, definir `OPENAI_API_KEY` y `STT_PROVIDER=openai` / `TTS_PROVIDER=openai`.
 
@@ -58,7 +58,7 @@ Preparación en el panel de Railway, una sola vez:
    - `API_ACCESS_TOKENS`
    - `OPENAI_API_KEY`
    - `STT_PROVIDER=openai` y `TTS_PROVIDER=openai`, que activan la voz.
-   - Los `CLAUDE_*` por tarea recomendados en `docs/railway.md` para bajar la latencia.
+   - `CLAUDE_EFFORT_INTERPRET=high` y `CLAUDE_EFFORT_NEXT_STEP=high` (Claude Opus 5.5; ver `docs/railway.md`).
 
    `PORT` lo define Railway y `NODE_ENV=production` ya viene en la imagen.
 3. En **Settings → Networking**, generar el dominio público.

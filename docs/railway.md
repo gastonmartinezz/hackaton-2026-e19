@@ -4,7 +4,7 @@ Responsable: Agustin. Railway Hobby (pago) está aprobado. El despliegue en Tenk
 
 ## Arquitectura
 
-- **Claude** interpreta lo que pide la persona y guía la página (`/v1/interpret`, `/v1/options` y `/v1/next-step`).
+- **Claude Opus 5.5** interpreta lo que pide la persona y guía la página (`/v1/interpret`, `/v1/options` y `/v1/next-step`). Cada URL que propone se verifica antes de mostrarla.
 - **OpenAI** pasa la voz a texto (`/v1/transcribe` con `STT_PROVIDER=openai`) y el texto a voz (`/v1/speak` con `TTS_PROVIDER=openai`).
 - **En el servidor no corre ningún modelo.** La API es un proceso Node chico: ~60 MB de RAM en reposo dentro del contenedor.
 
@@ -49,7 +49,8 @@ No es alpine: si algún día se usa Whisper local, los binarios de `onnxruntime-
 | `OPENAI_API_KEY` | clave de OpenAI | **Secreto**. Obligatoria con `STT_PROVIDER=openai` o `TTS_PROVIDER=openai` |
 | `STT_PROVIDER` | `openai` | Voz a texto. Con `off` (valor por defecto) `/v1/transcribe` responde 503 no reintentable |
 | `TTS_PROVIDER` | `openai` | Texto a voz. Con `off` (valor por defecto) `/v1/speak` responde 503 no reintentable |
-| `CLAUDE_*` por tarea | ver [Latencia de Claude](#latencia-de-claude) | Opcionales. Sin ellas se usa `CLAUDE_MODEL=claude-opus-5-5` con `CLAUDE_EFFORT=medium` en todo |
+| `CLAUDE_EFFORT_INTERPRET`, `CLAUDE_EFFORT_NEXT_STEP` | `high` | Ver [Claude: modelo, effort y URLs](#claude-modelo-effort-y-urls). El modelo queda en Opus 5.5 (`CLAUDE_MODEL`, valor por defecto) |
+| `URL_CHECK_*`, `INTERPRET_WEB_SEARCH` | *(opcionales)* | Verificación de URLs (siempre activa) y búsqueda web (`off`) |
 | `OPENAI_STT_KEYWORDS`, `OPENAI_STT_PROMPT` | *(opcionales)* | Vacías por defecto. Valor propuesto y fuentes en [api.md](api.md#vocabulario-para-openai-openai_stt_prompt-y-openai_stt_keywords) |
 | `OPENAI_STT_MODEL` | *(opcional)* `gpt-transcribe` | |
 | `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE` | *(opcionales)* `gpt-4o-mini-tts`, `marin` | |
@@ -69,46 +70,74 @@ Sin modelos en el servidor alcanza con lo mínimo:
 - **Imagen:** 628 MB sin el modelo de Whisper (contra ~1 GB con el modelo); no descarga nada al arrancar.
 - **Réplicas:** las sesiones viven en memoria, así que la API tiene que correr con **una sola réplica** (o con sesiones pegajosas) hasta que se muevan a un almacenamiento compartido.
 
-## Latencia de Claude
+## Claude: modelo, effort y URLs
 
-Cada llamada a Claude deja en el log, solo con números, la tarea, el modelo, el effort, la latencia, los tokens y los tokens leídos de la caché. El system prompt de cada tarea se cachea: en el benchmark, ~1200 de ~1330 tokens de entrada de `interpret` salen de la caché.
+**En interpretar la búsqueda y la página no se escatima.** `interpret`, `options` y `nextStep` van con **Claude Opus 5.5** (`claude-opus-5-5`, el valor por defecto de `CLAUDE_MODEL`). No usar Sonnet ni Haiku para estas tareas.
 
-**Valores recomendados** (cargarlos en Railway; en el código siguen por defecto Opus 5.5 con effort medium):
+**Por qué no Sonnet 5.5 low** (la recomendación anterior de este documento, retirada): al medir con claves reales, **inventó URLs**.
+
+- `https://www.bps.gub.uy/agendarse` responde 404.
+- `https://agenda.bps.gub.uy` es un dominio que no existe.
+- En los mismos casos, Opus 5.5 medium devolvió URLs que existen: `https://www.gub.uy/tramites/cedula-identidad`, `https://www.bps.gub.uy` y `https://www.ute.com.uy`.
+
+El benchmark anterior solo miraba el dominio, no si la página existía.
+
+**Valores recomendados** (cargarlos en Railway; en el código el effort por defecto sigue en `medium`):
 
 ```sh
-CLAUDE_MODEL_INTERPRET=claude-sonnet-5-5
-CLAUDE_EFFORT_INTERPRET=low
-CLAUDE_MODEL_NEXT_STEP=claude-sonnet-5-5
-CLAUDE_EFFORT_NEXT_STEP=low
-# options sin medir todavía: queda en Opus 5.5 medium (CLAUDE_MODEL / CLAUDE_EFFORT).
+CLAUDE_MODEL=claude-opus-5-5
+CLAUDE_EFFORT_INTERPRET=high
+CLAUDE_EFFORT_NEXT_STEP=high
+# options no se midió: queda en CLAUDE_EFFORT=medium.
+INTERPRET_WEB_SEARCH=off
 ```
 
-Benchmark del 17/10/2026 con `pnpm --filter @hackaton/api bench:claude` (3 repeticiones por caso, llamadas en serie desde una máquina de desarrollo, con los prompts y esquemas de producción).
+### Verificador de URLs
 
-- **Casos de `interpret`** (12 llamadas por variante):
-  - «Quiero renovar la cédula de identidad»
-  - «Necesito pagar la factura de la luz de UTE»
-  - «Quiero ver mi historia laboral en el BPS»
-  - «Quiero sacar un turno», un caso ambiguo en el que lo correcto es preguntar.
-- **Casos de `nextStep`** (6 llamadas por variante): la agenda de la cédula con su formulario y la pantalla de «Agenda confirmada».
+Además del modelo, **ninguna URL llega a la persona sin comprobar que exista**. El detalle está en [api.md](api.md#verificación-de-urls):
 
-| Tarea | Variante | p50 | p95 | USD por llamada | Correctas |
+- **Reglas:** solo https; sin IPs privadas, en cada redirección.
+- **Si falla:** reintento con Claude; después, la raíz del dominio o una pregunta.
+
+Variables: `URL_CHECK_TIMEOUT_MS` (5000), `URL_CHECK_MAX_REDIRECTS` (3) y `URL_CHECK_CACHE_TTL_MS` (600000). El servidor necesita salida a internet por HTTPS hacia los sitios que propone Claude; Railway la tiene.
+
+### Benchmark (18/10/2026)
+
+Se corrió con `pnpm --filter @hackaton/api bench:claude`, de punta a punta por `InterpretService`: la llamada a Claude, la verificación real de cada URL y los reintentos. Hubo 4 solicitudes en paralelo desde una máquina de desarrollo.
+
+- **Casos uruguayos sin datos personales:** cédula, pasaporte, jubilación en el BPS, factura de UTE, factura de OSE, Antel, contribución inmobiliaria en Montevideo y un caso ambiguo («Quiero sacar un turno»).
+- **Correcta:** la URL final existe y es del organismo esperado (`gub.uy`, `bps.gub.uy`, `ute.com.uy`, `ose.com.uy`, `antel.com.uy`, `montevideo.gub.uy`); en el caso ambiguo, una pregunta u opciones.
+- **URLs válidas antes:** las que Claude devolvió en el primer intento.
+- **URLs válidas después:** las que devolvió la API, comprobadas otra vez con un verificador aparte.
+
+| `interpret` | Solicitudes | p50 | p95 | URLs válidas antes | URLs válidas después | Reintentos | USD por solicitud | Correctas |
+|---|---|---|---|---|---|---|---|---|
+| Opus 5.5 medium (corrida 1) | 16 | 4,5 s | 22,5 s | 94 % (15/16) | 100 % (17/17) | 1 | 0,011 | 16/16 |
+| Opus 5.5 medium (corrida 2) | 24 | 4,4 s | 9,0 s | 95 % (21/22) | 100 % (22/22) | 1 | 0,0085 | 24/24 |
+| **Opus 5.5 high** (corrida 1) | 16 | 4,9 s | 9,8 s | 100 % (16/16) | 100 % (16/16) | 0 | 0,0092 | 16/16 |
+| **Opus 5.5 high** (corrida 2) | 24 | 4,7 s | 10,1 s | 96 % (22/23) | 96 % (22/23)* | 1 | 0,0098 | 24/24 |
+| Opus 5.5 medium + búsqueda web | 16 | 15,2 s | 25,2 s | 100 % (21/21) | 100 % (21/21) | 0 | 0,043 | 16/16 |
+| Opus 5.5 high + búsqueda web | 16 | 17,8 s | 27,4 s | 100 % (20/20) | 100 % (20/20) | 0 | 0,046 | 16/16 |
+
+\* La URL había pasado el verificador del servicio y falló en la comprobación de control, hecha segundos después. El dominio es `www.gub.uy`, que a veces tarda más de 3 s en la primera respuesta, así que lo más probable es un timeout puntual del sitio.
+
+| `nextStep` | Solicitudes | p50 | p95 | USD por solicitud | Correctas |
 |---|---|---|---|---|---|
-| interpret | Opus 5.5 medium (actual) | 3,8 s | 7,2 s | 0,0068 | 12/12 |
-| interpret | Opus 5.5 low | 3,3 s | 3,7 s | 0,0045 | 12/12 |
-| interpret | **Sonnet 5.5 low** | **2,3 s** | **2,9 s** | 0,0024 | 12/12 |
-| interpret | Haiku 5.5 (medium, su default) | 1,9 s | 9,3 s | 0,0002 | 12/12 |
-| nextStep | Opus 5.5 medium (actual) | 2,1 s | 4,4 s | 0,0055 | 6/6 |
-| nextStep | Opus 5.5 low | 2,1 s | 3,0 s | 0,0047 | 6/6 |
-| nextStep | **Sonnet 5.5 low** | **1,6 s** | **2,8 s** | 0,0028 | 6/6 |
+| Opus 5.5 medium | 6 | 2,2 s | 4,6 s | 0,0075 | 6/6 |
+| **Opus 5.5 high** | 6 | 2,2 s | 4,2 s | 0,0047 | 6/6 |
 
-- **Qué se considera correcto:**
-  - En `interpret`, los tres casos con organismo claro tienen que ir al dominio esperado (`gub.uy`, `ute.com.uy` o `bps.gub.uy`); todas las variantes respondieron `redirect` directo en los 9 casos. El ambiguo tiene que preguntar u ofrecer opciones.
-  - En `nextStep`, los pasos tienen que apuntar a ids del HTML, y `done` tiene que ser `false` en el formulario y `true` en la confirmación.
-- **Interpret, por qué Sonnet 5.5 low:** igual de correcto, ~40 % menos de p50 y ~60 % menos de p95 que el valor actual, a un tercio del costo. Una corrida anterior dio números parecidos (Opus medium 4,9 s / 9,5 s; Sonnet low 2,3 s / 2,7 s).
-- **Por qué no Haiku 5.5:** es el más rápido en la mediana y el más barato, pero su p95 fue el peor en las dos corridas (5,3 s y 9,3 s). Además no tiene fallback del lado del servidor: un rechazo del clasificador queda en `AI_REFUSED`.
-- **Costo:** precios de lista de la tabla de modelos (Opus 5.5: USD 4 / 20 por millón de tokens; Sonnet 5.5: 2 / 10; Haiku 5.5: 0,10 / 0,50) con la caché incluida. La lectura de caché de Haiku se estimó en 0,1 × entrada.
-- **Límites del benchmark:** pocos casos y repeticiones, y medido desde una sola red. Antes de fijar valores, mirar las métricas de `claude call` en los logs de Railway con tráfico real.
+**Recomendación:**
+
+- **`interpret`: Opus 5.5 high, sin búsqueda web.** Entre las dos corridas, high devolvió URLs que existen en el primer intento el 97 % de las veces (38/39), contra 95 % (36/38) con medium. Costó lo mismo y agregó unos 0,3 s en la mediana. Ante la duda gana la calidad. Con el verificador, ninguna de las dos variantes devolvió una URL inventada.
+- **`nextStep`: Opus 5.5 high.** Las dos variantes acertaron todo, con la misma latencia.
+- **Búsqueda web (`INTERPRET_WEB_SEARCH`): queda apagada.**
+  - Ventaja: todas las URLs fueron válidas desde el primer intento, y ofrece más `options`.
+  - Contras: triplica la latencia (p50 de 15 a 18 s) y cuesta 4 a 5 veces más (los resultados suman entrada: unos 18.000 tokens en una prueba suelta, más USD 0,01 por búsqueda).
+  - Con el verificador y un reintento, sin búsqueda se llega al mismo resultado final en ~4,5 s.
+  - Conviene activarla si en producción suben los reintentos o las respuestas convertidas en pregunta (se ven en el log `interpret urls`).
+  - Un detalle: la API rechaza `user_location.country = "UY"` («Country code UY is not supported»), así que la ubicación va sin país (ciudad, departamento y zona horaria).
+- **Costo:** precio de lista de Opus 5.5 (USD 4 / 20 por millón de tokens, lectura de caché 0,20) más USD 0,01 por búsqueda.
+- **Límites:** son pocos casos, medidos desde una sola red. Antes de fijar valores, revisar `claude call` e `interpret urls` en los logs de Railway con tráfico real.
 
 ## Whisper local (opcional)
 
