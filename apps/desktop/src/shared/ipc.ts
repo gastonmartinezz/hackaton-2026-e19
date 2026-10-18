@@ -217,6 +217,8 @@ export interface AppState {
     instruction: string | null;
     /** Cambia cada vez que la instrucción debe volver a anunciarse (Repetir). */
     announceKey: number;
+    /** Cambia con cada solicitud nueva del asistente: el modo voz lee una vez por aparición, no por texto. */
+    contentKey: number;
     stepCount: number;
     message: string | null;
     targetVisible: boolean | null;

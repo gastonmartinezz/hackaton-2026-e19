@@ -196,8 +196,8 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
 
     case 'completed':
       return guide.evidence
-        ? { tone: 'success', foot: 'none', content: <Completed evidence={guide.evidence} speech={guideSpeech(guide)} auto={state.voice.active} /> }
-        : { tone: 'ask', foot: 'none', content: <DidYouFinish speech={guideSpeech(guide)} auto={state.voice.active} /> };
+        ? { tone: 'success', foot: 'none', content: <Completed evidence={guide.evidence} speech={guideSpeech(guide)} auto={state.voice.active} contentKey={`listo:${guide.contentKey}`} /> }
+        : { tone: 'ask', foot: 'none', content: <DidYouFinish speech={guideSpeech(guide)} auto={state.voice.active} contentKey={`terminaste:${guide.contentKey}`} /> };
 
     case 'unsupported':
       return {
@@ -260,7 +260,11 @@ function Options({ state, onMore }: { state: AppState; onMore: () => void }) {
       <div>
         <div className="speak-row">
           <h2 className="title">¿Qué querés hacer acá?</h2>
-          <SpeakButton text={optionsSpeech(primary.map((o) => o.title))} auto={state.voice.active} />
+          <SpeakButton
+            text={optionsSpeech(primary.map((o) => o.title))}
+            auto={state.voice.active}
+            contentKey={`opciones:${state.guide.contentKey}`}
+          />
         </div>
         <p className="lead-s">Encontré estas opciones en esta página.</p>
       </div>
@@ -410,7 +414,7 @@ function DoneList({ done }: { done: string[] }) {
 }
 
 /** 09: «Listo» solo con evidencia de la página, citada tal cual. */
-function Completed({ evidence, speech, auto }: { evidence: string; speech: string; auto: boolean }) {
+function Completed({ evidence, speech, auto, contentKey }: { evidence: string; speech: string; auto: boolean; contentKey: string }) {
   return (
     <section className="status success" role="status">
       <div className="head">
@@ -418,7 +422,7 @@ function Completed({ evidence, speech, auto }: { evidence: string; speech: strin
         {/* TODO(textos): «completada.titulo» pide «Listo: {resultado}.»; el backend todavía no manda el resultado. */}
         <h2 className="title">Listo.</h2>
         {/* Se lee «Listo.» sin la cita de la página. */}
-        <SpeakButton text={speech} auto={auto} />
+        <SpeakButton text={speech} auto={auto} contentKey={contentKey} />
       </div>
       <p className="evidence">
         <Icon name="check" size="sm" />
@@ -437,7 +441,7 @@ function Completed({ evidence, speech, auto }: { evidence: string; speech: strin
 }
 
 /** 16 y 17: sin evidencia no hay festejo; se pregunta y, si falta algo, se sigue. */
-function DidYouFinish({ speech, auto }: { speech: string; auto: boolean }) {
+function DidYouFinish({ speech, auto, contentKey }: { speech: string; auto: boolean; contentKey: string }) {
   const [notYet, setNotYet] = useState(false);
   if (notYet) {
     const reasons = [
@@ -469,7 +473,7 @@ function DidYouFinish({ speech, auto }: { speech: string; auto: boolean }) {
       <div className="head">
         <Icon name="circle-help" size="lg" />
         <h2 className="title">¿Pudiste terminar?</h2>
-        <SpeakButton text={speech} auto={auto} />
+        <SpeakButton text={speech} auto={auto} contentKey={contentKey} />
       </div>
       <p>La página cambió, pero no sé si terminaste. Fijate si la página lo confirma.</p>
       <div className="actions">

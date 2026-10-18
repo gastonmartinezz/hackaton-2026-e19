@@ -382,6 +382,21 @@ describe('modo voz: lectura automática', () => {
     expect(deps.speak).toHaveBeenCalledTimes(2);
   });
 
+  it('«Listo.» de un recorrido nuevo (otra solicitud) se lee aunque repita el texto; redibujarlo, no', async () => {
+    const { deps } = fakeDeps();
+    render(<SpeakButton text="Listo." deps={deps} auto contentKey="listo:4" />);
+    await flush();
+    act(() => root.render(null));
+    // La tarjeta se vuelve a montar con la misma aparición (por ejemplo, al cambiar de tamaño): no se repite.
+    render(<SpeakButton text="Listo." deps={deps} auto contentKey="listo:4" />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledOnce();
+    act(() => root.render(null));
+    render(<SpeakButton text="Listo." deps={deps} auto contentKey="listo:9" />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledTimes(2);
+  });
+
   it('apagar el modo corta lo que suena', async () => {
     const { deps, mp3 } = fakeDeps();
     render(<SpeakButton text="Hola" deps={deps} auto />);

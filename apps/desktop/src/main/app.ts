@@ -271,6 +271,7 @@ export class AppController {
         option: guide.option ? toView(guide.option) : null,
         instruction: guide.phase === 'waitingForUser' ? (guide.step?.instruction ?? null) : null,
         announceKey: this.#assistant.announceKey,
+        contentKey: this.#assistant.epoch,
         stepCount: guide.stepCount,
         message: guide.message ?? null,
         targetVisible: this.#assistant.targetVisible,
