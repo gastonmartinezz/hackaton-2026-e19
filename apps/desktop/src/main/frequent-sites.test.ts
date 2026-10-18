@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { cleanTask, forgetHost, MAX_SHOWN_SITES, MAX_STORED_SITES, MAX_TASK_LENGTH, recordVisit, topSites, type FrequentSite } from './frequent-sites';
+import { cleanTask, forgetHost, labelSite, MAX_SHOWN_SITES, MAX_STORED_SITES, MAX_TASK_LENGTH, recordVisit, topSites, type FrequentSite } from './frequent-sites';
 import { PrefsStore } from './prefs';
 
 const site = (origin: string, visits: number, lastVisit = 0): FrequentSite => ({ origin, visits, lastVisit });
@@ -43,6 +43,13 @@ describe('Sitios frecuentes', () => {
     expect(sites[0]!.task).toBe('Cambiar mi turno');
     // Sin tarea nunca se agrega el campo.
     expect(recordVisit([], 'https://b.ejemplo.com.uy', 1, '  ')[0]).not.toHaveProperty('task');
+  });
+
+  it('labelSite pone la tarea sin sumar una visita', () => {
+    const sites = [site('https://agenda.ejemplo.gub.uy', 3, 5), site('https://b.ejemplo.com.uy', 1, 1)];
+    const next = labelSite(sites, 'https://agenda.ejemplo.gub.uy', 'cambiar mi turno');
+    expect(next[0]).toMatchObject({ visits: 3, lastVisit: 5, task: 'Cambiar mi turno' });
+    expect(next[1]).not.toHaveProperty('task');
   });
 
   it('la tarea queda en una línea y recortada', () => {

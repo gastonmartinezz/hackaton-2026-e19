@@ -37,7 +37,7 @@ import { announcementText, CONTINUE_ACTION, siteCheckCopy } from '../shared/site
 import { ApiSession, type ApiClient } from './api/client';
 import { Assistant } from './assistant';
 import { Chat, UNSURE_ANSWER } from './chat';
-import { forgetHost, recordVisit, topSites } from './frequent-sites';
+import { forgetHost, labelSite, recordVisit, topSites } from './frequent-sites';
 import { HelpCardView } from './help-card';
 import { log } from './log';
 import { PageBridge } from './page-bridge';
@@ -572,11 +572,20 @@ export class AppController {
   #countVisit(url: string): void {
     const target = checkEligibility(url);
     const origin = target.kind === 'eligible' ? sanitizeOrigin(target.url) : null;
-    if (!origin || origin === this.#visitedOrigin || this.#riskyHosts.has(new URL(origin).hostname)) return;
-    this.#visitedOrigin = origin;
-    // La tarea vale solo para el sitio que se abrió desde la búsqueda (no para uno al que se llegue después).
-    const task = this.#pendingTask?.origin === origin ? this.#pendingTask.task : null;
+    // La tarea vale solo para la primera página que carga después de abrir el destino: aunque esta
+    // visita no se cuente, no queda guardada para una visita posterior.
+    const task = origin && this.#pendingTask?.origin === origin ? this.#pendingTask.task : null;
     this.#pendingTask = null;
+    if (!origin || this.#riskyHosts.has(new URL(origin).hostname)) return;
+    if (origin === this.#visitedOrigin) {
+      // Ya estaba en ese sitio: no suma otra visita, pero la tarea nueva sí queda.
+      if (task) this.options.prefs.update((current) => ({ frequentSites: labelSite(current.frequentSites, origin, task) })).then(
+        () => this.#publish(),
+        () => log('prefs.error', { kind: 'kind:frequentSites' }),
+      );
+      return;
+    }
+    this.#visitedOrigin = origin;
     this.options.prefs.update((current) => ({ frequentSites: recordVisit(current.frequentSites, origin, Date.now(), task) })).then(
       () => this.#publish(),
       () => log('prefs.error', { kind: 'kind:frequentSites' }),

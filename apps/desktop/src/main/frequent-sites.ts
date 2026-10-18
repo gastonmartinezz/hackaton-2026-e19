@@ -47,6 +47,13 @@ export function recordVisit(sites: readonly FrequentSite[], origin: string, now:
   return [visited, ...rest];
 }
 
+/** Le pone la tarea a un sitio ya guardado, sin sumar una visita. */
+export function labelSite(sites: readonly FrequentSite[], origin: string, task: string): FrequentSite[] {
+  const label = cleanTask(task);
+  if (!label) return [...sites];
+  return sites.map((s) => (s.origin === origin ? { ...s, task: label } : s));
+}
+
 /** Olvida un host (por ejemplo, Protección de sitios lo marcó como riesgoso). */
 export function forgetHost(sites: readonly FrequentSite[], hostname: string): FrequentSite[] {
   return sites.filter((s) => new URL(s.origin).hostname !== hostname);
