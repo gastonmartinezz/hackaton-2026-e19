@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
+import { AppError } from '../src/lib/errors.js';
 import { defaultMockHandlers, MockModel } from '../src/modules/ai/mock-model.js';
 import type { InterpretOutput } from '../src/modules/ai/schemas.js';
 import { InterpretService } from '../src/modules/interpret/interpret.service.js';
@@ -71,6 +72,66 @@ describe('POST /v1/interpret: verificación de URLs', () => {
     });
     app = await testApp({ model, urlVerifier });
     expect((await post()).json()).toMatchObject({ type: 'redirect', url: 'https://www.bps.gub.uy/' });
+  });
+
+  it.each(['AI_UNAVAILABLE', 'TIMEOUT', 'RATE_LIMITED', 'AI_INVALID_RESPONSE'] as const)(
+    'si el reintento falla con %s, repara la primera respuesta (nunca la devuelve sin verificar)',
+    async (code) => {
+      let calls = 0;
+      const model = new MockModel({
+        ...defaultMockHandlers,
+        interpret: () => {
+          calls++;
+          if (calls === 1) return redirect('https://www.bps.gub.uy/agendarse');
+          throw new AppError(code, 'falla del reintento');
+        },
+      });
+      const urlVerifier = fakeVerifier({ sites: { 'https://www.bps.gub.uy/agendarse': { status: 404 } } });
+      const sessions = new SessionStore(60_000);
+      const { logger, entries } = recordingLogger();
+      const result = await new InterpretService(model, sessions, new UrlGuard(urlVerifier)).interpret(payload as never, 'owner', logger);
+      sessions.close();
+
+      expect(result).toMatchObject({ type: 'redirect', url: 'https://www.bps.gub.uy/' });
+      expect(calls).toBe(2);
+      // El reintento no se usó: retried queda en false.
+      expect(entries.at(-1)?.[0]).toMatchObject({ retried: false, rootFallbacks: 1 });
+    },
+  );
+
+  it('si el reintento falla de forma recuperable y la raíz tampoco existe, pasa a pregunta', async () => {
+    let calls = 0;
+    const model = new MockModel({
+      ...defaultMockHandlers,
+      interpret: () => {
+        calls++;
+        if (calls === 1) return redirect('https://agenda.bps.gub.uy/');
+        throw new AppError('TIMEOUT', 'falla del reintento');
+      },
+    });
+    const urlVerifier = fakeVerifier({ dns: { 'agenda.bps.gub.uy': [] } });
+    app = await testApp({ model, urlVerifier });
+    expect((await post()).json()).toMatchObject({ type: 'question', message: NO_VALID_SITE_QUESTION });
+  });
+
+  it.each([
+    ['INTERNAL (configuración de Anthropic)', 'INTERNAL', 500],
+    ['AI_REFUSED', 'AI_REFUSED', 422],
+  ] as const)('si el reintento falla con %s, el error se propaga', async (_, code, status) => {
+    let calls = 0;
+    const model = new MockModel({
+      ...defaultMockHandlers,
+      interpret: () => {
+        calls++;
+        if (calls === 1) return redirect('https://www.bps.gub.uy/agendarse');
+        throw new AppError(code, 'falla del reintento');
+      },
+    });
+    const urlVerifier = fakeVerifier({ sites: { 'https://www.bps.gub.uy/agendarse': { status: 404 } } });
+    app = await testApp({ model, urlVerifier });
+    const res = await post();
+    expect(res.statusCode).toBe(status);
+    expect(res.json().error.code).toBe(code);
   });
 
   it('si tampoco existe la raíz (dominio inventado), lo convierte en una pregunta sin URL', async () => {

@@ -1,4 +1,4 @@
-import { InterpretResponse, type InterpretRequest } from '@hackaton/contracts';
+import { InterpretResponse, type ErrorCode, type InterpretRequest } from '@hackaton/contracts';
 import type { FastifyBaseLogger } from 'fastify';
 import { AppError } from '../../lib/errors.js';
 import type { StructuredModel, WebSearchOptions } from '../ai/model.js';
@@ -13,7 +13,10 @@ export interface InterpretServiceOptions {
   webSearchMaxUses: number;
 }
 
-const silentLog = { info: () => undefined, warn: () => undefined } as unknown as FastifyBaseLogger;
+/** Errores del reintento que permiten seguir con la primera respuesta (reparada). El resto se propaga. */
+const RECOVERABLE_RETRY_ERRORS: ReadonlySet<ErrorCode> = new Set(['AI_UNAVAILABLE', 'TIMEOUT', 'RATE_LIMITED', 'AI_INVALID_RESPONSE']);
+
+const silentLog ={ info: () => undefined, warn: () => undefined } as unknown as FastifyBaseLogger;
 
 export class InterpretService {
   constructor(
@@ -48,19 +51,24 @@ export class InterpretService {
     let retried = false;
     const failed = this.guard.failed(checks);
     if (failed.length > 0) {
-      // Un reintento diciéndole a Claude qué URL falló y por qué. Si el reintento falla, se repara lo que había.
-      retried = true;
+      // Un reintento diciéndole a Claude qué URL falló y por qué.
+      let second: InterpretOutput | undefined;
       try {
-        const second = await ask(failed);
+        second = await ask(failed);
+      } catch (error) {
+        // Solo los fallos pasajeros caen en el respaldo; un error de configuración o un rechazo se propagan.
+        if (!(error instanceof AppError) || !RECOVERABLE_RETRY_ERRORS.has(error.code)) throw error;
+        log.warn({ task: 'interpret', code: error.code }, 'interpret url retry failed');
+      }
+      if (second) {
         const secondChecks = await this.guard.checkAll(second);
         countChecks(secondChecks, stats);
         output = second;
         checks = secondChecks;
-      } catch (error) {
-        if (!(error instanceof AppError)) throw error;
-        log.warn({ task: 'interpret', code: error.code }, 'interpret url retry failed');
+        retried = true;
       }
     }
+    // Siempre, se haya usado o no el reintento: lo que siga inválido pasa a la raíz del dominio o se saca.
     output = await this.guard.repair(output, checks, stats);
 
     log.info(
