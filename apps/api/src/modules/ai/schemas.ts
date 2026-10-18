@@ -33,3 +33,20 @@ export const NextStepOutput = z.object({
   done: z.boolean(),
 });
 export type NextStepOutput = z.infer<typeof NextStepOutput>;
+
+/**
+ * Salida de la IA en /v1/site-check. Solo IDENTIFICA: qué organización dice ser la página y qué pide.
+ * Nunca aprueba: la organización se busca después en las fuentes de autoridad.
+ */
+export const SiteCheckOutput = z.object({
+  /** Explicación complementaria para la persona. No controla etiquetas ni acciones. */
+  explanation: z.string(),
+  /** Organización que la página dice ser (marca, organismo o empresa), o null. */
+  declaredOrganization: z.string().nullable(),
+  organizationKind: z.enum(['government', 'financial_entity', 'company', 'other', 'none']),
+  /** País de la organización declarada (ISO 3166-1 alfa-2), o null. */
+  country: z.string().nullable(),
+  /** Qué pide la página: contraseñas o claves, pagos o datos de tarjeta, códigos de verificación. */
+  requests: z.object({ credentials: z.boolean(), payment: z.boolean(), verificationCodes: z.boolean() }),
+});
+export type SiteCheckOutput = z.infer<typeof SiteCheckOutput>;

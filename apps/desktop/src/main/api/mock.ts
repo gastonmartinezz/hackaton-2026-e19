@@ -16,9 +16,12 @@ import type {
   OptionsRequest,
   OptionsResponse,
   PageOption,
+  SiteCheckRequest,
+  SiteCheckResponse,
   SiteOption,
 } from '@hackaton/contracts';
 import { ApiFailure, type ApiClient } from './client';
+import { mockSiteCheck, mockSiteCheckDelay } from './mock-site-check';
 
 export interface MockOptions {
   /** Origen del servidor local de páginas de prueba, si está activo. */
@@ -65,6 +68,12 @@ export class MockApiClient implements ApiClient {
     return response;
   }
 
+  /** Protección de sitios: estados según el hostname de las páginas de demostración. */
+  async siteCheck(request: SiteCheckRequest, signal: AbortSignal): Promise<SiteCheckResponse> {
+    await this.#wait(signal, mockSiteCheckDelay(request.hostname));
+    return mockSiteCheck(request);
+  }
+
   /** Devuelve la sesión indicada (o una nueva si no se indicó ninguna). */
   #session(id: string | undefined): string {
     if (id) {
@@ -84,15 +93,16 @@ export class MockApiClient implements ApiClient {
         { title: 'Biblioteca de prueba — Horarios', url: `${fixtures}/horarios.html`, reason: 'Tiene una sección de horarios y contacto.' },
         { title: 'Catálogo de prueba — Buscador', url: `${fixtures}/buscar.html`, reason: 'Permite buscar dentro del sitio.' },
         { title: 'Turnos de prueba — Formulario', url: `${fixtures}/formulario.html`, reason: 'Tiene un formulario para pedir turno.' },
+        { title: 'Protección de sitios — Demostración', url: `${fixtures}/proteccion.html`, reason: 'Páginas para ver cada estado de la revisión.' },
       );
     }
     sites.push({ title: 'Wikipedia en español', url: 'https://es.wikipedia.org/', reason: 'Sitio real para probar navegación.' });
     return sites;
   }
 
-  async #wait(signal: AbortSignal): Promise<void> {
+  async #wait(signal: AbortSignal, extraMs = 0): Promise<void> {
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(resolve, this.config.latencyMs ?? 350);
+      const timer = setTimeout(resolve, (this.config.latencyMs ?? 350) + extraMs);
       signal.addEventListener(
         'abort',
         () => {

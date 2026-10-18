@@ -12,10 +12,14 @@ export const SITE_PARTITION = 'persist:sitios';
 
 export interface SiteViewEvents {
   /** Empezó una navegación de documento nuevo en el frame principal. */
-  navigationStarted: [];
+  navigationStarted: [{ url: string }];
+  /** Una redirección del servidor cambió el destino de la navegación en curso. */
+  navigationRedirected: [{ url: string }];
   /** El documento nuevo está listo (o hubo navegación dentro de la misma página). */
   navigated: [{ url: string; sameDocument: boolean }];
   stateChanged: [];
+  /** El documento principal no cargó. */
+  loadFailed: [];
   popup: [{ url: string }];
   externalProtocol: [{ scheme: string }];
   blocked: [];
@@ -87,6 +91,22 @@ export class SiteView extends EventEmitter<SiteViewEvents> {
     this.contents.reload();
   }
 
+  /** Índice de la entrada anterior más reciente que cumple la condición, o -1. */
+  findBack(accept: (url: string) => boolean): number {
+    const history = this.contents.navigationHistory;
+    const active = history.getActiveIndex();
+    const entries = history.getAllEntries();
+    for (let i = active - 1; i >= 0; i--) {
+      const url = entries[i]?.url;
+      if (url && url !== 'about:blank' && accept(url)) return i;
+    }
+    return -1;
+  }
+
+  goToIndex(index: number): void {
+    this.contents.navigationHistory.goToIndex(index);
+  }
+
   clear(): void {
     this.error = null;
     void this.contents.loadURL('about:blank');
@@ -131,10 +151,14 @@ export class SiteView extends EventEmitter<SiteViewEvents> {
     wc.on('will-redirect', guard);
     wc.on('will-attach-webview', (event) => event.preventDefault());
 
-    wc.on('did-start-navigation', ({ isMainFrame, isSameDocument }) => {
+    wc.on('did-start-navigation', ({ isMainFrame, isSameDocument, url }) => {
       if (!isMainFrame || isSameDocument) return;
       this.navigating = true;
-      this.emit('navigationStarted');
+      this.emit('navigationStarted', { url });
+    });
+    wc.on('did-redirect-navigation', ({ isMainFrame, isSameDocument, url }) => {
+      if (!isMainFrame || isSameDocument) return;
+      this.emit('navigationRedirected', { url });
     });
     wc.on('did-start-loading', () => {
       this.loading = true;
@@ -162,6 +186,7 @@ export class SiteView extends EventEmitter<SiteViewEvents> {
         ? 'El sitio tiene un problema de seguridad en su certificado y no se abrió.'
         : 'No se pudo abrir la página. Revisá la conexión o probá de nuevo.';
       log('site.load_failed', { code });
+      this.emit('loadFailed');
       this.emit('stateChanged');
     });
     wc.on('render-process-gone', (_event, details) => {

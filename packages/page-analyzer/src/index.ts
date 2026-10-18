@@ -7,6 +7,7 @@ import { sanitizeLabel, sanitizeOrigin, sanitizeTitle } from '@asistente/privacy
 import { SNAPSHOT_LIMITS as LIMITS, type PageElement, type PageSnapshot } from './snapshot';
 
 export * from './snapshot';
+export * from './summary';
 
 export interface ExtractOptions {
   pageId: string;
@@ -248,7 +249,7 @@ export function extractSnapshot(doc: Document, options: ExtractOptions): Extract
 }
 
 /** Recorre el documento en orden, entrando en shadow roots abiertos. */
-function* walk(doc: Document): Generator<Element> {
+export function* walk(doc: Document): Generator<Element> {
   const stack: Element[] = doc.documentElement ? [doc.documentElement] : [];
   const pushChildren = (node: ParentNode) => {
     const children = Array.from(node.children);
@@ -270,7 +271,7 @@ function* walk(doc: Document): Generator<Element> {
   }
 }
 
-function isVisible(element: Element): boolean {
+export function isVisible(element: Element): boolean {
   if ((element as HTMLElement).hidden) return false;
   const check = (element as Element & { checkVisibility?: (o?: object) => boolean }).checkVisibility;
   if (typeof check === 'function') {
@@ -287,7 +288,7 @@ function isLarge(element: Element): boolean {
 }
 
 /** Un custom element grande, sin hijos ni shadow root abierto, suele tener shadow DOM cerrado. */
-function looksLikeClosedShadow(element: Element): boolean {
+export function looksLikeClosedShadow(element: Element): boolean {
   const rect = element.getBoundingClientRect();
   return rect.width >= 80 && rect.height >= 24;
 }
@@ -444,7 +445,7 @@ function accessibleName(element: Element, role: string): string {
 }
 
 /** Texto visible del nodo sin entrar en controles de formulario (evita valores). */
-function visibleText(root: Element): string {
+export function visibleText(root: Element): string {
   const parts: string[] = [];
   const visit = (node: Node) => {
     if (node.nodeType === 3) {

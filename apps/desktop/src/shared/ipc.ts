@@ -4,8 +4,9 @@
  * proceso principal. Todo mensaje entrante se valida acá con Zod.
  */
 import { PageSnapshotSchema } from '@asistente/page-analyzer';
-import { AgeRange, CountryCode } from '@hackaton/contracts';
+import { AgeRange, ContentVersion, CountryCode, PageSummary } from '@hackaton/contracts';
 import { z } from 'zod';
+import type { SiteCheckAction, SiteCheckPanelCopy, SiteCheckTone, SiteIndicatorKind } from './site-check-copy';
 
 const Id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
@@ -50,6 +51,13 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('setAiForSite'), enabled: z.boolean() }),
   z.strictObject({ type: z.literal('resolveNotice'), noticeId: Id, action: z.enum(['openHere', 'openExternal', 'dismiss']) }),
   z.strictObject({ type: z.literal('openCurrentExternally') }),
+  // Protección de sitios.
+  z.strictObject({ type: z.literal('siteCheckPanel'), open: z.boolean() }),
+  z.strictObject({ type: z.literal('siteCheckRetry') }),
+  z.strictObject({ type: z.literal('siteCheckLeave') }),
+  z.strictObject({ type: z.literal('siteCheckContinue') }),
+  /** Alto de la franja de protección debajo de la barra (panel o indicador): la vista del sitio baja para no taparla. */
+  z.strictObject({ type: z.literal('siteCheckOverlay'), height: z.number().int().min(0).max(2000) }),
   /** «¿No está lo que buscás?» (pantalla 11): se vuelve a mirar la página con ese pedido. */
   z.strictObject({ type: z.literal('askOnPage'), text: z.string().trim().min(1).max(500) }),
   /** Solo desde la tarjeta flotante: qué muestra y cuánto mide. */
@@ -128,7 +136,10 @@ export interface AppState {
     visible: boolean;
     url: string;
     domain: string;
+    /** HTTPS o página local: no amerita el aviso de conexión. */
     secure: boolean;
+    /** Solo HTTPS. El candado significa conexión cifrada, nunca aprobación del sitio. */
+    encrypted: boolean;
     loading: boolean;
     canGoBack: boolean;
     canGoForward: boolean;
@@ -174,6 +185,23 @@ export interface AppState {
     partialPage: boolean;
   };
   notices: Notice[];
+  siteCheck: SiteCheckView;
+}
+
+/** Protección de sitios: estado del indicador, panel y advertencia (textos ya resueltos). */
+export interface SiteCheckView {
+  indicator: SiteIndicatorKind;
+  /** Texto visible junto al ícono; null si no hay sitio. */
+  label: string | null;
+  tone: SiteCheckTone;
+  panel: SiteCheckPanelCopy | null;
+  panelOpen: boolean;
+  /** Advertencia de riesgo alto: ocupa el área del sitio (la vista del sitio se oculta). */
+  warning: (SiteCheckPanelCopy & { continueAction: SiteCheckAction }) | null;
+  /** Cambia solo ante cambios relevantes (no en cada actualización). */
+  announcement: { id: number; text: string } | null;
+  /** La guía pausó las indicaciones que piden datos o confirmar operaciones. */
+  guidePaused: boolean;
 }
 
 /** API expuesta a la interfaz propia por el preload. Métodos específicos, sin ipcRenderer. */
@@ -193,6 +221,9 @@ export const PAGE_CHANNELS = {
   changed: 'page:changed',
   interaction: 'page:interaction',
   validation: 'page:validation',
+  summarize: 'page:summarize',
+  summary: 'page:summary',
+  signature: 'page:signature',
 } as const;
 
 export const ExtractRequestSchema = z.strictObject({
@@ -242,3 +273,19 @@ export const ChangedMessageSchema = z.strictObject({ structural: z.boolean(), ta
 export const InteractionMessageSchema = z.strictObject({ elementId: Id });
 
 export const ValidationMessageSchema = z.strictObject({});
+
+/* ------------------------- Protección de sitios ------------------------- */
+
+export const SummarizeRequestSchema = z.strictObject({ requestId: Id, navigationId: Id, contentVersion: ContentVersion });
+export type SummarizeRequest = z.infer<typeof SummarizeRequestSchema>;
+
+export const SummaryMessageSchema = z.strictObject({
+  requestId: Id,
+  navigationId: Id,
+  contentVersion: ContentVersion,
+  summary: PageSummary,
+  notes: z.array(z.enum(EXTRACT_NOTES)).max(EXTRACT_NOTES.length),
+});
+
+/** Huella de formularios e identidad (hash): avisa que conviene reanalizar. Sin contenido. */
+export const SignatureMessageSchema = z.strictObject({ signature: z.string().min(1).max(32).regex(/^[a-z0-9]+$/) });

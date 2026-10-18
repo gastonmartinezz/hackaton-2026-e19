@@ -6,11 +6,12 @@ import { Button, Icon, Logo } from '@asistente/ui';
 import { useState, type FormEvent } from 'react';
 import { splitDomain } from '../../shared/domain';
 import { TEXT_SCALES, type AppState } from '../../shared/ipc';
+import { SiteCheckIndicator, SiteCheckProbe } from './SiteCheck';
 import { send } from './useAppState';
 
 const SCALE_NAMES: Record<number, string> = { 1.2: 'normal', 1.45: 'grande', 1.75: 'muy grande' };
 
-export function TopBar({ state }: { state: AppState }) {
+export function TopBar({ state, indicatorInline = true }: { state: AppState; indicatorInline?: boolean }) {
   const { nav, prefs, guide } = state;
   const site = nav.visible;
   const helpOn = site && prefs.aiEnabledForSite && guide.phase !== 'idle';
@@ -36,7 +37,7 @@ export function TopBar({ state }: { state: AppState }) {
           <Icon name="rotate-cw" />
         </Button>
       </nav>
-      <Omni state={state} />
+      <Omni state={state} indicatorInline={indicatorInline} />
       {site ? (
         <Button variant="help" icon="sparkles" aria-pressed={helpOn} onClick={() => send({ type: helpOn ? 'exitHelp' : 'analyzePage' })}>
           Ayuda
@@ -56,7 +57,7 @@ export function TopBar({ state }: { state: AppState }) {
  * Con un sitio abierto muestra «Estás en» y el dominio; al tocarlo se puede
  * escribir otra búsqueda. Una dirección abre el sitio; otro texto vuelve al inicio.
  */
-function Omni({ state }: { state: AppState }) {
+function Omni({ state, indicatorInline }: { state: AppState; indicatorInline: boolean }) {
   const { nav } = state;
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
@@ -74,13 +75,29 @@ function Omni({ state }: { state: AppState }) {
     return (
       <div className="omni" role="group" aria-label="Sitio abierto">
         <button type="button" className="where" onClick={() => setEditing(true)} aria-label={`Estás en ${nav.domain}. Buscar otra cosa`}>
-          {nav.secure ? <Icon name="lock" size="sm" /> : <span className="insecure">Conexión no segura</span>}
+          {/* El candado (muted) solo indica conexión cifrada; nunca aprueba el sitio. */}
+          {nav.encrypted ? (
+            <Icon name="lock" size="sm" />
+          ) : !nav.secure ? (
+            <span className="insecure">
+              <span className="insecure-icon">
+                <Icon name="triangle-alert" size="sm" />
+              </span>
+              <span className="insecure-text">Conexión no segura</span>
+            </span>
+          ) : null}
           <span className="k-estas">Estás en</span>
           <span className="dom">
             {sub ? <span className="sub">{sub}</span> : null}
             <b>{main}</b>
           </span>
         </button>
+        {/*
+          Protección de sitios: junto al dominio, en la interfaz del navegador (la página no puede taparlo).
+          Si no entra sin cortar el dominio, va en la franja de abajo (SiteCheckUnderBar).
+        */}
+        {indicatorInline ? <SiteCheckIndicator view={state.siteCheck} /> : null}
+        <SiteCheckProbe view={state.siteCheck} />
       </div>
     );
   }

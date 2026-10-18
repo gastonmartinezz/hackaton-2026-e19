@@ -1,0 +1,308 @@
+{
+  "title": "SiteCheckResponse",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "navigationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "contentVersion": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "analysisId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "complete",
+        "partial",
+        "unavailable"
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "verified_official",
+            "unknown"
+          ]
+        },
+        "basis": {
+          "type": "string",
+          "enum": [
+            "government_domain",
+            "financial_regulator",
+            "official_catalog"
+          ]
+        },
+        "organization": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://"
+            },
+            "reviewedAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            }
+          },
+          "required": [
+            "name",
+            "reviewedAt"
+          ],
+          "additionalProperties": false
+        },
+        "impersonatedOrganization": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "verified_official"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "basis",
+              "source"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "basis"
+                  ]
+                },
+                {
+                  "required": [
+                    "source"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "risk": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "no_signals",
+        "unknown"
+      ]
+    },
+    "reasons": {
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "KNOWN_PHISHING",
+              "KNOWN_MALWARE",
+              "LOOKALIKE_DOMAIN",
+              "CONFUSABLE_CHARACTERS",
+              "MISLEADING_SUBDOMAIN",
+              "BRAND_IMPERSONATION",
+              "SENSITIVE_DATA_REQUEST",
+              "FORM_SENDS_TO_OTHER_DOMAIN",
+              "LINK_TEXT_MISMATCH",
+              "URGENCY_OR_THREAT",
+              "RECENTLY_REGISTERED",
+              "NO_HTTPS",
+              "CERTIFICATE_PROBLEM",
+              "CROSS_DOMAIN_REDIRECT",
+              "INSECURE_FORM_ACTION"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "fraud",
+              "technical"
+            ]
+          },
+          "evidence": {
+            "minItems": 1,
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "checkedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "observedBy": {
+                  "type": "string",
+                  "enum": [
+                    "user_browser",
+                    "external_scanner",
+                    "service"
+                  ]
+                },
+                "detail": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "source",
+                "checkedAt",
+                "observedBy",
+                "detail"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "code",
+          "category",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "reputation": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable",
+            "not_applicable",
+            "pending"
+          ]
+        },
+        "identity": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable",
+            "not_applicable",
+            "pending"
+          ]
+        },
+        "content": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable",
+            "not_applicable",
+            "pending"
+          ]
+        },
+        "registration": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable",
+            "not_applicable",
+            "pending"
+          ]
+        },
+        "connection": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable",
+            "not_applicable",
+            "pending"
+          ]
+        }
+      },
+      "required": [
+        "reputation",
+        "identity",
+        "content",
+        "registration",
+        "connection"
+      ],
+      "additionalProperties": false
+    },
+    "explanation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    },
+    "checkedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    }
+  },
+  "required": [
+    "navigationId",
+    "contentVersion",
+    "analysisId",
+    "status",
+    "identity",
+    "risk",
+    "reasons",
+    "coverage",
+    "checkedAt",
+    "expiresAt"
+  ],
+  "additionalProperties": false
+}

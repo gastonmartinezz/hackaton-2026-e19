@@ -21,7 +21,8 @@
         },
         "url": {
           "type": "string",
-          "format": "uri"
+          "format": "uri",
+          "pattern": "^https?://"
         }
       },
       "required": [
@@ -88,7 +89,8 @@
               },
               "url": {
                 "type": "string",
-                "format": "uri"
+                "format": "uri",
+                "pattern": "^https?://"
               },
               "reason": {
                 "type": "string",

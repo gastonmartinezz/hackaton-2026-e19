@@ -68,4 +68,33 @@ describe('HttpApiClient', () => {
     await expect(client.options({ html: 'a'.repeat(600_000) }, signal())).rejects.toMatchObject({ code: 'PAYLOAD_TOO_LARGE' });
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it('/v1/site-check: valida la respuesta, usa Bearer y no reintenta', async () => {
+    const request = { navigationId: 'nav-1', contentVersion: 0, url: 'https://banco.com/', hostname: 'banco.com', registrableDomain: 'banco.com' };
+    const response = {
+      navigationId: 'nav-1',
+      contentVersion: 0,
+      analysisId: 'a-1',
+      status: 'pending',
+      identity: { status: 'unknown' },
+      risk: 'unknown',
+      reasons: [],
+      coverage: { reputation: 'complete', identity: 'complete', content: 'pending', registration: 'unavailable', connection: 'unavailable' },
+      checkedAt: '2026-10-17T22:00:00Z',
+      expiresAt: '2026-10-17T22:15:00Z',
+    };
+    const fetch = vi.fn(async () => json(200, response));
+    const client = new HttpApiClient({ baseUrl: base, token: 'tok', fetch });
+    await expect(client.siteCheck(request, signal())).resolves.toEqual(response);
+    const [url, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
+    expect(url.toString()).toBe('https://api.ejemplo.test/v1/site-check');
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer tok');
+
+    const unavailable = vi.fn(async () => json(503, { error: { code: 'AI_UNAVAILABLE', message: 'x', requestId: 'r', retryable: true } }));
+    await expect(new HttpApiClient({ baseUrl: base, token: 't', fetch: unavailable }).siteCheck(request, signal())).rejects.toMatchObject({ code: 'AI_UNAVAILABLE' });
+    expect(unavailable).toHaveBeenCalledTimes(1);
+
+    const bad = vi.fn(async () => json(200, { ...response, identity: { status: 'trusted' } }));
+    await expect(new HttpApiClient({ baseUrl: base, token: 't', fetch: bad }).siteCheck(request, signal())).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  });
 });

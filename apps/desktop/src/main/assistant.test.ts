@@ -53,6 +53,7 @@ function recording(api: ApiClient, overrides: Partial<ApiClient> = {}) {
     interpret: (r, s) => api.interpret(r, s),
     options: (r, s) => (sent.push(r), (overrides.options ?? api.options.bind(api))(r, s)),
     nextStep: (r, s) => (sent.push(r), (overrides.nextStep ?? api.nextStep.bind(api))(r, s)),
+    siteCheck: (r, s) => api.siteCheck(r, s),
   };
   return { api: wrapped, sent };
 }
@@ -329,5 +330,69 @@ describe('Assistant', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(assistant.state.phase).toBe('idle');
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('con riesgo alto pausa las indicaciones que piden datos y las retoma al levantarse', async () => {
+    load('formulario.html');
+    const { assistant, until, page, shownStep } = setup();
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    const form = assistant.state.options.find((o) => o.id.startsWith('form-'))!;
+
+    assistant.setRiskHold(true);
+    assistant.select(form.id);
+    await until(() => assistant.paused);
+    expect(assistant.state.phase).toBe('waitingForUser');
+    expect(page.shown).toHaveLength(0);
+    // Mientras está pausada no avanza ni por interacción ni por «Ya lo hice».
+    assistant.confirmDone();
+    expect(assistant.state.stepCount).toBe(1);
+
+    assistant.setRiskHold(false);
+    await until(() => shownStep());
+    expect(assistant.paused).toBe(false);
+    expect(page.shown).toHaveLength(1);
+  });
+
+  it('la pausa por riesgo gana sobre un señalamiento que todavía estaba en curso', async () => {
+    load('formulario.html');
+    const { assistant, until, page } = setup();
+    // El primer señalamiento queda esperando hasta que lo liberemos.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const show = page.show.bind(page);
+    page.show = async (navigationId: string, selector: string) => {
+      await gate;
+      return show(navigationId, selector);
+    };
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    const form = assistant.state.options.find((o) => o.id.startsWith('form-'))!;
+    assistant.select(form.id);
+    await until(() => assistant.state.phase === 'waitingForUser');
+
+    assistant.setRiskHold(true);
+    expect(assistant.paused).toBe(true);
+    release();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(assistant.paused).toBe(true);
+    expect(assistant.targetVisible).toBeNull();
+    expect(assistant.target).toBeNull();
+    expect(assistant.state.step?.targetElementId).toBeUndefined();
+  });
+
+  it('con riesgo alto sigue guiando la navegación', async () => {
+    load('horarios.html');
+    const { assistant, until, shownStep } = setup();
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    const link = assistant.state.options.find((o) => o.id.startsWith('go-'))!;
+    assistant.setRiskHold(true);
+    assistant.select(link.id);
+    await until(() => shownStep());
+    expect(assistant.paused).toBe(false);
   });
 });
