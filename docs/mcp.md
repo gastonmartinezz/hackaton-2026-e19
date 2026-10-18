@@ -17,16 +17,16 @@ Interfaz privada de herramientas para el componente de IA (y para depurar a mano
 
 ## Tools
 
-Todas son de solo lectura. Ninguna ejecuta código ni hace peticiones HTTP arbitrarias: solo consultan las fuentes de autoridad (zonas de gobierno, padrón del BCRA ya descargado, catálogos curados), el proveedor de reputación configurado, RDAP (servidores del bootstrap de IANA) o el inspector de conexión con protección contra SSRF. Los argumentos se validan con los esquemas Zod del contrato y las URLs se depuran (sin query, fragmento ni secretos) antes de usarse. Las direcciones locales, privadas o internas devuelven `coverage: "not_applicable"`, `errors: ["internal_host"]` e `isError: true`, sin consultar afuera.
+Todas son de solo lectura. Ninguna ejecuta código ni hace peticiones HTTP arbitrarias: solo consultan las fuentes de autoridad (zonas de gobierno, registro de instituciones del BCU ya descargado, catálogo de Uruguay), el proveedor de reputación configurado, RDAP (servidores del bootstrap de IANA) o el inspector de conexión con protección contra SSRF. Los argumentos se validan con los esquemas Zod del contrato y las URLs se depuran (sin query, fragmento ni secretos) antes de usarse. Las direcciones locales, privadas o internas devuelven `coverage: "not_applicable"`, `errors: ["internal_host"]` e `isError: true`, sin consultar afuera.
 
 | Tool | Argumentos | Qué hace |
 |---|---|---|
 | `check_url_reputation` | `url` | Consulta reportes **existentes** de phishing y malware. Nunca envía la URL a escanear ni la publica |
-| `lookup_official_identity` | `hostname` | Identidad oficial según las fuentes de autoridad: `basis` (`government_domain`, `financial_regulator`, `official_catalog`), organización, zona o dominio que autoriza, fuente (nombre, URL y fecha de revisión o de descarga del padrón) y estado del padrón; además, señales de dominio parecido, caracteres confusos y subdominio engañoso |
+| `lookup_official_identity` | `hostname` | Identidad oficial según las fuentes de autoridad: `basis` (`government_domain`, `financial_regulator`, `official_catalog`), organización, zona o dominio que autoriza, fuente (nombre, URL y fecha de revisión o de descarga del registro del BCU) y estado del registro; además, señales de dominio parecido, caracteres confusos y subdominio engañoso |
 | `get_domain_registration` | `domain` | Fecha de alta y registrador por RDAP del dominio registrable |
 | `inspect_connection` | `url` | HTTPS, certificado y redirecciones (máx. 5) con fetch controlado: solo puertos 80/443, DNS validado en cada salto, sin cookies ni credenciales, sin descargar el cuerpo |
 | `analyze_page_structure` | `url`, `page` (`PageSummary` del contrato) | Reglas sobre formularios (sin valores), enlaces, scripts e iframes |
-| `compare_brand_identity` | `hostname`, `declaredBrand` | Contrasta la organización declarada con las fuentes de autoridad (organismos del Estado, entidades del padrón del BCRA, catálogos curados). Solo detecta suplantación: la marca nunca prueba identidad |
+| `compare_brand_identity` | `hostname`, `declaredBrand` | Contrasta la organización declarada con las fuentes de autoridad (organismos del Estado uruguayo, instituciones del BCU, catálogo de Uruguay). Solo detecta suplantación: la marca nunca prueba identidad |
 
 ### Formato de respuesta
 
@@ -35,29 +35,29 @@ Todas son de solo lectura. Ninguna ejecuta código ni hace peticiones HTTP arbit
 ```json
 {
   "tool": "lookup_official_identity",
-  "source": "Padrón de entidades financieras del BCRA",
-  "checkedAt": "2026-10-18T01:20:00.000Z",
+  "source": "Registro de instituciones del BCU",
+  "checkedAt": "2026-10-18T04:56:00.000Z",
   "coverage": "complete",
-  "expiresAt": "2026-10-18T01:30:00.000Z",
-  "limitations": ["«Oficial» solo sale de una autoridad: …", "Padrón de entidades financieras del BCRA: 70 entidades con sitio web (3 sin sitio utilizable), descargado 2026-10-18T01:15:59.769Z"],
+  "expiresAt": "2026-10-18T05:06:00.000Z",
+  "limitations": ["«Oficial» solo sale de una autoridad: …", "Registro de instituciones del BCU: 161 instituciones con sitio web (16 sin sitio utilizable o no activas), descargado 2026-10-18T04:54:36.606Z"],
   "errors": [],
   "data": {
-    "hostname": "www.bna.com.ar",
-    "registrableDomain": "bna.com.ar",
+    "hostname": "www.bancorepublica.com.uy",
+    "registrableDomain": "bancorepublica.com.uy",
     "official": {
       "basis": "financial_regulator",
-      "organization": "BANCO DE LA NACION ARGENTINA",
-      "matched": "bna.com.ar",
-      "source": { "name": "Padrón de entidades financieras del BCRA", "url": "https://www.bcra.gob.ar/api/endpoints/entidades-financieras.php?action=detail&category=00011", "reviewedAt": "2026-10-18T01:15:59.769Z" },
-      "detail": "bna.com.ar es el sitio que el BCRA publica para BANCO DE LA NACION ARGENTINA"
+      "organization": "Banco República (BROU)",
+      "matched": "bancorepublica.com.uy",
+      "source": { "name": "Registro de instituciones del BCU", "url": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1001", "reviewedAt": "2026-10-18T04:54:36.606Z" },
+      "detail": "bancorepublica.com.uy es el sitio que el BCU publica para BANCO DE LA REPUBLICA ORIENTAL DEL URUGUAY"
     },
-    "sources": { "versions": ["government-zones 2026-10-17.1"], "registry": "…", "registryStatus": "fresh" }
+    "sources": { "versions": ["…"], "registry": "…", "registryStatus": "fresh" }
   },
   "findings": []
 }
 ```
 
-Para `bna-seguro.com`, `official` es `null` y `findings` trae `LOOKALIKE_DOMAIN` con `impersonatedOrganization: "BANCO DE LA NACION ARGENTINA"`. Con el padrón caído, un host fuera de zonas y catálogos devuelve `coverage: "unavailable"` y `errors: ["registry_unavailable"]`, sin aprobación.
+Para `brou-seguro.com`, `official` es `null` y `findings` trae `LOOKALIKE_DOMAIN` con `impersonatedOrganization: "Banco República (BROU)"`. Con el registro del BCU caído, un host fuera de zonas y del catálogo devuelve `coverage: "unavailable"` y el motivo en `errors`, sin aprobación.
 
 - `coverage`: `complete`, `partial`, `unavailable` o `not_applicable`. Una fuente caída **no** es error de la tool: vuelve `coverage: "unavailable"` y el motivo en `errors` (`timeout`, `rate_limited`, `http_503`, `not_configured`, `no_rdap_service`, `blocked_destination`, `registry_unavailable`, `registry_stale`…).
 - `expiresAt`: vigencia del dato según la fuente (`null` si no se guarda en caché).
@@ -79,7 +79,7 @@ curl -s localhost:3100/mcp -H "Authorization: Bearer $MCP" -H 'content-type: app
 
 curl -s localhost:3100/mcp -H "Authorization: Bearer $MCP" -H 'content-type: application/json' \
   -H 'accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"lookup_official_identity","arguments":{"hostname":"argentina.gob.ar.evil.com"}}}'
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"lookup_official_identity","arguments":{"hostname":"bps.gub.uy.evil.com"}}}'
 ```
 
 Con un cliente MCP (por ejemplo MCP Inspector), usar el transporte «Streamable HTTP», URL `http://127.0.0.1:3100/mcp` y el header `Authorization`.

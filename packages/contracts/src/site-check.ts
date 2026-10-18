@@ -183,11 +183,11 @@ export const SiteIdentity = z.strictObject({
    *   de revisión verificables por entrada.
    */
   basis: z.enum(['government_domain', 'financial_regulator', 'official_catalog']).optional(),
-  /** Organización según la fuente (p. ej. «Estado argentino» o el nombre del padrón). Solo con `verified_official`. */
+  /** Organización según la fuente (p. ej. «Estado uruguayo» o el nombre de la institución en el registro del BCU). Solo con `verified_official`. */
   organization: ShortText(120).optional(),
   /**
    * De dónde sale la oficialidad y cuándo se revisó esa fuente (fecha de la norma o de la entrada
-   * del catálogo, o de descarga del padrón). Obligatoria con `verified_official`.
+   * del catálogo, o de descarga del registro del BCU). Obligatoria con `verified_official`.
    */
   source: z
     .strictObject({
