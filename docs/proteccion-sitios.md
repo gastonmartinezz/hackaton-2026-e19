@@ -1,13 +1,13 @@
 # Protección de sitios: qué se valida hoy
 
-Estado al 18/10/2026 (después del merge del #15). Describe lo que hace el código en `main`, incluido lo que **no** está activo. El contrato del endpoint está en [`api.md`](api.md) y el servidor MCP en [`mcp.md`](mcp.md).
+Estado al 18/10/2026. Describe lo que hace el código en `main`, incluido lo que **no** está activo. El contrato del endpoint está en [`api.md`](api.md) y el servidor MCP en [`mcp.md`](mcp.md).
 
 ## Resumen
 
 - El navegador revisa cada sitio que se abre y muestra el resultado junto al dominio, en la barra «Estás en…»: «Revisando sitio…», «Sitio oficial», «Sin alertas detectadas», «Atención», «Posible estafa» o «No pudimos verificarlo».
-- Las verificaciones las hace el backend (`POST /v1/site-check`) con reglas propias, archivos de datos verificados y algunas fuentes externas.
+- Las verificaciones las hace el backend (`POST /v1/site-check`), con reglas propias, fuentes de Uruguay (zonas `gub.uy` y `mil.uy`, el registro del Banco Central del Uruguay y un catálogo verificado) y algunas fuentes externas.
 - La IA (Claude) solo complementa el análisis: nunca decide «Sitio oficial» ni baja el riesgo.
-- **Sin una clave de reputación configurada, ningún sitio puede quedar como «Sin alertas detectadas».** Los sitios que no son oficiales muestran «No pudimos verificarlo». Ver [Reputación](#reputación-phishing-y-malware).
+- **Sin una clave de reputación configurada, ningún sitio puede quedar como «Sin alertas detectadas».** Los sitios que no son oficiales muestran «No pudimos verificarlo». Ver [Limitaciones](#limitaciones-conocidas).
 
 ## Cuándo se ejecuta
 
@@ -33,25 +33,37 @@ Estado al 18/10/2026 (después del merge del #15). Describe lo que hace el códi
 | Validación | Fuente | Estado hoy |
 |---|---|---|
 | Sitio reportado como phishing o malware | Google Safe Browsing o Web Risk (API) | ❌ **No activa.** Falta configurar una clave. |
-| «Sitio oficial»: zonas reservadas al Estado | Archivo `government-zones.json` + catálogo de Uruguay | ✅ `.gub.uy` y `.mil.uy` (solo se registran vía AGESIC), `.gob.ar`, `.gov.ar` y `.mil.ar` (Argentina), `.gov` y `.mil` (EE. UU.) |
-| «Sitio oficial»: organizaciones de Uruguay | Archivo `official-sites.uy.json` (revisado el 17/10/2026) | ✅ 153 entradas: bancos y financieras del BCU (44), organismos fuera de `gub.uy` (31), salud (40), seguros (11), pagos (19), telecomunicaciones (3: Antel, Claro, Tigo), servicios (4: UTE, OSE, ANCAP, ADME) y Correo. Cada entrada tiene fuente (BCU, `gub.uy` o MSP) y fecha. **Se actualiza a mano.** |
-| «Sitio oficial»: bancos de Argentina | Padrón del BCRA (API pública sin documentar, descarga cada 24 h) | ✅ Activo, pero solo cubre bancos argentinos |
-| Dominios parecidos a uno oficial | Reglas propias, comparando contra el catálogo, las zonas y el padrón | ✅ Caracteres que se ven iguales, una letra de diferencia, dominio oficial metido dentro de otro, marca + palabra como «login» o «seguro» |
-| Antigüedad y registro del dominio | RDAP (registro público de dominios) | ⚠️ Funciona para `.com`, `.net`, `.org` y otros. **`.uy` no publica RDAP**, y el de `.ar` suele no responder. Es una señal de apoyo: su falta no cambia el resultado. |
-| Certificado y redirecciones | Conexión directa al sitio | ✅ Revisa cada salto de redirección (hasta 5) y bloquea el acceso a redes internas. Son motivos técnicos: nunca dan «Posible estafa» por sí solos. |
-| Contenido de la página | Reglas propias | ✅ Pedidos de datos sensibles (clave, tarjeta, códigos), formularios que envían a otro dominio o sin cifrar, enlaces cuyo texto no coincide con el destino, urgencia o amenazas |
-| Organización que dice ser la página | Marca declarada por la página + la IA | ⚠️ Ver la [limitación sobre organismos de Uruguay](#limitaciones-conocidas) |
+| «Sitio oficial»: zonas reservadas al Estado | `zones` del catálogo de Uruguay y `government-zones.json` | ✅ `.gub.uy` (Estado uruguayo) y `.mil.uy` (Fuerzas Armadas), que solo se registran vía AGESIC según nic.uy. También `.gov` y `.mil` de EE. UU. |
+| «Sitio oficial»: instituciones financieras | **Registro de instituciones del Banco Central del Uruguay (BCU)**, descargado automáticamente al arrancar y cada 24 h | ✅ 161 instituciones con sitio web: bancos, financieras, administradoras de crédito, cooperativas, casas de cambio, AFAP, aseguradoras y entidades del Sistema de Pagos (billeteras, cobranzas) |
+| «Sitio oficial»: otras organizaciones de Uruguay | Catálogo `official-sites.uy.json` (revisado el 17/10/2026) | ✅ 153 entradas con fuente (BCU, `gub.uy` o MSP) y fecha: Antel, UTE, OSE, ANCAP, Correo, Claro, Tigo, Abitab, Redpagos, Mercado Libre, mutualistas, organismos fuera de `gub.uy`. También aporta dominios que el BCU no publica, como `brou.com.uy`. **Se actualiza a mano.** |
+| Imitación de organismos del Estado uruguayo | Nombres de organismos (`claims` en `government-zones.json`) + marca declarada + IA | ✅ Una página que dice ser el BPS, la DGI, la DNIC, una intendencia, etc., en un dominio que no es suyo, se marca como imitación |
+| Dominios parecidos a uno oficial | Reglas propias, comparando contra el BCU, el catálogo y las zonas | ✅ Caracteres que se ven iguales, una letra de diferencia, dominio oficial metido dentro de otro, marca + palabra como «login» o «seguro». Para instituciones que se llaman como palabras comunes (Correo, Verde, Pronto, Visa…) solo se aplican las dos primeras reglas, para no alarmar en sitios inocentes (`data/common-words.json`). |
+| Antigüedad y registro del dominio | RDAP (registro público de dominios) | ⚠️ Funciona para `.com`, `.net`, `.org` y otros. **`.uy` no publica RDAP.** Es una señal de apoyo: su falta no cambia el resultado. |
+| Certificado y redirecciones | Conexión directa al sitio | ✅ Revisa el certificado de cada salto de redirección (hasta 5) y bloquea el acceso a redes internas. Son motivos técnicos: nunca dan «Posible estafa» por sí solos. |
+| Contenido de la página | Reglas propias | ✅ Pedidos de datos sensibles (tarjeta, cuenta bancaria, claves de BPS o DGI, códigos), formularios que envían a otro dominio o sin cifrar, enlaces cuyo texto no coincide con el destino, urgencia o amenazas |
 
 ### Cómo se decide el resultado
 
-- **«Sitio oficial»** solo sale de las zonas del Estado, del catálogo de Uruguay o del padrón del BCRA, y siempre con su fuente y fecha («Ver por qué»). Nunca sale de la IA, del HTTPS ni de la apariencia.
+- **«Sitio oficial»** solo sale de las zonas del Estado, del registro del BCU o del catálogo de Uruguay, y siempre con su fuente y fecha («Ver por qué»). Nunca sale de la IA, del HTTPS ni de la apariencia.
+- **Si un dominio está en el BCU y en el catálogo**, se muestra el nombre corto del catálogo («Banco República (BROU)») con el BCU como fuente.
+- **Un dominio que el catálogo descartó** (no responde, redirige a otro o no se pudo verificar) no se aprueba aunque el BCU lo publique.
 - **El riesgo tiene prioridad sobre lo oficial.** Un sitio `.gub.uy` comprometido igual muestra «Posible estafa».
 - **Para «Sitio oficial» o «Sin alertas detectadas»** tienen que estar completas la reputación, la identidad y el contenido. Si alguna falta o falla, el resultado es «No pudimos verificarlo», nunca una aprobación (regla `siteIndicatorState()` del contrato).
 - **El registro y la conexión no son obligatorios:** si faltan, no aprueban ni reprueban.
 
+### Registro del BCU
+
+- Se arma leyendo el portal del BCU: 12 listas de la Superintendencia de Servicios Financieros, con una ficha por institución, más el registro del Sistema de Pagos. No es una API documentada. Detalle técnico en [`api.md`](api.md#registro-de-instituciones-del-bcu).
+- Se descarga al arrancar (unos 70 s y 50 MB) y se refresca cada 24 h. Si falla, reintenta con esperas crecientes, de 5 min hasta 6 h.
+- **Si no se puede descargar:**
+  - la copia anterior sirve 48 h;
+  - hasta 7 días detecta imitaciones pero no aprueba;
+  - después, o sin copia, las instituciones financieras que no están en el catálogo quedan «No pudimos verificarlo».
+- El sitio del BCU no envía su cadena de certificados completa. Los dos certificados intermedios que faltan están guardados en el repositorio y se usan solo para ese sitio. Vencen en mayo y junio de 2027.
+
 ### El papel de la IA (Claude)
 
-- Recibe lo que ya verificó el servicio y el resumen de la página, marcado como contenido no confiable porque puede traer instrucciones dirigidas a ella.
+- Recibe lo que ya verificó el servicio, con la cobertura real, y el resumen de la página, marcado como contenido no confiable porque puede traer instrucciones dirigidas a ella.
 - Identifica qué organización dice ser la página y si pide claves, pagos o códigos.
 - Escribe una explicación que se muestra en «Ver por qué».
 - **Puede** subir el riesgo a «Atención».
@@ -60,7 +72,7 @@ Estado al 18/10/2026 (después del merge del #15). Describe lo que hace el códi
 
 ### Caché
 
-Los resultados se guardan por fuente: reputación 10 min (30 min si hay amenaza), conexión 1 h, registro 24 h, contenido 10 min. Si alguna fuente falla o la página todavía no cargó, el resultado vence al minuto. Los resultados con fallas no se guardan.
+Los resultados se guardan por fuente: reputación 10 min (30 min si hay amenaza), conexión 1 h, registro 24 h, contenido 10 min y registro del BCU 24 h. Si alguna fuente falla o la página todavía no cargó, el resultado vence al minuto. Los resultados con fallas no se guardan.
 
 ## Servidor MCP
 
@@ -77,15 +89,11 @@ Detalle en [`mcp.md`](mcp.md).
    - **Safe Browsing:** gratis y sin tarjeta, pero solo para uso no comercial.
    - **Web Risk:** comercial, gratis hasta 100.000 consultas por mes, y exige activar la facturación.
    - Se configuran con `REPUTATION_PROVIDER` y la clave correspondiente.
-2. **No se detectan las imitaciones de organismos uruguayos dentro de `gub.uy`.** Una página en un dominio comercial que dice ser el **BPS** o la **DGI** y pide la clave **no se marca** («sin señales»).
-   - **Por qué:** la lista de nombres de organismos de gobierno para detectar imitaciones (`claims` en `government-zones.json`) solo tiene organismos argentinos.
-   - **Lo que sí se detecta:**
-     - imitaciones de entidades del catálogo, como Antel o el BROU;
-     - dominios parecidos, como `bps-gub-uy.com`;
-     - el pedido de clave, que sigue figurando como dato sensible.
-3. **Componentes de Argentina activos sin uso para Uruguay:** el padrón del BCRA (que se descarga al arrancar y cada 24 h), las zonas `.gob.ar` y los organismos argentinos.
-4. **El catálogo de Uruguay se actualiza a mano.** El BCU publica un registro de instituciones que permitiría automatizar la parte financiera.
-5. **Páginas muy largas:** si una página supera los 20.000 elementos, el resumen se corta y aun así figura como revisado por completo (issue #21).
-6. **Marcas cortas o palabras comunes en subdominios:** `bna.sitio-falso.com` no se detecta por la regla de subdominio. A la vez, marcas del catálogo que son palabras comunes (Verde, Pronto, Universal) podrían dar una falsa alarma como subdominio de otro sitio (issue #21).
-7. **Lo que ve el servidor puede diferir de lo que ve la persona:** la revisión de conexión y certificado se hace desde el servidor, no con la sesión de la persona.
-8. **Contenido que no se puede leer:** iframes de otros dominios, shadow DOM cerrado y canvas.
+2. **Arranque sin BCU.** Durante los primeros ~70 s después de arrancar el servidor, las instituciones financieras que no están en el catálogo quedan «No pudimos verificarlo».
+3. **El BCU es la fuente de los dominios financieros.** Si publica un dominio que vence y otro lo registra, sigue saliendo oficial hasta que el BCU actualice la ficha, salvo que el catálogo lo haya descartado. `.uy` no tiene RDAP para notarlo.
+4. **Nombres en mayúsculas.** Si el BCU no publica un nombre de fantasía y la institución no está en el catálogo, el nombre puede aparecer en mayúsculas («CAMBIO FAGALDE»).
+5. **El resto del catálogo se actualiza a mano** (Antel, UTE, mutualistas, organismos fuera de `gub.uy`).
+6. **Palabras comunes: menos falsas alarmas, algunas imitaciones sin detectar.** Para no marcar sitios inocentes como `correo.miempresa.com.uy`, las instituciones que se llaman como palabras comunes solo se detectan si el dominio oficial completo aparece dentro de otro o si se imitan sus letras. Desde la dirección sola **ya no se detectan** `correo-uy.com` ni `visa-login.com`. Se detectan por el contenido si la página nombra a la organización completa («Correo Uruguayo») o con la IA. Algunas falsas alarmas siguen, por ejemplo `claro.blog.com`.
+7. **Páginas muy largas:** si una página supera los 20.000 elementos, el resumen se corta y aun así figura como revisado por completo (issue #21).
+8. **Lo que ve el servidor puede diferir de lo que ve la persona:** la revisión de conexión y certificado se hace desde el servidor, no con la sesión de la persona.
+9. **Contenido que no se puede leer:** iframes de otros dominios, shadow DOM cerrado y canvas.

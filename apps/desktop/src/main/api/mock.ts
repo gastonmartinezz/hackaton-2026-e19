@@ -26,7 +26,7 @@ import { SpeakRequest } from '@hackaton/contracts';
 import { UNSURE_ANSWER } from '../../shared/ipc';
 import { isTranscribableWav, rms, wavSamples } from '../../shared/wav';
 import { ApiFailure, type ApiClient } from './client';
-import { mockSiteCheck, mockSiteCheckDelay } from './mock-site-check';
+import { mockSiteCheck, mockSiteCheckDelay, unverifiedSiteCheck } from './mock-site-check';
 
 /** Texto fijo del dictado simulado: el mismo que devuelve el modo mock del servidor. */
 export const MOCK_TRANSCRIPT = 'Quiero renovar mi documento';
@@ -36,6 +36,11 @@ export interface MockOptions {
   /** Origen del servidor local de páginas de prueba, si está activo. */
   fixturesOrigin: string | null;
   latencyMs?: number;
+  /**
+   * Respuestas de demostración de Protección de sitios («Sitio oficial» para bancos inventados, etc.). Solo en
+   * desarrollo: una versión empaquetada sin backend responde «No pudimos verificarlo» y nunca inventa oficialidad.
+   */
+  demoSiteCheck?: boolean;
   /** Espera entre pedazos del audio de /v1/speak. */
   chunkDelayMs?: number;
 }
@@ -113,6 +118,10 @@ export class MockApiClient implements ApiClient {
 
   /** Protección de sitios: estados según el hostname de las páginas de demostración. */
   async siteCheck(request: SiteCheckRequest, signal: AbortSignal): Promise<SiteCheckResponse> {
+    if (this.config.demoSiteCheck === false) {
+      await this.#wait(signal, 0);
+      return unverifiedSiteCheck(request);
+    }
     await this.#wait(signal, mockSiteCheckDelay(request.hostname));
     return mockSiteCheck(request);
   }

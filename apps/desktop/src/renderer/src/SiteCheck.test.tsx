@@ -102,11 +102,11 @@ describe('SiteCheckPanel', () => {
 describe('Ver por qué de «Sitio oficial»', () => {
   it('muestra la fuente y la fecha dentro de los detalles cerrados', () => {
     const v = view('official', { panelOpen: true });
-    v.panel!.sources = ['Fuente: registro de entidades financieras del Banco Central de la República Argentina (BCRA).', 'Revisado el 17 de octubre de 2026.'];
+    v.panel!.sources = ['Fuente: Registro de instituciones del BCU (bcu.gub.uy).', 'Revisado el 17 de octubre de 2026.'];
     render(<SiteCheckPanel view={v} />);
     const details = container.querySelector('details')!;
     expect(details.open).toBe(false);
-    expect(details.textContent).toContain('Banco Central');
+    expect(details.textContent).toContain('Registro de instituciones del BCU');
     expect(details.textContent).toContain('Revisado el 17 de octubre de 2026.');
   });
 });

@@ -66,11 +66,11 @@ describe('RDAP', () => {
   it('usa el bootstrap de IANA y consulta solo el dominio registrable', async () => {
     const fetch = fakeRdapFetch({ registeredAt: '2010-01-02T00:00:00Z' });
     const rdap = new RdapClient({ ...limits, enabled: true, fetchImpl: fetch.impl });
-    const result = await rdap.lookup('ejemplo.com.ar');
+    const result = await rdap.lookup('ejemplo.net');
     expect(result).toMatchObject({ coverage: 'complete', data: { registeredAt: '2010-01-02T00:00:00Z', registrar: 'Registrador de prueba' }, findings: [] });
-    expect(fetch.calls).toEqual(['https://data.iana.org/rdap/dns.json', 'https://rdap.prueba/domain/ejemplo.com.ar']);
+    expect(fetch.calls).toEqual(['https://data.iana.org/rdap/dns.json', 'https://rdap.prueba/domain/ejemplo.net']);
     // Segunda consulta: bootstrap y dominio en caché.
-    await rdap.lookup('ejemplo.com.ar');
+    await rdap.lookup('ejemplo.net');
     expect(fetch.calls).toHaveLength(2);
   });
 

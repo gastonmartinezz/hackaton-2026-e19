@@ -16,11 +16,11 @@ describe('PrefsStore', () => {
     expect(store.value.textScale).toBe(1.2);
 
     await rm(dir);
-    await store.setAiEnabled('https://a.gob.ar', false);
+    await store.setAiEnabled('https://a.gub.uy', false);
     const saved = JSON.parse(await readFile(join(dir, 'preferences.json'), 'utf8'));
     // El próximo guardado no arrastra el cambio que falló.
-    expect(saved).toMatchObject({ textScale: 1.2, aiDisabledOrigins: ['https://a.gob.ar'] });
-    expect(store.value).toMatchObject({ textScale: 1.2, aiDisabledOrigins: ['https://a.gob.ar'] });
+    expect(saved).toMatchObject({ textScale: 1.2, aiDisabledOrigins: ['https://a.gub.uy'] });
+    expect(store.value).toMatchObject({ textScale: 1.2, aiDisabledOrigins: ['https://a.gub.uy'] });
     await rm(root, { recursive: true });
   });
 
@@ -83,9 +83,9 @@ describe('PrefsStore · escala de letra', () => {
     // El archivo vuelve a poder leerse: la escritura siguiente conserva lo guardado.
     await rm(file, { recursive: true });
     await writeFile(file, JSON.stringify({ version: 1, termsAccepted: '2026-10-17', profile: { city: 'Salto' } }));
-    await store.setAiEnabled('https://a.gob.ar', false);
+    await store.setAiEnabled('https://a.gub.uy', false);
     const saved = JSON.parse(await readFile(file, 'utf8'));
-    expect(saved).toMatchObject({ termsAccepted: '2026-10-17', profile: { city: 'Salto' }, textScale: 1.75, aiDisabledOrigins: ['https://a.gob.ar'] });
+    expect(saved).toMatchObject({ termsAccepted: '2026-10-17', profile: { city: 'Salto' }, textScale: 1.75, aiDisabledOrigins: ['https://a.gub.uy'] });
     expect(store.value.termsAccepted).toBe('2026-10-17');
     await rm(dir, { recursive: true });
   });

@@ -9,7 +9,7 @@ import { sanitizeLabel } from '@asistente/privacy';
 import type { Profile } from './prefs';
 
 export interface SystemInfo {
-  /** Idioma preferido del sistema, por ejemplo "es-AR". */
+  /** Idioma preferido del sistema, por ejemplo "es-UY". */
   language: string | null;
   /** Zona horaria IANA del equipo. */
   timeZone: string | null;

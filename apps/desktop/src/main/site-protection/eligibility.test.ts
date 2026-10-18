@@ -35,11 +35,11 @@ describe('checkEligibility', () => {
   });
 
   it('las direcciones públicas se envían depuradas', () => {
-    expect(checkEligibility('https://Usuario:clave@WWW.Banco.com.ar./cuenta/30123456?token=abc#x')).toEqual({
+    expect(checkEligibility('https://Usuario:clave@WWW.Banco.com.uy./cuenta/30123456?token=abc#x')).toEqual({
       kind: 'eligible',
-      url: 'https://www.banco.com.ar/cuenta/[dato]?token=[dato]#x',
-      hostname: 'www.banco.com.ar',
-      registrableDomain: 'banco.com.ar',
+      url: 'https://www.banco.com.uy/cuenta/[dato]?token=[dato]#x',
+      hostname: 'www.banco.com.uy',
+      registrableDomain: 'banco.com.uy',
     });
     expect(checkEligibility('http://203.0.113.5/login')).toMatchObject({ kind: 'eligible', hostname: '203.0.113.5', registrableDomain: '203.0.113.5' });
     // Los nombres de demostración del simulador (.example) son públicos para la regla.
@@ -53,7 +53,7 @@ describe('checkEligibility', () => {
 
 describe('registrableDomain', () => {
   it('aproxima eTLD+1', () => {
-    expect(registrableDomain('www.argentina.gob.ar')).toBe('argentina.gob.ar');
+    expect(registrableDomain('www.tramites.gub.uy')).toBe('tramites.gub.uy');
     expect(registrableDomain('tramites.mostrame-demo.gub.uy')).toBe('mostrame-demo.gub.uy');
     expect(registrableDomain('login.banco.com')).toBe('banco.com');
     expect(registrableDomain('a.b.bbc.co.uk')).toBe('bbc.co.uk');

@@ -4,8 +4,11 @@ import type { ChatMessage, GuideStep, Metadata, PageOption } from '@hackaton/con
 /** Cada llamada que se recuerda. No se guarda el HTML. */
 export type SessionEntry =
   | { type: 'interpret'; response: 'redirect' | 'question' | 'options'; goal: string; reason: string; urls: string[] }
-  /** `request`: lo que la persona pidió con sus palabras en la página, si las opciones salieron de eso. */
-  | { type: 'options'; options: PageOption[]; request?: string }
+  /**
+   * `goal`: lo que la persona dijo que quiere hacer en la página. `request`: lo
+   * que pidió con sus palabras fuera de las opciones (se investigó cómo hacerlo).
+   */
+  | { type: 'options'; goal?: string; options: PageOption[]; request?: string }
   | {
       type: 'nextStep';
       optionId: string;

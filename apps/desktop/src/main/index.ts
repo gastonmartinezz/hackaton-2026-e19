@@ -25,8 +25,8 @@ if (config.useMockBackend && config.isDev) {
   // `*.example` (nunca resuelven en internet) que en desarrollo apuntan al
   // servidor local de fixtures. Así el backend simulado ve un hostname público
   // y se puede ver cada estado del indicador. Solo con el backend simulado.
-  // `*.mostrame-demo.gob.ar` y `*.mostrame-demo.gub.uy` muestran «Sitio oficial» del Estado con su terminación real.
-  app.commandLine.appendSwitch('host-resolver-rules', 'MAP *.example 127.0.0.1, MAP *.mostrame-demo.gob.ar 127.0.0.1, MAP *.mostrame-demo.gub.uy 127.0.0.1');
+  // `*.mostrame-demo.gub.uy` muestra «Sitio oficial» del Estado uruguayo con su terminación real.
+  app.commandLine.appendSwitch('host-resolver-rules', 'MAP *.example 127.0.0.1, MAP *.mostrame-demo.gub.uy 127.0.0.1');
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -57,7 +57,8 @@ if (!app.requestSingleInstanceLock()) {
         fixturesOrigin = server.origin;
         closeFixtures = server.close;
       }
-      api = new MockApiClient({ fixturesOrigin });
+      // Fuera de desarrollo el simulador nunca inventa «Sitio oficial» (bancos de demostración).
+      api = new MockApiClient({ fixturesOrigin, demoSiteCheck: config.isDev });
       log('app.backend', { mock: true });
     } else {
       api = new HttpApiClient({ baseUrl: config.apiBaseUrl!, token: config.apiToken });

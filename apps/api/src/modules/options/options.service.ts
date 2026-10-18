@@ -37,6 +37,7 @@ export class OptionsService {
       system: asked ? SYSTEM_PROMPTS.optionsForRequest : SYSTEM_PROMPTS.options,
       input: {
         context,
+        goal: request.goal ?? null,
         html: request.html,
         ...(asked ? { request: asked, procedure: procedure ? { summary: procedure.summary, steps: procedure.steps, completion: procedure.completion } : null } : {}),
       },
@@ -47,7 +48,12 @@ export class OptionsService {
     const parsed = OptionsResponse.safeParse({ sessionId, options });
     if (!parsed.success) throw new AppError('AI_INVALID_RESPONSE', 'Respuesta de Claude incoherente con el contrato');
 
-    this.sessions.append(sessionId, owner, { type: 'options', options: parsed.data.options, ...(asked ? { request: asked } : {}) });
+    this.sessions.append(sessionId, owner, {
+      type: 'options',
+      ...(request.goal ? { goal: request.goal } : {}),
+      options: parsed.data.options,
+      ...(asked ? { request: asked } : {}),
+    });
     // El paso a paso investigado queda para la primera opción (la tarea pedida): /v1/next-step no lo vuelve a buscar.
     const first = parsed.data.options[0];
     if (procedure && first) this.sessions.append(sessionId, owner, { type: 'procedure', optionId: first.id, ...procedure });

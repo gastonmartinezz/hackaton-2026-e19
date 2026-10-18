@@ -3,13 +3,17 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Hostname } from '@hackaton/contracts';
 import { z } from 'zod';
-import { hostMatches } from './domain.js';
+import { describeHost, hostMatches } from './domain.js';
 
 /**
  * Fuentes de autoridad locales y versionadas (en `data/`):
- * - `government-zones.json`: zonas reservadas al Estado (gob.ar, gov, …) y nombres de organismos.
+ * - `government-zones.json`: zonas reservadas al Estado (.gov, .mil) y nombres de organismos (`claims`).
  * - `official-sites.<país>.json`: catálogos curados con fuente y fecha de revisión por entrada
- *   (por ejemplo, Uruguay). Sus `zones` también cuentan como zonas de gobierno.
+ *   (por ejemplo, Uruguay). Sus `zones` también cuentan como zonas de gobierno, y sus `discarded`
+ *   (dominios revisados a mano y descartados, con el motivo) no los aprueba el registro del BCU.
+ * - `common-words.json`: palabras de uso corriente («correo», «verde», «delta»). No es una fuente de
+ *   autoridad sino una heurística de dominios parecidos: una referencia con ese nombre solo se compara
+ *   por su dominio completo o su aspecto (ver lookalike.ts).
  * Un archivo inválido detiene el arranque: nunca se usa un catálogo a medias.
  */
 
@@ -44,7 +48,18 @@ const ZonesFile = z.strictObject({
     }),
   ),
   claims: z.array(
-    z.strictObject({ country: z.string().length(2), organization: z.string().min(1), note: z.string().optional(), names: z.array(z.string().min(2)).min(1) }),
+    z.strictObject({
+      country: z.string().length(2),
+      organization: z.string().min(1),
+      note: z.string().optional(),
+      // containsName ignora los nombres de menos de 3 caracteres: se rechazan para que no queden inertes.
+      names: z.array(z.string().min(3)).min(1),
+      /** Siglas que alcanzan solas si son toda la marca o una parte separada; dentro de un nombre más largo piden contexto. */
+      acronyms: z.array(z.string().min(3)).default([]),
+      /** Nombres ambiguos: solo cuentan con una palabra de `context` en el texto o con la pista de la IA. */
+      contextNames: z.array(z.string().min(3)).default([]),
+      context: z.array(z.string().min(3)).default([]),
+    }),
   ),
 });
 
@@ -74,6 +89,16 @@ const CatalogFile = z.object({
   discarded: z.array(z.unknown()).default([]),
 });
 
+const CommonWordsFile = z.strictObject({
+  version: z.string().min(1),
+  note: z.string().optional(),
+  /** Como etiqueta de dominio: minúsculas, sin tildes, espacios ni guiones. */
+  words: z.array(z.string().regex(/^[a-z0-9]+$/)).min(1),
+});
+
+/** Descarte con dominio: el texto puede traer varios («a.com.uy, b.uy») o ninguno («-»). */
+const Discarded = z.object({ domain: z.string(), reason: z.string().optional() });
+
 export interface GovernmentZone {
   suffix: string;
   organization: string;
@@ -100,13 +125,30 @@ export interface CatalogEntry {
 export interface ClaimGroup {
   country: string;
   organization: string;
+  /** Alcanzan solos («Banco de Previsión Social», «Dirección General Impositiva»). */
   names: string[];
+  /**
+   * Siglas («BPS», «DGI») que alcanzan solas cuando son toda la marca declarada o una parte separada por
+   * guion, barra o dos puntos («BPS - Mi cuenta»). Dentro de un nombre más largo («BPS Logistics»,
+   * «DGI Consultores») piden contexto, como `contextNames`.
+   */
+  acronyms: string[];
+  /** Ambiguos («MEF», «MSP»): necesitan una palabra de `context` o la pista de la IA. */
+  contextNames: string[];
+  context: string[];
 }
 
 export interface OfficialSources {
   zones: GovernmentZone[];
   entries: CatalogEntry[];
   claims: ClaimGroup[];
+  /**
+   * Dominios registrables que un catálogo revisó y descartó (no respondían, redirigían a otro sitio, sin
+   * verificar…), con el motivo. Lo revisado a mano manda: el registro del BCU no los aprueba.
+   */
+  discarded: Map<string, string>;
+  /** Palabras de uso corriente (heurística de dominios parecidos, no fuente de autoridad). */
+  commonWords: Set<string>;
   /** Versiones cargadas, para la evidencia ("government-zones 2026-10-17.1", "official-sites.uy …"). */
   versions: string[];
 }
@@ -122,12 +164,16 @@ function describeError(file: string, error: unknown): Error {
 }
 
 /**
- * Carga zonas y catálogos. Por defecto, `government-zones.json` y todos los `official-sites.*.json`
- * de `data/`. Lanza si alguno es inválido o si un dominio aparece en dos entradas.
+ * Carga zonas, catálogos y palabras comunes. Por defecto, `government-zones.json`, todos los
+ * `official-sites.*.json` y `common-words.json` de `data/`. Lanza si alguno es inválido o si un
+ * dominio aparece en dos entradas.
  */
-export function loadOfficialSources(options: { dataDir?: string; zonesFile?: string; catalogFiles?: string[] } = {}): OfficialSources {
+export function loadOfficialSources(
+  options: { dataDir?: string; zonesFile?: string; catalogFiles?: string[]; commonWordsFile?: string } = {},
+): OfficialSources {
   const dataDir = options.dataDir ?? DATA_DIR;
   const zonesPath = options.zonesFile ?? join(dataDir, 'government-zones.json');
+  const commonWordsPath = options.commonWordsFile ?? join(dataDir, 'common-words.json');
   const catalogPaths =
     options.catalogFiles ??
     readdirSync(dataDir)
@@ -135,16 +181,24 @@ export function loadOfficialSources(options: { dataDir?: string; zonesFile?: str
       .sort()
       .map((name) => join(dataDir, name));
 
-  const sources: OfficialSources = { zones: [], entries: [], claims: [], versions: [] };
+  const sources: OfficialSources = { zones: [], entries: [], claims: [], discarded: new Map(), commonWords: new Set(), versions: [] };
 
   try {
     const zones = ZonesFile.parse(readJson(zonesPath));
     const origin = `government-zones ${zones.version}`;
     sources.versions.push(origin);
     sources.zones.push(...zones.zones.map((zone) => ({ ...zone, origin })));
-    sources.claims.push(...zones.claims.map(({ country, organization, names }) => ({ country, organization, names })));
+    sources.claims.push(
+      ...zones.claims.map(({ country, organization, names, acronyms, contextNames, context }) => ({ country, organization, names, acronyms, contextNames, context })),
+    );
   } catch (error) {
     throw describeError(zonesPath, error);
+  }
+
+  try {
+    sources.commonWords = new Set(CommonWordsFile.parse(readJson(commonWordsPath)).words);
+  } catch (error) {
+    throw describeError(commonWordsPath, error);
   }
 
   for (const path of catalogPaths) {
@@ -162,6 +216,14 @@ export function loadOfficialSources(options: { dataDir?: string; zonesFile?: str
     for (const entry of file.entries) {
       sources.entries.push({ ...entry, country: file.country, catalog });
     }
+    for (const item of file.discarded) {
+      const discarded = Discarded.safeParse(item);
+      if (!discarded.success) continue;
+      // Solo dominios registrables completos: «mi.movistar.com.uy» descartado no descarta movistar.com.uy.
+      for (const domain of discarded.data.domain.toLowerCase().split(/[\s,;/]+/)) {
+        if (domain && describeHost(domain).registrableDomain === domain) sources.discarded.set(domain, `${discarded.data.reason ?? 'Descartado'} (${catalog})`);
+      }
+    }
   }
 
   const seen = new Map<string, string>();
@@ -172,12 +234,14 @@ export function loadOfficialSources(options: { dataDir?: string; zonesFile?: str
       seen.set(domain, entry.id);
     }
   }
+  // Una nota en `discarded` sobre un dominio que sí es una entrada («No es un descarte») no lo descarta.
+  for (const domain of seen.keys()) sources.discarded.delete(domain);
   return sources;
 }
 
 /** Zona de gobierno que contiene al host, por límites de dominio. */
 export function findZone(zones: readonly GovernmentZone[], hostname: string): GovernmentZone | undefined {
-  // La zona más específica primero (gob.ar antes que ar, si existiera).
+  // La zona más específica primero (gub.uy antes que uy, si existiera).
   return [...zones].sort((a, b) => b.suffix.length - a.suffix.length).find((zone) => hostname !== zone.suffix && hostMatches(hostname, zone.suffix, 'subdomains'));
 }
 

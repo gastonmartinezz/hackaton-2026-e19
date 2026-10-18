@@ -32,11 +32,11 @@ describe('direcciones bloqueadas (SSRF)', () => {
 describe('inspect_connection', () => {
   it('recorre redirecciones y devuelve TLS sin query ni fragmento', async () => {
     const requester = recordingRequester({
-      'https://sitio.com.ar/': { status: 301, location: 'https://www.sitio.com.ar/inicio?ref=1#x', tls: okHop.tls },
+      'https://sitio.com.uy/': { status: 301, location: 'https://www.sitio.com.uy/inicio?ref=1#x', tls: okHop.tls },
     });
-    const result = await inspector(requester).inspect(new URL('https://sitio.com.ar/'));
+    const result = await inspector(requester).inspect(new URL('https://sitio.com.uy/'));
     expect(result.coverage).toBe('complete');
-    expect(requester.calls).toEqual(['https://sitio.com.ar/', 'https://www.sitio.com.ar/inicio']);
+    expect(requester.calls).toEqual(['https://sitio.com.uy/', 'https://www.sitio.com.uy/inicio']);
     expect(result.data).toMatchObject({ https: true, crossDomainRedirect: false, tls: { authorized: true } });
     expect(result.findings).toEqual([]);
   });
@@ -46,7 +46,7 @@ describe('inspect_connection', () => {
     ['IP privada literal', 'http://10.0.0.8/'],
     ['metadatos de nube', 'http://169.254.169.254/latest/meta-data'],
     ['IPv6 local', 'http://[::1]/'],
-    ['puerto no estándar', 'https://sitio.com.ar:8443/'],
+    ['puerto no estándar', 'https://sitio.com.uy:8443/'],
   ])('bloquea %s sin hacer la petición', async (_, url) => {
     const requester = recordingRequester();
     const result = await inspector(requester).inspect(new URL(url));
@@ -72,22 +72,22 @@ describe('inspect_connection', () => {
     ['link-local', 'http://169.254.169.254/'],
     ['IPv6 privada', 'http://[fd00::1]/'],
   ])('no sigue una redirección hacia %s', async (_, location) => {
-    const requester = recordingRequester({ 'https://sitio.com.ar/': { status: 302, location, tls: okHop.tls } });
-    const result = await inspector(requester).inspect(new URL('https://sitio.com.ar/'));
-    expect(requester.calls).toEqual(['https://sitio.com.ar/']);
+    const requester = recordingRequester({ 'https://sitio.com.uy/': { status: 302, location, tls: okHop.tls } });
+    const result = await inspector(requester).inspect(new URL('https://sitio.com.uy/'));
+    expect(requester.calls).toEqual(['https://sitio.com.uy/']);
     expect(result.coverage).toBe('partial');
     expect(result.errors).toEqual(['blocked_destination']);
-    expect(result.data?.finalOrigin).toBe('https://sitio.com.ar');
+    expect(result.data?.finalOrigin).toBe('https://sitio.com.uy');
   });
 
   it('no sigue una redirección a un host cuyo DNS apunta a la red interna', async () => {
-    const requester = recordingRequester({ 'https://sitio.com.ar/': { status: 302, location: 'https://interno.example.com/', tls: okHop.tls } });
+    const requester = recordingRequester({ 'https://sitio.com.uy/': { status: 302, location: 'https://interno.example.com/', tls: okHop.tls } });
     const resolver: HostResolver = async (hostname) => [{ address: hostname === 'interno.example.com' ? '192.168.0.10' : PUBLIC_IP, family: 4 }];
-    const result = await inspector(requester, resolver).inspect(new URL('https://sitio.com.ar/'));
-    expect(requester.calls).toEqual(['https://sitio.com.ar/']);
+    const result = await inspector(requester, resolver).inspect(new URL('https://sitio.com.uy/'));
+    expect(requester.calls).toEqual(['https://sitio.com.uy/']);
     expect(result.coverage).toBe('partial');
     // El destino bloqueado nunca se visitó: no se informa como destino final ni como redirección a otro dominio.
-    expect(result.data).toMatchObject({ finalOrigin: 'https://sitio.com.ar', crossDomainRedirect: false });
+    expect(result.data).toMatchObject({ finalOrigin: 'https://sitio.com.uy', crossDomainRedirect: false });
     expect(result.findings.map((f) => f.code)).not.toContain('CROSS_DOMAIN_REDIRECT');
   });
 
@@ -98,26 +98,26 @@ describe('inspect_connection', () => {
       maxPerMinute: 100,
       enabled: true,
       resolver: publicResolver,
-      requester: async () => ({ status: 302, location: `https://sitio.com.ar/${++n}`, tls: null }),
-    }).inspect(new URL('https://sitio.com.ar/'));
+      requester: async () => ({ status: 302, location: `https://sitio.com.uy/${++n}`, tls: null }),
+    }).inspect(new URL('https://sitio.com.uy/'));
     expect(result.coverage).toBe('partial');
     expect(result.data?.hops).toHaveLength(6);
   });
 
   it('informa redirección a otro dominio y certificado inválido como motivos técnicos', async () => {
     const requester = recordingRequester({
-      'https://sitio.com.ar/': { status: 302, location: 'https://otro.example.net/', tls: { ...okHop.tls!, authorized: false, error: 'CERT_HAS_EXPIRED' } },
+      'https://sitio.com.uy/': { status: 302, location: 'https://otro.example.net/', tls: { ...okHop.tls!, authorized: false, error: 'CERT_HAS_EXPIRED' } },
     });
-    const result = await inspector(requester).inspect(new URL('https://sitio.com.ar/'));
+    const result = await inspector(requester).inspect(new URL('https://sitio.com.uy/'));
     expect(result.findings.map((f) => f.code)).toEqual(['CERTIFICATE_PROBLEM', 'CROSS_DOMAIN_REDIRECT']);
   });
 
   it('revisa el certificado del destino al que lleva la redirección, no solo el del primer salto', async () => {
     const requester = recordingRequester({
-      'http://sitio.com.ar/': { status: 301, location: 'https://destino.example.net/', tls: null },
+      'http://sitio.com.uy/': { status: 301, location: 'https://destino.example.net/', tls: null },
       'https://destino.example.net/': { ...okHop, tls: { ...okHop.tls!, authorized: false, error: 'DEPTH_ZERO_SELF_SIGNED_CERT' } },
     });
-    const result = await inspector(requester).inspect(new URL('http://sitio.com.ar/'));
+    const result = await inspector(requester).inspect(new URL('http://sitio.com.uy/'));
     expect(result.findings.map((f) => f.code)).toEqual(['CERTIFICATE_PROBLEM', 'CROSS_DOMAIN_REDIRECT']);
     expect(result.findings[0]!.detail).toContain('https://destino.example.net');
     expect(result.data).toMatchObject({ https: true, finalOrigin: 'https://destino.example.net' });
@@ -125,13 +125,13 @@ describe('inspect_connection', () => {
 
   it('una redirección a un destino que no resuelve conserva lo observado en los saltos anteriores', async () => {
     const requester = recordingRequester({
-      'https://sitio.com.ar/': { status: 302, location: 'https://caido.example.net/', tls: { ...okHop.tls!, authorized: false, error: 'CERT_HAS_EXPIRED' } },
+      'https://sitio.com.uy/': { status: 302, location: 'https://caido.example.net/', tls: { ...okHop.tls!, authorized: false, error: 'CERT_HAS_EXPIRED' } },
     });
     const resolver: HostResolver = async (hostname) => {
       if (hostname === 'caido.example.net') throw new Error('ENOTFOUND');
       return [{ address: PUBLIC_IP, family: 4 }];
     };
-    const result = await inspector(requester, resolver).inspect(new URL('https://sitio.com.ar/'));
+    const result = await inspector(requester, resolver).inspect(new URL('https://sitio.com.uy/'));
     expect(result).toMatchObject({ coverage: 'partial', errors: ['redirect_unreachable'] });
     expect(result.findings.map((f) => f.code)).toEqual(['CERTIFICATE_PROBLEM']);
   });
@@ -142,9 +142,9 @@ describe('inspect_connection', () => {
       return { status: 302, location: 'https://lento.example.net/', tls: okHop.tls };
     };
     const result = await new ConnectionInspector({ timeoutMs: 1000, maxPerMinute: 100, enabled: true, resolver: publicResolver, requester }).inspect(
-      new URL('https://sitio.com.ar/'),
+      new URL('https://sitio.com.uy/'),
     );
-    expect(result).toMatchObject({ coverage: 'partial', errors: ['redirect_unreachable'], data: { finalOrigin: 'https://sitio.com.ar', crossDomainRedirect: false } });
+    expect(result).toMatchObject({ coverage: 'partial', errors: ['redirect_unreachable'], data: { finalOrigin: 'https://sitio.com.uy', crossDomainRedirect: false } });
   });
 
   it('una caída devuelve unavailable', async () => {
@@ -156,7 +156,7 @@ describe('inspect_connection', () => {
       requester: async () => {
         throw new Error('ECONNREFUSED');
       },
-    }).inspect(new URL('https://sitio.com.ar/'));
+    }).inspect(new URL('https://sitio.com.uy/'));
     expect(result).toMatchObject({ coverage: 'unavailable', errors: ['provider_error'] });
   });
 });

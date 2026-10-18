@@ -52,6 +52,8 @@ export const OptionsRequest = z.strictObject({
   /** Fragmentos de HTML que el front considera relevantes. */
   html: z.string().min(1).max(Limits.maxHtmlLength),
   metadata: Metadata.optional(),
+  /** Lo que la persona quiere hacer en esta página (por ejemplo, lo que escribió en «¿No está lo que buscás?»). */
+  goal: ShortText(Limits.maxMessageLength).optional(),
   /**
    * Lo que la persona pidió con sus palabras (escrito o dicho) porque no estaba
    * entre las opciones. El backend investiga cómo se hace en este sitio y

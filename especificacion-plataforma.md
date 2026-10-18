@@ -94,7 +94,7 @@ Antes de un cambio incompatible, documentar la propuesta, ejemplo de entrada/sal
 
 **v1.3 · 17/10/2026 · acordado por Agustin.** Se divide la guía en dos endpoints:
 
-- `POST /v1/options` devuelve las opciones de la página, cada una con su guía completa (`steps`). Ya no recibe `goal` ni devuelve `guide`.
+- `POST /v1/options` devuelve las opciones de la página, cada una con su guía completa (`steps`). Acepta `goal` opcional (lo que la persona quiere hacer en esta página) y no devuelve `guide`.
 - Un paso con `element: null` es teórico: el elemento todavía no existe porque aparece después de una acción de la persona.
 - Nuevo `POST /v1/next-step`: el front envía la opción elegida, el paso teórico esperado y el HTML posterior a la acción. Recibe los pasos reales y `done` (true cuando la tarea terminó).
 - `element` es el id de un elemento del HTML enviado por el front (por ejemplo `#el-3`).
@@ -295,6 +295,7 @@ type OptionsRequest = {
   sessionId?: string; // la de interpret; si falta (página sin chat), se crea una
   html: string; // fragmentos armados por el front; máx. 200.000 caracteres
   metadata?: Metadata;
+  goal?: string; // lo que la persona quiere hacer en esta página (chat o «¿No está lo que buscás?»); máx. 1.000 caracteres
 };
 
 type GuideStep = {
@@ -354,7 +355,7 @@ Ejemplo de respuesta de `/v1/options`:
 |---|---|---|
 | GET /health | — | `{ status: "ok" }`, sin autenticación |
 | POST /v1/interpret | Historial del chat y `sessionId` opcional | `redirect`, `question` u `options`, con `sessionId` |
-| POST /v1/options | `sessionId`, HTML y `metadata` opcional | Opciones con su guía (`steps`), con `sessionId` |
+| POST /v1/options | `sessionId`, HTML, `metadata` y `goal` opcionales | Opciones con su guía (`steps`), con `sessionId` |
 | POST /v1/next-step | `sessionId`, `optionId`, paso teórico esperado, `completedSteps`, HTML nuevo y `metadata` opcional | Pasos reales y `done` |
 
 La sesión empieza en `/v1/interpret` y acumula todo el recorrido: chat, objetivo y motivo de la decisión de Claude (no vuelven al front), metadato de la página, opciones y pasos completados. Claude recibe ese recorrido completo en cada llamada. Vive en memoria y vence a los 30 minutos sin uso.

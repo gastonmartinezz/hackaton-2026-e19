@@ -13,7 +13,7 @@
  * lugar. El valor nunca se guarda, nunca va al backend y nunca se registra.
  */
 import { randomUUID } from 'node:crypto';
-import type { GuideStep, Metadata, OptionsResponse } from '@hackaton/contracts';
+import { Limits, type GuideStep, type Metadata, type OptionsResponse } from '@hackaton/contracts';
 import { snapshotToHtml, type PageSnapshot } from '@asistente/page-analyzer';
 import {
   evaluateObservation,
@@ -356,7 +356,7 @@ export class Assistant {
       const snapshot = await this.#extract(epoch);
       if (!snapshot || epoch !== this.#epoch) return;
       const asked = this.state.request;
-      const request = { html: snapshotToHtml(snapshot), ...metadataOf(snapshot), ...(asked ? { request: asked } : {}) };
+      const request = { html: snapshotToHtml(snapshot), ...metadataOf(snapshot), ...goalOf(this.state.goal), ...(asked ? { request: asked } : {}) };
       const signal = this.#signal();
       const { session, api } = this.deps;
       let ticket = session.begin();
@@ -519,6 +519,12 @@ export class Assistant {
 function metadataOf(snapshot: PageSnapshot): { metadata?: Metadata } {
   const page = { ...(snapshot.title ? { title: snapshot.title } : {}), ...(snapshot.language ? { language: snapshot.language } : {}) };
   return Object.keys(page).length > 0 ? { metadata: { page } } : {};
+}
+
+/** Objetivo de la guía (del chat o de «¿No está lo que buscás?»). Vacío no se envía: el contrato exige texto. */
+function goalOf(goal: string | undefined): { goal?: string } {
+  const text = goal?.trim().slice(0, Limits.maxMessageLength).trim();
+  return text ? { goal: text } : {};
 }
 
 function shortId(): string {

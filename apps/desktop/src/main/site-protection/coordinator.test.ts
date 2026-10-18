@@ -59,26 +59,26 @@ afterEach(() => vi.useRealTimers());
 describe('SiteProtection', () => {
   it('fase dirección al navegar y fase contenido después de la carga', async () => {
     const { protection, calls, summarize } = setup();
-    protection.navigationStarted('https://www.banco.com.ar/ingresar?dni=30123456#x');
+    protection.navigationStarted('https://www.banco.com.uy/ingresar?cedula=30123456#x');
     expect(protection.snapshot.kind).toBe('checking');
     expect(calls).toHaveLength(1);
     expect(calls[0]!.request).toEqual({
       navigationId: protection.snapshot.navigationId,
       contentVersion: 0,
-      url: 'https://www.banco.com.ar/ingresar?dni=[dato]#x',
-      hostname: 'www.banco.com.ar',
-      registrableDomain: 'banco.com.ar',
+      url: 'https://www.banco.com.uy/ingresar?cedula=[dato]#x',
+      hostname: 'www.banco.com.uy',
+      registrableDomain: 'banco.com.uy',
     });
     calls[0]!.resolve();
     await flush();
     // La fase dirección vuelve pendiente: sigue «Revisando sitio…».
     expect(protection.snapshot.kind).toBe('checking');
 
-    protection.pageLoaded('https://www.banco.com.ar/ingresar');
+    protection.pageLoaded('https://www.banco.com.uy/ingresar');
     await vi.advanceTimersByTimeAsync(100);
     expect(summarize).toHaveBeenCalledWith(protection.snapshot.navigationId, 1);
     expect(calls[1]!.request).toMatchObject({ contentVersion: 1, page: PAGE });
-    calls[1]!.resolve({ identity: { status: 'verified_official', basis: 'financial_regulator', organization: 'Banco', source: { name: 'Padrón', reviewedAt: '2026-10-01T12:00:00Z' } } });
+    calls[1]!.resolve({ identity: { status: 'verified_official', basis: 'financial_regulator', organization: 'Banco', source: { name: 'Registro de instituciones del BCU', reviewedAt: '2026-10-01T12:00:00Z' } } });
     await flush();
     expect(protection.snapshot.kind).toBe('official');
     expect(protection.snapshot.announcement?.kind).toBe('official');

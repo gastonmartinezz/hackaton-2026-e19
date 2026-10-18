@@ -4,15 +4,14 @@
 <body>
   <main>
     <h1>Protección de sitios (páginas de demostración)</h1>
-    <p>Solo con el backend simulado en desarrollo: los nombres <code>*.example</code>, <code>*.mostrame-demo.gob.ar</code> y <code>*.mostrame-demo.gub.uy</code> resuelven a este servidor local.
+    <p>Solo con el backend simulado en desarrollo: los nombres <code>*.example</code> y <code>*.mostrame-demo.gub.uy</code> resuelven a este servidor local.
        Esta misma página está en 127.0.0.1, así que se muestra como «Página local, sin revisar».</p>
     <ul id="demos"></ul>
   </main>
   <script>
     const port = location.port ? `:${location.port}` : '';
     const demos = [
-      ['Sitio oficial: entidad del registro del Banco Central', 'banco-demo.example', 'banco.html'],
-      ['Sitio oficial: dirección del Estado argentino (.gob.ar)', 'tramites.mostrame-demo.gob.ar', 'horarios.html'],
+      ['Sitio oficial: institución del registro del Banco Central del Uruguay', 'banco-demo.example', 'banco.html'],
       ['Sitio oficial: dirección del Estado uruguayo (.gub.uy)', 'tramites.mostrame-demo.gub.uy', 'horarios.html'],
       ['Sitio oficial: empresa uruguaya de la lista revisada', 'usina-uy.example', 'horarios.html'],
       ['Sin alertas detectadas', 'sin-alertas.example', 'horarios.html'],
