@@ -39,8 +39,8 @@ En desarrollo y tests, el paquete de contratos se resuelve desde `src` mediante 
 
 La API se despliega en Railway desde GitHub. La configuración está en `railway.json`:
 
-- **Build:** `pnpm --filter '@hackaton/api...' build`.
-- **Arranque:** `node apps/api/dist/server.js`.
+- **Build:** imagen Docker con `apps/api/Dockerfile`. Instala y compila solo `@hackaton/api` y sus dependencias del workspace, y descarga el modelo de Whisper que usa `/v1/transcribe`.
+- **Arranque:** `node dist/server.js`, el `CMD` de la imagen.
 - **Chequeo de salud:** `/health`.
 
 Solo se redespliega cuando cambian `apps/api`, `packages/contracts` o las dependencias. Los cambios de la app de escritorio no disparan un despliegue.
@@ -49,14 +49,16 @@ Preparación en el panel de Railway, una sola vez:
 
 1. Crear el proyecto desde este repositorio y dejar un solo servicio para la API. Railway puede proponer uno por paquete del monorepo.
 2. En **Variables** del servicio, cargar:
-   - `NODE_ENV=production`
    - `AI_PROVIDER=anthropic`
    - `ANTHROPIC_API_KEY`
    - `API_ACCESS_TOKENS`
-   - `ELECTRON_SKIP_BINARY_DOWNLOAD=1`, que evita bajar Electron en el build.
+   - `STT_PROVIDER=local`, que activa la voz a texto.
 
-   `PORT` lo define Railway.
+   `PORT` lo define Railway y `NODE_ENV=production` ya viene en la imagen.
 3. En **Settings → Networking**, generar el dominio público.
+4. Dejar una sola réplica, con al menos 2 vCPU y 2 GB de memoria.
+
+El detalle de variables, recursos y la prueba local de la imagen está en [`docs/railway.md`](docs/railway.md).
 
 Para usar la app de escritorio contra Railway, definir:
 

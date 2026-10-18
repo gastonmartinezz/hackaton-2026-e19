@@ -12,6 +12,7 @@ const exported = {
   OptionsResponse: contracts.OptionsResponse,
   NextStepRequest: contracts.NextStepRequest,
   NextStepResponse: contracts.NextStepResponse,
+  TranscribeResponse: contracts.TranscribeResponse,
   ApiError: contracts.ApiError,
 };
 

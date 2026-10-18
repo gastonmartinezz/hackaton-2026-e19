@@ -1,8 +1,8 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "RAILPACK",
-    "buildCommand": "pnpm --filter '@hackaton/api...' build",
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "apps/api/Dockerfile",
     "watchPatterns": [
       "apps/api/**",
       "packages/contracts/**",
@@ -11,13 +11,13 @@
       "pnpm-workspace.yaml",
       "tsconfig.base.json",
       ".nvmrc",
+      ".dockerignore",
       "railway.json"
     ]
   },
   "deploy": {
-    "startCommand": "node apps/api/dist/server.js",
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 60,
+    "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5
   }
