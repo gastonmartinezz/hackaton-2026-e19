@@ -4,7 +4,7 @@ import { AuthorityService } from './authority.js';
 import { BcuRegistry } from './bcu-registry.js';
 import { ConnectionInspector, type HopRequester } from './connection.js';
 import type { HostResolver } from './net-guard.js';
-import { loadOfficialSources, type OfficialSources } from './official-sources.js';
+import { loadOfficialSources } from './official-sources.js';
 import { RdapClient } from './rdap.js';
 import { SiteCheckService } from './site-check.service.js';
 
@@ -16,8 +16,7 @@ export interface SiteCheckOverrides {
   fetchImpl?: typeof fetch;
   resolver?: HostResolver;
   requester?: HopRequester;
-  /** Fuentes oficiales ya cargadas, o archivos de catálogo curado a cargar en lugar de los de `data/`. */
-  officialSources?: OfficialSources;
+  /** Archivos de catálogo curado a cargar en lugar de los de `data/`. */
   catalogFiles?: string[];
   now?: () => number;
 }
@@ -25,7 +24,7 @@ export interface SiteCheckOverrides {
 export function createSiteCheckService(config: AppConfig, model: StructuredModel, overrides: SiteCheckOverrides = {}): { service: SiteCheckService; authority: AuthorityService } {
   const limits = { timeoutMs: config.SITE_CHECK_PROVIDER_TIMEOUT_MS, maxPerMinute: config.SITE_CHECK_PROVIDER_MAX_PER_MINUTE, now: overrides.now };
   // Un archivo de fuentes inválido detiene el arranque.
-  const sources = overrides.officialSources ?? loadOfficialSources(overrides.catalogFiles ? { catalogFiles: overrides.catalogFiles } : {});
+  const sources = loadOfficialSources(overrides.catalogFiles ? { catalogFiles: overrides.catalogFiles } : {});
   // Sin fetch de prueba usa bcuFetch: solo www.bcu.gub.uy, con los intermedios de su certificado.
   const registry = new BcuRegistry({
     enabled: config.SITE_CHECK_BCU_REGISTRY,

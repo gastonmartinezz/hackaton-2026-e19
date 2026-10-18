@@ -132,9 +132,9 @@ export interface OfficialSources {
   claims: ClaimGroup[];
   /**
    * Dominios registrables que un catálogo revisó y descartó (no respondían, redirigían a otro sitio, sin
-   * verificar…), con el motivo. Lo revisado a mano manda: el registro del BCU no los aprueba.
+   * verificar…). Lo revisado a mano manda: el registro del BCU no los aprueba.
    */
-  discarded: Map<string, string>;
+  discarded: Set<string>;
   /** Palabras de uso corriente (heurística de dominios parecidos, no fuente de autoridad). */
   commonWords: Set<string>;
   /** Palabras de estafa por marca común (ver `brandKeywords` en common-words.json). */
@@ -156,20 +156,17 @@ function describeError(file: string, error: unknown): Error {
  * `official-sites.*.json`, `government-claims.json` y `common-words.json` de `data/`. Lanza si alguno
  * es inválido o si un dominio aparece en dos entradas.
  */
-export function loadOfficialSources(
-  options: { dataDir?: string; claimsFile?: string; catalogFiles?: string[]; commonWordsFile?: string } = {},
-): OfficialSources {
-  const dataDir = options.dataDir ?? DATA_DIR;
-  const claimsPath = options.claimsFile ?? join(dataDir, 'government-claims.json');
-  const commonWordsPath = options.commonWordsFile ?? join(dataDir, 'common-words.json');
+export function loadOfficialSources(options: { catalogFiles?: string[]; commonWordsFile?: string } = {}): OfficialSources {
+  const claimsPath = join(DATA_DIR, 'government-claims.json');
+  const commonWordsPath = options.commonWordsFile ?? join(DATA_DIR, 'common-words.json');
   const catalogPaths =
     options.catalogFiles ??
-    readdirSync(dataDir)
+    readdirSync(DATA_DIR)
       .filter((name) => /^official-sites\.[a-z-]+\.json$/.test(name))
       .sort()
-      .map((name) => join(dataDir, name));
+      .map((name) => join(DATA_DIR, name));
 
-  const sources: OfficialSources = { zones: [], entries: [], claims: [], discarded: new Map(), commonWords: new Set(), brandKeywords: new Map() };
+  const sources: OfficialSources = { zones: [], entries: [], claims: [], discarded: new Set(), commonWords: new Set(), brandKeywords: new Map() };
 
   try {
     const claims = ClaimsFile.parse(readJson(claimsPath));
@@ -195,7 +192,6 @@ export function loadOfficialSources(
     } catch (error) {
       throw describeError(path, error);
     }
-    const catalog = `${path.split(/[\\/]/).pop()} ${file.version}`;
     for (const zone of file.zones) {
       sources.zones.push({ ...zone, country: file.country, reviewedAt: file.reviewedAt });
     }
@@ -205,7 +201,7 @@ export function loadOfficialSources(
       if (!discarded.success) continue;
       // Solo dominios registrables completos: «mi.movistar.com.uy» descartado no descarta movistar.com.uy.
       for (const domain of discarded.data.domain.toLowerCase().split(/[\s,;/]+/)) {
-        if (domain && describeHost(domain).registrableDomain === domain) sources.discarded.set(domain, `${discarded.data.reason ?? 'Descartado'} (${catalog})`);
+        if (domain && describeHost(domain).registrableDomain === domain) sources.discarded.add(domain);
       }
     }
   }
