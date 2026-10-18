@@ -34,13 +34,19 @@ export const NextStepOutput = z.object({
 });
 export type NextStepOutput = z.infer<typeof NextStepOutput>;
 
-/** Códigos que la IA puede sumar en /v1/site-check: solo de contenido y como riesgo medio. */
-export const SiteCheckConcernCode = z.enum(['BRAND_IMPERSONATION', 'SENSITIVE_DATA_REQUEST', 'LINK_TEXT_MISMATCH', 'URGENCY_OR_THREAT', 'FORM_SENDS_TO_OTHER_DOMAIN']);
-
+/**
+ * Salida de la IA en /v1/site-check. Solo IDENTIFICA: qué organización dice ser la página y qué pide.
+ * Nunca aprueba: la organización se busca después en las fuentes de autoridad.
+ */
 export const SiteCheckOutput = z.object({
   /** Explicación complementaria para la persona. No controla etiquetas ni acciones. */
   explanation: z.string(),
-  /** Pedido sospechoso concreto que las reglas no detectaron, o null. */
-  concern: z.object({ code: SiteCheckConcernCode, detail: z.string() }).nullable(),
+  /** Organización que la página dice ser (marca, organismo o empresa), o null. */
+  declaredOrganization: z.string().nullable(),
+  organizationKind: z.enum(['government', 'financial_entity', 'company', 'other', 'none']),
+  /** País de la organización declarada (ISO 3166-1 alfa-2), o null. */
+  country: z.string().nullable(),
+  /** Qué pide la página: contraseñas o claves, pagos o datos de tarjeta, códigos de verificación. */
+  requests: z.object({ credentials: z.boolean(), payment: z.boolean(), verificationCodes: z.boolean() }),
 });
 export type SiteCheckOutput = z.infer<typeof SiteCheckOutput>;

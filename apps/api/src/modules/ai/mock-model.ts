@@ -71,7 +71,8 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
     };
   },
 
-  // Explicación fija según el riesgo calculado por reglas; nunca suma motivos.
+  // Explicación fija según el riesgo calculado por reglas; no identifica organizaciones ni pedidos
+  // (con el mock solo cuentan las reglas determinísticas sobre declaredBrand y formularios).
   siteCheck: (input: { risk: string }): SiteCheckOutput => ({
     explanation:
       input.risk === 'high'
@@ -79,7 +80,10 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
         : input.risk === 'medium'
           ? 'Encontramos algunas señales para tener en cuenta. Revisá con cuidado antes de ingresar datos.'
           : 'No encontramos señales de estafa en las comprobaciones realizadas.',
-    concern: null,
+    declaredOrganization: null,
+    organizationKind: 'none',
+    country: null,
+    requests: { credentials: false, payment: false, verificationCodes: false },
   }),
 };
 

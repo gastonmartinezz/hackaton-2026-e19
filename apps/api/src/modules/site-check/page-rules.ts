@@ -1,5 +1,6 @@
 import type { PageForm, PageFormField, PageSummary } from '@hackaton/contracts';
-import { normalizeName, type CatalogEntry, type OfficialCatalog } from './catalog.js';
+import type { AuthorityView, ClaimHint } from './authority.js';
+import { normalizeName } from './official-sources.js';
 import { describeHost, type HostInfo } from './domain.js';
 import type { Finding } from './types.js';
 
@@ -61,21 +62,17 @@ const SOURCE = 'Reglas de contenido';
 
 /**
  * Reglas sobre el resumen sanitizado que observó el navegador de la persona.
- * `official` es la entrada del catálogo que autoriza al host, si la hay.
+ * `official` indica si una fuente de autoridad hace oficial al host.
  */
-export function analyzePage(page: PageSummary, pageUrl: URL, host: HostInfo, catalog: OfficialCatalog, official: CatalogEntry | undefined, checkedAt: string): PageAnalysis {
+export function analyzePage(page: PageSummary, pageUrl: URL, host: HostInfo, authority: AuthorityView, official: boolean, checkedAt: string): PageAnalysis {
   const findings: Finding[] = [];
   const add = (code: Finding['code'], detail: string, impersonatedOrganization?: string) => {
     if (findings.filter((f) => f.code === code).length < 5) {
       findings.push({ code, source: SOURCE, checkedAt, observedBy: 'user_browser', detail, ...(impersonatedOrganization ? { impersonatedOrganization } : {}) });
     }
   };
-  // Mismo sitio: mismo dominio registrable o dominios de la misma organización del catálogo.
-  const sameSite = (hostname: string) => {
-    const other = describeHost(hostname);
-    if (other.registrableDomain && other.registrableDomain === host.registrableDomain) return true;
-    return official !== undefined && catalog.authorizes(official, other.hostname);
-  };
+  // Mismo sitio: mismo dominio registrable o la misma organización según las fuentes de autoridad.
+  const sameSite = (hostname: string) => authority.sameOrganization(host.hostname, hostname);
 
   const sensitive = new Set<SensitiveKind>();
   const forms: PageAnalysis['forms'] = [];
@@ -108,9 +105,10 @@ export function analyzePage(page: PageSummary, pageUrl: URL, host: HostInfo, cat
         continue;
       }
     }
-    for (const entry of catalog.findByName(link.text)) {
-      if (!catalog.authorizes(entry, target.hostname) && !sameSite(target.hostname)) {
-        add('LINK_TEXT_MISMATCH', `Un enlace nombra a ${entry.organization} pero lleva a ${target.registrableDomain ?? target.hostname}`, entry.organization);
+    const targetKeys = authority.keys(target.hostname);
+    for (const claim of authority.claims(link.text)) {
+      if (!claim.keys.some((key) => targetKeys.includes(key)) && !sameSite(target.hostname)) {
+        add('LINK_TEXT_MISMATCH', `Un enlace nombra a ${claim.organization} pero lleva a ${target.registrableDomain ?? target.hostname}`, claim.organization);
         break;
       }
     }
@@ -140,33 +138,42 @@ function urgencyKind(page: PageSummary, asksSensitive: boolean): string | null {
 
 export interface BrandComparison {
   declaredBrand: string;
-  /** Organizaciones del catálogo que coinciden con la marca declarada. */
-  matches: Array<{ organization: string; authorized: boolean; domains: string[] }>;
+  /** Organizaciones de las fuentes de autoridad que coinciden con la marca declarada. */
+  matches: Array<{ organization: string; via: string; authorized: boolean }>;
   findings: Finding[];
 }
 
 /**
- * Contrasta la marca que el sitio dice ser con el catálogo. Una marca declarada nunca prueba
- * identidad: solo puede producir una alerta cuando nombra a una organización del catálogo y el
- * host no está autorizado. En un dominio oficial no se evalúa (un portal oficial nombra a otros organismos).
+ * Contrasta la organización que el sitio dice ser con las fuentes de autoridad (zonas de gobierno,
+ * padrón del BCRA, catálogos curados). Una marca declarada nunca prueba identidad: solo puede
+ * producir BRAND_IMPERSONATION cuando nombra a una organización conocida y el host no le pertenece.
+ * En un sitio oficial no se evalúa (un portal oficial nombra a otros organismos).
  */
-export function compareBrand(declaredBrand: string, host: HostInfo, catalog: OfficialCatalog, checkedAt: string): BrandComparison {
-  const official = catalog.match(host.hostname);
-  const matches = catalog.findByName(declaredBrand).map((entry) => ({
-    organization: entry.organization,
-    authorized: catalog.authorizes(entry, host.hostname),
-    domains: entry.domains.map((d) => d.domain),
+export function compareBrand(
+  declaredBrand: string,
+  host: HostInfo,
+  authority: AuthorityView,
+  checkedAt: string,
+  options: { hint?: ClaimHint; source?: string; observedBy?: Finding['observedBy'] } = {},
+): BrandComparison {
+  const official = authority.official(host.hostname) !== null;
+  const hostKeys = authority.keys(host.hostname);
+  const matches = authority.claims(declaredBrand, options.hint).map((claim) => ({
+    organization: claim.organization,
+    via: claim.via,
+    authorized: claim.keys.some((key) => hostKeys.includes(key)),
   }));
   const findings: Finding[] = [];
   const impersonated = matches.find((m) => !m.authorized);
   if (!official && impersonated) {
+    const what = impersonated.via === 'government_domain' ? `un organismo del Estado (${impersonated.organization})` : impersonated.organization;
     findings.push({
       code: 'BRAND_IMPERSONATION',
-      source: SOURCE,
+      source: options.source ?? SOURCE,
       checkedAt,
-      observedBy: 'user_browser',
-      detail: `El sitio se presenta como ${impersonated.organization}, cuyo dominio es ${impersonated.domains[0]}`,
-      impersonatedOrganization: impersonated.organization,
+      observedBy: options.observedBy ?? 'user_browser',
+      detail: `El sitio se presenta como ${what}, pero ${host.registrableDomain ?? host.hostname} no le pertenece según ${impersonated.via === 'government_domain' ? 'las zonas de gobierno' : impersonated.via === 'financial_regulator' ? 'el padrón del BCRA' : 'el catálogo curado'}`,
+      impersonatedOrganization: impersonated.organization.slice(0, 120),
     });
   }
   return { declaredBrand, matches, findings };

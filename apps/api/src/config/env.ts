@@ -46,6 +46,12 @@ const EnvSchema = z
     GOOGLE_SAFE_BROWSING_API_KEY: z.string().optional(),
     GOOGLE_WEB_RISK_API_KEY: z.string().optional(),
     SITE_CHECK_RDAP: flag('true'),
+    // Padrón de entidades financieras del BCRA (fuente de oficialidad de bancos). Se refresca cada 24 h.
+    SITE_CHECK_BCRA_REGISTRY: flag('true'),
+    SITE_CHECK_REGISTRY_TIMEOUT_MS: z.coerce.number().int().positive().default(8_000),
+    // Lista opcional de dominios populares (CSV de CrUX u otro), solo como referencia de dominios parecidos.
+    SITE_CHECK_POPULAR_DOMAINS_FILE: z.string().optional(),
+    SITE_CHECK_POPULAR_DOMAINS_LIMIT: z.coerce.number().int().positive().default(10_000),
     SITE_CHECK_CONNECTION: flag('true'),
     SITE_CHECK_AI: flag('true'),
     // Tiempo máximo por consulta a reputación y RDAP, y por inspección de conexión (todas las redirecciones).

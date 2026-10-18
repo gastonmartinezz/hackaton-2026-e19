@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config/env.js';
 import { buildMcpApp } from '../src/modules/mcp/mcp.server.js';
 import { TOKEN, testApp } from './helpers.js';
-import { emptyPage, fakeProviders, recordingRequester } from './site-check-helpers.js';
+import { emptyPage, fakeProviders, fakeRdapFetch, recordingRequester } from './site-check-helpers.js';
 
 const MCP_TOKEN = 'token-mcp-de-prueba-con-longitud-suficiente';
 
@@ -67,7 +67,7 @@ describe('servidor MCP privado', () => {
 
   it.each([
     ['check_url_reputation', { url: 'https://phishing-demo.example.com/login?x=1' }, 'KNOWN_PHISHING'],
-    ['lookup_official_identity', { hostname: 'anses-turnos.com' }, 'LOOKALIKE_DOMAIN'],
+    ['lookup_official_identity', { hostname: 'anses-gob-ar.com' }, 'LOOKALIKE_DOMAIN'],
     ['get_domain_registration', { domain: 'www.ejemplo.com.ar' }, null],
     ['inspect_connection', { url: 'https://www.ejemplo.com.ar/' }, null],
     ['analyze_page_structure', { url: 'https://www.ejemplo.com.ar/', page: { ...emptyPage, forms: [{ method: 'post', action: null, fields: [{ type: 'text', label: 'CBU' }] }] } }, 'SENSITIVE_DATA_REQUEST'],
@@ -84,11 +84,23 @@ describe('servidor MCP privado', () => {
     if (code) expect(data.findings.map((f: { code: string }) => f.code)).toContain(code);
   });
 
-  it('lookup_official_identity informa organización, alcance, fuente y fecha de revisión', async () => {
+  it.each([
+    ['servicios.afip.gob.ar', 'government_domain', 'gob.ar', 'Estado argentino'],
+    ['www.bna.com.ar', 'financial_regulator', 'bna.com.ar', 'BANCO DE LA NACION ARGENTINA'],
+    ['www.antel.com.uy', 'official_catalog', 'antel.com.uy', 'Antel (Administración Nacional de Telecomunicaciones)'],
+  ])('lookup_official_identity: %s → %s con fuente y fecha', async (hostname, basis, matched, organization) => {
     await setup();
-    const { structuredContent } = await callTool('lookup_official_identity', { hostname: 'servicios.afip.gob.ar' });
-    expect(structuredContent.data.official).toMatchObject({ domain: 'afip.gob.ar', scope: 'subdomains', reviewedAt: '2026-10-17' });
-    expect(structuredContent.data.official.sourceUrl).toMatch(/^https:\/\//);
+    const { structuredContent } = await callTool('lookup_official_identity', { hostname });
+    expect(structuredContent.data.official).toMatchObject({ basis, matched, organization });
+    expect(Date.parse(structuredContent.data.official.source.reviewedAt)).not.toBeNaN();
+    expect(structuredContent.data.official.source.url).toMatch(/^https:\/\//);
+    expect(structuredContent.data.sources.registryStatus).toBe('fresh');
+  });
+
+  it('lookup_official_identity con el padrón caído: sin aprobación y con el error informado', async () => {
+    await setup(fakeProviders({ fetchImpl: fakeRdapFetch({ bcraDown: true }).impl }));
+    const { structuredContent } = await callTool('lookup_official_identity', { hostname: 'www.bna.com.ar' });
+    expect(structuredContent).toMatchObject({ coverage: 'unavailable', errors: ['registry_unavailable'], data: { official: null } });
   });
 
   it('no consulta afuera hosts internos y lo informa como error', async () => {

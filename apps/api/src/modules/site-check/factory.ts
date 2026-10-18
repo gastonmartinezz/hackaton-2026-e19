@@ -1,20 +1,26 @@
 import type { AppConfig } from '../../config/env.js';
 import type { StructuredModel } from '../ai/model.js';
-import { OfficialCatalog } from './catalog.js';
+import { AuthorityService, loadPopularDomains } from './authority.js';
+import { BcraRegistry } from './bcra-registry.js';
 import { ConnectionInspector, type HopRequester } from './connection.js';
 import type { HostResolver } from './net-guard.js';
+import { loadOfficialSources, type OfficialSources } from './official-sources.js';
 import { RdapClient } from './rdap.js';
 import { MockReputationProvider, ReputationChecker, SafeBrowsingProvider, WebRiskProvider, type ReputationProvider } from './reputation.js';
 import { SiteCheckService } from './site-check.service.js';
 
+const HOUR = 60 * 60_000;
+
 /** Reemplazos para pruebas: ninguna prueba hace red real. */
 export interface SiteCheckOverrides {
   reputationProvider?: ReputationProvider | null;
-  /** fetch para RDAP y proveedores de reputación. */
+  /** fetch para RDAP, padrón del BCRA y proveedores de reputación. */
   fetchImpl?: typeof fetch;
   resolver?: HostResolver;
   requester?: HopRequester;
-  catalog?: OfficialCatalog;
+  /** Fuentes oficiales ya cargadas, o archivos de catálogo curado a cargar en lugar de los de `data/`. */
+  officialSources?: OfficialSources;
+  catalogFiles?: string[];
   now?: () => number;
 }
 
@@ -31,11 +37,25 @@ function reputationProvider(config: AppConfig, fetchImpl?: typeof fetch): Reputa
   }
 }
 
-export function createSiteCheckService(config: AppConfig, model: StructuredModel, overrides: SiteCheckOverrides = {}): SiteCheckService {
+export function createSiteCheckService(config: AppConfig, model: StructuredModel, overrides: SiteCheckOverrides = {}): { service: SiteCheckService; authority: AuthorityService } {
   const limits = { timeoutMs: config.SITE_CHECK_PROVIDER_TIMEOUT_MS, maxPerMinute: config.SITE_CHECK_PROVIDER_MAX_PER_MINUTE, now: overrides.now };
   const provider = overrides.reputationProvider !== undefined ? overrides.reputationProvider : reputationProvider(config, overrides.fetchImpl);
-  return new SiteCheckService({
-    catalog: overrides.catalog ?? new OfficialCatalog(),
+  // Un archivo de fuentes inválido detiene el arranque.
+  const sources = overrides.officialSources ?? loadOfficialSources(overrides.catalogFiles ? { catalogFiles: overrides.catalogFiles } : {});
+  const registry = new BcraRegistry({
+    enabled: config.SITE_CHECK_BCRA_REGISTRY,
+    fetchImpl: overrides.fetchImpl,
+    requestTimeoutMs: config.SITE_CHECK_REGISTRY_TIMEOUT_MS,
+    refreshAfterMs: 24 * HOUR,
+    validForMs: 48 * HOUR,
+    usableForMs: 7 * 24 * HOUR,
+    now: overrides.now,
+  });
+  const popular = config.SITE_CHECK_POPULAR_DOMAINS_FILE ? loadPopularDomains(config.SITE_CHECK_POPULAR_DOMAINS_FILE, config.SITE_CHECK_POPULAR_DOMAINS_LIMIT) : [];
+  const authority = new AuthorityService(sources, registry, popular, config.SITE_CHECK_PROVIDER_TIMEOUT_MS);
+
+  const service = new SiteCheckService({
+    authority,
     reputation: new ReputationChecker(provider, limits),
     rdap: new RdapClient({ ...limits, enabled: config.SITE_CHECK_RDAP, fetchImpl: overrides.fetchImpl }),
     connection: new ConnectionInspector({
@@ -49,4 +69,5 @@ export function createSiteCheckService(config: AppConfig, model: StructuredModel
     aiTimeoutMs: config.SITE_CHECK_AI_TIMEOUT_MS,
     now: overrides.now,
   });
+  return { service, authority };
 }
