@@ -100,8 +100,10 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
   await app.register(optionsRoutes, { service: new OptionsService(model, sessions) });
   await app.register(nextStepRoutes, { service: new NextStepService(model, sessions) });
 
-  const siteCheck = createSiteCheckService(config, model, deps.siteCheck);
+  const { service: siteCheck, authority } = createSiteCheckService(config, model, deps.siteCheck);
   app.decorate('siteCheck', siteCheck);
+  // Descarga el padrón del BCRA en segundo plano al arrancar (no en pruebas).
+  if (config.NODE_ENV !== 'test') authority.warmUp();
   await app.register(siteCheckRoutes, {
     service: siteCheck,
     rateLimitMax: config.SITE_CHECK_RATE_LIMIT_MAX,

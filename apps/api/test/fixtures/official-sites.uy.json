@@ -1,0 +1,37 @@
+{
+  "version": "fixture-1",
+  "country": "UY",
+  "reviewedAt": "2026-10-17",
+  "zones": [
+    {
+      "suffix": "gub.uy",
+      "organization": "Estado uruguayo",
+      "source": { "name": "Fuente de prueba de la zona gub.uy", "url": "https://www.gub.uy/" },
+      "notes": "Fixture de pruebas: no son datos verificados."
+    }
+  ],
+  "entries": [
+    {
+      "id": "antel",
+      "organization": "Antel (Administración Nacional de Telecomunicaciones)",
+      "category": "telecomunicaciones",
+      "domains": [{ "domain": "antel.com.uy", "scope": "subdomains" }],
+      "source": "https://www.antel.com.uy/",
+      "sourceType": "fixture",
+      "reviewedAt": "2026-10-16"
+    },
+    {
+      "id": "brou",
+      "organization": "Banco de la República Oriental del Uruguay (BROU)",
+      "category": "banco",
+      "domains": [
+        { "domain": "brou.com.uy", "scope": "subdomains" },
+        { "domain": "ebanking.brou.uy", "scope": "exact" }
+      ],
+      "source": { "name": "Fuente de prueba del BROU", "url": "https://www.brou.com.uy/" },
+      "sourceType": "fixture",
+      "reviewedAt": "2026-10-15"
+    }
+  ],
+  "discarded": []
+}

@@ -232,7 +232,12 @@ Cada respuesta devuelve **exactamente** el `navigationId` y el `contentVersion` 
   "contentVersion": 1,
   "analysisId": "sc-…",
   "status": "complete",
-  "identity": { "status": "verified_official", "organization": "ANSES (Administración Nacional de la Seguridad Social)" },
+  "identity": {
+    "status": "verified_official",
+    "basis": "government_domain",
+    "organization": "Estado argentino",
+    "source": { "name": "NIC Argentina, Disposición 153/2016 (zonas especiales)", "url": "https://www.argentina.gob.ar/normativa/nacional/norma-270431/texto", "reviewedAt": "2026-10-17T00:00:00.000Z" }
+  },
   "risk": "no_signals",
   "reasons": [],
   "coverage": { "reputation": "complete", "identity": "complete", "content": "complete", "registration": "unavailable", "connection": "complete" },
@@ -249,11 +254,11 @@ Posible estafa (dominio parecido):
   "navigationId": "nav-124",
   "contentVersion": 0,
   "status": "pending",
-  "identity": { "status": "unknown", "impersonatedOrganization": "ANSES (Administración Nacional de la Seguridad Social)" },
+  "identity": { "status": "unknown", "impersonatedOrganization": "BANCO DE LA NACION ARGENTINA" },
   "risk": "high",
   "reasons": [
     { "code": "LOOKALIKE_DOMAIN", "category": "fraud",
-      "evidence": [{ "source": "Registro de sitios oficiales", "checkedAt": "…", "observedBy": "service", "detail": "El dominio anses-turnos.com se parece a anses.gob.ar" }] }
+      "evidence": [{ "source": "Fuentes de autoridad", "checkedAt": "…", "observedBy": "service", "detail": "bna-seguro.com combina bna con una palabra de acceso o seguridad" }] }
   ],
   "coverage": { "reputation": "complete", "identity": "complete", "content": "pending", "registration": "complete", "connection": "complete" },
   "checkedAt": "…",
@@ -261,10 +266,72 @@ Posible estafa (dominio parecido):
 }
 ```
 
-- **`identity.status: "verified_official"`** sale **solo** del catálogo `apps/api/src/modules/site-check/data/official-sites.json` (organización, dominios, alcance `exact` o `subdomains`, fuente y fecha de revisión). La coincidencia es por límites de dominio: `argentina.gob.ar` cubre `www.argentina.gob.ar`, pero no `argentina.gob.ar.evil.com` ni `evilargentina.gob.ar`. Ni la IA, ni HTTPS, ni la apariencia del sitio pueden otorgarla.
-- **`identity.impersonatedOrganization`** aparece cuando hay un motivo de imitación (dominio parecido, subdominio engañoso, caracteres confusos, marca declarada o enlace) que nombra a una organización del catálogo.
-- **`evidence[].observedBy`**: `user_browser` (lo vio el navegador de la persona), `external_scanner` (proveedor de reputación) o `service` (catálogo, RDAP, inspección de conexión del backend). Lo que ve el backend puede diferir de lo que ve la persona (sesión, ubicación).
+- **`identity.status: "verified_official"`** sale **solo** de una fuente de autoridad (ver «Fuentes de oficialidad»), siempre con `basis` y `source`. La coincidencia es por límites de dominio: `gob.ar` cubre `www.anses.gob.ar`, pero no `anses.gob.ar.evil.com` ni `anses-gob-ar.com`. Ni la IA, ni HTTPS, ni la apariencia del sitio pueden otorgarla.
+- **`identity.impersonatedOrganization`** aparece cuando hay un motivo de imitación (dominio parecido, subdominio engañoso, caracteres confusos, marca declarada o enlace) que nombra a una organización de las fuentes de autoridad (el Estado, una entidad del padrón del BCRA o una entrada de un catálogo curado).
+- **`evidence[].observedBy`**: `user_browser` (lo vio el navegador de la persona), `external_scanner` (proveedor de reputación) o `service` (fuentes de autoridad, RDAP, inspección de conexión del backend, IA). Lo que ve el backend puede diferir de lo que ve la persona (sesión, ubicación).
 - **`explanation`** es complementaria y la genera la IA. No controla etiquetas ni acciones; el front usa sus propios textos revisados.
+
+### Fuentes de oficialidad
+
+«Sitio oficial» (`identity.status: "verified_official"`) solo sale de **una autoridad que pueda probarlo**. Cada respuesta oficial trae `identity.basis` y `identity.source` (`name`, `url`, `reviewedAt`), que el front muestra en «Ver por qué».
+
+| `basis` | Fuente | Cómo se obtiene | `source` |
+|---|---|---|---|
+| `government_domain` | Zonas de dominio reservadas al Estado: `gob.ar`, `mil.ar`, `gov.ar` → «Estado argentino»; `.gov`, `.mil` → «Gobierno de Estados Unidos»; y las zonas de los catálogos curados (por ejemplo `gub.uy`, si se confirma que está reservada) | Regla de zona sobre los datos de `apps/api/src/modules/site-check/data/government-zones.json` (y `zones` de cada catálogo), por límites de dominio. No se generaliza a cualquier `gob.xx` | Norma o política de la zona: [Disposición NIC Argentina 153/2016](https://www.argentina.gob.ar/normativa/nacional/norma-270431/texto), [get.gov/domains/eligibility](https://get.gov/domains/eligibility), [IANA .mil](https://www.iana.org/domains/root/db/mil.html), con la fecha de revisión del archivo |
+| `financial_regulator` | Padrón de entidades financieras del BCRA | Descarga automática del regulador (ver abajo). Autoriza el dominio registrable del sitio web publicado para cada entidad y sus subdominios | «Padrón de entidades financieras del BCRA», URL del detalle descargado y fecha de descarga de la copia usada |
+| `official_catalog` | Catálogos curados `data/official-sites.<país>.json` (por ejemplo Uruguay), con fuente y fecha de revisión **por entrada** | Archivo versionado validado con Zod al arrancar: si es inválido o repite un dominio, el servidor no arranca. Alcance `exact` o `subdomains` | `source` y `reviewedAt` de la entrada |
+
+Orden de evaluación: catálogo curado, zona de gobierno, padrón del BCRA.
+
+**Por qué no hay un catálogo argentino escrito a mano.** Una lista de ejemplo no es verificable ni se mantiene sola, y lo que falta en ella termina marcado como «parecido». Las zonas de gobierno y el padrón del BCRA tienen una autoridad detrás y se actualizan solos. Los catálogos curados se aceptan solo con fuente y fecha por entrada.
+
+**Por qué la IA no aprueba.** En el informe de Netcraft (2025), el 34 % de los dominios de inicio de sesión que un LLM dio para marcas conocidas no pertenecían a la marca. La IA solo **identifica** qué organización dice ser la página (`declaredOrganization`, tipo y país) y si pide credenciales, pagos o códigos. Esa organización se busca en las fuentes de autoridad: si la página dice ser ANSES, ARCA, PAMI u otro organismo del Estado argentino (o una entidad del padrón o del catálogo) y el dominio no le pertenece, el motivo es `BRAND_IMPERSONATION` con `impersonatedOrganization`, y el riesgo es alto si además pide datos sensibles. La IA nunca emite `verified_official` ni baja el riesgo. Con `AI_PROVIDER=mock` o `SITE_CHECK_AI=false`, las mismas reglas corren sobre `declaredBrand` del front.
+
+**Señales que no alcanzan para «oficial»** (no se implementan como oficialidad): Wikidata P856 (sitio web oficial), rankings de popularidad, certificados OV/EV, BIMI y antigüedad del dominio. Como mucho podrían sumar contexto.
+
+**Riesgos de la regla de zona.** El aviso del Boletín Oficial del 07/05/2025 ([313726](https://www.boletinoficial.gob.ar/pdf/aviso/primera/313726/20250507)) anuncia la desregulación de zonas especiales de NIC Argentina: si cambia quién puede registrar en `gob.ar`, hay que revisar `government-zones.json`. Además, un sitio de gobierno comprometido sigue siendo «oficial»: por eso **el riesgo gana siempre** (una amenaza en `.gob.ar` muestra «Posible estafa»).
+
+#### Padrón del BCRA
+
+- El [catálogo de APIs del BCRA](https://www.bcra.gob.ar/apis-banco-central/) (Central de Deudores, Cheques, Estadísticas, Régimen de Transparencia) **no** publica el sitio web de las entidades.
+- La página [Entidades Financieras](https://www.bcra.gob.ar/entidades-financieras/) lo arma con un endpoint JSON propio, sin documentar:
+  - `https://www.bcra.gob.ar/api/endpoints/entidades-financieras.php?action=list&lang=es`: `{ success, disponible, fecha_actualizacion, entidades: [{ codigo, nombre }] }`.
+  - `…?action=detail&category=<código>&lang=es`: `{ success, entidad: { codigo, nombre, sitio_web, … } }`.
+- Prueba real del 17/10/2026: 73 entidades; 70 con sitio web utilizable. Se descartaron 3: una sin sitio, una sin dato y `www.mobilize fs.com.ar`, que tiene un espacio. Los nombres llegan en mayúsculas y cortados a 35 caracteres. El CDN a veces responde 502 a una variante de la URL (con o sin `lang`), así que se prueban las dos.
+- Refresco: se descarga al arrancar y se intenta refrescar cada 24 h, con 6 pedidos en paralelo y `SITE_CHECK_REGISTRY_TIMEOUT_MS` por pedido. Si fallan más del 10 % de los detalles, la descarga se descarta; si fallan menos, se conservan las entidades de la copia anterior.
+- Si el refresco falla:
+  - Hasta 48 h desde la última descarga buena, la copia sigue **vigente**.
+  - Hasta 7 días, la copia queda **vieja**: se usa para detectar imitaciones, pero **nunca aprueba**, y `coverage.identity` es `partial`.
+  - Después, el padrón queda `unavailable`.
+- Sin padrón, los sitios que no están en una zona de gobierno ni en un catálogo quedan con identidad `unavailable`, y el indicador nunca es favorable.
+- Al ser un endpoint sin documentar, un cambio de formato hace fallar la validación con Zod: el resultado es identidad `unavailable`, nunca una aprobación.
+
+#### Dominios parecidos (sin lista manual)
+
+Las referencias salen, en este orden de peso, de:
+
+1. Dominios del padrón del BCRA (también de una copia vieja).
+2. Dominios de los catálogos curados.
+3. Zonas de gobierno.
+4. Opcionalmente, una lista de dominios populares (`SITE_CHECK_POPULAR_DOMAINS_FILE`).
+
+Las heurísticas siguen el estilo de las advertencias de dominios parecidos de Chrome:
+
+- Mismo esqueleto visual (UTS #39: letras de otro alfabeto, `0`/`o`, `rn`/`m`) → `CONFUSABLE_CHARACTERS` si hay caracteres no ASCII; si no, `LOOKALIKE_DOMAIN`.
+- Una edición de distancia, solo con nombres de 7 o más letras.
+- El dominio de referencia embebido en otro: `bna.com.ar.verificacion.net` → `MISLEADING_SUBDOMAIN`.
+- Marca + palabra clave: `bna-seguro.com`, `antel-uy.com`, `macro-login.com`.
+- Cambio de terminación (`bancociudad.com` frente a `bancociudad.com.ar`): **solo si hay lista de dominios populares** configurada, para excluir sitios globales legítimos. En la prueba real, sin esa lista, la regla marcaba `santander.com`, `bbva.com` e `icbc.com` como estafa, así que queda apagada por defecto.
+- Zonas de gobierno imitadas: `anses-gob-ar.com`, `anses-gob.ar.com`, `anses.gob.ar.evil.com`, `gub-uy.com`, o `.gob.ar` falso con homoglifos.
+
+«banco» no cuenta como palabra clave: `bancogalicia.com` no se marca.
+
+**Lista de dominios populares.** No se incluye ninguna en el repositorio:
+
+- [CrUX](https://developer.chrome.com/docs/crux) por país está bajo licencia CC BY-SA 4.0. Si se usa, hay que atribuirla y compartir las obras derivadas con la misma licencia.
+- Tranco incluye datos de Cloudflare Radar bajo CC BY-NC (no comercial). Se omitió por esa licencia.
+
+El archivo acepta un dominio u origen por línea, o un CSV con el origen en la primera columna (formato CrUX). Solo agrega referencias de parecido: nunca otorga oficialidad.
 
 ### Cómo se calcula
 
@@ -279,11 +346,11 @@ Posible estafa (dominio parecido):
 | `status: "partial"` | Fase de contenido con alguna verificación obligatoria `unavailable` o `partial` |
 | `status: "unavailable"` | Dirección local, privada o interna |
 
-- Una amenaza tiene prioridad sobre la identidad oficial: un dominio del catálogo con un reporte de phishing devuelve `identity: verified_official` **y** `risk: high` → el indicador muestra «Posible estafa».
+- Una amenaza tiene prioridad sobre la identidad oficial: un dominio `.gob.ar` o del padrón con un reporte de phishing devuelve `identity: verified_official` **y** `risk: high` → el indicador muestra «Posible estafa».
 - Los motivos `technical` (`NO_HTTPS`, `CERTIFICATE_PROBLEM`, `CROSS_DOMAIN_REDIRECT`) nunca suben el riesgo por sí solos. `INSECURE_FORM_ACTION` solo aparece con datos sensibles y da, como mucho, riesgo medio.
 - Antigüedad, HTTPS y ausencia de reportes **nunca** generan un resultado favorable por sí solos: lo favorable solo surge de no encontrar motivos con las verificaciones obligatorias completas.
-- Una contraseña sola no es un pedido sensible (cualquier sitio con usuarios la pide). Cuenta como `SENSITIVE_DATA_REQUEST` cuando el sitio, fuera del catálogo, ya muestra otra señal de fraude. Tarjeta, CBU/CVU, clave fiscal y códigos de verificación cuentan siempre fuera del catálogo.
-- La IA puede **subir** de `no_signals`/`unknown` a `medium` con un motivo concreto (fuente «Análisis con IA»). Nunca baja el riesgo ni cambia `identity`. Si la IA falla o tarda más de `SITE_CHECK_AI_TIMEOUT_MS`, la respuesta sale igual sin `explanation`.
+- Una contraseña sola no es un pedido sensible (cualquier sitio con usuarios la pide). Cuenta como `SENSITIVE_DATA_REQUEST` cuando el sitio, sin identidad oficial, ya muestra otra señal de fraude (por ejemplo, dice ser ANSES). Tarjeta, CBU/CVU, clave fiscal y códigos de verificación cuentan siempre en sitios sin identidad oficial.
+- La IA solo identifica la organización declarada y los pedidos (credenciales, pagos, códigos), con salida validada por Zod. Lo que identifica se contrasta con las fuentes de autoridad y puede sumar `BRAND_IMPERSONATION` o `SENSITIVE_DATA_REQUEST` (fuente «Análisis con IA»). Nunca baja el riesgo ni cambia `identity`. Si la IA falla o tarda más de `SITE_CHECK_AI_TIMEOUT_MS`, `coverage.content` queda `partial` (nunca favorable) y la respuesta sale sin `explanation`.
 
 ### Cobertura mínima acordada con el front
 
@@ -306,11 +373,11 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 |---|---|---|---|
 | `KNOWN_PHISHING` | fraud | Reputación | Reportado como phishing o ingeniería social |
 | `KNOWN_MALWARE` | fraud | Reputación | Reportado como malware o software no deseado |
-| `LOOKALIKE_DOMAIN` | fraud | Catálogo | Dominio parecido a uno oficial: misma etiqueta con otra terminación, etiqueta vigilada contenida, distancia de edición o letras sustituidas |
-| `CONFUSABLE_CHARACTERS` | fraud | Catálogo | Caracteres de otro alfabeto (punycode/IDN) que imitan un dominio oficial, o mezcla de alfabetos |
-| `MISLEADING_SUBDOMAIN` | fraud | Catálogo | Un dominio oficial o nombre vigilado aparece en los subdominios de otro dominio (`argentina.gob.ar.evil.com`) |
-| `BRAND_IMPERSONATION` | fraud | Contenido | El sitio se declara como una organización del catálogo sin estar autorizado |
-| `SENSITIVE_DATA_REQUEST` | fraud | Contenido / IA | Pide tarjeta, CBU/CVU, clave fiscal o códigos fuera del catálogo (o contraseña junto a otra señal) |
+| `LOOKALIKE_DOMAIN` | fraud | Fuentes de autoridad | Dominio parecido a uno del padrón, de un catálogo o a una zona de gobierno: letras sustituidas, una edición, marca + palabra clave, otra terminación |
+| `CONFUSABLE_CHARACTERS` | fraud | Fuentes de autoridad | Caracteres de otro alfabeto (punycode/IDN) que imitan un dominio de referencia o una zona de gobierno, o mezcla de alfabetos |
+| `MISLEADING_SUBDOMAIN` | fraud | Fuentes de autoridad | Una zona de gobierno, un dominio de referencia o una marca aparece en los subdominios de otro dominio (`anses.gob.ar.evil.com`) |
+| `BRAND_IMPERSONATION` | fraud | Contenido / IA | El sitio dice ser un organismo del Estado, una entidad del padrón o una organización de un catálogo y el dominio no le pertenece |
+| `SENSITIVE_DATA_REQUEST` | fraud | Contenido / IA | Pide tarjeta, CBU/CVU, clave fiscal, pagos o códigos en un sitio sin identidad oficial (o contraseña junto a otra señal) |
 | `FORM_SENDS_TO_OTHER_DOMAIN` | fraud | Contenido | Un formulario con datos sensibles envía a otro dominio |
 | `LINK_TEXT_MISMATCH` | fraud | Contenido | El texto del enlace muestra un dominio u organización distinta del destino real |
 | `URGENCY_OR_THREAT` | fraud | Contenido | Combinación de amenazas o urgencia con un pedido de datos |
@@ -328,7 +395,8 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 | Reputación con reporte | ídem | la que indique el proveedor (máx. 30 min) |
 | RDAP | hash del dominio registrable | 24 h (bootstrap de IANA: 24 h) |
 | Conexión | hash de la URL depurada | 1 h |
-| Catálogo y contenido | sin caché (se evalúan en cada solicitud) | 10 min |
+| Padrón del BCRA | en memoria, una copia | refresco cada 24 h; vigente 48 h; vieja (no aprueba) hasta 7 días |
+| Zonas, catálogos y contenido | sin caché (se evalúan en cada solicitud) | 10 min |
 
 - `expiresAt` = la vigencia más corta de las fuentes usadas. Con alguna cobertura `unavailable`/`partial`, y en la fase de dirección, es de **60 segundos**.
 - Las fallas no se guardan en caché: «Intentar de nuevo» vuelve a consultar.
@@ -345,14 +413,30 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 | `GOOGLE_SAFE_BROWSING_API_KEY` | clave | Requerida con `safe_browsing` |
 | `GOOGLE_WEB_RISK_API_KEY` | clave | Requerida con `web_risk` |
 | `SITE_CHECK_RDAP` | `true`/`false` | Consulta RDAP |
+| `SITE_CHECK_BCRA_REGISTRY` | `true`/`false` | Padrón del BCRA. Con `false`, los bancos no pueden ser «Sitio oficial» y lo que no está en zonas ni catálogos queda sin verificar |
+| `SITE_CHECK_REGISTRY_TIMEOUT_MS` | número | Tiempo máximo por pedido al BCRA (8 s) |
+| `SITE_CHECK_POPULAR_DOMAINS_FILE`, `SITE_CHECK_POPULAR_DOMAINS_LIMIT` | ruta, número | Lista opcional de dominios populares (solo referencias de parecido) |
 | `SITE_CHECK_CONNECTION` | `true`/`false` | Inspección de TLS y redirecciones |
-| `SITE_CHECK_AI` | `true`/`false` | Explicación de la IA (usa `AI_PROVIDER`) |
+| `SITE_CHECK_AI` | `true`/`false` | Identificación de la organización declarada y explicación (usa `AI_PROVIDER`) |
 | `SITE_CHECK_RATE_LIMIT_MAX` | número | Solicitudes por ventana y token en `/v1/site-check` |
 | `SITE_CHECK_PROVIDER_TIMEOUT_MS`, `SITE_CHECK_CONNECTION_TIMEOUT_MS`, `SITE_CHECK_AI_TIMEOUT_MS`, `SITE_CHECK_PROVIDER_MAX_PER_MINUTE` | número | Tiempos máximos y topes |
 
 Las claves viven solo en el servidor. Sin proveedor de reputación (`none`), la cobertura de reputación es `unavailable` y el indicador **nunca** muestra un estado favorable.
 
-**Consultar reportes vs. enviar a escanear.** Todas las implementaciones solo **consultan** listas de reportes existentes. Ninguna envía una URL a un escaneo nuevo (como `urlscan.io` o el envío de URLs de VirusTotal), que la haría pública o la compartiría con terceros y, con ella, datos del recorrido de la persona. No se publica nada automáticamente.
+**Consultar reportes vs. enviar a escanear.** Todas las implementaciones solo **consultan** listas de reportes existentes. Se evitan a propósito:
+
+- La Web Risk **Evaluate API**, porque envía la URL a evaluar.
+- Los escaneos de `urlscan.io`, porque publican o comparten la URL.
+- El envío de URLs a VirusTotal.
+
+Todas exponen la URL, y con ella datos del recorrido de la persona. No se publica nada automáticamente.
+
+**Licencias:**
+
+- Web Risk está pensada para uso comercial.
+- Safe Browsing Lookup v4 es gratuita, pero solo para uso no comercial.
+- La API pública de VirusTotal tampoco permite uso comercial.
+- Para un servicio comercial corresponde Web Risk.
 
 | Opción | Licencia y costo | Privacidad | Cobertura |
 |---|---|---|---|
@@ -364,9 +448,11 @@ Las claves viven solo en el servidor. Sin proveedor de reputación (`none`), la 
 
 ### Limitaciones
 
-- No promete detectar todas las amenazas: un sitio de phishing nuevo puede no estar reportado todavía, y el catálogo solo reconoce las organizaciones cargadas.
-- El catálogo inicial es una **semilla de ejemplo** (argentina.gob.ar, ARCA/AFIP, ANSES, PAMI, BCRA, Banco Nación, Banco Provincia, Banco Ciudad). Antes de producción cada entrada debe revisarse contra su fuente. Un dominio legítimo de una organización que falte en el catálogo puede marcarse como parecido.
-- La detección de dominios parecidos usa etiquetas vigiladas por entrada (`watchLabels`), distancia de edición y un subconjunto de confusables Unicode. Puede haber falsos positivos (dominios legítimos con nombres similares) y falsos negativos.
+- No promete detectar todas las amenazas: un sitio de phishing nuevo puede no estar reportado todavía.
+- «Oficial» cubre solo lo que una autoridad respalda: organismos en zonas de gobierno, entidades del padrón del BCRA y entradas de catálogos curados. Empresas legítimas fuera de esas fuentes (telefónicas argentinas, comercios, billeteras que no son bancos) se muestran como «Sin alertas detectadas», nunca como oficiales.
+- El padrón depende de un endpoint sin documentar del BCRA. Si deja de responder o cambia de formato, los bancos dejan de verse como oficiales (nunca se aprueba en falso). Un banco que use otros dominios además del publicado (por ejemplo `bancogalicia.com` frente a `galicia.ar`) no es oficial en esos otros dominios.
+- La coincidencia entre una marca declarada y el padrón exige una palabra financiera («Banco Galicia») o la pista de la IA: «Galicia» o «La Nación» solas no se asocian al banco, para no acusar a un diario.
+- La detección de dominios parecidos puede dar falsos positivos (un dominio legítimo con un nombre parecido a una entidad) y falsos negativos (marcas cortas de 3 letras solo se detectan con una palabra clave).
 - Las reglas de contenido trabajan sobre el resumen que extrae el navegador: no ven el código de la página ni cambios posteriores, ni contenido dentro de iframes de otro origen.
 - La inspección de conexión ve lo que ve el servidor, que puede diferir de lo que ve la persona (sesión, geolocalización, cloaking).
 - Las cachés y los topes son en memoria, por proceso: se pierden al reiniciar y no se comparten entre réplicas.
@@ -425,7 +511,7 @@ curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'conte
   -d '{"navigationId":"nav-1","contentVersion":0,"url":"https://www.argentina.gob.ar/","hostname":"www.argentina.gob.ar","registrableDomain":"argentina.gob.ar"}'
 # Fase de contenido en un dominio parecido → risk high, LOOKALIKE_DOMAIN
 curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
-  -d '{"navigationId":"nav-2","contentVersion":1,"url":"https://anses-turnos.com/","hostname":"anses-turnos.com","registrableDomain":"anses-turnos.com","page":{"text":"Su beneficio será suspendido. Ingrese su CBU.","forms":[{"method":"post","action":null,"fields":[{"type":"text","label":"CBU"}]}],"links":[],"scriptHosts":[],"iframeHosts":[]}}'
+  -d '{"navigationId":"nav-2","contentVersion":1,"url":"https://anses-gob-ar.com/","hostname":"anses-gob-ar.com","registrableDomain":"anses-gob-ar.com","page":{"text":"Su beneficio será suspendido. Ingrese su CBU.","forms":[{"method":"post","action":null,"fields":[{"type":"text","label":"CBU"}]}],"links":[],"scriptHosts":[],"iframeHosts":[]}}'
 # Amenaza simulada → KNOWN_PHISHING
 curl -s localhost:3000/v1/site-check -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -d '{"navigationId":"nav-3","contentVersion":0,"url":"https://phishing-demo.example.com/","hostname":"phishing-demo.example.com","registrableDomain":"example.com"}'
