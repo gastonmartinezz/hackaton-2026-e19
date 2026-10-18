@@ -184,6 +184,21 @@
     display: none;
   }
 }
+/* Si el dominio igual no entra (ver useDomainFit en TopBar.tsx). */
+.omni[data-fit] .k-estas {
+  display: none;
+}
+.omni[data-fit='icono'] .insecure-icon {
+  display: inline-flex;
+}
+.omni[data-fit='icono'] .insecure-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 @container (max-width: 480px) {
   .insecure-icon {
     display: inline-flex;

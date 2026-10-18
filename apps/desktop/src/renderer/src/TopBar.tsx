@@ -5,7 +5,7 @@
  * «Voz» no está en el diseño v2.2: pendiente de aprobación de diseño.
  */
 import { Button, Icon, Logo } from '@asistente/ui';
-import { useState, type FormEvent } from 'react';
+import { useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { splitDomain } from '../../shared/domain';
 import { TEXT_SCALES, type AppState } from '../../shared/ipc';
 import { SiteCheckIndicator, SiteCheckProbe } from './SiteCheck';
@@ -92,6 +92,7 @@ function Omni({ state, indicatorInline }: { state: AppState; indicatorInline: bo
   const { nav } = state;
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
+  const fit = useDomainFit(`${nav.domain}|${nav.secure}|${state.prefs.textScale}|${indicatorInline}|${editing}`);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -104,7 +105,7 @@ function Omni({ state, indicatorInline }: { state: AppState; indicatorInline: bo
   if (!editing && nav.domain) {
     const { sub, main } = splitDomain(nav.domain);
     return (
-      <div className="omni" role="group" aria-label="Sitio abierto">
+      <div className="omni" ref={fit.ref} data-fit={fit.level} role="group" aria-label="Sitio abierto">
         <button type="button" className="where" onClick={() => setEditing(true)} aria-label={`Estás en ${nav.domain}. Buscar otra cosa`}>
           {nav.secure ? null : (
             <span className="insecure">
@@ -148,4 +149,37 @@ function Omni({ state, indicatorInline }: { state: AppState; indicatorInline: bo
       />
     </form>
   );
+}
+
+/** Lo que se va sacando de la píldora, en orden, para que el dominio entre entero. */
+const FIT_LEVELS = [undefined, 'sin-estas', 'icono'] as const;
+
+/**
+ * El dominio tiene prioridad sobre el resto de la píldora: si quedó recortado,
+ * primero se oculta «Estás en» y después «Conexión no segura» queda solo con su
+ * ícono. Se vuelve a medir desde el principio cuando cambia el ancho, el sitio
+ * o el tamaño de letra. Recortarlo es el último recurso (ver guiame.css).
+ */
+function useDomainFit(key: string) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [level, setLevel] = useState(0);
+  // Fuerza otra medición aunque el nivel ya sea 0 (React no vuelve a dibujar si el estado no cambia).
+  const [, remeasure] = useState(0);
+  useLayoutEffect(() => setLevel(0), [key]);
+  useLayoutEffect(() => {
+    const omni = ref.current;
+    if (!omni || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      setLevel(0);
+      remeasure((n) => n + 1);
+    });
+    observer.observe(omni);
+    return () => observer.disconnect();
+    // La píldora con el dominio aparece y desaparece (al editar o sin sitio): se vuelve a observar.
+  }, [key]);
+  useLayoutEffect(() => {
+    const main = ref.current?.querySelector('.dom b');
+    if (main && main.scrollWidth > main.clientWidth && level < FIT_LEVELS.length - 1) setLevel(level + 1);
+  });
+  return { ref, level: FIT_LEVELS[level] };
 }
