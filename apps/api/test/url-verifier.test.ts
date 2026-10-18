@@ -155,6 +155,45 @@ describe('UrlVerifier', () => {
     await expect(verifier.verify('https://lento.ejemplo.uy/')).resolves.toEqual({ ok: false, reason: 'timeout' });
   });
 
+  it('no se queda esperando a un DNS colgado: respeta el timeout y libera la URL', async () => {
+    let lookups = 0;
+    const verifier = new UrlVerifier(
+      { timeoutMs: 30, maxRedirects: 3, cacheTtlMs: 0, allowHttp: false },
+      {
+        // Un servidor de nombres que nunca responde (ni siquiera mira la señal).
+        resolve: () => {
+          lookups++;
+          return new Promise<string[]>(() => undefined);
+        },
+        request: async () => ({ status: 200 }),
+        now: Date.now,
+      },
+    );
+    const startedAt = performance.now();
+    await expect(verifier.verify('https://colgado.ejemplo.uy/')).resolves.toEqual({ ok: false, reason: 'timeout' });
+    expect(performance.now() - startedAt).toBeLessThan(1000);
+    // La entrada en curso se limpió: la siguiente verificación de la misma URL vuelve a consultar y también termina.
+    await expect(verifier.verify('https://colgado.ejemplo.uy/')).resolves.toEqual({ ok: false, reason: 'timeout' });
+    expect(lookups).toBe(2);
+  });
+
+  it('pasa la señal de cancelación a la consulta DNS', async () => {
+    let received: AbortSignal | undefined;
+    const verifier = new UrlVerifier(
+      { timeoutMs: 1000, maxRedirects: 3, cacheTtlMs: 0, allowHttp: false },
+      {
+        resolve: async (_hostname, signal) => {
+          received = signal;
+          return ['93.184.215.14'];
+        },
+        request: async () => ({ status: 200 }),
+        now: Date.now,
+      },
+    );
+    await verifier.verify('https://www.ute.com.uy/');
+    expect(received).toBeInstanceOf(AbortSignal);
+  });
+
   it('recuerda los resultados un rato y los negativos menos', async () => {
     let now = 0;
     const verifier = fakeVerifier({ sites: { 'https://www.ute.com.uy/no-existe': { status: 404 } }, now: () => now });

@@ -37,8 +37,8 @@ export interface HeadResult {
 
 /** Puntos de entrada a la red, inyectables en pruebas. */
 export interface UrlCheckDeps {
-  /** Resuelve un nombre a todas sus direcciones. */
-  resolve: (hostname: string) => Promise<string[]>;
+  /** Resuelve un nombre a todas sus direcciones. Si `signal` se aborta, tiene que rechazar. */
+  resolve: (hostname: string, signal: AbortSignal) => Promise<string[]>;
   /** Pide la URL sin leer el cuerpo y devuelve status y Location. */
   request: (url: URL, method: 'HEAD' | 'GET', signal: AbortSignal) => Promise<HeadResult>;
   now: () => number;
@@ -144,7 +144,7 @@ export class UrlVerifier {
 
     try {
       for (let hop = 0; hop <= this.options.maxRedirects; hop++) {
-        const rejected = await this.rejectTarget(url);
+        const rejected = await this.rejectTarget(url, signal);
         if (rejected) return rejected;
         if (visited.has(url.href)) return { ok: false, reason: 'redirect_loop' };
         visited.add(url.href);
@@ -170,7 +170,7 @@ export class UrlVerifier {
   }
 
   /** Validaciones de un salto, antes de conectarse. */
-  private async rejectTarget(url: URL): Promise<UrlCheck | null> {
+  private async rejectTarget(url: URL, signal: AbortSignal): Promise<UrlCheck | null> {
     const allowed = this.options.allowHttp ? ['https:', 'http:'] : ['https:'];
     if (!allowed.includes(url.protocol)) return { ok: false, reason: 'scheme' };
     if (url.username || url.password) return { ok: false, reason: 'credentials' };
@@ -184,15 +184,39 @@ export class UrlVerifier {
 
     let addresses: string[];
     try {
-      addresses = await this.deps.resolve(hostname);
+      // La consulta DNS cuenta dentro del mismo tope total que los pedidos HTTP.
+      addresses = await abortable(this.deps.resolve(hostname, signal), signal);
     } catch {
-      return { ok: false, reason: 'dns' };
+      return { ok: false, reason: signal.aborted ? 'timeout' : 'dns' };
     }
     if (addresses.length === 0) return { ok: false, reason: 'dns' };
     // Si alguna dirección es privada, no se usa: el sistema podría elegir esa al conectarse.
     if (addresses.some(isBlockedAddress)) return { ok: false, reason: 'private_address' };
     return null;
   }
+}
+
+/**
+ * Rechaza cuando `signal` se aborta aunque `promise` no termine nunca (p. ej. un servidor de
+ * nombres colgado). dns.lookup no se puede cancelar: la consulta sigue en segundo plano hasta
+ * el timeout del sistema, pero verify() responde a tiempo y libera su lugar en inFlight.
+ */
+function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
 }
 
 class BlockedAddressError extends Error {
@@ -219,7 +243,8 @@ const safeLookup: LookupFunction = (hostname, options, callback) => {
 
 function defaultDeps(): UrlCheckDeps {
   return {
-    resolve: async (hostname) => (await dnsLookup(hostname, { all: true })).map((record) => record.address),
+    resolve: async (hostname, signal) =>
+      (await abortable(dnsLookup(hostname, { all: true }), signal)).map((record) => record.address),
     request: (url, method, signal) =>
       new Promise<HeadResult>((resolve, reject) => {
         const send = url.protocol === 'https:' ? httpsRequest : httpRequest;
