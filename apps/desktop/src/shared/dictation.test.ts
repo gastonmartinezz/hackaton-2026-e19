@@ -25,6 +25,16 @@ describe('dictatedValue', () => {
     expect(dictatedValue('2.500', 'number')).toBe('2500');
     expect(dictatedValue('tres', 'number')).toBe('3');
     expect(dictatedValue('ninguno', 'number')).toBeNull();
+    expect(dictatedValue('3,5', 'number')).toBe('3.5');
+    expect(dictatedValue('dos punto cinco', 'number')).toBe('2.5');
+    expect(dictatedValue('dos coma dos cinco', 'number')).toBe('2.25');
+    expect(dictatedValue('0.500', 'number')).toBe('0.500');
+    expect(dictatedValue('1.250.000', 'number')).toBe('1250000');
+    expect(dictatedValue('menos tres', 'number')).toBe('-3');
+    expect(dictatedValue('-4', 'number')).toBe('-4');
+    // Sin un número claro no se escribe nada recortado.
+    expect(dictatedValue('dos coma veinticinco', 'number')).toBeNull();
+    expect(dictatedValue('3 o 4', 'number')).toBeNull();
   });
 
   it('fecha: con palabras o con barras, en el formato del lugar para fechas', () => {

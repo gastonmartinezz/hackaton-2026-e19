@@ -69,10 +69,32 @@ function phone(text: string): string | null {
   return digits ? `${plus ? '+' : ''}${digits}` : null;
 }
 
+const DIGIT_WORDS = new RegExp(`\\b(${Object.keys(SPOKEN_DIGITS).join('|')})\\b`, 'g');
+
+/**
+ * Un solo número, con la coma como decimal (como se escribe en Uruguay) y el
+ * punto de miles: «2.500» → 2500, «3,5» → 3.5, «0.5» → 0.5, «dos coma cinco» →
+ * 2.5, «menos tres» → -3. Si no hay exactamente un número claro, null: nunca
+ * se escribe un valor recortado.
+ */
 function number(text: string): string | null {
-  const value = spokenDigits(text.replace(/(\d)[.\s](?=\d{3}\b)/g, '$1')).replace(/(\d) coma (\d)/g, '$1.$2');
-  const match = value.replace(/,/g, '.').match(/-?\d+(\.\d+)?/);
-  return match ? match[0] : null;
+  let said = text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+  const negative = /^(-|menos\b)/.test(said);
+  said = said
+    .replace(DIGIT_WORDS, (word) => SPOKEN_DIGITS[word]!);
+  // Una coma dicha seguida de algo que no son cifras («dos coma veinticinco»): no se entiende el decimal.
+  if (/\d\s*(?:coma|punto)\s+[a-z]/.test(said)) return null;
+  said = said
+    .replace(/(\d)\s*(?:coma|punto)\s*(?=\d)/g, '$1,')
+    .replace(/(\d)\s+(?=\d)/g, '$1')
+    .replace(/\b0\.(?=\d)/g, '0,');
+  // Puntos de miles («1.250.000»), de a uno por vuelta.
+  for (let previous = ''; previous !== said; ) {
+    previous = said;
+    said = said.replace(/(\d)\.(\d{3})(?!\d)/, '$1$2');
+  }
+  const found = said.replace(/(\d),(?=\d)/g, '$1.').match(/\d+(\.\d+)?/g);
+  return found?.length === 1 ? `${negative ? '-' : ''}${found[0]}` : null;
 }
 
 /** «3 de mayo de 1950», «03/05/1950» o «3-5-1950» → «1950-05-03» (formato de `input type=date`). */
