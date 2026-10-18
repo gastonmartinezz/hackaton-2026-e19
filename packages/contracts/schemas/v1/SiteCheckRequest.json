@@ -189,5 +189,31 @@
     "hostname",
     "registrableDomain"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "contentVersion": {
+            "const": 0
+          }
+        },
+        "required": [
+          "contentVersion"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "page"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "page"
+        ]
+      }
+    }
+  ]
 }

@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import * as contracts from '../src/index.js';
+import { withCrossFieldRules } from './cross-field-rules.js';
 
 const exported = {
   InterpretRequest: contracts.InterpretRequest,
@@ -22,7 +23,7 @@ const outDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'schemas', 'v
 await mkdir(outDir, { recursive: true });
 
 for (const [name, schema] of Object.entries(exported)) {
-  const json = z.toJSONSchema(schema, { target: 'draft-2020-12', io: 'input' });
+  const json = withCrossFieldRules(name, z.toJSONSchema(schema, { target: 'draft-2020-12', io: 'input' }) as Record<string, unknown>);
   await writeFile(join(outDir, `${name}.json`), `${JSON.stringify({ title: name, ...json }, null, 2)}\n`);
 }
 

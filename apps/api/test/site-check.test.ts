@@ -388,6 +388,14 @@ describe('POST /v1/site-check: IA', () => {
     expect(r.explanation).toBeUndefined();
   });
 
+  it('la IA recibe la cobertura real: sin reputación el riesgo es unknown, no no_signals', async () => {
+    const { model, inputs } = siteCheckModel(() => ({ ...quiet, explanation: 'No encontramos señales.' }));
+    app = await testApp({ model, siteCheck: fakeProviders({ reputationProvider: null }) });
+    await check(contentRequest('https://www.ejemplo-comercio.com.ar/'));
+    expect(inputs[0].risk).toBe('unknown');
+    expect(inputs[0].coverage).toMatchObject({ reputation: 'unavailable' });
+  });
+
   it('la organización que identifica la IA se contrasta con las fuentes de autoridad', async () => {
     const { model } = siteCheckModel(() => ({
       ...quiet,

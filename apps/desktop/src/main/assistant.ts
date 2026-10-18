@@ -74,6 +74,8 @@ export class Assistant {
   #revision = 0;
   #snapshot: PageSnapshot | undefined;
   #epoch = 0;
+  /** Cada #showStep toma un número; solo la última invocación aplica su resultado (pausa por riesgo, «Repetir»). */
+  #showGeneration = 0;
   #controller: AbortController | undefined;
   #pendingGoal: string | undefined;
   /** Sesión en la que se pidieron las opciones de la guía actual. */
@@ -365,6 +367,7 @@ export class Assistant {
   async #showStep(epoch: number): Promise<void> {
     const step = this.state.step;
     if (!step) return;
+    const generation = ++this.#showGeneration;
     this.paused = this.#riskHold && isSensitiveStep(step, this.#targetOf(step.element));
     if (this.paused) {
       // No se señala ni se espera la acción: la persona decide desde el panel.
@@ -383,7 +386,8 @@ export class Assistant {
       return;
     }
     const { result, elementId, rect, field } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
-    if (epoch !== this.#epoch) return;
+    // Otra invocación posterior (por ejemplo, la pausa por riesgo alto) ya decidió qué mostrar.
+    if (epoch !== this.#epoch || generation !== this.#showGeneration) return;
     // Sin ID local no se puede verificar la interacción: se trata como no señalado.
     const shown = result === 'shown' && elementId !== undefined;
     this.targetVisible = shown;

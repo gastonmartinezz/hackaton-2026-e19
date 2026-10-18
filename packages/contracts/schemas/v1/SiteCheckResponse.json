@@ -83,7 +83,43 @@
       "required": [
         "status"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "verified_official"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "basis",
+              "source"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "basis"
+                  ]
+                },
+                {
+                  "required": [
+                    "source"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
     },
     "risk": {
       "type": "string",

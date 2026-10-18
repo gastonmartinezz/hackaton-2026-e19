@@ -355,6 +355,33 @@ describe('Assistant', () => {
     expect(page.shown).toHaveLength(1);
   });
 
+  it('la pausa por riesgo gana sobre un señalamiento que todavía estaba en curso', async () => {
+    load('formulario.html');
+    const { assistant, until, page } = setup();
+    // El primer señalamiento queda esperando hasta que lo liberemos.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const show = page.show.bind(page);
+    page.show = async (navigationId: string, selector: string) => {
+      await gate;
+      return show(navigationId, selector);
+    };
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    const form = assistant.state.options.find((o) => o.id.startsWith('form-'))!;
+    assistant.select(form.id);
+    await until(() => assistant.state.phase === 'waitingForUser');
+
+    assistant.setRiskHold(true);
+    expect(assistant.paused).toBe(true);
+    release();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(assistant.paused).toBe(true);
+    expect(assistant.targetVisible).toBeNull();
+    expect(assistant.state.step?.targetElementId).toBeUndefined();
+  });
+
   it('con riesgo alto sigue guiando la navegación', async () => {
     load('horarios.html');
     const { assistant, until, shownStep } = setup();

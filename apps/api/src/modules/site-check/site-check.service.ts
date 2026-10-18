@@ -231,8 +231,12 @@ export class SiteCheckService {
       let asksCredentials = page.data?.sensitiveKinds.includes('password') ?? false;
 
       if (this.deps.model) {
-        const rulesRisk = computeRisk(new Set(findings.map((f) => f.code)), true);
-        const ai = await this.interpret(log, { host, risk: rulesRisk, official, findings, page: sanitized, analysis: page.data! });
+        // Lo que la IA recibe tiene que reflejar la cobertura real: sin reputación o identidad completas el
+        // riesgo es «unknown» y el prompt le prohíbe tranquilizar.
+        const preCoverage = { reputation: reputation.coverage, identity: identity.coverage, content: page.coverage, registration: registration.coverage, connection: connection.coverage };
+        const preComplete = [preCoverage.reputation, preCoverage.identity, preCoverage.content].every(isEnough);
+        const rulesRisk = computeRisk(new Set(findings.map((f) => f.code)), preComplete);
+        const ai = await this.interpret(log, { host, risk: rulesRisk, coverage: preCoverage, official, findings, page: sanitized, analysis: page.data! });
         if (!ai) {
           // Sin la identificación de la IA el análisis de contenido queda incompleto: nunca favorable.
           contentCoverage = 'partial';
@@ -314,13 +318,14 @@ export class SiteCheckService {
   /** La IA identifica organización declarada y pedidos, y redacta una explicación. null si falla. */
   private async interpret(
     log: FastifyBaseLogger,
-    context: { host: HostInfo; risk: SiteRisk; official: OfficialMatch | null; findings: Finding[]; page: PageSummary; analysis: PageAnalysis },
+    context: { host: HostInfo; risk: SiteRisk; coverage: SiteCheckCoverage; official: OfficialMatch | null; findings: Finding[]; page: PageSummary; analysis: PageAnalysis },
   ): Promise<SiteCheckOutput | null> {
     const model = this.deps.model!;
     const input = {
       site: { hostname: context.host.hostname, registrableDomain: context.host.registrableDomain },
       identity: context.official ? { status: 'verified_official', basis: context.official.basis, organization: context.official.organization } : { status: 'unknown' },
       risk: context.risk,
+      coverage: context.coverage,
       reasons: context.findings.map((f) => ({ code: f.code, category: CATEGORY[f.code], detail: f.detail })),
       // Contenido no confiable: va dentro del bloque <datos> y el prompt advierte sobre instrucciones.
       page: {
