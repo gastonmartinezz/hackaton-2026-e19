@@ -157,8 +157,8 @@
 }
 
 /*
- * La píldora «Estás en» suma el sello. El dominio principal nunca se corta:
- * cuando falta lugar se oculta primero «Estás en», después la conexión no segura
+ * La píldora «Estás en» suma el sello. El dominio principal se corta solo como
+ * último recurso, por el principio (ver guiame.css). Cuando falta lugar se oculta primero «Estás en», después la conexión no segura
  * queda solo con su ícono (el texto sigue para lectores de pantalla y el aviso
  * completo está en la tarjeta) y el texto del sello pasa a dos líneas.
  */
@@ -183,6 +183,21 @@
   .omni .k-estas {
     display: none;
   }
+}
+/* Si el dominio igual no entra (ver useDomainFit en TopBar.tsx). */
+.omni[data-fit] .k-estas {
+  display: none;
+}
+.omni[data-fit='icono'] .insecure-icon {
+  display: inline-flex;
+}
+.omni[data-fit='icono'] .insecure-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 @container (max-width: 480px) {
   .insecure-icon {
