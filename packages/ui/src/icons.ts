@@ -14,12 +14,14 @@ import clock from './icons/clock.svg?raw';
 import externalLink from './icons/external-link.svg?raw';
 import fileText from './icons/file-text.svg?raw';
 import house from './icons/house.svg?raw';
+import loaderCircle from './icons/loader-circle.svg?raw';
 import lock from './icons/lock.svg?raw';
 import logOut from './icons/log-out.svg?raw';
 import mapPin from './icons/map-pin.svg?raw';
 import maximize2 from './icons/maximize-2.svg?raw';
 import mic from './icons/mic.svg?raw';
 import minus from './icons/minus.svg?raw';
+import monitor from './icons/monitor.svg?raw';
 import navigation from './icons/navigation.svg?raw';
 import refreshCw from './icons/refresh-cw.svg?raw';
 import rotateCcw from './icons/rotate-ccw.svg?raw';
@@ -27,8 +29,11 @@ import rotateCw from './icons/rotate-cw.svg?raw';
 import search from './icons/search.svg?raw';
 import send from './icons/send.svg?raw';
 import square from './icons/square.svg?raw';
+import shield from './icons/shield.svg?raw';
 import shieldAlert from './icons/shield-alert.svg?raw';
 import shieldCheck from './icons/shield-check.svg?raw';
+import shieldQuestionMark from './icons/shield-question-mark.svg?raw';
+import shieldX from './icons/shield-x.svg?raw';
 import sparkles from './icons/sparkles.svg?raw';
 import triangleAlert from './icons/triangle-alert.svg?raw';
 import volume2 from './icons/volume-2.svg?raw';
@@ -49,20 +54,25 @@ export const ICONS = {
   'external-link': externalLink,
   'file-text': fileText,
   'house': house,
+  'loader-circle': loaderCircle,
   'lock': lock,
   'log-out': logOut,
   'map-pin': mapPin,
   'maximize-2': maximize2,
   'mic': mic,
   'minus': minus,
+  'monitor': monitor,
   'navigation': navigation,
   'refresh-cw': refreshCw,
   'rotate-ccw': rotateCcw,
   'rotate-cw': rotateCw,
   'search': search,
   'send': send,
+  'shield': shield,
   'shield-alert': shieldAlert,
   'shield-check': shieldCheck,
+  'shield-question-mark': shieldQuestionMark,
+  'shield-x': shieldX,
   'sparkles': sparkles,
   'square': square,
   'triangle-alert': triangleAlert,
