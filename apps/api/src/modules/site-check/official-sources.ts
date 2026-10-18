@@ -85,6 +85,9 @@ const CommonWordsFile = z.strictObject({
   note: z.string().optional(),
   /** Como etiqueta de dominio: minúsculas, sin tildes, espacios ni guiones. */
   words: z.array(z.string().regex(/^[a-z0-9]+$/)).min(1),
+  brandKeywordsNote: z.string().optional(),
+  /** Palabra común → palabras de estafa con las que vuelve a contar como marca (correo → uy, envios, paquete…). */
+  brandKeywords: z.record(z.string().regex(/^[a-z0-9]+$/), z.array(z.string().regex(/^[a-z0-9]+$/)).min(1)).default({}),
 });
 
 /** Descarte con dominio: el texto puede traer varios («a.com.uy, b.uy») o ninguno («-»). */
@@ -134,6 +137,8 @@ export interface OfficialSources {
   discarded: Map<string, string>;
   /** Palabras de uso corriente (heurística de dominios parecidos, no fuente de autoridad). */
   commonWords: Set<string>;
+  /** Palabras de estafa por marca común (ver `brandKeywords` en common-words.json). */
+  brandKeywords: Map<string, ReadonlySet<string>>;
 }
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
@@ -164,7 +169,7 @@ export function loadOfficialSources(
       .sort()
       .map((name) => join(dataDir, name));
 
-  const sources: OfficialSources = { zones: [], entries: [], claims: [], discarded: new Map(), commonWords: new Set() };
+  const sources: OfficialSources = { zones: [], entries: [], claims: [], discarded: new Map(), commonWords: new Set(), brandKeywords: new Map() };
 
   try {
     const claims = ClaimsFile.parse(readJson(claimsPath));
@@ -176,7 +181,9 @@ export function loadOfficialSources(
   }
 
   try {
-    sources.commonWords = new Set(CommonWordsFile.parse(readJson(commonWordsPath)).words);
+    const commonWords = CommonWordsFile.parse(readJson(commonWordsPath));
+    sources.commonWords = new Set(commonWords.words);
+    sources.brandKeywords = new Map(Object.entries(commonWords.brandKeywords).map(([word, keywords]) => [word, new Set(keywords)]));
   } catch (error) {
     throw describeError(commonWordsPath, error);
   }

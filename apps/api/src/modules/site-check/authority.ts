@@ -308,7 +308,10 @@ export class AuthorityView {
     const refs: Reference[] = [];
     const push = (domain: string, organization: string, kind: Reference['kind']) => {
       const host = describeHost(domain);
-      if (host.registrableDomain && host.label) refs.push({ domain: host.registrableDomain, label: host.label, organization, kind, commonWord: this.commonWord(host.label) });
+      if (!host.registrableDomain || !host.label) return;
+      const commonWord = this.commonWord(host.label);
+      const brandKeywords = commonWord ? this.sources.brandKeywords.get(host.label.replace(/-/g, '')) : undefined;
+      refs.push({ domain: host.registrableDomain, label: host.label, organization, kind, commonWord, ...(brandKeywords ? { brandKeywords } : {}) });
     };
     // Un sitio publicado en un subdominio ajeno no es referencia: su dominio registrable es de otra organización.
     for (const institution of this.institutions) {

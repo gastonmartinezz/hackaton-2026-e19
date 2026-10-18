@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.2",
+  "version": "2026-10-18.3",
   "note": "Heurística para dominios parecidos, no fuente de autoridad: nunca da ni quita oficialidad. Palabras y expresiones de uso corriente en español o inglés, escritas como etiqueta de dominio (minúsculas, sin tildes, espacios ni guiones). Una referencia (catálogo curado o registro del BCU) cuya etiqueta completa, sin guiones, figura acá no dispara las reglas que comparan solo el nombre, porque chocan con sitios sin relación: la marca como subdominio (correo.miempresa.com.uy es un webmail), una letra de diferencia (consorcios.com.uy) y marca + palabra clave (visa-uruguay.com, disco-online.com). Sí siguen valiendo el dominio de referencia completo dentro de otro (correo.com.uy.evil.com, correo-com-uy.net) y el mismo esqueleto visual (c0rreo.com.uy, letras cirílicas). Criterio para agregar: la palabra se usa en el habla corriente y una página sin relación con la entidad puede usarla como nombre, sección o subdominio. No agregar nombres propios (santander, gales) ni palabras que en un dominio casi siempre señalan a la marca (claro, oca): para esas valen todas las reglas. Las de la primera parte coinciden hoy con referencias del catálogo de Uruguay o del registro del BCU; las demás son nombres genéricos de entidades financieras, para las instituciones que el BCU agregue. Revisado el 2026-10-18.",
   "words": [
     "anda",
@@ -25,7 +25,6 @@
     "verde",
     "visa",
     "volve",
-
     "ahorro",
     "ahorros",
     "banco",
@@ -74,5 +73,32 @@
     "union",
     "universal",
     "vida"
-  ]
+  ],
+  "brandKeywordsNote": "Excepciones para marcas que son palabras comunes pero que se imitan mucho en estafas. Con una de estas palabras, la marca vuelve a contar como imitación por nombre + palabra (correo-uy.com, correouruguayo-pagos.com) y como subdominio (correo.envios-uy.com). Sin ellas sigue valiendo la regla de palabra común (correo.miempresa.com.uy no alarma). Criterio: palabras propias de las estafas que usan esa marca. Correo: «paquete retenido», tasas de aduana y entregas (campañas de SMS que imitan al Correo Uruguayo). Revisado el 2026-10-18.",
+  "brandKeywords": {
+    "correo": [
+      "uy",
+      "uruguay",
+      "uruguayo",
+      "uruguaya",
+      "envio",
+      "envios",
+      "paquete",
+      "paquetes",
+      "encomienda",
+      "encomiendas",
+      "rastreo",
+      "seguimiento",
+      "tracking",
+      "entrega",
+      "entregas",
+      "aduana",
+      "tasa",
+      "tasas",
+      "pago",
+      "pagos",
+      "pendiente",
+      "retenido"
+    ]
+  }
 }
