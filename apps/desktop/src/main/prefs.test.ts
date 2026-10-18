@@ -14,9 +14,9 @@ describe('PrefsStore', () => {
     await expect(store.update({ textScale: 1.45 })).rejects.toThrow();
 
     await rm(dir);
-    await store.setAiEnabled('https://a.gob.ar', false);
+    await store.setAiEnabled('https://a.gub.uy', false);
     const saved = JSON.parse(await readFile(join(dir, 'preferences.json'), 'utf8'));
-    expect(saved).toMatchObject({ textScale: 1.45, aiDisabledOrigins: ['https://a.gob.ar'] });
+    expect(saved).toMatchObject({ textScale: 1.45, aiDisabledOrigins: ['https://a.gub.uy'] });
     await rm(root, { recursive: true });
   });
 
