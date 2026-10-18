@@ -57,7 +57,8 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
     event?.preventDefault();
     const value = text.trim();
     if (!value || busy || voiceBusy || (mode !== 'search' && value === chat.query)) return;
-    voice.cancelActive();
+    // Búsqueda escrita: el dictado anterior (y su aviso) ya no corresponde.
+    voice.cancel();
     send({ type: 'submitIntent', text: value, guide });
   };
 

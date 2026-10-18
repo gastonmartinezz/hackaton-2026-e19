@@ -175,7 +175,7 @@ describe('useVoiceInput', () => {
     expect(container.querySelector('input')!.value).toBe('');
   });
 
-  it('texto solo con espacios: no se busca', async () => {
+  it('texto solo con espacios: no se busca ni dice «Entendí…»; es «no te escuché»', async () => {
     const { deps } = fakeDeps({ status: 'ok', text: '   ' });
     const onSubmit = vi.fn();
     render(<Harness deps={deps} onSubmit={onSubmit} />);
@@ -183,9 +183,11 @@ describe('useVoiceInput', () => {
     await act(async () => button().click());
     await flush();
     expect(onSubmit).not.toHaveBeenCalled();
+    expect(container.querySelector('[aria-live="polite"]')?.textContent).toBe(VOICE_TEXTS.empty);
+    expect(container.querySelector('input')!.value).toBe('');
   });
 
-  it('no busca solo si ya hay una búsqueda en curso', async () => {
+  it('no busca solo si ya hay una búsqueda en curso, y no dice «Entendí…»', async () => {
     let resolve: (r: TranscribeResult) => void = () => {};
     const { deps } = fakeDeps({ status: 'ok', text: 'x' });
     deps.transcribe = vi.fn(() => new Promise<TranscribeResult>((r) => (resolve = r)));
@@ -196,6 +198,17 @@ describe('useVoiceInput', () => {
     render(<Harness deps={deps} onSubmit={onSubmit} busy />);
     await act(async () => resolve({ status: 'ok', text: 'tarde' }));
     expect(onSubmit).not.toHaveBeenCalled();
+    expect(container.querySelector('[aria-live="polite"]')?.textContent).toBe('');
+  });
+
+  it('sin envío automático (onSubmit), el texto queda en el buscador pero no dice «Ahora busco…»', async () => {
+    const { deps } = fakeDeps({ status: 'ok', text: 'renovar la cédula' });
+    render(<Harness deps={deps} />);
+    await act(async () => button().click());
+    await act(async () => button().click());
+    await flush();
+    expect(container.querySelector('input')!.value).toBe('renovar la cédula');
+    expect(container.querySelector('[aria-live="polite"]')?.textContent).toBe('');
   });
 
   it('al empezar la búsqueda que disparó el dictado, el aviso «Entendí…» queda', async () => {

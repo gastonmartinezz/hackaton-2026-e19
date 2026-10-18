@@ -22,7 +22,7 @@ export type VoiceStatus =
   | { kind: 'starting' }
   | { kind: 'listening' }
   | { kind: 'transcribing' }
-  /** El texto ya está en el buscador y se mandó a buscar. */
+  /** El texto ya está en el buscador y se mandó a buscar (solo si de verdad se envió). */
   | { kind: 'heard'; text: string }
   /** No se entendió nada (o fue demasiado corto). */
   | { kind: 'empty' }
@@ -87,10 +87,16 @@ export function useVoiceInput(onText: (text: string) => void, { blocked = false,
     const result = await deps.transcribe(wav).catch((): TranscribeResult => ({ status: 'error', reason: 'failed' }));
     if (id !== attempt.current) return;
     if (result.status === 'ok') {
+      // Solo espacios: es como no haber entendido nada.
+      if (!result.text.trim()) return setStatus({ kind: 'empty' });
+      // Empezó otra búsqueda mientras transcribía: el dictado se descarta, como al cancelarlo.
+      if (blockedRef.current) return cancel();
       onTextRef.current(result.text);
+      const submit = onSubmitRef.current;
+      if (!submit) return setStatus({ kind: 'idle' });
+      // Se busca solo, por el mismo camino que «Mostrame cómo». «Entendí…» sale solo si se envió.
+      submit(result.text);
       setStatus({ kind: 'heard', text: result.text });
-      // Se busca solo, por el mismo camino que «Mostrame cómo»; nunca con una búsqueda en curso.
-      if (!blockedRef.current && result.text.trim()) onSubmitRef.current?.(result.text);
     } else if (result.status === 'empty') setStatus({ kind: 'empty' });
     else {
       if (result.reason === 'off') voiceAvailability.off = true;
@@ -137,8 +143,8 @@ export function useVoiceInput(onText: (text: string) => void, { blocked = false,
   const statusRef = useRef(status);
   statusRef.current = status;
   /**
-   * Corta solo si está escuchando o transcribiendo (al enviar a mano o al
-   * empezar una búsqueda). El aviso «Entendí…» queda para que se lea.
+   * Corta solo si está escuchando o transcribiendo (al empezar una búsqueda).
+   * El aviso «Entendí…» de la búsqueda dictada queda para que se lea.
    */
   const cancelActive = useCallback(() => {
     if (['starting', 'listening', 'transcribing'].includes(statusRef.current.kind)) cancel();
@@ -167,5 +173,5 @@ export function useVoiceInput(onText: (text: string) => void, { blocked = false,
     [],
   );
 
-  return { status, toggle, cancel, cancelActive, available: !voiceAvailability.off };
+  return { status, toggle, cancel, available: !voiceAvailability.off };
 }
