@@ -212,6 +212,21 @@ describe('Assistant', () => {
     expect((sent[2] as NextStepRequest).completedSteps).toHaveLength(1);
   });
 
+  it('un pedido que no estaba entre las opciones va a /v1/options y la guía empieza sola con esa tarea', async () => {
+    load('buscar.html');
+    const { api, sent } = recording(mockApi());
+    const { assistant, until, shownStep } = setup(api);
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze('cambiar mi dirección', 'cambiar mi dirección');
+    await until(shownStep);
+    expect((sent[0] as OptionsRequest).request).toBe('cambiar mi dirección');
+    expect(sent.map((r) => ('optionId' in r ? 'next-step' : 'options'))).toEqual(['options', 'next-step']);
+    expect(assistant.state.option).toBe(assistant.state.options[0]);
+    // «Volver un paso» muestra las demás opciones de la página.
+    assistant.back();
+    expect(assistant.state.phase).toBe('choosing');
+  });
+
   it('con pasos reales recibidos de /v1/next-step sigue guiando', async () => {
     load('buscar.html');
     const mock = mockApi();

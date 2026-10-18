@@ -4,6 +4,8 @@ import { defaultMockHandlers } from '../src/modules/ai/mock-model.js';
 import { SYSTEM_PROMPTS } from '../src/modules/ai/prompts.js';
 import { toGuideSteps, verifiedEvidence } from '../src/modules/ai/steps.js';
 import { NextStepService } from '../src/modules/next-step/next-step.service.js';
+import { OptionsService } from '../src/modules/options/options.service.js';
+import { ProcedureResearcher } from '../src/modules/procedure/procedure.service.js';
 import { SessionStore } from '../src/modules/sessions/session-store.js';
 
 const OWNER = 'token';
@@ -33,7 +35,7 @@ describe('NextStepService: paso a paso investigado', () => {
     const { model, requests } = capturingModel();
     const sessions = new SessionStore(60_000);
     const sessionId = sessionWithOption(sessions);
-    await new NextStepService(model, sessions, { webSearch: true, webSearchMaxUses: 2 }).next(
+    await new NextStepService(model, sessions, new ProcedureResearcher(model, { webSearch: true, webSearchMaxUses: 2 })).next(
       { sessionId, optionId: 'turno', expectedStep: step, completedSteps: [], html: '<button id="el-1">Agenda</button>', metadata: { page: { title: 'Agenda' } } },
       OWNER,
     );
@@ -50,7 +52,7 @@ describe('NextStepService: paso a paso investigado', () => {
     const { model, requests } = capturingModel();
     const sessions = new SessionStore(60_000);
     const sessionId = sessionWithOption(sessions);
-    await new NextStepService(model, sessions, { webSearch: false, webSearchMaxUses: 3 }).next(
+    await new NextStepService(model, sessions, new ProcedureResearcher(model, { webSearch: false, webSearchMaxUses: 3 })).next(
       { sessionId, optionId: 'turno', expectedStep: step, completedSteps: [], html: '<button id="el-1">Agenda</button>' },
       OWNER,
     );
@@ -97,5 +99,43 @@ describe('verifiedEvidence', () => {
 
   it('no toma como visible lo que está dentro de las etiquetas (ids)', () => {
     expect(verifiedEvidence('el-1', html)).toBeNull();
+  });
+});
+
+describe('OptionsService: algo que no estaba entre las opciones', () => {
+  it('investiga el pedido, lo devuelve como primera opción y deja el paso a paso para next-step', async () => {
+    const { model, requests } = capturingModel();
+    const sessions = new SessionStore(60_000);
+    const sessionId = sessions.create(OWNER);
+    const researcher = new ProcedureResearcher(model, { webSearch: true, webSearchMaxUses: 2 });
+    const html = '<nav id="el-1" aria-label="Menú"><a id="el-2" href="#">Trámites</a></nav>';
+    const response = await new OptionsService(model, sessions, researcher).options({ sessionId, html, request: 'Cambiar mi dirección' }, OWNER);
+
+    expect(requests.map((r) => r.task)).toEqual(['procedure', 'options']);
+    expect(requests[0]!.input).toMatchObject({ request: 'Cambiar mi dirección' });
+    expect(requests[0]!.webSearch).toEqual({ maxUses: 2, userLocation: {} });
+    expect(requests[1]!.system).toBe(SYSTEM_PROMPTS.optionsForRequest);
+    expect(requests[1]!.input).toMatchObject({ request: 'Cambiar mi dirección', procedure: { summary: expect.any(String) } });
+    const first = response.options[0]!;
+    expect(first.title).toBe('Cambiar mi dirección');
+
+    // Al elegirla, next-step usa el paso a paso ya investigado: no se busca de nuevo.
+    requests.length = 0;
+    await new NextStepService(model, sessions, researcher).next(
+      { sessionId, optionId: first.id, expectedStep: first.steps[0]!, completedSteps: [], html },
+      OWNER,
+    );
+    expect(requests.map((r) => r.task)).toEqual(['nextStep']);
+    expect((requests[0]!.input as { procedure: unknown }).procedure).not.toBeNull();
+    sessions.close();
+  });
+
+  it('sin pedido no investiga nada', async () => {
+    const { model, requests } = capturingModel();
+    const sessions = new SessionStore(60_000);
+    await new OptionsService(model, sessions, new ProcedureResearcher(model)).options({ html: '<button id="el-1">Agenda</button>' }, OWNER);
+    expect(requests.map((r) => r.task)).toEqual(['options']);
+    expect(requests[0]!.system).toBe(SYSTEM_PROMPTS.options);
+    sessions.close();
   });
 });

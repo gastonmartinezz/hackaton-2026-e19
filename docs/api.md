@@ -133,7 +133,7 @@ Cada paso tiene un `element`:
 - **`"#el-3"`**: el id de un elemento del HTML enviado. El front lo ubica y dibuja la indicación (cuadrado, flecha, etc.).
 - **`null`**: **paso teórico**. El elemento todavía no existe porque aparece después de una acción de la persona. Los pasos siguientes a uno teórico también lo son.
 
-Si todos los pasos de una opción son reales (por ejemplo, botones que no cargan HTML nuevo), el front guía de punta a punta sin volver a llamar.
+Los `steps` de cada opción son el comienzo de la tarea en esta página. Al elegir una, el front llama a `/v1/next-step`, que investiga el paso a paso completo y guía hasta terminar.
 
 ```json
 {
@@ -164,6 +164,12 @@ Respuesta:
 - **Sin `sessionId`** (página abierta sin pasar por el chat), el backend crea una sesión nueva.
 - **`metadata`** se acumula en la sesión: los campos nuevos pisan a los anteriores y los que no se mandan se conservan. Hoy acepta `page.title` y `page.language`.
 - Se puede volver a llamar con el mismo `sessionId`, por ejemplo en una página nueva de la misma tarea.
+- **`request`** (opcional, hasta 1000 caracteres) es lo que la persona pidió con sus palabras, escrito en «¿No está lo que buscás?» o dicho al responder las opciones con la voz, cuando no estaba entre las opciones. En ese caso:
+  - El backend primero investiga cómo se hace eso en este sitio, con la tarea `procedure` y búsqueda web (`GUIDE_WEB_SEARCH`). Tarda entre 10 y 20 s más.
+  - Devuelve esa tarea como **primera opción**, con el camino desde esta página: el menú, la sección o el buscador que lleva ahí.
+  - El paso a paso queda guardado para esa opción, así que `/v1/next-step` no lo vuelve a buscar.
+  - Si en el sitio no se puede hacer, `options` viene vacío.
+  - El front empieza la guía sola con la primera opción.
 
 ### POST /v1/next-step
 

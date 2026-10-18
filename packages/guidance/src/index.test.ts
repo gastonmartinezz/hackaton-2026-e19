@@ -29,6 +29,16 @@ describe('transition', () => {
     expect(choosing()).toMatchObject({ phase: 'choosing', goal: 'turno', options: [turno, buscar] });
   });
 
+  it('con un pedido propio, la primera opción es esa tarea y empieza sola; «Volver un paso» muestra las opciones', () => {
+    let state = run({ type: 'ANALYZE', goal: 'turno', request: 'Cambiar mi dirección' });
+    expect(state).toMatchObject({ phase: 'analyzing', request: 'Cambiar mi dirección' });
+    state = transition(state, { type: 'OPTIONS', options: [buscar, turno] });
+    expect(state).toMatchObject({ phase: 'guiding', option: buscar, step: real('el-1'), request: undefined });
+    expect(transition(state, { type: 'BACK' })).toMatchObject({ phase: 'choosing', options: [buscar, turno] });
+    const none = transition(run({ type: 'ANALYZE', request: 'Algo imposible' }), { type: 'OPTIONS', options: [] });
+    expect(none).toMatchObject({ phase: 'unsupported', message: expect.stringMatching(/cómo hacer eso/) });
+  });
+
   it('sin opciones, la página no tiene ayuda', () => {
     expect(run({ type: 'ANALYZE' }, { type: 'OPTIONS', options: [] }).phase).toBe('unsupported');
   });

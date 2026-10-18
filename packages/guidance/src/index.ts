@@ -40,6 +40,12 @@ export interface GuideState {
   phase: Phase;
   /** Objetivo escrito en el chat, solo para mostrar. */
   goal?: string | undefined;
+  /**
+   * Lo que la persona pidió con sus palabras en la página (no estaba entre las
+   * opciones). Va a /v1/options; la primera opción que vuelve es esa tarea y
+   * se empieza sola.
+   */
+  request?: string | undefined;
   options: PageOption[];
   option?: PageOption | undefined;
   /** Paso actual. En guiding/verifying es el paso que se va a pedir a /v1/next-step. */
@@ -60,7 +66,7 @@ export interface GuideState {
 }
 
 export type GuideEvent =
-  | { type: 'ANALYZE'; goal?: string | undefined }
+  | { type: 'ANALYZE'; goal?: string | undefined; request?: string | undefined }
   | { type: 'OPTIONS'; options: PageOption[] }
   | { type: 'SELECT'; optionId: string }
   | { type: 'SHOWN'; elementId: string; field?: boolean | undefined }
@@ -89,19 +95,22 @@ export const initialState: GuideState = {
 export const PENDING_PHASES: ReadonlySet<Phase> = new Set(['analyzing', 'guiding']);
 
 const NO_OPTIONS_MESSAGE = 'No encontré tareas claras en esta página. Podés seguir navegando o volver al inicio.';
+const NO_REQUEST_MESSAGE = 'No encontré cómo hacer eso en este sitio. Podés volver a las opciones o al inicio.';
 const NO_STEP_MESSAGE = 'No encuentro cómo seguir desde esta página. Podés elegir otra tarea o abrirla en tu navegador.';
 const DONE_MESSAGE = 'Listo, terminaste. Si no es lo que buscabas, tocá «Elegir otra tarea».';
 
 export function transition(state: GuideState, event: GuideEvent): GuideState {
   switch (event.type) {
     case 'ANALYZE':
-      return { ...initialState, phase: 'analyzing', goal: event.goal ?? state.goal };
+      return { ...initialState, phase: 'analyzing', goal: event.goal ?? state.goal, request: event.request };
 
     case 'OPTIONS': {
       if (state.phase !== 'analyzing') return state;
       const options = uniqueOptions(event.options);
-      if (options.length === 0) return { ...state, phase: 'unsupported', message: NO_OPTIONS_MESSAGE };
-      return { ...state, phase: 'choosing', options, message: undefined };
+      if (options.length === 0) return { ...state, phase: 'unsupported', request: undefined, message: state.request ? NO_REQUEST_MESSAGE : NO_OPTIONS_MESSAGE };
+      const choosing: GuideState = { ...state, phase: 'choosing', options, request: undefined, message: undefined };
+      // La persona ya dijo qué quería: la primera opción es esa tarea y se empieza sola.
+      return state.request ? transition(choosing, { type: 'SELECT', optionId: options[0]!.id }) : choosing;
     }
 
     case 'SELECT': {
@@ -162,7 +171,8 @@ export function transition(state: GuideState, event: GuideEvent): GuideState {
     case 'RETRY':
       if (state.phase !== 'error') return state;
       if (state.retry === 'next' && state.option && state.step) return { ...state, phase: 'verifying', message: undefined, retry: undefined };
-      return transition(state, { type: 'ANALYZE' });
+      // Si falló un pedido propio, se vuelve a pedir lo mismo.
+      return transition(state, { type: 'ANALYZE', request: state.request });
 
     case 'BACK':
       if (state.phase === 'idle') return state;

@@ -149,6 +149,34 @@ describe('VoiceAnswer: responder con la voz', () => {
     expect(status()).toBe('');
   });
 
+  it('con `onFreeText`, lo que no es ninguna opción se toma como un pedido propio para buscar en el sitio', async () => {
+    const { deps, stopBy, read } = fakeDeps({ status: 'ok', text: 'Quiero cambiar mi dirección.' });
+    const { list, run } = choices();
+    const onFreeText = vi.fn();
+    render(<VoiceAnswer choices={list} active trigger={1} deps={deps} onFreeText={onFreeText} />);
+    await flush();
+    await stopBy();
+    await flush();
+    await flush();
+    expect(read.spoken).toEqual([ANSWER_TEXTS.searching]);
+    expect(onFreeText).toHaveBeenCalledWith('Quiero cambiar mi dirección.');
+    expect(Object.values(run).every((fn) => fn.mock.calls.length === 0)).toBe(true);
+    expect(deps.open).toHaveBeenCalledTimes(1);
+  });
+
+  it('con `onFreeText`, algo muy corto o un empate no se busca: se vuelve a preguntar', async () => {
+    const { deps, stopBy, read } = fakeDeps({ status: 'ok', text: 'eh' });
+    const { list } = choices();
+    const onFreeText = vi.fn();
+    render(<VoiceAnswer choices={list} active trigger={1} deps={deps} onFreeText={onFreeText} />);
+    await flush();
+    await stopBy();
+    await flush();
+    await flush();
+    expect(read.spoken).toEqual([ANSWER_TEXTS.retry]);
+    expect(onFreeText).not.toHaveBeenCalled();
+  });
+
   it('si no dice nada, deja de escuchar sin error y sin transcribir', async () => {
     const { deps, stopBy, captures } = fakeDeps();
     const { list } = choices();

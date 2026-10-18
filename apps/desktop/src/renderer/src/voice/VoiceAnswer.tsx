@@ -12,6 +12,9 @@
  * - Si no hay coincidencia clara o hay empate, pregunta una vez «No te
  *   entendí. ¿Cuál querés?» y vuelve a escuchar; si vuelve a fallar, deja de
  *   escuchar y quedan los botones.
+ * - Con `onFreeText`, si lo dicho no se parece a ninguna opción (y no es un
+ *   empate), se toma como un pedido propio: dice «Busco cómo hacer eso acá.»
+ *   y se lo pasa a `onFreeText` (Guíame lo investiga en el sitio).
  * - Ni el audio ni lo transcripto se guardan ni se registran.
  */
 import { Button, Icon, LoadingDots } from '@asistente/ui';
@@ -19,7 +22,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TranscribeResult, VoiceDiagnostic } from '../../../shared/ipc';
 import { useReadAloud, type ReadAloudDeps } from '../speech/useReadAloud';
 import { VoiceCapture, type AutoStopReason } from './capture';
-import { matchChoice, type ChoiceSpec } from './matchChoice';
+import { matchChoice, normalizeSpoken, type ChoiceSpec } from './matchChoice';
 import { VOICE_TEXTS } from './VoiceSearch';
 
 /** Una opción que se puede elegir hablando: lo mismo que su botón. */
@@ -35,6 +38,8 @@ export const ANSWER_TEXTS = {
   listening: 'Te escucho. Decí cuál querés.',
   retry: 'No te entendí. ¿Cuál querés?',
   chosen: (label: string) => `Elegiste «${label}».`,
+  /** TODO(copy): lo dicho no era ninguna opción y Guíame lo va a buscar en el sitio. */
+  searching: 'No está entre las opciones. Busco cómo hacer eso acá.',
 } as const;
 
 export interface VoiceAnswerDeps {
@@ -54,9 +59,18 @@ type Phase =
   | { kind: 'listening' }
   | { kind: 'transcribing' }
   /** Guíame dice algo y después sigue: vuelve a escuchar o ejecuta la opción. */
-  | { kind: 'prompt'; text: string; key: number; then: { listen: true } | { run: number } };
+  | { kind: 'prompt'; text: string; key: number; then: Then };
 
-export function useVoiceAnswer(choices: VoiceChoice[], { active, trigger, deps = defaultDeps }: { active: boolean; trigger: number; deps?: VoiceAnswerDeps }) {
+/** Después de decir el aviso: volver a escuchar, hacer lo de una opción o buscar el pedido propio. */
+type Then = { listen: true } | { run: number } | { free: string };
+
+/** Lo mínimo para tomar lo dicho como un pedido propio (no «eh» ni «mmm»). */
+const MIN_FREE_TEXT = 6;
+
+export function useVoiceAnswer(
+  choices: VoiceChoice[],
+  { active, trigger, deps = defaultDeps, onFreeText }: { active: boolean; trigger: number; deps?: VoiceAnswerDeps; onFreeText?: ((text: string) => void) | undefined },
+) {
   const [phase, setPhaseState] = useState<Phase>({ kind: 'idle' });
   const phaseRef = useRef<Phase>(phase);
   const setPhase = useCallback((next: Phase) => {
@@ -72,6 +86,8 @@ export function useVoiceAnswer(choices: VoiceChoice[], { active, trigger, deps =
   activeRef.current = active;
   const choicesRef = useRef(choices);
   choicesRef.current = choices;
+  const onFreeTextRef = useRef(onFreeText);
+  onFreeTextRef.current = onFreeText;
 
   const stop = useCallback(() => {
     attempt.current++;
@@ -81,7 +97,7 @@ export function useVoiceAnswer(choices: VoiceChoice[], { active, trigger, deps =
   }, [setPhase]);
 
   const say = useCallback(
-    (text: string, then: { listen: true } | { run: number }) => setPhase({ kind: 'prompt', text, key: ++promptKey.current, then }),
+    (text: string, then: Then) => setPhase({ kind: 'prompt', text, key: ++promptKey.current, then }),
     [setPhase],
   );
 
@@ -98,8 +114,11 @@ export function useVoiceAnswer(choices: VoiceChoice[], { active, trigger, deps =
     const result = await deps.transcribe(wav).catch((): TranscribeResult => ({ status: 'error', reason: 'failed' }));
     if (id !== attempt.current) return;
     if (result.status === 'error') return setPhase({ kind: 'idle' });
-    const match = matchChoice(result.status === 'ok' ? result.text : '', choicesRef.current);
+    const said = result.status === 'ok' ? result.text.trim() : '';
+    const match = matchChoice(said, choicesRef.current);
     if (match.kind === 'match') return say(ANSWER_TEXTS.chosen(choicesRef.current[match.index]!.label), { run: match.index });
+    // No es ninguna opción: se toma como un pedido propio y se busca en el sitio.
+    if (match.kind === 'none' && onFreeTextRef.current && normalizeSpoken(said).length >= MIN_FREE_TEXT) return say(ANSWER_TEXTS.searching, { free: said });
     if (!retried.current) {
       retried.current = true;
       return say(ANSWER_TEXTS.retry, { listen: true });
@@ -161,6 +180,12 @@ export function useVoiceAnswer(choices: VoiceChoice[], { active, trigger, deps =
       choice?.run();
       return;
     }
+    if ('free' in current.then) {
+      const text = current.then.free;
+      setPhase({ kind: 'idle' });
+      onFreeTextRef.current?.(text);
+      return;
+    }
     void listen();
   }, [listen, setPhase]);
 
@@ -180,14 +205,17 @@ export function VoiceAnswer({
   trigger,
   deps,
   onMessage,
+  onFreeText,
 }: {
   choices: VoiceChoice[];
   active: boolean;
   trigger: number;
   deps?: VoiceAnswerDeps;
   onMessage?: (text: string) => void;
+  /** Lo dicho no es ninguna opción: un pedido propio para buscar en el sitio. */
+  onFreeText?: (text: string) => void;
 }) {
-  const { phase, finish, promptDone } = useVoiceAnswer(choices, { active, trigger, deps });
+  const { phase, finish, promptDone } = useVoiceAnswer(choices, { active, trigger, deps, onFreeText });
   const prompt = phase.kind === 'prompt' ? phase : null;
   // Los avisos se dicen en voz alta (modo voz) y, al terminar, se sigue.
   const reader = useReadAloud(prompt?.text ?? '', deps?.read, { auto: Boolean(prompt), contentKey: `respuesta:${prompt?.key ?? 0}`, onDone: promptDone });

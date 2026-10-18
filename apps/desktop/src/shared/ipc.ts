@@ -259,6 +259,8 @@ export interface AppState {
   guide: {
     phase: string;
     goal: string | null;
+    /** Mientras se buscan las opciones: lo que la persona pidió con sus palabras (no estaba entre las opciones). */
+    request: string | null;
     primary: OptionView[];
     secondary: OptionView[];
     option: OptionView | null;

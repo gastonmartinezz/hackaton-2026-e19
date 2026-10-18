@@ -60,14 +60,15 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
         },
 
   // Una opción: primer paso sobre el primer id="..." del HTML y un segundo paso teórico.
-  options: (input: { html: string }): OptionsOutput => {
+  // Con request (algo que la persona pidió con sus palabras), esa opción se llama como el pedido.
+  options: (input: { html: string; request?: string }): OptionsOutput => {
     const id = firstId(input.html);
     if (!id) return { options: [] };
     return {
       options: [
         {
-          id: 'start',
-          title: 'Empezar',
+          id: input.request ? 'request' : 'start',
+          title: input.request ? input.request.slice(0, 120) : 'Empezar',
           steps: [
             {
               element: `#${id}`,
@@ -121,8 +122,8 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
   },
 
   // Paso a paso fijo, sin búsqueda.
-  procedure: (input: { option: { title: string } }): ProcedureOutput => ({
-    summary: `Simulación del paso a paso de «${input.option.title}».`,
+  procedure: (input: { option?: { title: string }; request?: string }): ProcedureOutput => ({
+    summary: `Simulación del paso a paso de «${input.option?.title ?? input.request ?? ''}».`,
     steps: [
       { title: 'Empezar la tarea', detail: 'Hacer clic en el botón de la opción.' },
       { title: 'Completar los datos', detail: 'Pide los datos del formulario.' },

@@ -14,10 +14,11 @@ import { send, useAppState } from './useAppState';
 import { FieldDictation } from './voice/FieldDictation';
 import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
 
-/** TODO(copy): mientras Guíame investiga el paso a paso de la opción elegida (no tiene pantalla). */
+/** TODO(copy): mientras Guíame investiga el paso a paso de la opción elegida o de lo que pidió la persona (no tiene pantalla). */
 const RESEARCH_TEXTS = {
   title: (option: string) => `Estoy buscando cómo se hace «${option}»…`,
   support: 'Busco el paso a paso para guiarte. Puede tardar unos segundos.',
+  request: (asked: string) => `Estoy buscando cómo hacer «${asked}» en este sitio…`,
 } as const;
 
 /** Margen transparente de la vista para el halo (CARD_SHADOW en main/help-card.ts). */
@@ -169,8 +170,8 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
         content: (
           <section className="hc-section" role="status">
             <LoadingDots />
-            <h2 className="instr">Estoy mirando la página…</h2>
-            <p className="support">Esto lleva unos segundos.</p>
+            <h2 className="instr">{guide.request ? withControlNames(RESEARCH_TEXTS.request(guide.request)) : 'Estoy mirando la página…'}</h2>
+            <p className="support">{guide.request ? RESEARCH_TEXTS.support : 'Esto lleva unos segundos.'}</p>
           </section>
         ),
       };
@@ -282,7 +283,8 @@ function Options({ state, visit, onMore }: { state: AppState; visit: number; onM
       <Button variant="link" className="back-link" onClick={onMore}>
         Ver otras opciones
       </Button>
-      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} />
+      {/* Si dice algo que no está entre las opciones, Guíame lo busca en el sitio (igual que «¿No está lo que buscás?»). */}
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} onFreeText={(text) => send({ type: 'askOnPage', text })} />
     </>
   );
 }

@@ -117,8 +117,9 @@ export class Assistant {
     this.#pendingGoal = goal;
   }
 
-  analyze(goal?: string): void {
-    this.#dispatch({ type: 'ANALYZE', goal });
+  /** `request`: lo que la persona pidió con sus palabras y no estaba entre las opciones (se investiga y se empieza solo). */
+  analyze(goal?: string, request?: string): void {
+    this.#dispatch({ type: 'ANALYZE', goal, request });
   }
 
   select(optionId: string): void {
@@ -354,7 +355,8 @@ export class Assistant {
     try {
       const snapshot = await this.#extract(epoch);
       if (!snapshot || epoch !== this.#epoch) return;
-      const request = { html: snapshotToHtml(snapshot), ...metadataOf(snapshot) };
+      const asked = this.state.request;
+      const request = { html: snapshotToHtml(snapshot), ...metadataOf(snapshot), ...(asked ? { request: asked } : {}) };
       const signal = this.#signal();
       const { session, api } = this.deps;
       let ticket = session.begin();

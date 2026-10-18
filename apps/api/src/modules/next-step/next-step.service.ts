@@ -1,22 +1,14 @@
-import { NextStepResponse, type ErrorCode, type NextStepRequest, type PageOption } from '@hackaton/contracts';
+import { NextStepResponse, type NextStepRequest, type PageOption } from '@hackaton/contracts';
 import type { FastifyBaseLogger } from 'fastify';
 import { AppError } from '../../lib/errors.js';
 import type { StructuredModel } from '../ai/model.js';
 import { SYSTEM_PROMPTS } from '../ai/prompts.js';
-import { NextStepOutput, ProcedureOutput } from '../ai/schemas.js';
+import { NextStepOutput } from '../ai/schemas.js';
 import { toGuideSteps, verifiedEvidence } from '../ai/steps.js';
-import type { SessionContext, SessionEntry, SessionStore } from '../sessions/session-store.js';
-
-export interface NextStepServiceOptions {
-  /** La tarea procedure busca en la web el paso a paso real de la opción (GUIDE_WEB_SEARCH). */
-  webSearch: boolean;
-  webSearchMaxUses: number;
-}
+import type { ProcedureResearcher } from '../procedure/procedure.service.js';
+import type { SessionEntry, SessionStore } from '../sessions/session-store.js';
 
 type Procedure = Extract<SessionEntry, { type: 'procedure' }>;
-
-/** Errores del paso a paso que permiten guiar igual, sin él. El resto se propaga. */
-const RECOVERABLE_PROCEDURE_ERRORS: ReadonlySet<ErrorCode> = new Set(['AI_UNAVAILABLE', 'TIMEOUT', 'RATE_LIMITED', 'AI_INVALID_RESPONSE', 'AI_REFUSED']);
 
 const silentLog = { info: () => undefined, warn: () => undefined } as unknown as FastifyBaseLogger;
 
@@ -24,7 +16,7 @@ export class NextStepService {
   constructor(
     private readonly model: StructuredModel,
     private readonly sessions: SessionStore,
-    private readonly options: NextStepServiceOptions = { webSearch: false, webSearchMaxUses: 3 },
+    private readonly researcher: ProcedureResearcher,
   ) {}
 
   async next(request: NextStepRequest, owner: string, log: FastifyBaseLogger = silentLog): Promise<NextStepResponse> {
@@ -82,33 +74,12 @@ export class NextStepService {
    */
   private async research(request: NextStepRequest, owner: string, option: PageOption, log: FastifyBaseLogger): Promise<Procedure | undefined> {
     const context = this.sessions.context(request.sessionId, owner)!;
-    let output: ProcedureOutput;
-    try {
-      output = await this.model.generate({
-        task: 'procedure',
-        system: this.options.webSearch ? SYSTEM_PROMPTS.procedureWithSearch : SYSTEM_PROMPTS.procedure,
-        input: { context, option: { title: option.title, steps: option.steps.map((s) => s.instruction) }, site: siteOf(context) },
-        schema: ProcedureOutput,
-        // Sin ubicación: la sesión no la guarda y la API rechaza algunos países (ver InterpretService).
-        ...(this.options.webSearch ? { webSearch: { maxUses: this.options.webSearchMaxUses, userLocation: {} } } : {}),
-      });
-    } catch (error) {
-      if (!(error instanceof AppError) || !RECOVERABLE_PROCEDURE_ERRORS.has(error.code)) throw error;
-      // Solo el código: nunca el contenido.
-      log.warn({ task: 'procedure', code: error.code }, 'procedure failed, guiding without it');
-      return undefined;
-    }
+    const output = await this.researcher.research(context, { option: { title: option.title, steps: option.steps.map((s) => s.instruction) } }, log);
+    if (!output) return undefined;
     const procedure: Procedure = { type: 'procedure', optionId: request.optionId, ...output };
     this.sessions.append(request.sessionId, owner, procedure);
-    log.info({ task: 'procedure', steps: output.steps.length, sources: output.sources.length }, 'procedure ready');
     return procedure;
   }
-}
-
-/** Título de la página y direcciones que se abrieron desde el buscador (interpret). */
-function siteOf(context: SessionContext): { title: string | null; urls: string[] } {
-  const urls = context.history.flatMap((entry) => (entry.type === 'interpret' ? entry.urls : []));
-  return { title: context.metadata.page?.title ?? null, urls: [...new Set(urls)].slice(-5) };
 }
 
 /** La opción más reciente con ese id devuelta por /v1/options en la sesión. */

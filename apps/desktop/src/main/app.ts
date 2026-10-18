@@ -371,6 +371,7 @@ export class AppController {
         // Después de un clic se espera un instante antes del paso siguiente: se muestra como «fijándome».
         phase: showing ? guide.phase : 'verifying',
         goal: guide.goal ?? null,
+        request: guide.phase === 'analyzing' ? (guide.request ?? null) : null,
         primary: guide.options.slice(0, PRIMARY_OPTIONS).map(toView),
         secondary: guide.options.slice(PRIMARY_OPTIONS).map(toView),
         option: guide.option ? toView(guide.option) : null,
@@ -661,8 +662,9 @@ export class AppController {
         this.#publish();
         return;
       case 'askOnPage': {
+        // Lo que pidió no estaba entre las opciones: el backend investiga cómo se hace acá y la guía empieza sola.
         const goal = minimizeIntent(command.text, Limits.maxMessageLength);
-        if (goal && this.#siteVisible && this.#guideAllowed()) this.#assistant.analyze(goal);
+        if (goal && this.#siteVisible && this.#guideAllowed()) this.#assistant.analyze(goal, goal);
         return;
       }
       case 'cardLayout':
