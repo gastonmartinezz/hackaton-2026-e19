@@ -173,6 +173,15 @@ describe('POST /v1/site-check: identidad oficial por fuentes de autoridad', () =
     expect(siteIndicatorState(scam)).toBe('possible_scam');
   });
 
+  it.each(['BPS', 'DGI'])('«%s» declarado en un dominio comercial con formulario de clave: riesgo alto', async (brand) => {
+    app = await testApp({ siteCheck: fakeProviders() });
+    const page = { ...emptyPage, declaredBrand: brand, forms: [{ method: 'post', action: null, fields: [{ type: 'password', label: 'Clave' }] }] };
+    const r = await check(contentRequest('https://www.tramites-online.com.uy/', page));
+    expect(codes(r)).toEqual(expect.arrayContaining(['BRAND_IMPERSONATION', 'SENSITIVE_DATA_REQUEST']));
+    expect(r.identity).toEqual({ status: 'unknown', impersonatedOrganization: brand });
+    expect(r.risk).toBe('high');
+  });
+
   it('«BPS» en www.bps.gub.uy y «Banco Itaú» en su dominio del BCU no son suplantación', async () => {
     app = await testApp({ siteCheck: fakeProviders() });
     const login = { method: 'post', action: null, fields: [{ type: 'password' }] };
@@ -435,6 +444,23 @@ describe('POST /v1/site-check: IA', () => {
     expect(r.reasons.find((x) => x.code === 'BRAND_IMPERSONATION')?.evidence[0]).toMatchObject({ source: 'Análisis con IA', observedBy: 'service' });
     expect(r.risk).toBe('high');
     expect(r.identity.status).toBe('unknown');
+  });
+
+  it('un nombre que otros países también usan cuenta como organismo uruguayo solo con la pista de la IA', async () => {
+    const page = { ...emptyPage, declaredBrand: 'Ministerio de Salud Pública', forms: [{ method: 'post', action: null, fields: [{ type: 'password', label: 'Clave' }] }] };
+    const answer = (country: string) => () => ({ ...quiet, explanation: 'Pide tu clave.', declaredOrganization: 'Ministerio de Salud Pública', organizationKind: 'government' as const, country });
+    // Sin IA, «Ministerio de Salud Pública» solo (Ecuador, Paraguay) no alcanza.
+    app = await testApp({ siteCheck: fakeProviders() }, { SITE_CHECK_AI: 'false' });
+    expect(codes(await check(contentRequest(url, page)))).toEqual([]);
+    await app.close();
+    app = await testApp({ model: siteCheckModel(answer('EC')).model, siteCheck: fakeProviders() });
+    expect(codes(await check(contentRequest(url, page)))).not.toContain('BRAND_IMPERSONATION');
+    await app.close();
+    app = await testApp({ model: siteCheckModel(answer('UY')).model, siteCheck: fakeProviders() });
+    const r = await check(contentRequest(url, page));
+    expect(codes(r)).toEqual(expect.arrayContaining(['BRAND_IMPERSONATION', 'SENSITIVE_DATA_REQUEST']));
+    expect(r.identity.impersonatedOrganization).toBe('Ministerio de Salud Pública');
+    expect(r.risk).toBe('high');
   });
 
   it('una organización declarada por la IA nunca da identidad oficial, aunque coincida con el dominio', async () => {

@@ -71,7 +71,7 @@ describe('servidor MCP privado', () => {
     ['get_domain_registration', { domain: 'www.ejemplo.com' }, null],
     ['inspect_connection', { url: 'https://www.ejemplo.com/' }, null],
     ['analyze_page_structure', { url: 'https://www.ejemplo.com/', page: { ...emptyPage, forms: [{ method: 'post', action: null, fields: [{ type: 'text', label: 'Número de cuenta bancaria' }] }] } }, 'SENSITIVE_DATA_REQUEST'],
-    ['compare_brand_identity', { hostname: 'www.ejemplo.com', declaredBrand: 'Banco Itaú' }, 'BRAND_IMPERSONATION'],
+    ['compare_brand_identity', { hostname: 'www.ejemplo.com', declaredBrand: 'BPS' }, 'BRAND_IMPERSONATION'],
   ])('%s devuelve fuente, fecha, cobertura y limitaciones', async (name, args, code) => {
     await setup();
     const result = await callTool(name, args);

@@ -180,9 +180,11 @@ export class AuthorityView {
   /** Organizaciones que el texto dice ser (marca declarada, texto de un enlace u organización extraída por la IA). */
   claims(text: string, hint?: ClaimHint): Claim[] {
     const found: Claim[] = [];
-    // Organismos del Estado.
+    // Organismos del Estado. Los nombres ambiguos («MEF», «MSP») piden una palabra del país o la pista de la IA.
     for (const group of this.sources.claims) {
-      const name = group.names.find((n) => containsName(text, n));
+      const governmentHint = hint?.kind === 'government' && (!hint.country || hint.country.toUpperCase() === group.country);
+      const withContext = governmentHint || group.context.some((word) => containsName(text, word));
+      const name = group.names.find((n) => containsName(text, n)) ?? (withContext ? group.contextNames.find((n) => containsName(text, n)) : undefined);
       if (name) found.push({ organization: name, keys: [`gov:${group.country}`], via: 'government_domain' });
     }
     if (hint?.kind === 'government' && hint.country && !found.some((c) => c.via === 'government_domain')) {

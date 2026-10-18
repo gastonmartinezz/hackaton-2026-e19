@@ -103,6 +103,50 @@ describe('fuentes de autoridad', () => {
     expect(() => loadOfficialSources({ catalogFiles: [dup] })).toThrow(/x\.com\.uy/);
   });
 
+  it('organismos del Estado uruguayo: nombres y siglas, sin chocar con palabras comunes', () => {
+    const gov = (text: string, hint?: Parameters<AuthorityView['claims']>[1]) => view.claims(text, hint).filter((c) => c.via === 'government_domain').map((c) => c.organization);
+    expect(view.claims('BPS - Mi cuenta').map((c) => [c.via, c.keys])).toEqual([['government_domain', ['gov:UY']]]);
+    expect(gov('BPS')).toEqual(['BPS']);
+    expect(gov('DGI')).toEqual(['DGI']);
+    expect(gov('Servicios en línea DGI')).toEqual(['DGI']);
+    expect(gov('Dirección General Impositiva')).toEqual(['Dirección General Impositiva']);
+    expect(gov('Banco de Previsión Social')).toEqual(['Banco de Previsión Social']);
+    expect(gov('Intendencia de Montevideo')).toEqual(['Intendencia de Montevideo']);
+    expect(gov('Intendencia de Paysandú')).toEqual(['Intendencia de Paysandú']);
+    expect(gov('Agenda de cédula - DNIC')).toEqual(['DNIC']);
+    expect(gov('Identificación Civil')).toEqual(['Identificación Civil']);
+    expect(gov('Ingresá con tu usuario gub.uy')).toEqual(['Usuario gub.uy']);
+    expect(gov('ID Uruguay')).toEqual(['ID Uruguay']);
+    expect(gov('SUCIVE - Pagá tu patente')).toEqual(['SUCIVE']);
+    expect(gov('Agesic')).toEqual(['Agesic']);
+    expect(gov('Banco Central del Uruguay')).toEqual(['Banco Central del Uruguay']);
+    // Siglas cortas y nombres que otros países usan igual: solo con el país en el texto o la pista de la IA.
+    expect(gov('MSP')).toEqual([]);
+    expect(gov('MSP Uruguay')).toEqual(['MSP']);
+    expect(gov('MSP', { kind: 'government', country: 'UY' })).toEqual(['MSP']);
+    expect(gov('MSP', { kind: 'government', country: null })).toEqual(['MSP']);
+    expect(gov('MSP', { kind: 'government', country: 'EC' })).toEqual([]);
+    expect(gov('Ministerio de Salud Pública')).toEqual([]); // Ecuador, Paraguay
+    expect(gov('Ministerio de Salud Pública del Uruguay')).toEqual(['Ministerio de Salud Pública']);
+    expect(gov('Ministerio del Interior')).toEqual([]); // también en otros países
+    expect(gov('Ministerio del Interior', { kind: 'government', country: 'PY' })).toEqual([]);
+    expect(gov('Ministerio del Interior', { kind: 'government', country: 'UY' })).toEqual(['Ministerio del Interior']);
+    expect(gov('Registro Civil')).toEqual([]);
+    expect(gov('Registro Civil - Montevideo')).toEqual(['Registro Civil']);
+    expect(gov('MTSS')).toEqual([]); // Costa Rica
+    expect(gov('MEF')).toEqual([]); // Perú, Panamá
+    expect(gov('MEF', { kind: 'government', country: 'UY' })).toEqual(['MEF']);
+    expect(gov('Policía Nacional')).toEqual([]);
+    expect(gov('Policía Nacional del Uruguay')).toEqual(['Policía Nacional']);
+    // La pista de la IA con un país sin zona del Estado no acusa a nadie.
+    expect(view.claims('Receita Federal', { kind: 'government', country: 'BR' })).toEqual([]);
+    // Palabras sueltas o nombres de lugares no alcanzan.
+    expect(view.claims('Uruguay')).toEqual([]);
+    expect(view.claims('Montevideo')).toEqual([]);
+    expect(view.claims('Pago de impuestos')).toEqual([]);
+    expect(view.claims('Organismo X', { kind: 'government', country: 'UY' })[0]?.keys).toEqual(['gov:UY']);
+  });
+
   it('organizaciones declaradas: registro del BCU y catálogo', () => {
     expect(view.claims('Banco Itaú').map((c) => c.organization)).toEqual(['Banco Itaú']);
     expect(view.claims('Banco Itaú')[0]?.keys).toEqual(expect.arrayContaining(['bcu:sp-itau', 'bcu:ssf-1113']));

@@ -44,7 +44,16 @@ const ZonesFile = z.strictObject({
     }),
   ),
   claims: z.array(
-    z.strictObject({ country: z.string().length(2), organization: z.string().min(1), note: z.string().optional(), names: z.array(z.string().min(2)).min(1) }),
+    z.strictObject({
+      country: z.string().length(2),
+      organization: z.string().min(1),
+      note: z.string().optional(),
+      // containsName ignora los nombres de menos de 3 caracteres: se rechazan para que no queden inertes.
+      names: z.array(z.string().min(3)).min(1),
+      /** Nombres ambiguos: solo cuentan con una palabra de `context` en el texto o con la pista de la IA. */
+      contextNames: z.array(z.string().min(3)).default([]),
+      context: z.array(z.string().min(3)).default([]),
+    }),
   ),
 });
 
@@ -100,7 +109,11 @@ export interface CatalogEntry {
 export interface ClaimGroup {
   country: string;
   organization: string;
+  /** Alcanzan solos («BPS», «Dirección General Impositiva»). */
   names: string[];
+  /** Ambiguos («MEF», «MSP»): necesitan una palabra de `context` o la pista de la IA. */
+  contextNames: string[];
+  context: string[];
 }
 
 export interface OfficialSources {
@@ -142,7 +155,7 @@ export function loadOfficialSources(options: { dataDir?: string; zonesFile?: str
     const origin = `government-zones ${zones.version}`;
     sources.versions.push(origin);
     sources.zones.push(...zones.zones.map((zone) => ({ ...zone, origin })));
-    sources.claims.push(...zones.claims.map(({ country, organization, names }) => ({ country, organization, names })));
+    sources.claims.push(...zones.claims.map(({ country, organization, names, contextNames, context }) => ({ country, organization, names, contextNames, context })));
   } catch (error) {
     throw describeError(zonesPath, error);
   }
