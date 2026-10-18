@@ -404,8 +404,13 @@ function DictateStep({ state }: { state: AppState }) {
       <div aria-live="polite" key={guide.announceKey}>
         <p className="instr">{withControlNames(guide.instruction ?? '')}</p>
       </div>
-      <p className="support">{ask.question}</p>
-      <SpeakButton text={ask.question} auto={auto && !ask.filled} contentKey={`pregunta:${key}`} onDone={() => setQuestionRead((n) => n + 1)} />
+      {/* Ya escrito, la pregunta sobra: lo que importa es revisar y confirmar sin desplazar la tarjeta. */}
+      {ask.filled ? null : (
+        <>
+          <p className="support">{ask.question}</p>
+          <SpeakButton text={ask.question} auto={auto} contentKey={`pregunta:${key}`} onDone={() => setQuestionRead((n) => n + 1)} />
+        </>
+      )}
       <FieldDictation filled={ask.filled} auto={auto} trigger={questionRead} stepKey={key} />
       <Progress count={guide.done.length} />
     </section>
