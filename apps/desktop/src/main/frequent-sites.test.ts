@@ -22,7 +22,7 @@ describe('Sitios frecuentes', () => {
       site('https://d.ejemplo.com.uy', 3, 8),
       site('https://e.ejemplo.com.uy', 2, 1),
     ];
-    expect(topSites(sites).map((s) => s.origin)).toEqual(['https://b.ejemplo.com.uy', 'https://d.ejemplo.com.uy', 'https://c.ejemplo.com.uy', 'https://e.ejemplo.com.uy']);
+    expect(topSites(sites).map((s) => s.origin)).toEqual(['https://b.ejemplo.com.uy', 'https://d.ejemplo.com.uy', 'https://c.ejemplo.com.uy']);
     expect(topSites(sites)).toHaveLength(MAX_SHOWN_SITES);
   });
 

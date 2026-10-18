@@ -622,33 +622,58 @@ select {
   font-size: var(--fs-support);
 }
 /*
- * Opciones rápidas: los sitios que más abre, debajo de «Guíame».
- * TODO(diseño): estilo provisorio hasta tener la pantalla.
+ * Accesos del historial (01, v2.4 · docs/02): los sitios que más abre, debajo
+ * del buscador. Filas sin borde; hover y foco con fondo suave y texto navy.
  */
-.home-sites {
+.home-recent {
+  width: min(var(--home-search-w), 100%);
+  padding: 0 14px;
+}
+.home-recent ul {
   list-style: none;
   margin: 0;
   padding: 0;
-  width: min(var(--home-search-w), 100%);
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-3);
+  flex-direction: column;
+  gap: 6px;
 }
-.home-sites button {
-  min-height: var(--target-min);
-  padding: 0 var(--space-5);
-  border: var(--border-w-strong) solid var(--g-border-control);
-  border-radius: var(--radius-chip);
-  background: var(--g-surface);
+.home-recent button {
+  width: 100%;
+  min-height: var(--h-recent);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: var(--space-2) 14px;
+  border: 0;
+  border-radius: var(--radius-recent);
+  background: transparent;
   font: inherit;
   font-size: var(--fs-support);
-  font-weight: var(--fw-semibold);
-  color: var(--g-ink);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-instruction);
+  color: var(--g-ink-secondary);
+  text-align: start;
   cursor: pointer;
 }
-.home-sites button:hover {
+.home-recent button:hover,
+.home-recent button:focus-visible {
   background: var(--g-surface-soft);
+  color: var(--g-ink);
+}
+.home-recent-icon {
+  flex: none;
+  width: var(--icon-recent-box);
+  height: var(--icon-recent-box);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-recent-icon);
+  background: var(--g-recent-icon-bg);
+  color: var(--g-brand);
+}
+.home-recent-icon .ic {
+  width: var(--icon-recent);
+  height: var(--icon-recent);
 }
 /* «Mis datos»: enlace discreto debajo de «Guíame». */
 .home-profile.btn-link {

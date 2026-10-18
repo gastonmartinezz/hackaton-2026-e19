@@ -8,7 +8,7 @@
  *   busca solo, como «Guíame».
  * - Modo voz (02, 03, 10): al terminar de leer, se puede contestar hablando
  *   («Responder con la voz»).
- * - Opciones rápidas (01): los sitios que más abre; tocar uno lo abre con ayuda.
+ * - Accesos del historial (01, v2.4): los sitios que más abre; tocar uno lo abre con ayuda.
  */
 import { BrandIcon, Button, Icon, LoadingDots } from '@asistente/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -117,20 +117,29 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
   );
 }
 
-/** Los sitios que más abre, como opción rápida debajo del buscador. */
+/**
+ * Accesos del historial (01, v2.4): los sitios que más abre, debajo del buscador.
+ * `button` y no `a href`: un enlace navegaría la interfaz; el proceso principal abre el sitio.
+ */
 export function FrequentSites({ sites }: { sites: FrequentSiteView[] }) {
   if (sites.length === 0) return null;
   return (
-    // TODO(copy): nombre de la lista y TODO(diseño): la pantalla llega después.
-    <ul className="home-sites" aria-label="Los sitios que más usás">
-      {sites.map((site) => (
-        <li key={site.origin}>
-          <button type="button" onClick={() => send({ type: 'openFrequentSite', origin: site.origin })}>
-            {site.domain}
-          </button>
-        </li>
-      ))}
-    </ul>
+    <nav className="home-recent" aria-label="Lo que hiciste antes">
+      <ul>
+        {sites.map((site) => (
+          <li key={site.origin}>
+            <button type="button" onClick={() => send({ type: 'openFrequentSite', origin: site.origin })}>
+              {/* TODO(contrato): el diseño espera `historial[] { texto, url, icono }`: qué se hace ahí
+                  («Pagar tarjeta Santander») y un ícono por acceso. Mientras tanto, el dominio y un ícono fijo. */}
+              <span className="home-recent-icon">
+                <Icon name="globe" />
+              </span>
+              {site.domain}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
