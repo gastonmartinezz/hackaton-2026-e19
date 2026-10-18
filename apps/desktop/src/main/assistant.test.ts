@@ -242,7 +242,9 @@ describe('Assistant', () => {
     const next = resolveSelector(links[1]!.element!, page.html, document, (n) => page.registry!.idOf(n))!;
     assistant.interaction(next, 'click');
     await until(() => assistant.state.step?.instruction === links[2]!.instruction);
-    expect(assistant.done).toHaveLength(3);
+    // Solo los clics en el sitio, en pasado (sin la opción elegida).
+    expect(assistant.done).toHaveLength(2);
+    expect(assistant.done[0]).toMatch(/^Hiciste clic en «/);
   });
 
   it('si la navegación después del clic no termina ni falla, el paso siguiente se muestra igual', async () => {
@@ -352,7 +354,8 @@ describe('Assistant', () => {
     assistant.analyze();
     await until(() => assistant.state.phase === 'choosing');
     assistant.select(assistant.state.options[0]!.id);
-    expect(assistant.done).toEqual(['Elegiste «Buscar»']);
+    // Elegir la opción es responderle a Guíame: no suma al contador (R5).
+    expect(assistant.done).toEqual([]);
     await until(() => assistant.state.phase === 'completed');
     expect(assistant.evidence).toBe('Tu turno quedó registrado');
 

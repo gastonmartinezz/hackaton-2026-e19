@@ -353,8 +353,9 @@ export class Assistant {
       this.evidence = null;
       return;
     }
-    if (event.type === 'SELECT' && next.option) {
-      this.done = [`Elegiste «${next.option.title}»`];
+    // Elegir una opción es responderle a Guíame: no cuenta como paso hecho en el sitio (R5).
+    if (event.type === 'SELECT') {
+      this.done = [];
       return;
     }
     if (event.type !== 'OUTCOME' && event.type !== 'NAVIGATED') return;
