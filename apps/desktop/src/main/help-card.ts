@@ -63,6 +63,11 @@ export class HelpCardView {
   }
 
   /** Dónde se ve la tarjeta ahora (sin el margen del halo), o null si no se ve. */
+  /** Tarjeta abierta o achicada a la vista: el sitio lleva velo (R9). El aviso al salir (21) no. */
+  get veiled(): boolean {
+    return this.view.getVisible() && (this.#mode === 'card' || this.#mode === 'pill');
+  }
+
   get box(): Rect | null {
     if (!this.view.getVisible()) return null;
     const b = this.view.getBounds();

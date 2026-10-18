@@ -12,6 +12,14 @@
 // repiten acá. Poppins no está en la página: el rótulo cae a la letra del sistema.
 const STYLE = `
   :host { all: initial; }
+  /* Velo del sitio (R9, .g-site-veil v2.3): parejo, con un hueco en el control resaltado. */
+  .veil {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: rgba(11, 27, 63, 0.12);
+    z-index: 2147483645;
+  }
   .frame {
     position: fixed;
     pointer-events: none;
@@ -56,6 +64,9 @@ export class Highlighter {
   #host: HTMLElement | null = null;
   #frame: HTMLElement | null = null;
   #badge: HTMLElement | null = null;
+  #veil: HTMLElement | null = null;
+  /** La tarjeta de ayuda está abierta o achicada: el sitio lleva velo (R9). */
+  #veiled = false;
   #target: Element | null = null;
   #resize: ResizeObserver | null = null;
   #raf = 0;
@@ -86,7 +97,42 @@ export class Highlighter {
   clear(): void {
     this.#target = null;
     this.#unlisten();
-    this.#host?.remove();
+    if (!this.#veiled) {
+      this.#host?.remove();
+      return;
+    }
+    // Sin resaltado, el velo queda parejo (sin hueco).
+    if (this.#frame) this.#frame.style.display = 'none';
+    if (this.#badge) this.#badge.style.display = 'none';
+    this.#placeVeil(null);
+  }
+
+  /** Prende o apaga el velo del sitio. Nunca recibe clics (pointer-events: none). */
+  setVeil(on: boolean): void {
+    this.#veiled = on;
+    if (on) {
+      this.#ensureHost();
+      this.#placeVeil(this.#target && this.#target.isConnected && isDisplayed(this.#target) ? this.#target.getBoundingClientRect() : null);
+    } else if (this.#veil) {
+      this.#veil.style.display = 'none';
+      if (!this.#target) this.#host?.remove();
+    }
+  }
+
+  /** El control resaltado (con su anillo) queda fuera del velo: «lo único que sube por encima» (R9). */
+  #placeVeil(rect: DOMRect | null): void {
+    if (!this.#veil) return;
+    if (!this.#veiled) {
+      this.#veil.style.display = 'none';
+      return;
+    }
+    this.#veil.style.display = 'block';
+    if (!rect) {
+      this.#veil.style.clipPath = '';
+      return;
+    }
+    const [l, t, r, b] = [rect.left - MARGIN, rect.top - MARGIN, rect.right + MARGIN, rect.bottom + MARGIN].map((n) => `${Math.round(n)}px`);
+    this.#veil.style.clipPath = `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${l} ${t}, ${r} ${t}, ${r} ${b}, ${l} ${b}, ${l} ${t})`;
   }
 
   /** true si el destino actual sigue en el documento y visible. */
@@ -103,13 +149,17 @@ export class Highlighter {
       const root = host.attachShadow({ mode: 'closed' });
       const style = this.doc.createElement('style');
       style.textContent = STYLE;
+      const veil = this.doc.createElement('div');
+      veil.className = 'veil';
+      veil.style.display = 'none';
       const frame = this.doc.createElement('div');
       frame.className = 'frame';
       const badge = this.doc.createElement('div');
       badge.className = 'badge';
       badge.textContent = 'Acá';
-      root.append(style, frame, badge);
+      root.append(style, veil, frame, badge);
       this.#host = host;
+      this.#veil = veil;
       this.#frame = frame;
       this.#badge = badge;
     }
@@ -128,9 +178,11 @@ export class Highlighter {
     if (!target.isConnected || !isDisplayed(target)) {
       this.#frame.style.display = 'none';
       this.#badge.style.display = 'none';
+      this.#placeVeil(null);
       return;
     }
     const rect = target.getBoundingClientRect();
+    this.#placeVeil(rect);
     Object.assign(this.#frame.style, {
       display: 'block',
       left: `${rect.left - MARGIN}px`,

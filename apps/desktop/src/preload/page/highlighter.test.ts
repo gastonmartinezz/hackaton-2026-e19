@@ -51,6 +51,61 @@ describe('Highlighter', () => {
   });
 });
 
+describe('Velo del sitio (R9)', () => {
+  // El overlay usa un shadow root cerrado; en estos tests se guarda el root al crearlo para mirar el velo.
+  let root: ShadowRoot | null = null;
+  const veil = () => (root?.querySelector('.veil') as HTMLElement | null) ?? null;
+  beforeEach(() => {
+    // Overlays que dejaron otros tests (se insertan en <html>, no en <body>).
+    document.querySelectorAll('[data-asistente-overlay]').forEach((el) => el.remove());
+    root = null;
+    const original = Element.prototype.attachShadow;
+    Element.prototype.attachShadow = function (init) {
+      root = original.call(this, init);
+      return root;
+    };
+    return () => {
+      Element.prototype.attachShadow = original;
+    };
+  });
+
+  it('se prende sin resaltado, parejo y sin recibir clics, y se va al apagarlo', () => {
+    const h = new Highlighter(document);
+    h.setVeil(true);
+    expect(document.querySelector('[data-asistente-overlay]')!.getAttribute('aria-hidden')).toBe('true');
+    expect(veil()!.style.display).toBe('block');
+    expect(veil()!.style.clipPath).toBe('');
+    h.setVeil(false);
+    expect(document.querySelector('[data-asistente-overlay]')).toBeNull();
+  });
+
+  it('deja un hueco en el control resaltado y queda parejo al sacar el resaltado', () => {
+    const button = document.getElementById('b')!;
+    box(button, { left: 10, top: 10, right: 110, bottom: 40 });
+    const h = new Highlighter(document);
+    h.setVeil(true);
+    h.show(button, { scroll: false });
+    expect(veil()!.style.clipPath).toContain('evenodd');
+    // El hueco incluye el anillo (7px alrededor del control).
+    expect(veil()!.style.clipPath).toContain('3px 3px');
+    expect(veil()!.style.clipPath).toContain('117px 47px');
+    h.clear();
+    expect(document.querySelector('[data-asistente-overlay]')).not.toBeNull();
+    expect(veil()!.style.display).toBe('block');
+    expect(veil()!.style.clipPath).toBe('');
+  });
+
+  it('apagado no deja nada: el resaltado solo se va como siempre', () => {
+    const button = document.getElementById('b')!;
+    box(button, {});
+    const h = new Highlighter(document);
+    h.show(button, { scroll: false });
+    expect(veil()!.style.display).toBe('none');
+    h.clear();
+    expect(document.querySelector('[data-asistente-overlay]')).toBeNull();
+  });
+});
+
 describe('labelPlacement', () => {
   const VIEW = { width: 1200, height: 800 };
   const rect = (top: number, right = 200, left = 100) => ({ top, right, left, bottom: top + 30, width: right - left, height: 30 }) as DOMRect;

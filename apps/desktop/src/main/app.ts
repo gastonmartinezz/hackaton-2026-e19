@@ -37,7 +37,7 @@ import { announcementText, CONTINUE_ACTION, siteCheckCopy } from '../shared/site
 import { ApiSession, type ApiClient } from './api/client';
 import { Assistant } from './assistant';
 import { Chat, UNSURE_ANSWER } from './chat';
-import { forgetHost, recordVisit, topSites } from './frequent-sites';
+import { forgetHost, labelSite, recordVisit, topSites } from './frequent-sites';
 import { HelpCardView } from './help-card';
 import { log } from './log';
 import { PageBridge } from './page-bridge';
@@ -117,6 +117,10 @@ export class AppController {
   readonly #riskyHosts = new Set<string>();
   /** Último sitio contado como visita: andar por sus páginas no suma; volver a entrar desde el inicio, sí. */
   #visitedOrigin: string | null = null;
+  /** Tarea del destino que se está abriendo desde una búsqueda con ayuda, hasta contar la visita. */
+  #pendingTask: { origin: string; task: string } | null = null;
+  /** Lo último que se le dijo a la página sobre el velo (R9). */
+  #veiled = false;
   #notices: Array<Notice & { url?: string | undefined }> = [];
   #publishScheduled = false;
 
@@ -157,7 +161,7 @@ export class AppController {
       options.api,
       session,
       () => this.#publish(),
-      (url) => this.#openDestination(url),
+      (url) => this.#openDestination(url, this.#wantGuide, this.#chat.goal),
       () => buildUserContext(options.prefs.value.profile, options.system),
     );
     this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
@@ -273,6 +277,7 @@ export class AppController {
       this.#cardLayout = layout;
       this.#publish();
     }
+    this.#syncVeil();
     // Con la advertencia abierta, el indicador y el panel van en la ventana (el sitio está oculto).
     const hasIndicator = this.#siteVisible && protection.kind !== 'none';
     const popoverShown = siteShown && hasIndicator && (protection.panelOpen || !this.#anchor.inline);
@@ -458,9 +463,10 @@ export class AppController {
       },
       notices: this.#notices.map(({ url: _url, ...notice }) => notice),
       siteCheck: this.#siteCheckView(),
-      frequentSites: topSites(this.options.prefs.value.frequentSites).map(({ origin }) => ({
+      frequentSites: topSites(this.options.prefs.value.frequentSites).map(({ origin, task }) => ({
         origin,
         domain: new URL(origin).hostname.replace(/^www\./, ''),
+        task: task ?? null,
       })),
     };
   }
@@ -511,6 +517,8 @@ export class AppController {
       else {
         this.#protection.pageLoaded(url);
         this.#countVisit(url);
+        // Página nueva: su capa todavía no tiene el velo.
+        this.#syncVeil(true);
       }
       this.#assistant.navigated({ sameDocument, aiEnabled: this.#guideAllowed() });
     });
@@ -553,13 +561,33 @@ export class AppController {
     this.#card.contents.on('input-event', closePanelOnClick);
   }
 
+  /** Velo sobre el sitio (R9) mientras la tarjeta está abierta o achicada. `force`: volver a mandarlo (página nueva). */
+  #syncVeil(force = false): void {
+    const on = this.#card.veiled;
+    if (on === this.#veiled && !force) return;
+    this.#veiled = on;
+    this.#bridge.veil(on);
+  }
+
   /** Suma una visita al sitio si es otro que el anterior. Solo sitios públicos; se guarda el origen, nunca la dirección completa. */
   #countVisit(url: string): void {
     const target = checkEligibility(url);
     const origin = target.kind === 'eligible' ? sanitizeOrigin(target.url) : null;
-    if (!origin || origin === this.#visitedOrigin || this.#riskyHosts.has(new URL(origin).hostname)) return;
+    // La tarea vale solo para la primera página que carga después de abrir el destino: aunque esta
+    // visita no se cuente, no queda guardada para una visita posterior.
+    const task = origin && this.#pendingTask?.origin === origin ? this.#pendingTask.task : null;
+    this.#pendingTask = null;
+    if (!origin || this.#riskyHosts.has(new URL(origin).hostname)) return;
+    if (origin === this.#visitedOrigin) {
+      // Ya estaba en ese sitio: no suma otra visita, pero la tarea nueva sí queda.
+      if (task) this.options.prefs.update((current) => ({ frequentSites: labelSite(current.frequentSites, origin, task) })).then(
+        () => this.#publish(),
+        () => log('prefs.error', { kind: 'kind:frequentSites' }),
+      );
+      return;
+    }
     this.#visitedOrigin = origin;
-    this.options.prefs.update((current) => ({ frequentSites: recordVisit(current.frequentSites, origin, Date.now()) })).then(
+    this.options.prefs.update((current) => ({ frequentSites: recordVisit(current.frequentSites, origin, Date.now(), task) })).then(
       () => this.#publish(),
       () => log('prefs.error', { kind: 'kind:frequentSites' }),
     );
@@ -574,8 +602,16 @@ export class AppController {
   }
 
   /** Destino elegido en el chat: al cargar, la guía analiza la página con ese objetivo. */
-  #openDestination(url: string, guide = this.#wantGuide): void {
+  /**
+   * `task`: lo que se va a hacer en ese sitio, para el acceso del historial. Solo
+   * se pasa al abrir un destino de una búsqueda con ayuda; un acceso del
+   * historial conserva el que tenía.
+   */
+  #openDestination(url: string, guide = this.#wantGuide, task: string | null = null): void {
     if (guide) this.#assistant.expectDestination(this.#chat.goal ?? '');
+    const target = checkEligibility(url);
+    const origin = target.kind === 'eligible' ? sanitizeOrigin(target.url) : null;
+    this.#pendingTask = guide && task && origin ? { origin, task } : null;
     this.#showSite(url);
   }
 
@@ -734,7 +770,7 @@ export class AppController {
         // La URL sale del resultado recibido, nunca del renderer.
         const candidate = this.#chat.candidate(command.candidateId);
         if (!candidate) return;
-        this.#openDestination(candidate.url, command.guide ?? this.#wantGuide);
+        this.#openDestination(candidate.url, command.guide ?? this.#wantGuide, this.#chat.goal);
         return;
       }
       case 'openFrequentSite': {

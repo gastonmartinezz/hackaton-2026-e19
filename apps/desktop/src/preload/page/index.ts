@@ -121,6 +121,12 @@ ipcRenderer.on(PAGE_CHANNELS.clear, () => {
   highlighter?.clear();
 });
 
+ipcRenderer.on(PAGE_CHANNELS.veil, (_event, on: unknown) => {
+  if (on !== true && !highlighter) return;
+  highlighter ??= new Highlighter(document);
+  highlighter.setVeil(on === true);
+});
+
 function resolveCurrent(navigationId: string, elementId: string): Element | undefined {
   return registry?.navigationId === navigationId ? registry.resolve(elementId) : undefined;
 }

@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { forgetHost, MAX_SHOWN_SITES, MAX_STORED_SITES, recordVisit, topSites, type FrequentSite } from './frequent-sites';
+import { cleanTask, forgetHost, labelSite, MAX_SHOWN_SITES, MAX_STORED_SITES, MAX_TASK_LENGTH, recordVisit, topSites, type FrequentSite } from './frequent-sites';
 import { PrefsStore } from './prefs';
 
 const site = (origin: string, visits: number, lastVisit = 0): FrequentSite => ({ origin, visits, lastVisit });
@@ -32,6 +32,32 @@ describe('Sitios frecuentes', () => {
     expect(next).toHaveLength(MAX_STORED_SITES);
     expect(next.map((s) => s.origin)).toContain('https://nuevo.ejemplo.com.uy');
     expect(next.map((s) => s.origin)).not.toContain('https://s0.ejemplo.com.uy');
+  });
+
+  it('guarda la tarea hecha con ayuda y la conserva en las visitas sin tarea', () => {
+    let sites = recordVisit([], 'https://agenda.ejemplo.gub.uy', 1, 'renovar la cédula');
+    expect(sites[0]!.task).toBe('Renovar la cédula');
+    sites = recordVisit(sites, 'https://agenda.ejemplo.gub.uy', 2);
+    expect(sites[0]).toMatchObject({ visits: 2, task: 'Renovar la cédula' });
+    sites = recordVisit(sites, 'https://agenda.ejemplo.gub.uy', 3, 'Cambiar mi turno');
+    expect(sites[0]!.task).toBe('Cambiar mi turno');
+    // Sin tarea nunca se agrega el campo.
+    expect(recordVisit([], 'https://b.ejemplo.com.uy', 1, '  ')[0]).not.toHaveProperty('task');
+  });
+
+  it('labelSite pone la tarea sin sumar una visita', () => {
+    const sites = [site('https://agenda.ejemplo.gub.uy', 3, 5), site('https://b.ejemplo.com.uy', 1, 1)];
+    const next = labelSite(sites, 'https://agenda.ejemplo.gub.uy', 'cambiar mi turno');
+    expect(next[0]).toMatchObject({ visits: 3, lastVisit: 5, task: 'Cambiar mi turno' });
+    expect(next[1]).not.toHaveProperty('task');
+  });
+
+  it('la tarea queda en una línea y recortada', () => {
+    expect(cleanTask('  pagar\n la   tarjeta ')).toBe('Pagar la tarjeta');
+    expect(cleanTask(null)).toBeNull();
+    const long = cleanTask('a'.repeat(200))!;
+    expect(long).toHaveLength(MAX_TASK_LENGTH);
+    expect(long.endsWith('…')).toBe(true);
   });
 
   it('olvida un host con cualquier puerto o protocolo', () => {
