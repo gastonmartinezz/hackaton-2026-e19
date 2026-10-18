@@ -849,6 +849,9 @@ export class AppController {
       case 'stepBack':
         this.#assistant.back();
         return;
+      case 'anotherTask':
+        this.#assistant.anotherTask();
+        return;
       case 'exitHelp':
         this.#speech.stopAll();
         this.#helpExited = this.#assistant.state.phase !== 'idle';

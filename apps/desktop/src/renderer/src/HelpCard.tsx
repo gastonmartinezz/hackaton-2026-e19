@@ -476,7 +476,7 @@ function Completed({ evidence, speech, auto, contentKey }: { evidence: string; s
       </section>
       {/* Se lee «Listo.» sin la cita de la página. */}
       <SpeakButton text={speech} auto={auto} contentKey={contentKey} />
-      <Button variant="primary" block onClick={() => send({ type: 'stepBack' })}>
+      <Button variant="primary" block onClick={() => send({ type: 'anotherTask' })}>
         Hacer otra cosa
       </Button>
       <Button variant="link" className="back-link" onClick={() => send({ type: 'finishHelp' })}>

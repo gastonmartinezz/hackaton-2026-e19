@@ -59,6 +59,11 @@ export interface GuideState {
    * pertenecen al documento anterior y hay que volver a pedirlos.
    */
   planStale: boolean;
+  /**
+   * La página cambió desde que se armaron las opciones: ya no son las de la
+   * página actual y, para volver a elegir, hay que mirarla de nuevo.
+   */
+  optionsStale: boolean;
   stepCount: number;
   lastOutcome: StepOutcome;
   message?: string | undefined;
@@ -66,7 +71,8 @@ export interface GuideState {
 }
 
 export type GuideEvent =
-  | { type: 'ANALYZE'; goal?: string | undefined; request?: string | undefined }
+  /** `goal: null`: empezar otra tarea; se olvida el objetivo anterior (ya cumplido). */
+  | { type: 'ANALYZE'; goal?: string | null | undefined; request?: string | undefined }
   /** `requested`: la opción que hace lo que pidió la persona (solo si hubo pedido y el backend la encontró). */
   | { type: 'OPTIONS'; options: PageOption[]; requested?: string | undefined; unclear?: boolean | undefined }
   | { type: 'SELECT'; optionId: string }
@@ -88,6 +94,7 @@ export const initialState: GuideState = {
   plan: [],
   completed: [],
   planStale: false,
+  optionsStale: false,
   stepCount: 0,
   lastOutcome: 'none',
 };
@@ -104,7 +111,7 @@ const DONE_MESSAGE = 'Listo, terminaste. Si no es lo que buscabas, tocá «Elegi
 export function transition(state: GuideState, event: GuideEvent): GuideState {
   switch (event.type) {
     case 'ANALYZE':
-      return { ...initialState, phase: 'analyzing', goal: event.goal ?? state.goal, request: event.request };
+      return { ...initialState, phase: 'analyzing', goal: event.goal === null ? undefined : (event.goal ?? state.goal), request: event.request };
 
     case 'OPTIONS': {
       if (state.phase !== 'analyzing') return state;
@@ -158,9 +165,11 @@ export function transition(state: GuideState, event: GuideEvent): GuideState {
     }
 
     case 'NAVIGATED': {
-      if (state.phase === 'idle' || state.phase === 'completed') return state;
+      if (state.phase === 'idle') return state;
+      // Terminada la tarea, la persona puede seguir navegando: las opciones ya no son de esta página.
+      if (state.phase === 'completed') return state.optionsStale ? state : { ...state, optionsStale: true };
       if (!state.option) return transition(state, { type: 'ANALYZE' });
-      const stale = { ...state, planStale: true };
+      const stale = { ...state, planStale: true, optionsStale: true };
       if (state.phase !== 'waitingForUser' || !state.step) return stale;
       // Un paso que nunca se llegó a señalar (la página cambió antes) no cuenta como hecho.
       const unshown = state.step.element !== null && state.step.targetElementId === undefined;
@@ -181,7 +190,8 @@ export function transition(state: GuideState, event: GuideEvent): GuideState {
 
     case 'BACK':
       if (state.phase === 'idle') return state;
-      if (state.options.length === 0) return transition(state, { type: 'ANALYZE' });
+      // Si la página cambió desde que se armaron las opciones, se mira la página actual de nuevo.
+      if (state.options.length === 0 || state.optionsStale) return transition(state, { type: 'ANALYZE' });
       return { ...initialState, phase: 'choosing', goal: state.goal, options: state.options };
 
     case 'RESUME':
