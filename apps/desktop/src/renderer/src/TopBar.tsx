@@ -106,7 +106,7 @@ function Omni({ state, indicatorInline }: { state: AppState; indicatorInline: bo
     const { sub, main } = splitDomain(nav.domain);
     return (
       <div className="omni" ref={fit.ref} data-fit={fit.level} role="group" aria-label="Sitio abierto">
-        <button type="button" className="where" onClick={() => setEditing(true)} aria-label={`Estás en ${nav.domain}. Buscar otra cosa`}>
+        <button type="button" className="where" onClick={() => setEditing(true)} aria-label={`${nav.secure ? '' : 'Conexión no segura. '}Estás en ${nav.domain}. Buscar otra cosa`}>
           {nav.secure ? null : (
             <span className="insecure">
               <span className="insecure-icon">
