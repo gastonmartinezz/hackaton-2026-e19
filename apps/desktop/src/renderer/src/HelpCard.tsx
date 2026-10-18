@@ -8,7 +8,7 @@ import { Fragment, useLayoutEffect, useRef, useState, type FormEvent, type React
 import type { AppState, CardMode, OptionView } from '../../shared/ipc';
 import { Notices } from './Notices';
 import { SpeakButton } from './speech/SpeakButton';
-import { guideSpeech, optionsSpeech } from './speech/speechText';
+import { guideSpeech, optionsSpeech, stepSpeechKey } from './speech/speechText';
 import { send, useAppState } from './useAppState';
 
 /** Margen transparente de la vista para la sombra (CARD_SHADOW en main/help-card.ts). */
@@ -352,7 +352,7 @@ function CurrentStep({ state }: { state: AppState }) {
           Ahora
         </p>
         {/* Leer en voz alta (opcional, S11): solo si la persona lo pide; se corta al cambiar de instrucción. */}
-        <SpeakButton text={guideSpeech(guide)} auto={state.voice.active} contentKey={guide.announceKey} />
+        <SpeakButton text={guideSpeech(guide)} auto={state.voice.active} contentKey={stepSpeechKey(guide)} />
       </div>
       {/* Única región que anuncia instrucciones; Repetir cambia la clave y se vuelve a anunciar. No mueve el foco. */}
       <div aria-live="polite" key={guide.announceKey}>

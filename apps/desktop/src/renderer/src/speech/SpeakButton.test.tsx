@@ -370,6 +370,18 @@ describe('modo voz: lectura automática', () => {
     expect(deps.speak).toHaveBeenCalledTimes(2);
   });
 
+  it('un paso nuevo con el mismo texto (otra clave) se lee; el mismo paso dibujado de nuevo, no', async () => {
+    const { deps } = fakeDeps();
+    render(<SpeakButton text="Tocá «Siguiente»." deps={deps} auto contentKey="1:0" />);
+    await flush();
+    render(<SpeakButton text="Tocá «Siguiente»." deps={deps} auto contentKey="1:0" />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledOnce();
+    render(<SpeakButton text="Tocá «Siguiente»." deps={deps} auto contentKey="2:0" />);
+    await flush();
+    expect(deps.speak).toHaveBeenCalledTimes(2);
+  });
+
   it('apagar el modo corta lo que suena', async () => {
     const { deps, mp3 } = fakeDeps();
     render(<SpeakButton text="Hola" deps={deps} auto />);
