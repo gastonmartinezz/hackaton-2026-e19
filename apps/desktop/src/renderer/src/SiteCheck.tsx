@@ -104,7 +104,7 @@ export function useIndicatorFits(view: SiteCheckView, domain: string, scale: num
   useLayoutEffect(() => {
     const check = () => {
       const omni = document.querySelector<HTMLElement>('.omni');
-      const main = omni?.querySelector('.dom b');
+      const main = omni?.querySelector<HTMLElement>('.dom b');
       const probe = document.querySelector('.site-badge-probe');
       if (!omni || !main || !probe) return;
       const style = getComputedStyle(omni);
@@ -117,7 +117,8 @@ export function useIndicatorFits(view: SiteCheckView, domain: string, scale: num
             .reduce((sum, child) => sum + child.getBoundingClientRect().width + gap, 0)
         : 0;
       const sub = omni.querySelector('.dom .sub') ? 32 : 0;
-      const need = main.getBoundingClientRect().width + sub + others + probe.getBoundingClientRect().width + gap + padding;
+      // Ancho completo del dominio aunque esté achicado con «…»: así la decisión no oscila.
+      const need = main.scrollWidth + sub + others + probe.getBoundingClientRect().width + gap + padding;
       setFits(need <= omni.clientWidth);
     };
     check();

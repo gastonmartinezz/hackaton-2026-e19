@@ -157,8 +157,8 @@
 }
 
 /*
- * La píldora «Estás en» suma el sello. El dominio principal nunca se corta:
- * cuando falta lugar se oculta primero «Estás en», después la conexión no segura
+ * La píldora «Estás en» suma el sello. El dominio principal se corta solo como
+ * último recurso, por el principio (ver guiame.css). Cuando falta lugar se oculta primero «Estás en», después la conexión no segura
  * queda solo con su ícono (el texto sigue para lectores de pantalla y el aviso
  * completo está en la tarjeta) y el texto del sello pasa a dos líneas.
  */
