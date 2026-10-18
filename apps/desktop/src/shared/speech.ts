@@ -5,12 +5,9 @@
  * pueden traer datos personales. Funciones puras, usadas por la interfaz y
  * revisadas de nuevo en el proceso principal.
  */
+import { SPEAK_MAX_CHARS } from '@hackaton/contracts';
 
-/**
- * TEMPORAL — máximo acordado para /v1/speak. Reemplazar por `SPEAK_MAX_CHARS`
- * de @hackaton/contracts cuando se mergee feature/voz-openai-api.
- */
-export const SPEAK_MAX_CHARS = 600;
+export { SPEAK_MAX_CHARS };
 
 /** Una línea, sin espacios de más ni caracteres de control. */
 export function normalizeSpeech(text: string): string {

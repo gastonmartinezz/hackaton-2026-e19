@@ -10,6 +10,8 @@ import { BrowserWindow, ipcMain, shell, systemPreferences, type IpcMainEvent, ty
 import {
   TERMS_VERSION,
   UI_COMMAND_CHANNEL,
+  SpeakRequestSchema,
+  UI_SPEAK_AUDIO_CHANNEL,
   UI_SPEAK_CHANNEL,
   UI_SPEAK_STOP_CHANNEL,
   UI_STATE_CHANNEL,
@@ -373,8 +375,14 @@ export class AppController {
 
   /** Leer en voz alta: desde la ventana o la tarjeta, con condiciones aceptadas. */
   async #onSpeak(event: IpcMainInvokeEvent, raw: unknown): Promise<SpeakResult> {
-    if (!this.#isOwnUi(event) || !this.#termsAccepted()) return { status: 'error', reason: 'failed' };
-    return this.#speech.speak(event.sender, raw);
+    const request = SpeakRequestSchema.safeParse(raw);
+    if (!this.#isOwnUi(event) || !this.#termsAccepted() || !request.success) return { status: 'error', reason: 'failed' };
+    const { id, text } = request.data;
+    const sender = event.sender;
+    // Los pedazos van solo a la vista que pidió la lectura, con su id.
+    return this.#speech.speak(sender, text, (audio) => {
+      if (!sender.isDestroyed()) sender.send(UI_SPEAK_AUDIO_CHANNEL, { id, ...audio });
+    });
   }
 
   /** Dictado del buscador: solo desde la ventana (no la tarjeta) y con condiciones aceptadas. */

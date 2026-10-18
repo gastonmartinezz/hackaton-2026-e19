@@ -1,27 +1,37 @@
 /**
  * Leer en voz alta: la interfaz pide un texto de Mostrame y el proceso
- * principal lo pasa a audio con POST /v1/speak. Una sola lectura en toda la
- * app: una nueva (o «Detener») cancela la descarga anterior y `SpeechHub`
- * avisa a las demás vistas (ventana y tarjeta) que corten lo que suena.
+ * principal lo pasa a audio con POST /v1/speak. El MP3 llega en streaming y
+ * se reenvía a la vista en pedazos (`SpeechSink`) para que empiece a sonar
+ * apenas llegan los primeros datos.
+ *
+ * Una sola lectura en toda la app: una nueva (o «Detener») cancela la
+ * descarga anterior y `SpeechHub` avisa a las demás vistas (ventana y
+ * tarjeta) que corten lo que suena.
  *
  * Privacidad: el texto y el audio solo viven en memoria durante la solicitud.
- * No se guardan en disco ni se loguean (solo códigos y duración).
+ * No se guardan en disco ni se loguean (solo códigos, tiempos y bytes).
  */
 import { clipForSpeech } from '../shared/speech';
-import { UI_SPEECH_CUT_CHANNEL, type SpeakErrorReason, type SpeakResult } from '../shared/ipc';
+import { UI_SPEECH_CUT_CHANNEL, type SpeakErrorReason, type SpeakResult, type SpeechAudioEvent } from '../shared/ipc';
 import { ApiFailure, type ApiClient } from './api/client';
 import { log } from './log';
 
-const TIMEOUT_MS = 30_000;
+/** Tope total de una lectura (pedido + streaming). */
+const TIMEOUT_MS = 60_000;
+
+/** A dónde van los pedazos de audio de una lectura (la vista que la pidió). */
+export type SpeechSink = (event: SpeechAudioEvent) => void;
 
 /**
  * Qué decirle a la interfaz según el error. Se usa el `retryable` que mandó el
- * servidor: AI_UNAVAILABLE sin reintento es la voz apagada en el servidor.
+ * servidor: AI_UNAVAILABLE sin reintento es la voz apagada en el servidor. Los
+ * reintentables (AI_UNAVAILABLE con reintento, RATE_LIMITED y TIMEOUT, que el
+ * servidor manda si OpenAI se cuelga) son «ocupado».
  */
 export function speakErrorReason(error: unknown): Exclude<SpeakErrorReason, 'stopped'> {
   if (!(error instanceof ApiFailure)) return 'failed';
   if (error.code === 'AI_UNAVAILABLE') return error.retryable ? 'busy' : 'off';
-  return error.code === 'RATE_LIMITED' ? 'busy' : 'failed';
+  return error.code === 'RATE_LIMITED' || error.code === 'TIMEOUT' ? 'busy' : 'failed';
 }
 
 export class Speaker {
@@ -31,7 +41,11 @@ export class Speaker {
 
   constructor(private readonly api: ApiClient) {}
 
-  async speak(raw: unknown): Promise<SpeakResult> {
+  /**
+   * Resuelve cuando el servidor aceptó (o falló antes de mandar audio). Los
+   * pedazos siguen llegando a `sink` hasta `end` o `error`.
+   */
+  async speak(raw: unknown, sink: SpeechSink): Promise<SpeakResult> {
     if (this.#off) return { status: 'error', reason: 'off' };
     const text = typeof raw === 'string' ? clipForSpeech(raw) : '';
     if (!text) {
@@ -41,28 +55,59 @@ export class Speaker {
     this.stop();
     const controller = new AbortController();
     this.#current = controller;
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(TIMEOUT_MS)]);
     const started = Date.now();
-    try {
-      const audio = await this.api.speak({ text }, AbortSignal.any([controller.signal, AbortSignal.timeout(TIMEOUT_MS)]));
-      if (controller.signal.aborted) return { status: 'error', reason: 'stopped' };
-      log('speech.audio', { ms: Date.now() - started, bytes: audio.byteLength });
-      return { status: 'ok', audio };
-    } catch (error) {
-      // Solo es «stopped» si la cortó la persona (o una lectura nueva); un timeout es un error.
-      const reason = controller.signal.aborted ? 'stopped' : speakErrorReason(error);
-      const code = error instanceof ApiFailure ? error.code : 'INTERNAL';
-      if (reason !== 'stopped') log('speech.error', { code: `code:${code}`, ms: Date.now() - started });
-      if (reason === 'off') this.#off = true;
-      return { status: 'error', reason };
-    } finally {
+    const release = () => {
       if (this.#current === controller) this.#current = null;
+    };
+    let chunks: AsyncIterable<Uint8Array>;
+    try {
+      chunks = await this.api.speak({ text }, signal);
+    } catch (error) {
+      release();
+      return this.#failure(error, controller, started);
     }
+    if (controller.signal.aborted) {
+      release();
+      return { status: 'error', reason: 'stopped' };
+    }
+    void this.#pump(chunks, sink, controller, started).finally(release);
+    return { status: 'ok' };
   }
 
-  /** «Detener», otra instrucción o la tarjeta cerrada: corta la descarga en curso. */
+  /** «Detener», otra lectura o la vista se cierra: corta la descarga en curso. */
   stop(): void {
     this.#current?.abort();
     this.#current = null;
+  }
+
+  async #pump(chunks: AsyncIterable<Uint8Array>, sink: SpeechSink, controller: AbortController, started: number): Promise<void> {
+    let bytes = 0;
+    let firstMs: number | null = null;
+    try {
+      for await (const chunk of chunks) {
+        if (controller.signal.aborted) break;
+        firstMs ??= Date.now() - started;
+        bytes += chunk.byteLength;
+        sink({ type: 'chunk', chunk });
+      }
+      if (controller.signal.aborted) return sink({ type: 'error', reason: 'stopped' });
+      log('speech.audio', { firstMs, ms: Date.now() - started, bytes });
+      sink({ type: 'end' });
+    } catch (error) {
+      const result = this.#failure(error, controller, started);
+      sink({ type: 'error', reason: result.status === 'error' && result.reason === 'stopped' ? 'stopped' : 'failed' });
+    }
+  }
+
+  #failure(error: unknown, controller: AbortController, started: number): SpeakResult {
+    // Solo es «stopped» si la cortó la persona (o una lectura nueva); un timeout es un error.
+    if (controller.signal.aborted) return { status: 'error', reason: 'stopped' };
+    const reason = speakErrorReason(error);
+    const code = error instanceof ApiFailure ? error.code : 'INTERNAL';
+    log('speech.error', { code: `code:${code}`, ms: Date.now() - started });
+    if (reason === 'off') this.#off = true;
+    return { status: 'error', reason };
   }
 }
 
@@ -89,9 +134,9 @@ export class SpeechHub {
   }
 
   /** Lectura nueva desde `from`: se corta la descarga anterior y callan las demás vistas. */
-  speak(from: SpeechView, raw: unknown): Promise<SpeakResult> {
+  speak(from: SpeechView, raw: unknown, sink: SpeechSink): Promise<SpeakResult> {
     this.#cutOthers(from);
-    return this.#speaker.speak(raw);
+    return this.#speaker.speak(raw, sink);
   }
 
   /** «Detener», o `from` va a leer con la voz del sistema: corta la descarga y las demás vistas. */

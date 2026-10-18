@@ -19,9 +19,9 @@ import type {
   SiteOption,
   TranscribeResponse,
 } from '@hackaton/contracts';
+import { SpeakRequest } from '@hackaton/contracts';
 import { isTranscribableWav, rms, wavSamples } from '../../shared/wav';
 import { ApiFailure, type ApiClient } from './client';
-import { SpeakRequest } from './pending-contract';
 
 /** Texto fijo del dictado simulado: el mismo que devuelve el modo mock del servidor. */
 export const MOCK_TRANSCRIPT = 'Quiero renovar mi documento';
@@ -31,6 +31,8 @@ export interface MockOptions {
   /** Origen del servidor local de páginas de prueba, si está activo. */
   fixturesOrigin: string | null;
   latencyMs?: number;
+  /** Espera entre pedazos del audio de /v1/speak. */
+  chunkDelayMs?: number;
 }
 
 interface MockSession {
@@ -84,16 +86,16 @@ export class MockApiClient implements ApiClient {
   }
 
   /**
-   * TEMPORAL: /v1/speak todavía no está en el contrato (ver
-   * api/pending-contract.ts). Sin voz real: devuelve un MP3 válido de
-   * silencio, con una duración proporcional al texto (para probar «Detener»).
+   * /v1/speak sin voz real: un MP3 válido de silencio, con una duración
+   * proporcional al texto (para probar «Detener»). Llega en streaming como el
+   * servidor: el primer pedazo después de la latencia y el resto de a poco.
    */
-  async speak(request: SpeakRequest, signal: AbortSignal): Promise<Uint8Array> {
+  async speak(request: SpeakRequest, signal: AbortSignal): Promise<AsyncIterable<Uint8Array>> {
     await this.#wait(signal);
     const parsed = SpeakRequest.safeParse(request);
     if (!parsed.success) throw new ApiFailure('BAD_REQUEST', false);
     const seconds = Math.min(12, Math.max(1, parsed.data.text.length * 0.06));
-    return silentMp3(seconds);
+    return mockSpeechChunks(silentMp3(seconds), signal, this.config.chunkDelayMs ?? MOCK_CHUNK_DELAY_MS);
   }
 
   /** Devuelve la sesión indicada (o una nueva si no se indicó ninguna). */
@@ -134,6 +136,33 @@ export class MockApiClient implements ApiClient {
       );
     });
   }
+}
+
+/** Pedazos del MP3 simulado y la espera entre ellos (unos 1,4 s en total para la descarga completa). */
+const MOCK_SPEECH_CHUNKS = 8;
+const MOCK_CHUNK_DELAY_MS = 150;
+
+async function* mockSpeechChunks(mp3: Uint8Array, signal: AbortSignal, delayMs: number): AsyncGenerator<Uint8Array> {
+  const size = Math.ceil(mp3.byteLength / MOCK_SPEECH_CHUNKS);
+  for (let offset = 0; offset < mp3.byteLength; offset += size) {
+    if (offset > 0) await abortableDelay(delayMs, signal);
+    yield mp3.slice(offset, offset + size);
+  }
+}
+
+function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(new ApiFailure('ABORTED', false));
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(new ApiFailure('ABORTED', false));
+      },
+      { once: true },
+    );
+  });
 }
 
 /**

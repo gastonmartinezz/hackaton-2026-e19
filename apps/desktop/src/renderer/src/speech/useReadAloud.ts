@@ -12,26 +12,28 @@
  * español; si tampoco hay, el botón deja de ofrecerse.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { SpeakResult } from '../../../shared/ipc';
-import { playMp3, systemSpeak, type Playback } from './playback';
+import type { SpeakResult, SpeechAudioEvent } from '../../../shared/ipc';
+import { openMp3Stream, systemSpeak, type Mp3Stream, type Playback } from './playback';
 
 export type ReadAloudState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'playing' } | { kind: 'error'; reason: 'busy' | 'failed' };
 
 export interface ReadAloudDeps {
-  speak(text: string): Promise<SpeakResult>;
+  /** Pide la lectura; los pedazos del MP3 llegan a `onAudio` mientras el servidor los manda. */
+  speak(text: string, onAudio: (event: SpeechAudioEvent) => void): Promise<SpeakResult>;
   /** «Detener» o «voy a leer con la voz del sistema»: el proceso principal corta su descarga y avisa a la otra vista. */
   stopSpeaking(): void;
   /** Aviso del proceso principal: otra vista empezó a leer o se detuvo todo. */
   onCut(listener: () => void): () => void;
-  playMp3(audio: Uint8Array): Playback;
+  /** Reproducción que empieza con los primeros datos. */
+  openMp3Stream(): Mp3Stream;
   systemSpeak(text: string): Promise<Playback | null>;
 }
 
 const defaultDeps: ReadAloudDeps = {
-  speak: (text) => window.asistente.speak(text),
+  speak: (text, onAudio) => window.asistente.speak(text, onAudio),
   stopSpeaking: () => window.asistente.stopSpeaking(),
   onCut: (listener) => window.asistente.onSpeechCut(listener),
-  playMp3,
+  openMp3Stream,
   systemSpeak,
 };
 
@@ -49,7 +51,7 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
   const [, setSourceVersion] = useState(0);
   const playback = useRef<Playback | null>(null);
   const attempt = useRef(0);
-  /** Hay una descarga en curso en el proceso principal. */
+  /** Hay una descarga en curso en el proceso principal (hasta el último pedazo). */
   const pending = useRef(false);
 
   /** Corta lo que esté sonando o descargando en esta lectura, sin avisar a nadie. */
@@ -112,11 +114,22 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
     const id = ++attempt.current;
     setState({ kind: 'loading' });
     if (speechSource.mode === 'system') return readWithSystem(id, value);
+    // El audio suena mientras llega: la reproducción se abre antes de pedirlo.
+    const stream = deps.openMp3Stream();
     pending.current = true;
-    const result = await deps.speak(value).catch((): SpeakResult => ({ status: 'error', reason: 'failed' }));
-    if (id !== attempt.current) return;
+    const onAudio = (event: SpeechAudioEvent) => {
+      if (id !== attempt.current) return;
+      if (event.type === 'chunk') return stream.push(event.chunk);
+      pending.current = false;
+      if (event.type === 'end') stream.end();
+      // `stopped` lo cortó esta vista o la otra: ya se manejó acá o llega el aviso.
+      else if (event.reason === 'failed') stream.fail();
+    };
+    const result = await deps.speak(value, onAudio).catch((): SpeakResult => ({ status: 'error', reason: 'failed' }));
+    if (id !== attempt.current) return stream.playback.stop();
+    if (result.status === 'ok') return play(id, stream.playback);
     pending.current = false;
-    if (result.status === 'ok') return play(id, deps.playMp3(result.audio));
+    stream.playback.stop();
     switch (result.reason) {
       case 'off':
         // Voz apagada en el servidor: la persona pidió escuchar, se lee con la del sistema.

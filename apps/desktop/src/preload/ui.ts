@@ -7,6 +7,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import {
   UI_COMMAND_CHANNEL,
+  UI_SPEAK_AUDIO_CHANNEL,
   UI_SPEAK_CHANNEL,
   UI_SPEAK_STOP_CHANNEL,
   UI_SPEECH_CUT_CHANNEL,
@@ -14,6 +15,7 @@ import {
   UI_TRANSCRIBE_CHANNEL,
   type AppState,
   type AsistenteBridge,
+  type SpeechAudioEvent,
   type UiCommand,
 } from '../shared/ipc';
 
@@ -25,7 +27,20 @@ const bridge: AsistenteBridge = {
     return () => ipcRenderer.removeListener(UI_STATE_CHANNEL, handler);
   },
   transcribe: (wav: ArrayBuffer) => ipcRenderer.invoke(UI_TRANSCRIBE_CHANNEL, wav),
-  speak: (text: string) => ipcRenderer.invoke(UI_SPEAK_CHANNEL, text),
+  async speak(text, onAudio) {
+    // La vista se suscribe a sus pedazos antes de pedir la lectura: no se pierde ninguno.
+    const id = crypto.randomUUID().replace(/-/g, '');
+    const handler = (_event: IpcRendererEvent, message: SpeechAudioEvent & { id: string }) => {
+      if (message.id !== id) return;
+      const { id: _id, ...audio } = message;
+      if (audio.type !== 'chunk') ipcRenderer.removeListener(UI_SPEAK_AUDIO_CHANNEL, handler);
+      onAudio(audio);
+    };
+    ipcRenderer.on(UI_SPEAK_AUDIO_CHANNEL, handler);
+    const result = await ipcRenderer.invoke(UI_SPEAK_CHANNEL, { id, text });
+    if (result?.status !== 'ok') ipcRenderer.removeListener(UI_SPEAK_AUDIO_CHANNEL, handler);
+    return result;
+  },
   stopSpeaking: () => ipcRenderer.send(UI_SPEAK_STOP_CHANNEL),
   onSpeechCut(listener) {
     const handler = () => listener();

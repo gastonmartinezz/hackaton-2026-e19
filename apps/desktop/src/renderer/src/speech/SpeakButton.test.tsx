@@ -2,8 +2,8 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SpeakResult } from '../../../shared/ipc';
-import { pickSpanishVoice, type Playback } from './playback';
+import type { SpeakResult, SpeechAudioEvent } from '../../../shared/ipc';
+import { pickSpanishVoice, type Mp3Stream, type Playback } from './playback';
 import { SpeakButton } from './SpeakButton';
 import { SPEECH_TEXTS } from './speechText';
 import { speechSource, type ReadAloudDeps } from './useReadAloud';
@@ -38,23 +38,31 @@ function fakePlayback() {
   return { playback, end: (r: 'ended' | 'failed' = 'ended') => finish(r) };
 }
 
-function fakeDeps(result: SpeakResult = { status: 'ok', audio: new Uint8Array([1]) }) {
+function fakeDeps(result: SpeakResult = { status: 'ok' }) {
   const mp3 = fakePlayback();
+  /** La reproducción progresiva simulada: registra lo que le llega. */
+  const stream = { mode: 'progressive' as const, playback: mp3.playback, push: vi.fn(), end: vi.fn(), fail: vi.fn() };
+  /** Lo que el proceso principal le manda a esta vista para la última lectura. */
+  let onAudio: (event: SpeechAudioEvent) => void = () => {};
   const system = fakePlayback();
   /** Lo que haría el proceso principal al avisar «cortá» a esta vista. */
   const cutListeners = new Set<() => void>();
   const deps = {
-    speak: vi.fn(async () => result),
+    speak: vi.fn(async (_text: string, listener: (event: SpeechAudioEvent) => void) => {
+      onAudio = listener;
+      return result;
+    }),
     stopSpeaking: vi.fn(),
     onCut: vi.fn((listener: () => void) => {
       cutListeners.add(listener);
       return () => cutListeners.delete(listener);
     }),
-    playMp3: vi.fn(() => mp3.playback),
+    openMp3Stream: vi.fn((): Mp3Stream => stream),
     systemSpeak: vi.fn(async (): Promise<Playback | null> => system.playback),
   } satisfies ReadAloudDeps;
   const cutFromMain = () => act(async () => cutListeners.forEach((l) => l()));
-  return { deps, mp3, system, cutFromMain, cutListeners };
+  const audio = (event: SpeechAudioEvent) => act(async () => onAudio(event));
+  return { deps, mp3, stream, system, cutFromMain, cutListeners, audio };
 }
 
 describe('SpeakButton', () => {
@@ -71,7 +79,7 @@ describe('SpeakButton', () => {
     render(<SpeakButton text="Hacé clic en «Sacar turno»." deps={deps} />);
     button()!.focus();
     await click();
-    expect(deps.speak).toHaveBeenCalledWith('Hacé clic en «Sacar turno».');
+    expect(deps.speak.mock.calls[0]![0]).toBe('Hacé clic en «Sacar turno».');
     expect(button()!.textContent).toBe(SPEECH_TEXTS.stop);
     expect(button()!.dataset.active).toBe('true');
     await click();
@@ -99,7 +107,7 @@ describe('SpeakButton', () => {
   });
 
   it('si cambia la instrucción mientras descarga, se cancela la descarga y no suena', async () => {
-    const { deps } = fakeDeps();
+    const { deps, stream } = fakeDeps();
     let resolve: (r: SpeakResult) => void = () => {};
     deps.speak.mockImplementationOnce(() => new Promise<SpeakResult>((r) => (resolve = r)));
     render(<SpeakButton text="Primera" deps={deps} />);
@@ -107,8 +115,9 @@ describe('SpeakButton', () => {
     render(<SpeakButton text="Segunda" deps={deps} />);
     await flush();
     expect(deps.stopSpeaking).toHaveBeenCalled();
-    await act(async () => resolve({ status: 'ok', audio: new Uint8Array([1]) }));
-    expect(deps.playMp3).not.toHaveBeenCalled();
+    await act(async () => resolve({ status: 'ok' }));
+    // La respuesta tardía no suena: se cierra la reproducción que se había abierto.
+    expect(stream.playback.stop).toHaveBeenCalled();
   });
 
   it('al cerrar la tarjeta (desmontar) se corta el audio', async () => {
@@ -181,14 +190,15 @@ describe('SpeakButton', () => {
   });
 
   it('el aviso corta también una descarga en curso: el audio que llega tarde no suena', async () => {
-    const { deps, cutFromMain } = fakeDeps();
+    const { deps, stream, cutFromMain } = fakeDeps();
     let resolve: (r: SpeakResult) => void = () => {};
     deps.speak.mockImplementationOnce(() => new Promise<SpeakResult>((r) => (resolve = r)));
     render(<SpeakButton text="Hola" deps={deps} />);
     await click();
     await cutFromMain();
-    await act(async () => resolve({ status: 'ok', audio: new Uint8Array([1]) }));
-    expect(deps.playMp3).not.toHaveBeenCalled();
+    await act(async () => resolve({ status: 'ok' }));
+    // La respuesta tardía no suena: se cierra la reproducción que se había abierto.
+    expect(stream.playback.stop).toHaveBeenCalled();
     expect(button()!.textContent).toBe(SPEECH_TEXTS.listen);
   });
 
@@ -230,6 +240,57 @@ describe('SpeakButton', () => {
     expect(cutListeners.size).toBe(1);
     act(() => root.render(null));
     expect(cutListeners.size).toBe(0);
+  });
+
+  it('reproducción progresiva: los pedazos van al stream en orden, apenas llegan', async () => {
+    const { deps, stream, audio } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    expect(deps.openMp3Stream).toHaveBeenCalledOnce();
+    const [first, second] = [new Uint8Array([1]), new Uint8Array([2])];
+    await audio({ type: 'chunk', chunk: first });
+    expect(stream.push).toHaveBeenCalledWith(first);
+    expect(stream.end).not.toHaveBeenCalled();
+    await audio({ type: 'chunk', chunk: second });
+    await audio({ type: 'end' });
+    expect(stream.push.mock.calls.map(([c]) => c)).toEqual([first, second]);
+    expect(stream.end).toHaveBeenCalledOnce();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.stop);
+  });
+
+  it('si la descarga falla en el medio, se corta la reproducción', async () => {
+    const { deps, stream, audio } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    await audio({ type: 'error', reason: 'failed' });
+    expect(stream.fail).toHaveBeenCalledOnce();
+  });
+
+  it('los pedazos de una lectura cortada se ignoran', async () => {
+    const { deps, stream, audio } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    await click();
+    await audio({ type: 'chunk', chunk: new Uint8Array([9]) });
+    expect(stream.push).not.toHaveBeenCalled();
+  });
+
+  it('si se cierra la vista mientras llega el audio, se pide cortar la descarga', async () => {
+    const { deps, audio } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    await audio({ type: 'chunk', chunk: new Uint8Array([1]) });
+    act(() => root.render(null));
+    expect(deps.stopSpeaking).toHaveBeenCalledOnce();
+  });
+
+  it('si ya llegó todo, cerrar la vista no vuelve a pedir cortar la descarga', async () => {
+    const { deps, audio } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    await audio({ type: 'end' });
+    act(() => root.render(null));
+    expect(deps.stopSpeaking).not.toHaveBeenCalled();
   });
 
   it('sin texto no se muestra', () => {

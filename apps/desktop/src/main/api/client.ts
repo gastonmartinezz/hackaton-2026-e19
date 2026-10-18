@@ -11,9 +11,9 @@ import type {
   NextStepResponse,
   OptionsRequest,
   OptionsResponse,
+  SpeakRequest,
   TranscribeResponse,
 } from '@hackaton/contracts';
-import type { SpeakRequest } from './pending-contract';
 
 export interface ApiClient {
   readonly isMock: boolean;
@@ -26,10 +26,12 @@ export interface ApiClient {
   /** POST /v1/transcribe: dictado del buscador, con `wav` ya revisado (shared/wav.ts). */
   transcribe(wav: Uint8Array, signal: AbortSignal): Promise<TranscribeResponse>;
   /**
-   * POST /v1/speak: lee en voz alta un texto de Mostrame y devuelve el MP3.
-   * TEMPORAL: el contrato sale de api/pending-contract.ts.
+   * POST /v1/speak: lee en voz alta un texto de Mostrame. Resuelve cuando el
+   * servidor aceptó (200 con `audio/mpeg`) y devuelve el MP3 en pedazos a
+   * medida que llega, para empezar a reproducir antes de que termine. Los
+   * errores previos rechazan la promesa; los del medio los tira el iterador.
    */
-  speak(request: SpeakRequest, signal: AbortSignal): Promise<Uint8Array>;
+  speak(request: SpeakRequest, signal: AbortSignal): Promise<AsyncIterable<Uint8Array>>;
 }
 
 /**

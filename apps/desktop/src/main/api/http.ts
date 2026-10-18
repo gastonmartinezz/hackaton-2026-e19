@@ -9,6 +9,8 @@ import {
   InterpretResponse,
   NextStepResponse,
   OptionsResponse,
+  SPEAK_CONTENT_TYPE,
+  SpeakRequest,
   TRANSCRIBE_CONTENT_TYPE,
   TRANSCRIBE_MAX_BYTES,
   TranscribeResponse,
@@ -17,7 +19,6 @@ import type { z } from 'zod';
 import { isTranscribableWav } from '../../shared/wav';
 import { log } from '../log';
 import { ApiFailure, type ApiClient } from './client';
-import { SPEAK_CONTENT_TYPE, SpeakRequest } from './pending-contract';
 
 /** Cuerpo JSON máximo que acepta el servidor (docs/api.md). */
 const MAX_BODY_BYTES = 512 * 1024;
@@ -71,14 +72,14 @@ export class HttpApiClient implements ApiClient {
   }
 
   /**
-   * El texto y el audio no se guardan ni se loguean. TEMPORAL: se descarga
-   * completo (textos cortos); reproducir mientras llega queda pendiente.
+   * El MP3 llega en streaming: se devuelve en pedazos apenas el servidor
+   * acepta. El texto y el audio no se guardan ni se loguean.
    */
-  async speak(request: SpeakRequest, signal: AbortSignal): Promise<Uint8Array> {
+  async speak(request: SpeakRequest, signal: AbortSignal): Promise<AsyncIterable<Uint8Array>> {
     const parsed = SpeakRequest.safeParse(request);
     if (!parsed.success) throw new ApiFailure('BAD_REQUEST', false);
-    const audio = await this.#send('/v1/speak', JSON.stringify(parsed.data), 'application/json', MAX_BODY_BYTES, signal, readSpeechAudio, SPEAK_CONTENT_TYPE);
-    return audio as Uint8Array;
+    const stream = await this.#send('/v1/speak', JSON.stringify(parsed.data), 'application/json', MAX_BODY_BYTES, signal, readSpeechStream, SPEAK_CONTENT_TYPE);
+    return stream as AsyncIterable<Uint8Array>;
   }
 
   #parse<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {
@@ -136,14 +137,36 @@ export class HttpApiClient implements ApiClient {
   }
 }
 
-/** MP3 de /v1/speak: tipo correcto, no vacío y con un tamaño razonable. */
-async function readSpeechAudio(response: Response): Promise<Uint8Array> {
+/**
+ * MP3 de /v1/speak: se revisa el tipo y el tamaño declarado antes de
+ * entregarlo, y el tamaño real mientras llega (no vacío, máximo 4 MB).
+ */
+async function readSpeechStream(response: Response): Promise<AsyncIterable<Uint8Array>> {
   if (!(response.headers.get('content-type') ?? '').toLowerCase().startsWith(SPEAK_CONTENT_TYPE)) throw new ApiFailure('INVALID_RESPONSE', false);
   const declared = Number(response.headers.get('content-length') ?? 0);
-  if (declared > MAX_SPEECH_AUDIO_BYTES) throw new ApiFailure('INVALID_RESPONSE', false);
-  const audio = new Uint8Array(await response.arrayBuffer());
-  if (audio.byteLength === 0 || audio.byteLength > MAX_SPEECH_AUDIO_BYTES) throw new ApiFailure('INVALID_RESPONSE', false);
-  return audio;
+  if (declared > MAX_SPEECH_AUDIO_BYTES || !response.body) throw new ApiFailure('INVALID_RESPONSE', false);
+  return speechChunks(response.body);
+}
+
+async function* speechChunks(body: ReadableStream<Uint8Array>): AsyncGenerator<Uint8Array> {
+  const reader = body.getReader();
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read().catch((error: unknown) => {
+        throw error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError') ? new ApiFailure('ABORTED', false) : new ApiFailure('NETWORK', false);
+      });
+      if (done) break;
+      if (!value || value.byteLength === 0) continue;
+      total += value.byteLength;
+      if (total > MAX_SPEECH_AUDIO_BYTES) throw new ApiFailure('INVALID_RESPONSE', false);
+      yield value;
+    }
+    if (total === 0) throw new ApiFailure('INVALID_RESPONSE', false);
+  } finally {
+    // Si se corta (Detener, otra lectura, error), se libera la conexión.
+    await reader.cancel().catch(() => undefined);
+  }
 }
 
 function statusCode(status: number) {
