@@ -557,17 +557,19 @@ export class AppController {
       // TODO(UI final): setAiForSite no tiene control en la UI de Mostrame todavía.
       case 'setVoiceMode': {
         // Primero se guarda; si falla, no cambia nada y se avisa en la interfaz (el comando llega con `void`).
-        const saved = await changeVoiceMode(this.#voiceMode, command.mode, {
+        await changeVoiceMode(this.#voiceMode, command.mode, {
           save: (mode) => this.options.prefs.update({ voiceMode: mode }),
           stopAll: () => this.#speech.stopAll(),
-          publish: () => this.#publish(),
+          publish: () => {
+            // Se guardó: el aviso de un intento anterior ya no corresponde, y se va en la misma publicación.
+            this.#notices = this.#notices.filter((n) => n.text !== VOICE_MODE_TEXTS.saveFailed);
+            this.#publish();
+          },
           failed: () => {
             log('prefs.error', { kind: 'kind:voiceMode' });
             this.#notify(VOICE_MODE_TEXTS.saveFailed, 'error');
           },
         });
-        // Se guardó: el aviso de un intento anterior ya no corresponde.
-        if (saved) this.#notices = this.#notices.filter((n) => n.text !== VOICE_MODE_TEXTS.saveFailed);
         return;
       }
       case 'setTextScale':

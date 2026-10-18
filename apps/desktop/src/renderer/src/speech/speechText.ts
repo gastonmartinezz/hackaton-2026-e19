@@ -51,8 +51,8 @@ export function guideSpeech(guide: Pick<AppState['guide'], 'phase' | 'instructio
  * repita el texto, como «Siguiente» en un formulario de varias páginas) y con
  * «Repetir»; no cambia al volver a dibujar el mismo paso.
  */
-export function stepSpeechKey(guide: Pick<AppState['guide'], 'stepCount' | 'announceKey'>): string {
-  return `${guide.stepCount}:${guide.announceKey}`;
+export function stepSpeechKey(guide: Pick<AppState['guide'], 'stepCount' | 'announceKey' | 'contentKey'>): string {
+  return `${guide.contentKey}:${guide.stepCount}:${guide.announceKey}`;
 }
 
 /** Tarjeta (05): la pregunta y las opciones de la página (sin «Ver otras opciones»). */

@@ -76,10 +76,12 @@ describe('qué se lee', () => {
   });
 
   it('modo voz: cada paso nuevo es contenido nuevo aunque repita el texto; «Repetir» también', () => {
-    const step = { stepCount: 3, announceKey: 0 };
+    const step = { stepCount: 3, announceKey: 0, contentKey: 7 };
     expect(stepSpeechKey(step)).toBe(stepSpeechKey({ ...step }));
     expect(stepSpeechKey({ ...step, stepCount: 4 })).not.toBe(stepSpeechKey(step));
     expect(stepSpeechKey({ ...step, announceKey: 1 })).not.toBe(stepSpeechKey(step));
+    // El mismo número de paso en un recorrido nuevo (otra solicitud) también es contenido nuevo.
+    expect(stepSpeechKey({ ...step, contentKey: 12 })).not.toBe(stepSpeechKey(step));
   });
 
   it('lo que se arma nunca pasa de 600 caracteres', () => {
