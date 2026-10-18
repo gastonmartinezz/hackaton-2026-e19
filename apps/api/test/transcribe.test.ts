@@ -124,14 +124,14 @@ describe('POST /v1/transcribe', () => {
 
   it('informa el estado del modelo en /health sin fallar', async () => {
     app = await testApp();
-    expect((await app.inject({ method: 'GET', url: '/health' })).json()).toEqual({ status: 'ok', stt: 'off' });
+    expect((await app.inject({ method: 'GET', url: '/health' })).json()).toEqual({ status: 'ok', stt: 'off', tts: 'off' });
     await app.close();
 
     const failed: TranscriptionProvider = { status: 'failed', transcribe: async () => '' };
     app = await testApp({ transcriber: failed });
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ status: 'ok', stt: 'failed' });
+    expect(res.json()).toEqual({ status: 'ok', stt: 'failed', tts: 'off' });
   });
 
   it('aparece en el OpenAPI con audio/wav y la respuesta tipada', async () => {
@@ -222,7 +222,7 @@ describe('TranscribeService', () => {
   });
 
   it('registra solo métricas: nunca el texto ni el audio', async () => {
-    const secret = 'mi DNI es 12345678';
+    const secret = 'mi cédula es 1.234.567-8';
     const { logger, entries } = recordingLogger();
     const service = new TranscribeService(new MockTranscriptionProvider(secret), options, logger);
 
@@ -230,7 +230,7 @@ describe('TranscribeService', () => {
     await expect(service.transcribe(buildWav({ channels: 2 }))).rejects.toBeInstanceOf(AppError);
 
     const logged = JSON.stringify(entries);
-    expect(logged).not.toContain('12345678');
+    expect(logged).not.toContain('1.234.567-8');
     expect(entries).toHaveLength(2);
     expect(entries[0]).toEqual([{ audioMs: 1000, latencyMs: expect.any(Number), outcome: 'OK' }, 'transcribe']);
     expect(entries[1]).toEqual([{ audioMs: undefined, latencyMs: expect.any(Number), outcome: 'BAD_REQUEST' }, 'transcribe']);

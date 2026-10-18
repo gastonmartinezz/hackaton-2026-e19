@@ -11,7 +11,7 @@ export type ChatMessage = z.infer<typeof ChatMessage>;
 export const AgeRange = z.enum(['under-50', '50-64', '65-74', '75-plus']);
 export type AgeRange = z.infer<typeof AgeRange>;
 
-/** ISO 3166-1 alfa-2, por ejemplo "AR". */
+/** ISO 3166-1 alfa-2, por ejemplo "UY". */
 export const CountryCode = z.string().regex(/^[A-Z]{2}$/);
 
 /**
@@ -30,9 +30,9 @@ export const UserContext = z.strictObject({
     })
     .optional(),
   ageRange: AgeRange.optional(),
-  /** Idioma preferido del sistema (BCP 47), por ejemplo "es-AR". */
+  /** Idioma preferido del sistema (BCP 47), por ejemplo "es-UY". */
   language: z.string().max(35).regex(/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8})*$/).optional(),
-  /** Zona horaria IANA, por ejemplo "America/Argentina/Cordoba". */
+  /** Zona horaria IANA, por ejemplo "America/Montevideo". */
   timeZone: z.string().max(64).regex(/^[A-Za-z0-9_+-]+(?:\/[A-Za-z0-9_+-]+)*$/).optional(),
 });
 export type UserContext = z.infer<typeof UserContext>;

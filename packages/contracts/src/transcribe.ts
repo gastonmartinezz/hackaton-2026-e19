@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * POST /v1/transcribe: voz a texto con Whisper en el servidor propio.
+ * POST /v1/transcribe: voz a texto (Whisper local u OpenAI, según la configuración del servidor).
  *
  * El cuerpo es binario (no JSON), con `Content-Type: audio/wav`:
  * WAV RIFF con PCM entero de 16 bits little-endian, mono, 16 000 Hz,

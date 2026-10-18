@@ -13,6 +13,7 @@ const exported = {
   NextStepRequest: contracts.NextStepRequest,
   NextStepResponse: contracts.NextStepResponse,
   TranscribeResponse: contracts.TranscribeResponse,
+  SpeakRequest: contracts.SpeakRequest,
   ApiError: contracts.ApiError,
 };
 

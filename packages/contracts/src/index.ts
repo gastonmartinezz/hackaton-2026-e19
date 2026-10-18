@@ -4,4 +4,5 @@ export * from './interpret.js';
 export * from './options.js';
 export * from './next-step.js';
 export * from './transcribe.js';
+export * from './speak.js';
 export * from './errors.js';
