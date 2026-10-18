@@ -1,0 +1,57 @@
+{
+ "success": true,
+ "fecha_actualizacion": {
+  "mes": "julio",
+  "anio": "2026",
+  "texto": "julio de 2026"
+ },
+ "entidad": {
+  "codigo": "00285",
+  "nombre": "BANCO MACRO S.A.",
+  "cuit": "30-50001008-4",
+  "mes_cierre_balance": "diciembre",
+  "tipo": "Casa Central",
+  "direccion": "SARMIENTO 401 AL 447 PB - CABA ZONA NORTE - CABA",
+  "telefono": "080055562276",
+  "fax": "52226500",
+  "sitio_web": "www.macro.com.ar",
+  "email": "responsablesatencionusuarios@macro.com.ar",
+  "asociado_1": "ADEBA",
+  "asociado_2": "",
+  "grupo_institucional": "Bancos Locales de Capital Nacional",
+  "logo_url": "https://www.bcra.gob.ar/archivos/Imagenes/logosbancos/00285.png",
+  "calificaciones": [
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   }
+  ],
+  "fecha_evaluacion": "",
+  "enlaces": {
+   "responsables": "/entidades-financieras-responsables?entidad=00285&nom=BANCO+MACRO+S.A.",
+   "directivos": "/entidades-financieras-directivos?bco=00285&nom=BANCO+MACRO+S.A.",
+   "accionistas": "/entidades-financieras-accionistas?bco=00285&nom=BANCO+MACRO+S.A.",
+   "auditores": "/entidades-financieras-auditores?bco=00285&nom=BANCO+MACRO+S.A.",
+   "estados_contables": "/entidades-financieras-estados-contables?bco=00285&nom=BANCO+MACRO+S.A.",
+   "situacion_deudores": "/entidades-financieras-situacion-deudores?bco=00285&nom=BANCO+MACRO+S.A.",
+   "indicadores": "/entidades-financieras-indicadores-economicos?bco=00285&nom=BANCO+MACRO+S.A.",
+   "informacion_estructura": "/entidades-financieras-informacion-estructura?bco=00285&nom=BANCO+MACRO+S.A.&Tit=0",
+   "filiales_cajeros": "/entidades-financieras-filiales-y-cajeros?bco=00285&nom=BANCO+MACRO+S.A.&Tit=7",
+   "info_trimestral_2017": "/entidades-financieras-informacion-trimestral?bco=00285&nom=BANCO+MACRO+S.A.",
+   "info_trimestral_2018": "/entidades-financieras-informacion-trimestral-2018?bco=00285"
+  }
+ },
+ "lang": "es"
+}

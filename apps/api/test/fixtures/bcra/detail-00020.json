@@ -1,0 +1,57 @@
+{
+ "success": true,
+ "fecha_actualizacion": {
+  "mes": "julio",
+  "anio": "2026",
+  "texto": "julio de 2026"
+ },
+ "entidad": {
+  "codigo": "00020",
+  "nombre": "BANCO DE LA PROVINCIA DE CORDOBA S.",
+  "cuit": "30-99922856-5",
+  "mes_cierre_balance": "diciembre",
+  "tipo": "Casa Matriz",
+  "direccion": "SAN JERONIMO 166 - CORDOBA - CÓRDOBA",
+  "telefono": "003514207200",
+  "fax": "",
+  "sitio_web": "www.bancor.com.ar",
+  "email": "responsable_atencion_cliente@bancor.com.ar",
+  "asociado_1": "ABAPPRA",
+  "asociado_2": "ADEBA",
+  "grupo_institucional": "Bancos Públicos",
+  "logo_url": "https://www.bcra.gob.ar/archivos/Imagenes/logosbancos/00020.png",
+  "calificaciones": [
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   },
+   {
+    "calificacion": "",
+    "evaluadora": ""
+   }
+  ],
+  "fecha_evaluacion": "",
+  "enlaces": {
+   "responsables": "/entidades-financieras-responsables?entidad=00020&nom=BANCO+DE+LA+PROVINCIA+DE+CORDOBA+S.",
+   "directivos": "/entidades-financieras-directivos?bco=00020&nom=BANCO+DE+LA+PROVINCIA+DE+CORDOBA+S.",
+   "accionistas": "/entidades-financieras-accionistas?bco=00020&nom=BANCO+DE+LA+PROVINCIA+DE+CORDOBA+S.",
+   "auditores": "/entidades-financieras-auditores?bco=00020&nom=BANCO+DE+LA+PROVINCIA+DE+CORDOBA+S.",
+   "estados_contables": "/entidades-financieras-estados-contables?bco=00020&nom=BANCO+DE+LA+PROVINCIA+DE+CORDOBA+S.",
+   "situacion_deudores": "/entidades-financieras-situacion-deudores?bco=00020&nom=BANCO+DE+LA+PROVINCIA+DE+CORDOBA+S.",
+   "indicadores": "/entidades-financieras-indicadores-economicos?bco=00020&nom=BANCO+DE+LA+PROVINCIA+DE+CORDOBA+S.",
+   "informacion_estructura": "/entidades-financieras-informacion-estructura?bco=00020&nom=BANCO+DE+LA+PROVINCIA+DE+CORDOBA+S.&Tit=0",
+   "filiales_cajeros": "/entidades-financieras-filiales-y-cajeros?bco=00020&nom=BANCO+DE+LA+PROVINCIA+DE+CORDOBA+S.&Tit=7",
+   "info_trimestral_2017": "/entidades-financieras-informacion-trimestral?bco=00020&nom=BANCO+DE+LA+PROVINCIA+DE+CORDOBA+S.",
+   "info_trimestral_2018": "/entidades-financieras-informacion-trimestral-2018?bco=00020"
+  }
+ },
+ "lang": "es"
+}
