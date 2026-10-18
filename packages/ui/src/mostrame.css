@@ -309,6 +309,7 @@ body {
   font: inherit;
   color: inherit;
   outline: none;
+  box-shadow: none;
 }
 .omni input::placeholder {
   color: var(--color-muted);
@@ -420,6 +421,7 @@ body {
   min-width: 0;
   border: none;
   outline: none;
+  box-shadow: none;
   background: transparent;
   font: inherit;
   color: var(--color-ink);
