@@ -13,16 +13,48 @@ import type { SiteCheckView } from '../../shared/ipc';
 import type { SiteCheckAction, SiteCheckPanelCopy, SiteCheckTone, SiteIndicatorKind } from '../../shared/site-check-copy';
 import { send, useAppState } from './useAppState';
 
-/** Íconos Lucide de @asistente/ui. El texto acompaña siempre. */
-export const SITE_CHECK_ICONS: Record<Exclude<SiteIndicatorKind, 'none'>, IconName> = {
-  checking: 'clock',
+type SiteCheckKind = Exclude<SiteIndicatorKind, 'none'>;
+
+/**
+ * Un ícono Lucide distinto por estado (@asistente/ui). Los escudos forman una
+ * familia: con tilde es oficial, vacío es «revisado, sin alertas», con
+ * pregunta es «no pudimos verificarlo» y con cruz es posible estafa. El
+ * triángulo de atención es el mismo del sello «No verificado» del diseño. El
+ * texto acompaña siempre: el estado nunca depende solo del ícono o del color.
+ */
+export const SITE_CHECK_ICONS: Record<SiteCheckKind, IconName> = {
+  checking: 'loader-circle',
   official: 'shield-check',
-  no_alerts: 'search',
+  no_alerts: 'shield',
   attention: 'triangle-alert',
-  possible_scam: 'shield-alert',
-  unverified: 'circle-help',
-  local: 'circle-slash',
+  possible_scam: 'shield-x',
+  unverified: 'shield-question-mark',
+  local: 'monitor',
 };
+
+/**
+ * Ícono del estado (decorativo, aria-hidden). «Revisando…» gira, salvo con
+ * movimiento reducido: ahí queda fijo (site-check.css).
+ */
+export function SiteCheckIcon({ kind, size }: { kind: SiteCheckKind; size?: 'sm' | 'md' | 'lg' }) {
+  return (
+    <span className="site-check-icon" data-state={kind}>
+      <Icon name={SITE_CHECK_ICONS[kind]} size={size} />
+    </span>
+  );
+}
+
+/** Contenido del sello: ícono protagonista en su medalla y el texto corto del estado. */
+function BadgeContent({ kind, label }: { kind: SiteCheckKind; label: string }) {
+  return (
+    <>
+      <span className="site-badge-icon">
+        <SiteCheckIcon kind={kind} />
+      </span>
+      <span className="site-badge-label">{label}</span>
+    </>
+  );
+}
 
 /** Bloque de estado de docs/02 para cada tono: éxito, aviso, error o neutro. */
 const STATUS_BLOCK: Record<SiteCheckTone, string> = {
@@ -114,8 +146,7 @@ export function SiteCheckIndicator({ view, controlsPanel = false }: { view: Site
         }
       }}
     >
-      <Icon name={SITE_CHECK_ICONS[view.indicator]} size="sm" />
-      <span className="site-badge-label">{view.label}</span>
+      <BadgeContent kind={view.indicator} label={view.label} />
     </button>
   );
 }
@@ -212,9 +243,8 @@ export function useIndicatorFits(view: SiteCheckView, domain: string, scale: num
 export function SiteCheckProbe({ view }: { view: SiteCheckView }) {
   if (view.indicator === 'none' || !view.label) return null;
   return (
-    <span className="site-badge site-badge-probe" aria-hidden="true">
-      <Icon name={SITE_CHECK_ICONS[view.indicator]} size="sm" />
-      <span className="site-badge-label">{view.label}</span>
+    <span className="site-badge site-badge-probe" data-state={view.indicator} data-tone={view.tone} aria-hidden="true">
+      <BadgeContent kind={view.indicator} label={view.label} />
     </span>
   );
 }
@@ -391,7 +421,7 @@ export function SiteCheckPanel({ view }: { view: SiteCheckView }) {
       <div className="hc-body">
         <div className={`status ${STATUS_BLOCK[view.tone]}`}>
           <div className="head">
-            <Icon name={SITE_CHECK_ICONS[view.indicator]} size="lg" />
+            <SiteCheckIcon kind={view.indicator} size="lg" />
             <h2 id="site-check-panel-title" className="hc-title" tabIndex={-1}>
               {panel.title}
             </h2>
@@ -433,7 +463,7 @@ export function SiteCheckWarning({ view }: { view: SiteCheckView }) {
     <section ref={area} className="site-check-warning" role="alertdialog" aria-labelledby="site-check-warning-title" aria-describedby="site-check-warning-body">
       <div className="site-check-dialog">
         <div className="site-check-head">
-          <Icon name="shield-alert" size="lg" />
+          <SiteCheckIcon kind="possible_scam" size="lg" />
           <h2 id="site-check-warning-title" className="hc-title">
             {warning.title}
           </h2>
@@ -480,7 +510,7 @@ export function GuidePausedNotice() {
     <>
       <section className="status error site-check-paused" role="status">
         <div className="head">
-          <Icon name="shield-alert" size="lg" />
+          <SiteCheckIcon kind="possible_scam" size="lg" />
           <h2 className="hc-title">Pausé esta indicación</h2>
         </div>
         <p>Te pedía escribir datos o confirmar algo, y este sitio podría ser una estafa. No ingreses contraseñas ni códigos.</p>
