@@ -58,7 +58,9 @@ function email(text: string): string {
     .replace(/\bpunto\b/g, '.')
     .replace(/\bguion bajo\b/g, '_')
     .replace(/\bguion( medio)?\b/g, '-')
-    .replace(/\s+/g, '');
+    .replace(/\s+/g, '')
+    // «…punto com punto» al final (o al principio) no forma parte de la dirección.
+    .replace(/^[.\-_]+|[.\-_]+$/g, '');
 }
 
 function phone(text: string): string | null {

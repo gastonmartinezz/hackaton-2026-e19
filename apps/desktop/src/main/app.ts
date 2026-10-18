@@ -439,7 +439,10 @@ export class AppController {
       else this.#protection.pageLoaded(url);
       this.#assistant.navigated({ sameDocument, aiEnabled: this.#guideAllowed() });
     });
-    site.on('loadFailed', () => this.#protection.loadFailed());
+    site.on('loadFailed', () => {
+      this.#protection.loadFailed();
+      this.#assistant.loadFailed();
+    });
     site.on('stateChanged', () => this.#publish());
     site.on('popup', ({ url }) => {
       const domain = new URL(url).hostname;

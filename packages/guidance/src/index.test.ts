@@ -212,6 +212,9 @@ describe('isSensitiveField', () => {
     expect(isSensitiveField({ label: 'Dato', autocomplete: 'one-time-code' })).toBe(true);
     expect(isSensitiveField({ label: 'Dato', name: 'nroDocumento' })).toBe(true);
     expect(isSensitiveField({ label: 'PIN' })).toBe(true);
+    // Abreviaturas y variantes en inglés del código de la tarjeta.
+    for (const label of ['Cód. de seguridad', 'Cod seguridad', 'Security code', 'CVN', 'CSC', 'Expiry date', 'Card number'])
+      expect(isSensitiveField({ label })).toBe(true);
   });
 
   it('nombre, correo, teléfono, dirección y fechas se pueden dictar', () => {

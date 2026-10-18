@@ -213,6 +213,33 @@ describe('Assistant', () => {
     expect((sent[2] as NextStepRequest).completedSteps).toHaveLength(1);
   });
 
+  it('si después del clic la página no carga, el paso siguiente se muestra igual', async () => {
+    load('horarios.html');
+    const mock = mockApi();
+    let links: GuideStep[] = [];
+    const { api } = recording(mock, {
+      options: async (r, s) => {
+        const response = await mock.options(r, s);
+        links = response.options.filter((o) => o.id.startsWith('go-')).slice(0, 2).map((o) => ({ ...o.steps[0]!, waitFor: 'userInteraction' as const }));
+        return { ...response, options: [{ id: 'x', title: 'X', steps: links }] };
+      },
+      nextStep: async (r) => ({ sessionId: r.sessionId, steps: links, done: false }),
+    });
+    const page = new FakePage();
+    const assistant = new Assistant({ api, session: new ApiSession(), page, onChange: () => {}, settleMs: 0, afterClickMs: 40 });
+    const until = (predicate: () => boolean) => vi.waitFor(() => expect(predicate()).toBe(true), { timeout: 2000, interval: 5 });
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    assistant.select('x');
+    await until(() => assistant.state.phase === 'waitingForUser' && assistant.state.step?.targetElementId !== undefined);
+    assistant.interaction(assistant.state.step!.targetElementId!, 'click');
+    assistant.navigationStarted();
+    assistant.loadFailed();
+    expect(assistant.settling).toBe(false);
+    await until(() => page.shown.length === 2);
+  });
+
   it('un pedido que no estaba entre las opciones va a /v1/options y la guía empieza sola con esa tarea', async () => {
     load('buscar.html');
     const { api, sent } = recording(mockApi());

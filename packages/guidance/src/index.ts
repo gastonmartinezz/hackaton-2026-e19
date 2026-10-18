@@ -289,7 +289,7 @@ const SENSITIVE_AUTOCOMPLETE = /\b(cc-[a-z-]+|one-time-code|current-password|new
 
 /** Claves, códigos, tarjeta, datos bancarios y documento (sin tildes, en minúsculas). */
 const SENSITIVE_FIELD =
-  /\b(clave\w*|contrasen\w*|password|passwd|pwd|pin|otp|token|codigo (de )?(verificacion|seguridad|acceso|confirmacion|validacion)|codigo (sms|enviado|recibido)|tarjeta\w*|cvv2?|cvc|vencimiento|expiracion|card|cuenta bancaria|numero de cuenta|nro de cuenta|cbu|cvu|iban|swift|cedula\w*|documento\w*|dni|ci|c i|pasaporte|passport|ssn)\b/;
+  /\b(clave\w*|contrasen\w*|password|passwd|pwd|pin|otp|token|cod(igo)? (de )?(verificacion|seguridad|acceso|confirmacion|validacion)|cod(igo)? (sms|enviado|recibido)|security code|verification code|tarjeta\w*|cvv2?|cvc|cvn|csc|vencimiento|expiracion|expiry|expiration|card|cuenta bancaria|numero de cuenta|nro de cuenta|cbu|cvu|iban|swift|cedula\w*|documento\w*|dni|ci|c i|pasaporte|passport|ssn)\b/;
 
 function plainWords(text: string): string {
   return text

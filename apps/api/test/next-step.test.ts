@@ -93,6 +93,15 @@ describe('verifiedEvidence', () => {
     expect(verifiedEvidence('x'.repeat(201), `<h2>${'x'.repeat(201)}</h2>`)).toBeNull();
   });
 
+  it('no acepta texto que el navegador no muestra: scripts, estilos, comentarios ni elementos ocultos', () => {
+    const hidden =
+      '<h2 id="el-1">Datos</h2><script>var t = "Pago aprobado";</script><style>.x{content:"Turno confirmado"}</style>' +
+      '<!-- Reserva confirmada --><div hidden>Compra realizada</div><p aria-hidden="true">Trámite finalizado</p>';
+    for (const quote of ['Pago aprobado', 'Turno confirmado', 'Reserva confirmada', 'Compra realizada', 'Trámite finalizado'])
+      expect(verifiedEvidence(quote, hidden)).toBeNull();
+    expect(verifiedEvidence('Datos', hidden)).toBe('Datos');
+  });
+
   it('no se rompe con entidades numéricas fuera de rango', () => {
     expect(verifiedEvidence('hola', '<h2>hola &#99999999; &#x41;</h2>')).toBe('hola');
   });

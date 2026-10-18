@@ -10,6 +10,7 @@ describe('dictatedValue', () => {
   it('correo: «arroba», «punto» y sin espacios', () => {
     expect(dictatedValue('juan punto perez arroba gmail punto com.', 'email')).toBe('juan.perez@gmail.com');
     expect(dictatedValue('Juan.Perez@Gmail.com', 'email')).toBe('juan.perez@gmail.com');
+    expect(dictatedValue('juan arroba gmail punto com punto', 'email')).toBe('juan@gmail.com');
     expect(dictatedValue('juan guion bajo perez arroba correo punto com punto uy', 'email')).toBe('juan_perez@correo.com.uy');
   });
 

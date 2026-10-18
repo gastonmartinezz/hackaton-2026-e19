@@ -180,7 +180,8 @@ export class Assistant {
     if (phase !== 'waitingForUser' || !step || !elementId || this.ask?.mode !== 'dictate' || this.paused || this.settling) return 'notAllowed';
     const epoch = this.#epoch;
     const result = await this.deps.page.fill(this.#navigationId, elementId, said);
-    if (epoch !== this.#epoch || this.state.step !== step || !this.ask) return 'notAllowed';
+    // Mientras se escribía, la persona pudo elegir «Lo escribo yo»: no se marca como dictado.
+    if (epoch !== this.#epoch || this.state.step !== step || this.ask?.mode !== 'dictate') return 'notAllowed';
     log('guide.field_dictated', { result: `code:${result}` });
     if (result === 'filled') {
       this.ask = { ...this.ask, filled: true };
@@ -208,6 +209,17 @@ export class Assistant {
     this.#invalidate();
     this.targetVisible = null;
     this.target = null;
+  }
+
+  /**
+   * La página no terminó de cargar (error o carga cancelada). Si el paso
+   * siguiente estaba en espera por el clic, se muestra: no hubo cambio de página.
+   */
+  loadFailed(): void {
+    if (!this.settling || this.state.phase !== 'waitingForUser') return;
+    this.settling = false;
+    this.#pageReady = true;
+    void this.#showStep(this.#invalidate());
   }
 
   navigated({ sameDocument, aiEnabled }: { sameDocument: boolean; aiEnabled: boolean }): void {

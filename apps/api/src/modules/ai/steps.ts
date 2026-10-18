@@ -30,10 +30,18 @@ function unquote(value: string): string {
   return pair ? value.slice(1, -1).trim() : value;
 }
 
-/** Texto de los nodos y de los aria-label del HTML sintético, separados por espacios. */
+/**
+ * Texto de los nodos y de los aria-label del HTML, separados por espacios. Sin
+ * scripts, estilos, plantillas, comentarios ni elementos ocultos (hidden,
+ * aria-hidden): lo que el navegador no muestra no prueba nada.
+ */
 function visibleText(html: string): string {
-  const labels = [...html.matchAll(/\saria-label="([^"]*)"/g)].map((match) => match[1]);
-  const text = html.replace(/<[^>]*>/g, ' ');
+  const shown = html
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(script|style|template|noscript)\b[\s\S]*?<\/\1\s*>/gi, ' ')
+    .replace(/<([a-z][\w-]*)\b[^>]*\s(?:hidden|aria-hidden="true")[^>]*>[\s\S]*?<\/\1\s*>/gi, ' ');
+  const labels = [...shown.matchAll(/\saria-label="([^"]*)"/g)].map((match) => match[1]);
+  const text = shown.replace(/<[^>]*>/g, ' ');
   return [text, ...labels].map(decodeEntities).join(' ');
 }
 

@@ -313,12 +313,12 @@ const step = (element: MockElement, instruction: string, waitFor: GuideStep['wai
 function fieldStep(field: MockElement): GuideStep {
   const name = field.label || 'este dato';
   const choice = field.tag === 'select';
+  const sensitive = isSensitiveField({ label: field.label, inputType: field.type });
+  // Un dato sensible nunca se pide: lo escribe la persona.
+  const question = sensitive ? `Ese dato lo escribís vos en «${name}».` : choice ? `¿Qué elegís en «${name}»?` : `¿Qué escribo en «${name}»?`;
   return {
     ...step(field, choice ? `Elegí una opción en «${name}».` : `Escribí el dato en «${name}».`, 'userConfirmation'),
-    field: {
-      question: choice ? `¿Qué elegís en «${name}»?`.slice(0, 200) : `¿Qué escribo en «${name}»?`.slice(0, 200),
-      sensitive: isSensitiveField({ label: field.label, inputType: field.type }),
-    },
+    field: { question: question.slice(0, 200), sensitive },
   };
 }
 
