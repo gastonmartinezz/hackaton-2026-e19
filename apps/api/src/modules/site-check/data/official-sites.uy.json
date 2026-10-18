@@ -1,0 +1,2535 @@
+{
+  "version": 1,
+  "country": "UY",
+  "reviewedAt": "2026-10-17",
+  "zones": [
+    {
+      "suffix": "gub.uy",
+      "organization": "Estado uruguayo",
+      "source": "https://nic.uy/",
+      "reviewedAt": "2026-10-17",
+      "notes": "nic.uy (registro del ccTLD .uy): GUB.UY es 'para organismos gubernamentales, siendo AGESIC el único agente registrador autorizado' (se registra solo vía RedUy/AGESIC; procedimiento nic.uy https://nic.uy/Registrar/anexo1.htm punto 17.ii: 'Los dominios bajo el subdominio gub.uy o mil.uy se registrarán exclusivamente a través de AGESIC'). Decreto 92/014 (https://www.impo.com.uy/bases/decretos/92-2014, IMPO caído al revisar; texto citado por resultados de búsqueda) obliga a la Administración Central a usar gub.uy/mil.uy. Lo usan también gobiernos departamentales (montevideo.gub.uy, etc.), Poder Judicial, BPS, BCU. Ojo: varios entes autónomos y servicios descentralizados NO están bajo gub.uy (ver entries). Verificado 2026-10-17 que están bajo gub.uy (no hace falta listarlos): portal de trámites https://www.gub.uy/tramites/ ; Usuario gub.uy / ID Uruguay mi.iduruguay.gub.uy ; BPS www.bps.gub.uy ; DGI https://www.gub.uy/direccion-general-impositiva y servicios.dgi.gub.uy, efactura.dgi.gub.uy (www.dgi.gub.uy no respondió) ; Intendencia de Montevideo montevideo.gub.uy (tramites.montevideo.gub.uy) y las 19 intendencias (https://www.gub.uy/gobiernos-departamentales) ; MSP https://www.gub.uy/ministerio-salud-publica (atuservicio.msp.gub.uy) ; Ministerio del Interior www.minterior.gub.uy -> gub.uy/ministerio-interior, DNIC (cédula y pasaporte) dnic.minterior.gub.uy -> gub.uy/ministerio-interior/direccion-nacional-identificacion-civil, agenda/trámites en línea bpmgob.minterior.gub.uy ; Registro Civil dnrec.gub.uy ; MTSS gub.uy/ministerio-trabajo-seguridad-social ; MEF gub.uy/ministerio-economia-finanzas ; BCU www.bcu.gub.uy (cae en la zona) ; URSEC www.ursec.gub.uy -> gub.uy/unidad-reguladora-servicios-comunicaciones ; SUCIVE sucive.gub.uy ; Poder Judicial, Fiscalía, Corte Electoral, INAU, ANV, FNR (*.gub.uy). NO están bajo gub.uy: BSE (bse.com.uy), BHU, BROU, Antel, UTE, OSE, ANCAP, Correo, ANP, ASSE, AFE, IMPO, cajas paraestatales, ANEP/Udelar/UTEC (edu.uy) -> en entries."
+    },
+    {
+      "suffix": "mil.uy",
+      "organization": "Fuerzas Armadas de Uruguay",
+      "source": "https://nic.uy/",
+      "reviewedAt": "2026-10-17",
+      "notes": "nic.uy: MIL.UY 'para las Fuerzas Armadas de Uruguay'; registro exclusivo vía AGESIC (https://nic.uy/Registrar/anexo1.htm punto 17.ii)."
+    }
+  ],
+  "entries": [
+    {
+      "id": "brou",
+      "organization": "Banco de la República Oriental del Uruguay (BROU)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "brou.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "bancorepublica.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1001",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU (nroinst=1001) publica www.bancorepublica.com.uy; ese dominio sirve el mismo sitio con <link rel=canonical href=https://brou.com.uy> y enlaza a ebanking.brou.com.uy (banca en línea, eBROU). brou.com.uy además enlazado desde https://www.gub.uy/otros-organismos."
+    },
+    {
+      "id": "bhu",
+      "organization": "Banco Hipotecario del Uruguay (BHU)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "bhu.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "bhu.net",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1091",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU (nroinst=1091) publica www.bhu.net (portal.bhu.net). www.bhu.com.uy (y tramites.bhu.com.uy) enlazado desde https://www.gub.uy/otros-organismos y desde bhu.net. bhu.gub.uy no resolvió."
+    },
+    {
+      "id": "bandes",
+      "organization": "Banco Bandes Uruguay S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "bandes.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1110",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica www.bandes.com.uy."
+    },
+    {
+      "id": "itau",
+      "organization": "Banco Itaú Uruguay S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "itau.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "itaulink.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "itaulinkempresa.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1113",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica www.itau.com.uy. El formulario de login de www.itau.com.uy/inst/ hace POST a https://www.itaulink.com.uy/trx/doLogin (banca en línea personas) y enlaza a www.itaulinkempresa.com.uy (empresas). Itaú también enlaza itauvolar.com.uy y afapitau.com.uy (no incluidos: no son banca/trámite principal)."
+    },
+    {
+      "id": "scotiabank",
+      "organization": "Scotiabank Uruguay S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "scotiabank.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1128",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica www.scotiabank.com.uy (banca en línea en www1.scotiabank.com.uy). Absorbió a HSBC Uruguay (ver discarded)."
+    },
+    {
+      "id": "santander",
+      "organization": "Banco Santander S.A. (Uruguay)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "santander.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1137",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica www.santander.com.uy. Banca en línea supernet.santander.com.uy (subdominio). El sitio también enlaza creditohipotecariosantander.com.uy, miauto.com.uy, mimaquinaria.com.uy (no incluidos)."
+    },
+    {
+      "id": "bbva",
+      "organization": "BBVA Uruguay S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "bbva.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1153",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica www.bbva.com.uy. Banca en línea bbvanet.bbva.com.uy (subdominio)."
+    },
+    {
+      "id": "btg",
+      "organization": "Banco BTG Pactual Uruguay S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "btgpactual.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1157",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica www.btgpactual.uy (banca en línea ibanca.btgpactual.uy)."
+    },
+    {
+      "id": "heritage",
+      "organization": "Banque Heritage (Uruguay) S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "heritage.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1162",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica www.heritage.com.uy (ebanking ebankingbh.heritage.com.uy)."
+    },
+    {
+      "id": "citibank",
+      "organization": "Citibank N.A. (Sucursal Uruguay)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "citibank.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1205",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica www.citibank.com.uy. Por https no respondió; por http redirige a https://www.citibank.com/icg/sa/latam/uruguay/ (dominio global de Citi, no incluido). Banca corporativa, sin banca minorista."
+    },
+    {
+      "id": "bna",
+      "organization": "Banco de la Nación Argentina (Sucursal Uruguay)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "bna.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1246",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica www.bna.com.uy; responde con contenido de Banco de la Nación Argentina."
+    },
+    {
+      "id": "antel",
+      "organization": "Antel (Administración Nacional de Telecomunicaciones)",
+      "category": "telecom",
+      "domains": [
+        {
+          "domain": "antel.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "anteltv.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "tickantel.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "tuid.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "gub.uy/otros-organismos enlaza www.antel.com.uy. Mi Antel (autogestión) es aplicaciones.antel.com.uy/miAntel/ (subdominio, enlazado desde antel.com.uy). anteltv.com.uy (Antel TV, ex Vera) y tickantel.com.uy enlazados desde antel.com.uy. tuid.uy = TuID de Antel (identidad digital): enlazado por AGESIC como 'Más información sobre TuID Antel' en https://www.gub.uy/agencia-gobierno-electronico-sociedad-informacion-conocimiento/politicas-y-gestion/metodos-identificacion-digital-nivel-seguridad-avanzado."
+    },
+    {
+      "id": "ute",
+      "organization": "UTE (Administración Nacional de Usinas y Trasmisiones Eléctricas)",
+      "category": "utility",
+      "domains": [
+        {
+          "domain": "ute.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "gub.uy/otros-organismos enlaza portal.ute.com.uy; www.ute.com.uy y ute.com.uy sirven el mismo sitio 'Inicio | UTE' (apps.ute.com.uy, tienda.ute.com.uy, movilidad.ute.com.uy)."
+    },
+    {
+      "id": "ose",
+      "organization": "OSE (Obras Sanitarias del Estado)",
+      "category": "utility",
+      "domains": [
+        {
+          "domain": "ose.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "gub.uy/otros-organismos enlaza www.ose.com.uy."
+    },
+    {
+      "id": "ancap",
+      "organization": "ANCAP",
+      "category": "utility",
+      "domains": [
+        {
+          "domain": "ancap.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "gub.uy/otros-organismos enlaza www.ancap.com.uy."
+    },
+    {
+      "id": "correo",
+      "organization": "Correo Uruguayo (Administración Nacional de Correos)",
+      "category": "postal",
+      "domains": [
+        {
+          "domain": "correo.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "gub.uy/otros-organismos enlaza www.correo.com.uy/home (la raíz devuelve 404; /home tiene el sitio). AGESIC también lo enlaza para firma digital."
+    },
+    {
+      "id": "bse",
+      "organization": "Banco de Seguros del Estado (BSE)",
+      "category": "insurance",
+      "domains": [
+        {
+          "domain": "bse.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "BSE NO está bajo gub.uy. gub.uy/otros-organismos enlaza www.bse.com.uy (portal comercial; autogestión mibse.bse.com.uy). Confirmado también por BCU, Empresas de Seguros, ficha nroinst=957 (www.bse.com.uy)."
+    },
+    {
+      "id": "anp",
+      "organization": "Administración Nacional de Puertos (ANP)",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "anp.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "gub.uy/otros-organismos enlaza anp.com.uy."
+    },
+    {
+      "id": "asse",
+      "organization": "ASSE (Administración de los Servicios de Salud del Estado)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "asse.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "Prestador público de salud; NO está bajo gub.uy. gub.uy/otros-organismos enlaza www.asse.com.uy/home."
+    },
+    {
+      "id": "afe",
+      "organization": "AFE (Administración de Ferrocarriles del Estado)",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "afe.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "gub.uy/otros-organismos enlaza www.afe.com.uy."
+    },
+    {
+      "id": "inc",
+      "organization": "Instituto Nacional de Colonización",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "colonizacion.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "gub.uy/otros-organismos enlaza www.colonizacion.com.uy."
+    },
+    {
+      "id": "impo",
+      "organization": "IMPO (Dirección Nacional de Impresiones y Publicaciones Oficiales)",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "impo.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "gub.uy/otros-organismos enlaza www.impo.com.uy (Diario Oficial, normativa)."
+    },
+    {
+      "id": "cjppu",
+      "organization": "Caja de Jubilaciones y Pensiones de Profesionales Universitarios",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "cjppu.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "Persona pública no estatal (jubilaciones). gub.uy/otros-organismos enlaza www.cjppu.org.uy."
+    },
+    {
+      "id": "cajanotarial",
+      "organization": "Caja Notarial de Seguridad Social",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "cajanotarial.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "Persona pública no estatal (jubilaciones). gub.uy/otros-organismos enlaza www.cajanotarial.org.uy."
+    },
+    {
+      "id": "cjpb",
+      "organization": "Caja de Jubilaciones y Pensiones Bancarias",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "cjpb.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "Persona pública no estatal (jubilaciones). gub.uy/otros-organismos enlaza www.cjpb.org.uy."
+    },
+    {
+      "id": "claro",
+      "organization": "Claro Uruguay (AM Wireless Uruguay / América Móvil)",
+      "category": "telecom",
+      "domains": [
+        {
+          "domain": "claro.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://es.wikipedia.org/wiki/Claro",
+      "sourceType": "other",
+      "reviewedAt": "2026-10-17",
+      "notes": "Fuente más débil (no se halló enlace desde gub.uy/URSEC): Wikipedia en español, artículo 'Claro', enlaza https://www.claro.com.uy/ como 'Claro Uruguay'; el dominio responde 'Claro Uruguay' (redirige a /personas). Autogestión Mi Claro en miclaro.claro.com.uy (subdominio); también simple.claro.com.uy, tienda.claro.com.uy, asistencia.claro.com.uy."
+    },
+    {
+      "id": "tigo",
+      "organization": "Tigo Uruguay (ex Movistar Uruguay, Millicom)",
+      "category": "telecom",
+      "domains": [
+        {
+          "domain": "tigo.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "movistar.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "m.tigo.uy",
+          "scope": "exact"
+        }
+      ],
+      "source": "https://es.wikipedia.org/wiki/Tigo_(Uruguay)",
+      "sourceType": "other",
+      "reviewedAt": "2026-10-17",
+      "notes": "Movistar Uruguay fue comprada por Millicom y pasó a la marca Tigo (Wikipedia: Movistar 2005-2026, sucesor Tigo; sitio_web www.tigo.com.uy; artículo 'Movistar (Uruguay)' lista www.movistar.com.uy). Verificado 2026-10-17: https://www.movistar.com.uy/ redirige a https://www.tigo.com.uy/ ('Tigo Uruguay'), que enlaza ayuda.tigo.com.uy, ofertas.tigo.com.uy y millicom.com. Fuente más débil (no se halló enlace desde gub.uy/URSEC). m.tigo.uy se incluye solo como host exacto: tigo.com.uy lo enlaza repetidamente como 'Mi Tigo' / 'MI TIGO APP' (https://m.tigo.uy/0/miapp) y 'Pagá tu factura'; el dominio registrable tigo.uy no se marca (ver discarded). Pago de factura: ayuda.tigo.com.uy. La URSEC (formulario de reclamos) todavía nombra a 'Movistar' entre los operadores móviles."
+    },
+    {
+      "id": "abitab",
+      "organization": "Abitab S.A.",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "abitab.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "id.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "iddigital.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=6509",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU (Empresas de Transferencias de fondos, nroinst=6509) publica www.abitab.com.uy (el sitio respondió 403 'Solicitud bloqueada por seguridad · Abitab' a curl: WAF). id.com.uy e iddigital.com.uy = ID Digital de Abitab (identidad/firma digital, autoridad certificadora): AGESIC los enlaza como 'Abitab' / 'Más información sobre ID Digital de Abitab' en https://www.gub.uy/agencia-gobierno-electronico-sociedad-informacion-conocimiento/comunicacion/publicaciones/firmar-digitalmente y .../politicas-y-gestion/metodos-identificacion-digital-nivel-seguridad-avanzado; ambos sirven 'ID Digital Abitab'."
+    },
+    {
+      "id": "redpagos",
+      "organization": "Redpagos (NUMMI S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "redpagos.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=6500",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU (Empresas de Transferencias de fondos, nroinst=6500, razón social NUMMI S.A., nombre fantasía Redpagos) publica www.redpagos.com.uy. Responde 'Redpagos - Más cerca' (aplicaciones.redpagos.com.uy, cerca.redpagos.com.uy)."
+    },
+    {
+      "id": "ghe",
+      "organization": "Portal de Gestión Humana del Estado (ONSC) - CV Digital",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "ghe.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/tramites/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "El catálogo https://www.gub.uy/tramites/ enlaza https://ghe.uy/ como 'Iniciar Trámite en Línea : CV Digital'. El sitio dice 'Portal de Gestión Humana del Estado', acceso con ID Uruguay, contacto @onsc.gub.uy."
+    },
+    {
+      "id": "casmu",
+      "organization": "CASMU IAMPP",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "casmu.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'CASMU — Estamos para cuidarte'."
+    },
+    {
+      "id": "medica-uruguaya",
+      "organization": "Médica Uruguaya Corporación de Asistencia Médica",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "medicauruguaya.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Medica Uruguaya' con acceso 'MI MEDICA'."
+    },
+    {
+      "id": "asociacion-espanola",
+      "organization": "Asociación Española Primera de Socorros Mutuos",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "asesp.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Asociación Española' con 'Ingresar a Autogestión'."
+    },
+    {
+      "id": "smi",
+      "organization": "SMI - Servicio Médico Integral",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "serviciomedicointegral.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "smi.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. MSP enlaza www.serviciomedicointegral.com.uy, que redirige a https://www.smi.com.uy/mvdcms/home ('SMI - Servicio Medico Integral')."
+    },
+    {
+      "id": "cosem",
+      "organization": "COSEM IAMPP",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "cosem.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Cosem - Tu Salud Primero'."
+    },
+    {
+      "id": "circulo-catolico",
+      "organization": "Círculo Católico de Obreros del Uruguay",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "circulocatolico.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Inicio | Círculo Católico'."
+    },
+    {
+      "id": "hospital-evangelico",
+      "organization": "Mutualista Hospital Evangélico",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "hospitalevangelico.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Mutualista Hospital Evangélico | Salud en familia'."
+    },
+    {
+      "id": "hospital-britanico",
+      "organization": "Hospital Británico",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "hospitalbritanico.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "hospitalbritanico.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. MSP enlaza www.hospitalbritanico.com.uy, que responde 301 a https://hospitalbritanico.org.uy/ (el contenido de .org.uy no cargó desde aquí; se incluye por ser destino de redirección del dominio enlazado por MSP)."
+    },
+    {
+      "id": "mp",
+      "organization": "MP Medicina Personalizada",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "mp.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Contenido no verificable desde aquí (Cloudflare 'Just a moment'); se incluye por el enlace del MSP."
+    },
+    {
+      "id": "summum",
+      "organization": "Summum Medicina Privada S.A.",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "summum.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Home - SUMMUM'."
+    },
+    {
+      "id": "seguro-americano",
+      "organization": "Sanatorio Americano / Seguro Americano",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "seguroamericano.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Seguro Americano'."
+    },
+    {
+      "id": "bcbsu",
+      "organization": "Blue Cross & Blue Shield de Uruguay",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "bcbsu.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. www.bcbsu.com.uy redirige por JS a www1.bcbsu.com.uy ('BlueCross & BlueShield de Uruguay')."
+    },
+    {
+      "id": "universal",
+      "organization": "Universal Sociedad de Producción Sanitaria",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "sociedadmedicauniversal.com",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Home - Sociedad Medica Universal'."
+    },
+    {
+      "id": "cudam",
+      "organization": "CUDAM Centro Uruguayo de Asistencia Médica",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "cudam.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'CUDAM | Policlinica'."
+    },
+    {
+      "id": "gremca",
+      "organization": "GREMCA Gremial Médica Centro Asistencial",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "gremca.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'GREMCA | Salud a tu alcance'."
+    },
+    {
+      "id": "medicare",
+      "organization": "MEDICARE (Copamhi Asociación Civil)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "medicare.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'MEDICARE - Medicina Privada'."
+    },
+    {
+      "id": "iac",
+      "organization": "IAC Instituto Asistencial Colectivo",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "iac.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'IAC – Instituto Asistencial Colectivo' (/iac/)."
+    },
+    {
+      "id": "amedrin",
+      "organization": "AMEDRIN (Río Negro)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "amedrin.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Amedrin IAMPP'."
+    },
+    {
+      "id": "amsj",
+      "organization": "Asociación Médica de San José",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "amsj.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Asociación Médica San José | FEPREMI'."
+    },
+    {
+      "id": "caamepa",
+      "organization": "CAAMEPA IAMPP (Pando)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "caamepa.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'CAAMEPA - La Salud en su lugar'."
+    },
+    {
+      "id": "camcel",
+      "organization": "CAMCEL (Cerro Largo)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "camcel.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'CAMCEL FEPREMI'."
+    },
+    {
+      "id": "camec",
+      "organization": "CAMEC (Este de Colonia)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "camec.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Camec – FEPREMI Colonia'."
+    },
+    {
+      "id": "camedur",
+      "organization": "CAMEDUR (Durazno)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "camedur.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Redirige a web.camedur.com.uy ('CAMEDUR – Centro de Asistencia Medica de Durazno')."
+    },
+    {
+      "id": "camoc",
+      "organization": "CAMOC (Oeste de Colonia)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "camoc.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'CAMOC - Centro de Asistencia Médica del Oeste de Colonia'."
+    },
+    {
+      "id": "casmer",
+      "organization": "CASMER IAMPP (Rivera)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "casmer.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'CASMER | FEPREMI Rivera'."
+    },
+    {
+      "id": "comeflo",
+      "organization": "COMEFLO IAMPP (Flores)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "comeflo.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'COMEFLO'."
+    },
+    {
+      "id": "comepa",
+      "organization": "COMEPA (Paysandú)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "comepa.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'COMEPA – Corporación Médica de Paysandú'."
+    },
+    {
+      "id": "comeri",
+      "organization": "COMERI (Rivera)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "comeri.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "comeri.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. www.comeri.com.uy redirige a www.comeri.org.uy ('COMERI Rivera')."
+    },
+    {
+      "id": "comta",
+      "organization": "COMTA IAMPP (Tacuarembó)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "comta.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Inicio - Corporación Médica'."
+    },
+    {
+      "id": "crami",
+      "organization": "CRAMI IAMPP (Canelones)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "crami.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'CRAMI - tu salud en tu ciudad'."
+    },
+    {
+      "id": "gremeda",
+      "organization": "GREMEDA IAMPP (Artigas)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "gremeda.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde 'Gremeda'."
+    },
+    {
+      "id": "comero",
+      "organization": "COMERO IAMPP (Rocha)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "comero.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde título genérico 'INICIO'."
+    },
+    {
+      "id": "camsor",
+      "organization": "CAMS IAMPP (Soriano)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "camsor.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. Responde título genérico 'Inicio'."
+    },
+    {
+      "id": "comeca",
+      "organization": "COMECA Corporación Médica de Canelones",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "comeca.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "comeca.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://atuservicio.msp.gub.uy/",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "MSP/JUNASA 'A Tu Servicio' (atuservicio.msp.gub.uy) enlaza este sitio en la ficha del prestador. http://www.comeca.com.uy redirige a https://comeca.uy/web/ ('COMECA | Corporación Médica de Canelones'); https directo no respondió."
+    },
+    {
+      "id": "anep",
+      "organization": "ANEP Administración Nacional de Educación Pública",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "anep.edu.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'ANEP'. edu.uy no es zona reservada al Estado."
+    },
+    {
+      "id": "udelar",
+      "organization": "Universidad de la República (Udelar)",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "udelar.edu.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "universidad.edu.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. gub.uy enlaza www.universidad.edu.uy, que redirige a udelar.edu.uy ('Inicio | Udelar')."
+    },
+    {
+      "id": "utec",
+      "organization": "UTEC Universidad Tecnológica",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "utec.edu.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Universidad Tecnológica | Uruguay :: UTEC'."
+    },
+    {
+      "id": "ceibal",
+      "organization": "Ceibal",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "ceibal.edu.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Ceibal'."
+    },
+    {
+      "id": "fondo-solidaridad",
+      "organization": "Fondo de Solidaridad",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "fondodesolidaridad.edu.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Fondo de Solidaridad' (aporte de egresados)."
+    },
+    {
+      "id": "ineed",
+      "organization": "INEEd Instituto Nacional de Evaluación Educativa",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "ineed.edu.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'INEEd'."
+    },
+    {
+      "id": "cocap",
+      "organization": "COCAP Consejo de Capacitación Profesional",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "cocap.edu.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'COCAP'."
+    },
+    {
+      "id": "inefop",
+      "organization": "INEFOP Instituto Nacional de Empleo y Formación Profesional",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "inefop.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'INEFOP'."
+    },
+    {
+      "id": "chassfose",
+      "organization": "CHASSFOSE (seguro de salud de funcionarios de OSE)",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "chassfose.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Inicio | Chassfose'."
+    },
+    {
+      "id": "comision-cancer",
+      "organization": "Comisión Honoraria de Lucha contra el Cáncer",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "comisioncancer.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Comisión Honoraria de Lucha contra el Cáncer'."
+    },
+    {
+      "id": "cardiosalud",
+      "organization": "Comisión Honoraria para la Salud Cardiovascular",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "cardiosalud.org",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Comisión Honoraria para la Salud Cardiovascular'."
+    },
+    {
+      "id": "chlaep",
+      "organization": "Comisión Honoraria para la Lucha Antituberculosa y Enfermedades Prevalentes",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "chlaep.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'CHLA-EP'."
+    },
+    {
+      "id": "colegio-medico",
+      "organization": "Colegio Médico del Uruguay",
+      "category": "health",
+      "domains": [
+        {
+          "domain": "colegiomedico.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Colegio Médico del Uruguay'."
+    },
+    {
+      "id": "anii",
+      "organization": "ANII Agencia Nacional de Investigación e Innovación",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "anii.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'ANII'."
+    },
+    {
+      "id": "ande",
+      "organization": "ANDE Agencia Nacional de Desarrollo",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "ande.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'ANDE - Agencia Nacional de Desarrollo'."
+    },
+    {
+      "id": "cnd",
+      "organization": "Corporación Nacional para el Desarrollo",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "cnd.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'CND'."
+    },
+    {
+      "id": "copab",
+      "organization": "COPAB Corporación de Protección del Ahorro Bancario",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "copab.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Copab'."
+    },
+    {
+      "id": "adme",
+      "organization": "ADME Administración del Mercado Eléctrico",
+      "category": "utility",
+      "domains": [
+        {
+          "domain": "adme.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'ADME'."
+    },
+    {
+      "id": "latu",
+      "organization": "LATU Laboratorio Tecnológico del Uruguay",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "latu.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Inicio | LATU'."
+    },
+    {
+      "id": "inac",
+      "organization": "INAC Instituto Nacional de Carnes",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "inac.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'INAC'."
+    },
+    {
+      "id": "inacoop",
+      "organization": "INACOOP Instituto Nacional del Cooperativismo",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "inacoop.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'INACOOP'."
+    },
+    {
+      "id": "inale",
+      "organization": "INALE Instituto Nacional de la Leche",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "inale.org",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Inale - Instituto Nacional de la Leche'."
+    },
+    {
+      "id": "inase",
+      "organization": "INASE Instituto Nacional de Semillas",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "inase.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Instituto Nacional de Semillas'."
+    },
+    {
+      "id": "inavi",
+      "organization": "INAVI Instituto Nacional de Vitivinicultura",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "inavi.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'INAVI'."
+    },
+    {
+      "id": "inia",
+      "organization": "INIA Instituto Nacional de Investigación Agropecuaria",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "inia.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Contenido no verificable (Cloudflare 403); se incluye por el enlace de gub.uy."
+    },
+    {
+      "id": "plan-agropecuario",
+      "organization": "Instituto Plan Agropecuario",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "planagropecuario.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Instituto Plan Agropecuario'."
+    },
+    {
+      "id": "fonam",
+      "organization": "Fondo Nacional de Música",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "fonam.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'Fonam'."
+    },
+    {
+      "id": "pctp",
+      "organization": "Parque Científico y Tecnológico de Pando",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "pctp.org.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'PARQUE CIENTÍFICO Y TECNOLÓGICO DE PANDO'."
+    },
+    {
+      "id": "uam",
+      "organization": "UAM Unidad Agroalimentaria Metropolitana",
+      "category": "government",
+      "domains": [
+        {
+          "domain": "uam.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.gub.uy/otros-organismos",
+      "sourceType": "government_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "https://www.gub.uy/otros-organismos lo enlaza. Responde 'UAM - Unidad Agroalimentaria Metropolitana'."
+    },
+    {
+      "id": "oca",
+      "organization": "OCA S.A. (tarjeta OCA) y OCA Blue (Oca Dinero Electrónico S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "oca.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "oca.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "ocablue.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/OCA.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Registro del Sistema de Pagos: OCA S.A. sitio https://oca.uy/; Oca Blue (Oca Dinero Electrónico S.A., emisor de dinero electrónico) sitio https://ocablue.uy/ (https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/ocade.aspx). BCU Empresas Administradoras de Crédito (nroinst=7815, 'OCA Card') publica www.oca.com.uy. Autogestión: micuenta.oca.com.uy / micuentanuevo.oca.com.uy (enlazados desde oca.uy)."
+    },
+    {
+      "id": "prex",
+      "organization": "Prex (Econstar S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "prexcard.com",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/prex.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU (Instituciones Emisoras de Dinero Electrónico) publica https://www.prexcard.com/. OJO: prex.com.uy y prex.uy no resolvieron; el dominio oficial es prexcard.com (global de la marca)."
+    },
+    {
+      "id": "mercadopago",
+      "organization": "MercadoPago Uruguay S.R.L.",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "mercadopago.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "www.mercadolibre.com",
+          "scope": "exact"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/MercadoPago-Uruguay-SRL.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU (Emisor de Dinero Electrónico y Adquirente PCT) publica https://www.mercadopago.com.uy/. El inicio de sesión de mercadopago.com.uy redirige (302) a https://www.mercadolibre.com/jms/mlu/lgz/... por eso se incluye ese host exacto. mercadolibre.com.uy (marketplace) no incluido."
+    },
+    {
+      "id": "midinero",
+      "organization": "Midinero (Findarin S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "midinero.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/MiDinero.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU (Instituciones Emisoras de Dinero Electrónico) publica https://www.midinero.com.uy/. Tarjeta prepaga vinculada a Redpagos (mismo domicilio Av. Rivera 2452) pero emitida por Findarin S.A."
+    },
+    {
+      "id": "deanda",
+      "organization": "Deanda (Dinero Electrónico Anda S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "deanda.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Deanda.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica https://www.deanda.com.uy/."
+    },
+    {
+      "id": "pluxee",
+      "organization": "Pluxee Uruguay S.A.",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "pluxee.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Pluxee.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica https://www.pluxee.uy/ (tarjeta de alimentación)."
+    },
+    {
+      "id": "edenred",
+      "organization": "Edenred (Luncheon Tickets S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "edenred.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Luncheon.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica https://www.edenred.com.uy/."
+    },
+    {
+      "id": "grin",
+      "organization": "Grin (Fucac Dinero Electrónico S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "grin.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Fucac-Dinero-Electronico-SA.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica https://grin.com.uy/."
+    },
+    {
+      "id": "handy",
+      "organization": "Handy (Riblinor S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "handy.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Riblinor.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica https://handy.uy/ (usuario.handy.uy)."
+    },
+    {
+      "id": "paganza",
+      "organization": "Paganza (Aduro S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "paganza.com",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Aduro.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica www.paganza.com. También enlazado por UTE como medio de pago de factura."
+    },
+    {
+      "id": "urupago",
+      "organization": "Urupago (Efamar S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "urupago.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Urupago.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica https://urupago.com.uy/."
+    },
+    {
+      "id": "sistarbanc",
+      "organization": "Sistarbanc S.R.L. (pago de facturas por banca en línea, SPF)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "e-sistarbanc.com.uy",
+          "scope": "subdomains"
+        },
+        {
+          "domain": "sistarbanc.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Sistarbanc-S-R-L.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica https://www.e-sistarbanc.com.uy/, que enlaza spf.sistarbanc.com.uy. spf.sistarbanc.com.uy es la pasarela que usan UTE (https://portal.ute.com.uy/clientes/mi-factura/donde-y-como-pagas-la-factura) y bancos (BHU, Santander) para pagar facturas."
+    },
+    {
+      "id": "totalnet",
+      "organization": "TotalNet (Compañía Uruguaya de Medios de Procesamiento S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "totalnet.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/CUMPSA.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica https://totalnet.uy/. Portal de pago de facturas pagos.totalnet.uy (enlazado por UTE)."
+    },
+    {
+      "id": "banred",
+      "organization": "Banred (Rías Redbanc S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "banred.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://portal.ute.com.uy/clientes/mi-factura/donde-y-como-pagas-la-factura",
+      "sourceType": "organization_site",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU registra a Banred / Rías Redbanc S.A. (Cámara de Compensación, https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/R%C3%ADas-Redbanc-SA.aspx) pero sin sitio web. El dominio se toma del enlace de UTE (ente estatal) a https://www.banred.com.uy/pasv2/#/login (Banred PAS, pago de facturas); el sitio responde 'Banred - La principal red de cajeros del país'. sourceType organization_site (UTE)."
+    },
+    {
+      "id": "cabal",
+      "organization": "Cabal Uruguay S.A.",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "cabal.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Cabal.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica https://www.cabal.com.uy/ (apps.cabal.com.uy)."
+    },
+    {
+      "id": "plexo",
+      "organization": "Plexo (Red Visual S.A.)",
+      "category": "payments",
+      "domains": [
+        {
+          "domain": "plexo.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Sistema-de-Pagos/Paginas/Red-Visual-SA.aspx",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU publica https://www.plexo.com.uy/ (pasarela de pagos usada por comercios y organismos)."
+    },
+    {
+      "id": "creditel",
+      "organization": "Creditel (SOCUR S.A.)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "creditel.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7804",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7804. Publica www.creditel.com.uy; responde 'Creditel - Soluciones para todos'."
+    },
+    {
+      "id": "anda",
+      "organization": "ANDA Asociación Nacional de Afiliados",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "anda.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7805",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7805. Publica www.anda.com.uy (recaudaciones.anda.com.uy, www2/www3). Ver también Deanda."
+    },
+    {
+      "id": "creditos-directos",
+      "organization": "Créditos Directos S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "creditosdirectos.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7803",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7803. Publica www.creditosdirectos.com.uy; UTE enlaza creditosdirectos.com.uy:8989/movilweb/ para pagar facturas."
+    },
+    {
+      "id": "passcard",
+      "organization": "Pass Card S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "passcard.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7854",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7854. Publica www.passcard.com.uy."
+    },
+    {
+      "id": "credito-de-la-casa",
+      "organization": "Crédito de la Casa (RETOP S.A.)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "creditodelacasa.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7817",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7817. Publica www.creditodelacasa.com.uy."
+    },
+    {
+      "id": "club-del-este",
+      "organization": "Club del Este",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "clubdeleste.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7846",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7846. Publica www.clubdeleste.com.uy."
+    },
+    {
+      "id": "nativa",
+      "organization": "Nativa (ADIALIR S.A.)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "nativacabal.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7885",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7885. Publica www.nativacabal.com.uy."
+    },
+    {
+      "id": "verde",
+      "organization": "Verde (FUCAC Cooperativa de Ahorro y Crédito)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "verde.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7860",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7860. Publica www.verde.com.uy."
+    },
+    {
+      "id": "credito-naranja",
+      "organization": "Crédito Naranja (Promotora de Créditos S.A.)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "creditonaranja.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7816",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7816. Publica http://creditonaranja.uy."
+    },
+    {
+      "id": "pronto",
+      "organization": "Pronto+ (Bautzen S.A. / Kedal S.A.)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "pronto.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7858",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7858. Publica www.pronto.com.uy (también Kedal S.A. nroinst=4288)."
+    },
+    {
+      "id": "credisur",
+      "organization": "Credisur (Kampril S.A.)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "credisur.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7841",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7841. Publica www.credisur.com.uy."
+    },
+    {
+      "id": "fastcred",
+      "organization": "FastCred (Tinkland S.A.)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "fastcred.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7850",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7850. Publica www.fastcred.com.uy."
+    },
+    {
+      "id": "italmundo",
+      "organization": "Italmundo (Verendy S.A.)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "italmundo.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7852",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7852. Publica www.italmundo.com.uy."
+    },
+    {
+      "id": "credito-valor",
+      "organization": "Crédito de Valor (Emprendimientos de Valor S.A.)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "valor.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7853",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7853. Publica www.valor.com.uy."
+    },
+    {
+      "id": "credifast",
+      "organization": "CrediFast S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "credifasturuguay.com",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7826",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7826. Publica www.credifasturuguay.com."
+    },
+    {
+      "id": "republica-microfinanzas",
+      "organization": "República Microfinanzas S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "republicamicrofinanzas.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7886",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7886. Publica www.republicamicrofinanzas.com.uy (subsidiaria del BROU)."
+    },
+    {
+      "id": "paigo",
+      "organization": "Paigo (Floder S.A.)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "paigo.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7890",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7890. La ficha lista varios sitios: creditouruguay.uy, uinuin.com.uy, floder.uy, credisol.com.uy, volve.com.uy, pagodespues.com.uy, pym.com.uy, paigo.com.uy. Solo se incluye paigo.com.uy (verificado que responde 'Paigo'); los otros no se probaron."
+    },
+    {
+      "id": "asi",
+      "organization": "ASI Administradora de Soluciones Integrales S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "asi.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7894",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7894. Publica www.asi.com.uy."
+    },
+    {
+      "id": "crediton",
+      "organization": "CreditON (VOLMET S.A.)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "crediton.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=4287",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=4287. Lista 'Entidades Otorgantes de Crédito de Mayor Actividad'. Publica www.crediton.com.uy."
+    },
+    {
+      "id": "acac",
+      "organization": "Cooperativa ACAC",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "acac.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=7818",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=7818. Lista 'Entidades Otorgantes de Crédito de Mayor Actividad'. Publica www.acac.com.uy."
+    },
+    {
+      "id": "cooperativa-artigas",
+      "organization": "Cooperativa Artigas (SACCJA)",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "cooperativaartigas.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=4316",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=4316. Lista 'Entidades Otorgantes de Crédito de Mayor Actividad'. Publica www.cooperativaartigas.com.uy."
+    },
+    {
+      "id": "copac",
+      "organization": "COPAC Cooperativa Policial de Ahorro y Crédito",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "copac.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=4272",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=4272. Lista 'Entidades Otorgantes de Crédito de Mayor Actividad'."
+    },
+    {
+      "id": "comac",
+      "organization": "COMAC Cooperativa Maestros Ahorro y Crédito",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "comac.coop",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=4319",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=4319. Lista 'Entidades Otorgantes de Crédito de Mayor Actividad'."
+    },
+    {
+      "id": "coopace",
+      "organization": "COOPACE",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "coopace.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=4295",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=4295. Lista 'Entidades Otorgantes de Crédito de Mayor Actividad'."
+    },
+    {
+      "id": "cintepa",
+      "organization": "CINTEPA",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "cintepa.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=4274",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=4274. Lista 'Entidades Otorgantes de Crédito de Mayor Actividad'."
+    },
+    {
+      "id": "proleco",
+      "organization": "PROLECO",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "proleco.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=4279",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=4279. Lista 'Entidades Otorgantes de Crédito de Mayor Actividad'."
+    },
+    {
+      "id": "cacfimm",
+      "organization": "CACFIMM",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "cacfimm.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=4282",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=4282. Lista 'Entidades Otorgantes de Crédito de Mayor Actividad'."
+    },
+    {
+      "id": "provincia",
+      "organization": "Provincia Casa Financiera",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "provincia.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1361",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=1361. Lista Casas Financieras del BCU (casas_Financieras_Lst.aspx)."
+    },
+    {
+      "id": "fucerep",
+      "organization": "FUCEREP Cooperativa de Ahorro y Crédito",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "fucerep.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1607",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas Administradoras de Crédito (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/emp_admin_cred.aspx) ficha nroinst=1607. Lista Cooperativas de Intermediación Financiera del BCU (coo_Int_Fin_Lst.aspx)."
+    },
+    {
+      "id": "republica-afap",
+      "organization": "República AFAP S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "rafap.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=3302",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU AFAP (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/afaps.aspx), ficha nroinst=3302. Publica www.rafap.com.uy (sitio JS, responde 200)."
+    },
+    {
+      "id": "integracion-afap",
+      "organization": "Integración AFAP S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "integracionafap.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=3305",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU AFAP (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/afaps.aspx), ficha nroinst=3305. Responde 'Integración AFAP'."
+    },
+    {
+      "id": "afap-itau",
+      "organization": "AFAP Itaú S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "afapitau.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=3307",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU AFAP (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/afaps.aspx), ficha nroinst=3307. Responde 'AFAP Itaú'."
+    },
+    {
+      "id": "afap-sura",
+      "organization": "AFAP SURA S.A.",
+      "category": "bank",
+      "domains": [
+        {
+          "domain": "afapsura.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=3308",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU AFAP (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/afaps.aspx), ficha nroinst=3308. Responde 'AFAP SURA'."
+    },
+    {
+      "id": "porto-seguro",
+      "organization": "Porto Seguro - Seguros del Uruguay S.A.",
+      "category": "insurance",
+      "domains": [
+        {
+          "domain": "portoseguro.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=2621",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas de Seguros (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/empresas_Seguros.aspx), ficha nroinst=2621. "
+    },
+    {
+      "id": "metlife",
+      "organization": "MetLife Seguros S.A.",
+      "category": "insurance",
+      "domains": [
+        {
+          "domain": "metlife.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=2626",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas de Seguros (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/empresas_Seguros.aspx), ficha nroinst=2626. "
+    },
+    {
+      "id": "sancor",
+      "organization": "Sancor Seguros S.A. (Uruguay)",
+      "category": "insurance",
+      "domains": [
+        {
+          "domain": "gruposancorseguros.com",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=2630",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas de Seguros (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/empresas_Seguros.aspx), ficha nroinst=2630. BCU publica www.gruposancorseguros.com (dominio del grupo, no exclusivo de Uruguay)."
+    },
+    {
+      "id": "surco",
+      "organization": "Surco Seguros (Compañía Cooperativa de Seguros)",
+      "category": "insurance",
+      "domains": [
+        {
+          "domain": "surco.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=2649",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas de Seguros (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/empresas_Seguros.aspx), ficha nroinst=2649. "
+    },
+    {
+      "id": "mapfre",
+      "organization": "Mapfre Uruguay Seguros S.A.",
+      "category": "insurance",
+      "domains": [
+        {
+          "domain": "mapfre.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=2651",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas de Seguros (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/empresas_Seguros.aspx), ficha nroinst=2651. "
+    },
+    {
+      "id": "seguros-sura",
+      "organization": "Seguros SURA S.A.",
+      "category": "insurance",
+      "domains": [
+        {
+          "domain": "segurossura.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=2654",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas de Seguros (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/empresas_Seguros.aspx), ficha nroinst=2654. "
+    },
+    {
+      "id": "sbi",
+      "organization": "SBI Seguros Uruguay S.A.",
+      "category": "insurance",
+      "domains": [
+        {
+          "domain": "sbi.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=2656",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas de Seguros (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/empresas_Seguros.aspx), ficha nroinst=2656. "
+    },
+    {
+      "id": "far",
+      "organization": "FAR Compañía de Seguros S.A.",
+      "category": "insurance",
+      "domains": [
+        {
+          "domain": "farseguros.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=2658",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas de Seguros (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/empresas_Seguros.aspx), ficha nroinst=2658. "
+    },
+    {
+      "id": "san-cristobal",
+      "organization": "San Cristóbal Seguros S.A.",
+      "category": "insurance",
+      "domains": [
+        {
+          "domain": "sancristobalseguros.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=2694",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas de Seguros (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/empresas_Seguros.aspx), ficha nroinst=2694. "
+    },
+    {
+      "id": "berkley",
+      "organization": "Berkley International Seguros S.A. (Uruguay)",
+      "category": "insurance",
+      "domains": [
+        {
+          "domain": "berkley.com.uy",
+          "scope": "subdomains"
+        }
+      ],
+      "source": "https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=2947",
+      "sourceType": "regulator",
+      "reviewedAt": "2026-10-17",
+      "notes": "BCU Empresas de Seguros (https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/empresas_Seguros.aspx), ficha nroinst=2947. "
+    }
+  ],
+  "discarded": [
+    {
+      "organization": "Antel (Vera)",
+      "domain": "vera.com.uy",
+      "reason": "No resolvió el 2026-10-17; el servicio de TV de Antel hoy se enlaza como Antel TV en anteltv.com.uy (incluido)."
+    },
+    {
+      "organization": "Banco Hipotecario del Uruguay",
+      "domain": "bhu.gub.uy",
+      "reason": "No resolvió; si existiera quedaría cubierto por la zona gub.uy."
+    },
+    {
+      "organization": "HSBC Bank (Uruguay)",
+      "domain": "hsbc.com.uy",
+      "reason": "Ya no figura en la lista de bancos del BCU (bancos_Instituciones_Lst.aspx, 2026-10-17); el sitio solo muestra un 'Aviso institucional'. HSBC Uruguay fue adquirido por Scotiabank (incluido). No se marca como oficial un banco no habilitado."
+    },
+    {
+      "organization": "Tigo Uruguay",
+      "domain": "tigo.uy",
+      "reason": "Solo se incluyó el host exacto m.tigo.uy (Mi Tigo, enlazado desde tigo.com.uy). tigo.uy en sí no resolvió y no hay fuente de que Millicom controle todo el dominio registrable; no usar scope subdomains sin revisar."
+    },
+    {
+      "organization": "Claro y Tigo (fuente)",
+      "domain": "claro.com.uy, tigo.com.uy",
+      "reason": "No es un descarte: quedan incluidos, pero su fuente es la más débil del catálogo (Wikipedia + contenido del sitio; para Tigo además la redirección desde movistar.com.uy). No se halló página de URSEC/gub.uy que enlace sus dominios. Conviene revisión manual."
+    },
+    {
+      "organization": "Movistar Uruguay (autogestión)",
+      "domain": "mi.movistar.com.uy",
+      "reason": "No resolvió; además ya queda cubierto por movistar.com.uy (subdomains)."
+    },
+    {
+      "organization": "Citibank (sitio global)",
+      "domain": "citibank.com",
+      "reason": "citibank.com.uy (http) redirige a www.citibank.com/icg/sa/latam/uruguay/. Es de Citi, pero listar citibank.com marcaría como 'oficial uruguayo' todo el sitio global; se deja fuera. Si se quiere, agregar 'www.citibank.com' con scope exact."
+    },
+    {
+      "organization": "AMDM IAMPP (Maldonado)",
+      "domain": "asistencial.com.uy",
+      "reason": "MSP lo enlaza para AMDM, pero el dominio redirige a www.iac.com.uy/iac (IAC, otro prestador). Inconsistente: revisar a mano."
+    },
+    {
+      "organization": "CRAME IAMPP (Maldonado)",
+      "domain": "semm-mautone.com.uy",
+      "reason": "MSP enlaza semm-mautone.com.uy en la ficha de CRAME; el sitio dice 'Mautone | Semm'. No se pudo confirmar la relación CRAME–SEMM Mautone."
+    },
+    {
+      "organization": "CAMDEL IAMPP (Lavalleja)",
+      "domain": "camdel.com.uy",
+      "reason": "Enlazado por MSP pero muestra página por defecto del hosting (cgi-sys/defaultwebpage); sitio caído o vencido."
+    },
+    {
+      "organization": "CAMY (Young)",
+      "domain": "camy.com.uy",
+      "reason": "Enlazado por MSP; https://camy.com.uy redirige a camyiampp.com (contenido de CAMY) y www no respondió. camyiampp.com no tiene fuente fuerte propia."
+    },
+    {
+      "organization": "COMEF IAMPP (Florida)",
+      "domain": "comef.com.uy",
+      "reason": "Enlazado por MSP pero no respondió (https timeout)."
+    },
+    {
+      "organization": "SMQS (Salto)",
+      "domain": "smqs.com.uy",
+      "reason": "Enlazado por MSP; redirige a centromedico.com.uy ('Centro Médico de Salto'). Relación no confirmada."
+    },
+    {
+      "organization": "Emergencias móviles (SEMM, UCM, Emergencia Uno, SUAT)",
+      "domain": "-",
+      "reason": "No se encontró fuente fuerte (MSP/gub.uy) con sus dominios; no se incluyeron."
+    },
+    {
+      "organization": "Zona edu.uy",
+      "domain": "edu.uy",
+      "reason": "NO es zona reservada al Estado: nic.uy la define 'para organismos relacionados con la educación' y la usan universidades privadas (ort.edu.uy 'Universidad ORT Uruguay', ucu.edu.uy 'Universidad Católica del Uruguay'). Los organismos públicos bajo edu.uy se listan uno por uno (ANEP, Udelar, UTEC, Ceibal...)."
+    },
+    {
+      "organization": "Uruguay XXI (Instituto de Promoción de las Inversiones y las Exportaciones)",
+      "domain": "uruguayemprendedor.uy",
+      "reason": "gub.uy/otros-organismos rotula el enlace como Uruguay XXI pero el dominio responde 'Uruguay Emprendedor' (otro programa). Inconsistente; Uruguay XXI usa uruguayxxi.gub.uy (zona)."
+    },
+    {
+      "organization": "CASH S.A.",
+      "domain": "cash.com.uy",
+      "reason": "BCU (nroinst=4302) publica www.cash.com.uy pero no respondió el 2026-10-17. Revisar a mano."
+    },
+    {
+      "organization": "Credicompras (Diroval S.A.)",
+      "domain": "credicompras.com.uy",
+      "reason": "BCU (nroinst=7838) lo publica pero no respondió."
+    },
+    {
+      "organization": "MARCRE Ltda.",
+      "domain": "marcre.com.uy",
+      "reason": "BCU (nroinst=7843) lo publica pero respondió 403 Forbidden."
+    },
+    {
+      "organization": "CACCSOE",
+      "domain": "caccsoe.com.uy",
+      "reason": "BCU (nroinst=4318) lo publica pero no respondió."
+    },
+    {
+      "organization": "COMAJA",
+      "domain": "comaja.com",
+      "reason": "BCU (nroinst=4291) lo publica pero respondió 500."
+    },
+    {
+      "organization": "Trend Capital SAS",
+      "domain": "trendcapital.com.uy",
+      "reason": "BCU (nroinst=4292) publica trendcapital.com.uy pero redirige a trendcapital.com.ar. No incluido."
+    },
+    {
+      "organization": "MiAuto (Artarien S.A.)",
+      "domain": "miauto.com.uy",
+      "reason": "BCU (nroinst=4304) lo publica y responde 'MiAuto'; crédito automotor, fuera de foco. Se puede agregar."
+    },
+    {
+      "organization": "Paigo (Floder S.A.) dominios secundarios",
+      "domain": "creditouruguay.uy, uinuin.com.uy, floder.uy, credisol.com.uy, volve.com.uy, pagodespues.com.uy, pym.com.uy",
+      "reason": "Listados por BCU en la ficha 7890 pero no se verificó que respondan; pendientes."
+    },
+    {
+      "organization": "Visa",
+      "domain": "visa.com.uy",
+      "reason": "BCU registra a Visa International con www.visa.com (global); visa.com.uy responde contenido de Visa y está enlazado desde e-sistarbanc.com.uy, pero no tiene fuente del regulador. Revisar si se quiere marcar."
+    },
+    {
+      "organization": "Mastercard",
+      "domain": "mastercard.com / mastercard.com.uy",
+      "reason": "No figura en el registro del BCU; no verificado."
+    },
+    {
+      "organization": "Procesadores y adquirentes para comercios (Fiserv, Getnet, Scanntech, Sisteco, dLocal, Ebanx, etc.)",
+      "domain": "-",
+      "reason": "Registrados en el BCU pero orientados a comercios, no a personas; no incluidos para no inflar la lista."
+    },
+    {
+      "organization": "Compañía de Seguros Insur S.A.",
+      "domain": "segurosinsur.com.uy",
+      "reason": "BCU (nroinst=4246) lo publica pero no respondió."
+    },
+    {
+      "organization": "Barbuss Seguros (Uruguay)",
+      "domain": "barbuss.com",
+      "reason": "BCU publica www.barbuss.com/uy/ (dominio global, respondió 403). No incluido."
+    },
+    {
+      "organization": "Zurich Santander Seguros / CUTCSA Seguros",
+      "domain": "-",
+      "reason": "BCU no publica sitio web (vacío o 'http://-')."
+    }
+  ]
+}

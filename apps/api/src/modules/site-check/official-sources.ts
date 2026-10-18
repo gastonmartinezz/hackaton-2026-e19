@@ -49,7 +49,8 @@ const ZonesFile = z.strictObject({
 });
 
 const CatalogFile = z.object({
-  version: z.string().min(1),
+  /** Número o texto ("1", "2026-10-17.1"). */
+  version: z.union([z.string().min(1), z.number().int().positive().transform(String)]),
   country: z.string().length(2),
   reviewedAt: z.iso.date(),
   zones: z
