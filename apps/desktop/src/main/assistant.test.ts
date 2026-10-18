@@ -410,6 +410,33 @@ describe('Assistant', () => {
     expect(assistant.state.goal).toBe('renovar la cédula');
   });
 
+  it('«Hacer otra cosa» después de terminar mira la página actual (otra sección) y olvida el objetivo cumplido', async () => {
+    load('buscar.html');
+    const mock = mockApi();
+    const { api, sent } = recording(mock, {
+      nextStep: async (r) => ({ sessionId: r.sessionId, steps: [], done: true, evidence: 'Buscar' }),
+    });
+    const { assistant, until } = setup(api);
+    assistant.expectDestination('buscar un libro');
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    await until(() => assistant.state.phase === 'choosing');
+    assistant.select(assistant.state.options[0]!.id);
+    await until(() => assistant.state.phase === 'completed');
+
+    // La persona sigue navegando a otra sección del sitio.
+    assistant.navigationStarted();
+    load('horarios.html');
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    expect(assistant.state.phase).toBe('completed');
+
+    assistant.anotherTask();
+    await until(() => assistant.state.phase === 'choosing');
+    const last = sent.filter((r): r is OptionsRequest => !('optionId' in r)).at(-1)!;
+    expect(last.html).toContain('Horarios');
+    expect(last.goal).toBeUndefined();
+    expect(assistant.state.goal).toBeUndefined();
+  });
+
   it('con pasos reales recibidos de /v1/next-step sigue guiando', async () => {
     load('buscar.html');
     const mock = mockApi();

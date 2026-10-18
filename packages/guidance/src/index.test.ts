@@ -129,6 +129,26 @@ describe('transition', () => {
     expect(state).toMatchObject({ phase: 'verifying', step: real('el-1'), completed: [], lastOutcome: 'targetStale' });
   });
 
+  it('«Volver un paso» después de cambiar de página mira la página actual, no las opciones viejas', () => {
+    let state = transition(started('buscar'), { type: 'SHOWN', elementId: 'el-1' });
+    expect(transition(state, { type: 'BACK' })).toMatchObject({ phase: 'choosing', options: [turno, buscar] });
+    state = transition(state, { type: 'NAVIGATED' });
+    expect(transition(state, { type: 'BACK' })).toMatchObject({ phase: 'analyzing', goal: 'turno', options: [] });
+  });
+
+  it('terminada la tarea, si la página cambió, «Volver un paso» la mira de nuevo; «hacer otra cosa» olvida el objetivo', () => {
+    let state = transition(started('buscar'), { type: 'SHOWN', elementId: 'el-1' });
+    state = transition(transition(state, done), done);
+    state = transition(transition(state, { type: 'REQUEST_NEXT' }), { type: 'NEXT', response: { steps: [], done: true } });
+    expect(state.phase).toBe('completed');
+    state = transition(state, { type: 'NAVIGATED' });
+    expect(state.optionsStale).toBe(true);
+    expect(transition(state, { type: 'BACK' }).phase).toBe('analyzing');
+    const another = transition(state, { type: 'ANALYZE', goal: null });
+    expect(another).toMatchObject({ phase: 'analyzing', options: [] });
+    expect(another.goal).toBeUndefined();
+  });
+
   it('sin opción elegida, una navegación reanaliza', () => {
     expect(transition(choosing(), { type: 'NAVIGATED' }).phase).toBe('analyzing');
   });
