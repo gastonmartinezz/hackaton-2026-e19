@@ -71,8 +71,10 @@ export function analyzePage(page: PageSummary, pageUrl: URL, host: HostInfo, aut
   };
   // Mismo sitio: mismo dominio registrable o la misma organización según las fuentes de autoridad.
   const sameSite = (hostname: string) => authority.sameOrganization(host.hostname, hostname);
-  // Organización dueña de la página, solo si una autoridad la respalda (sitio oficial).
-  const ownKeys = official ? authority.keys(host.hostname) : [];
+  // Organización dueña de la página, solo si una autoridad la respalda (sitio oficial). Sin la clave `gov:<país>`,
+  // que comparten todos los organismos del Estado: el MSP que nombra al BPS en un enlace a otro dominio sigue siendo
+  // sospechoso.
+  const ownKeys = official ? authority.keys(host.hostname).filter((key) => !key.startsWith('gov:')) : [];
 
   const sensitive = new Set<SensitiveKind>();
   const forms: PageAnalysis['forms'] = [];

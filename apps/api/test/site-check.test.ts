@@ -407,6 +407,14 @@ describe('POST /v1/site-check: reglas de contenido', () => {
     expect(codes(other)).toContain('LINK_TEXT_MISMATCH');
   });
 
+  it('en un sitio del Estado, un enlace que nombra a otro organismo y lleva a otro dominio sigue siendo sospechoso', async () => {
+    app = await testApp({ siteCheck: fakeProviders() });
+    const page = { ...emptyPage, links: [{ text: 'Banco de Previsión Social', href: 'https://bps-pagos.example.net/' }] };
+    const r = await check(contentRequest('https://www.msp.gub.uy/', page));
+    expect(r.identity).toMatchObject({ status: 'verified_official', basis: 'government_domain' });
+    expect(codes(r)).toContain('LINK_TEXT_MISMATCH');
+  });
+
   it('una amenaza en la línea siguiente a «Contraseña:» se detecta (el resumen se depura una sola vez)', async () => {
     app = await testApp({ siteCheck: fakeProviders() });
     const page = {
