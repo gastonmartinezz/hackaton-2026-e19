@@ -8,10 +8,11 @@
  *   busca solo, como «Guíame».
  * - Modo voz (02, 03, 10): al terminar de leer, se puede contestar hablando
  *   («Responder con la voz»).
+ * - Opciones rápidas (01): los sitios que más abre; tocar uno lo abre con ayuda.
  */
 import { BrandIcon, Button, Icon, LoadingDots } from '@asistente/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import type { AppState, CandidateView } from '../../shared/ipc';
+import type { AppState, CandidateView, FrequentSiteView } from '../../shared/ipc';
 import { SpeakButton } from './speech/SpeakButton';
 import { questionSpeech, recommendationSpeech, SPEECH_TEXTS } from './speech/speechText';
 import { send } from './useAppState';
@@ -91,6 +92,7 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
           Guíame
         </Button>
       ) : null}
+      {mode === 'search' && !busy ? <FrequentSites sites={state.frequentSites} /> : null}
       <VoiceMessages status={voice.status} />
       {busy ? (
         <p className="home-status" role="status">
@@ -112,6 +114,23 @@ export function Home({ state, onEditProfile }: { state: AppState; onEditProfile:
         </Button>
       ) : null}
     </main>
+  );
+}
+
+/** Los sitios que más abre, como opción rápida debajo del buscador. */
+export function FrequentSites({ sites }: { sites: FrequentSiteView[] }) {
+  if (sites.length === 0) return null;
+  return (
+    // TODO(copy): nombre de la lista y TODO(diseño): la pantalla llega después.
+    <ul className="home-sites" aria-label="Los sitios que más usás">
+      {sites.map((site) => (
+        <li key={site.origin}>
+          <button type="button" onClick={() => send({ type: 'openFrequentSite', origin: site.origin })}>
+            {site.domain}
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 

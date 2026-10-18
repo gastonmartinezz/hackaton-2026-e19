@@ -37,6 +37,7 @@ import { announcementText, CONTINUE_ACTION, siteCheckCopy } from '../shared/site
 import { ApiSession, type ApiClient } from './api/client';
 import { Assistant } from './assistant';
 import { Chat, UNSURE_ANSWER } from './chat';
+import { forgetHost, recordVisit, topSites } from './frequent-sites';
 import { HelpCardView } from './help-card';
 import { log } from './log';
 import { PageBridge } from './page-bridge';
@@ -114,6 +115,8 @@ export class AppController {
   #focusIndicator = 0;
   /** Hosts con «Posible estafa» o «Atención» en esta sesión: «Salir de este sitio» no vuelve a ellos. */
   readonly #riskyHosts = new Set<string>();
+  /** Último sitio contado como visita: andar por sus páginas no suma; volver a entrar desde el inicio, sí. */
+  #visitedOrigin: string | null = null;
   #notices: Array<Notice & { url?: string | undefined }> = [];
   #publishScheduled = false;
 
@@ -299,7 +302,11 @@ export class AppController {
     const highRisk = this.#protection.highRisk;
     const host = this.#protection.target?.hostname;
     const kind = this.#protection.snapshot.kind;
-    if (host && (kind === 'possible_scam' || kind === 'attention')) this.#riskyHosts.add(host);
+    if (host && (kind === 'possible_scam' || kind === 'attention')) {
+      this.#riskyHosts.add(host);
+      // Un sitio riesgoso no se ofrece como opción rápida.
+      this.#forgetSite(host);
+    }
     this.#assistant.setRiskHold(highRisk);
     this.#layout();
     this.#publish();
@@ -450,6 +457,10 @@ export class AppController {
       },
       notices: this.#notices.map(({ url: _url, ...notice }) => notice),
       siteCheck: this.#siteCheckView(),
+      frequentSites: topSites(this.options.prefs.value.frequentSites).map(({ origin }) => ({
+        origin,
+        domain: new URL(origin).hostname.replace(/^www\./, ''),
+      })),
     };
   }
 
@@ -496,7 +507,10 @@ export class AppController {
     site.on('navigationRedirected', ({ url }) => this.#protection.navigationStarted(url));
     site.on('navigated', ({ url, sameDocument }) => {
       if (sameDocument) this.#protection.routeChanged(url);
-      else this.#protection.pageLoaded(url);
+      else {
+        this.#protection.pageLoaded(url);
+        this.#countVisit(url);
+      }
       this.#assistant.navigated({ sameDocument, aiEnabled: this.#guideAllowed() });
     });
     site.on('loadFailed', () => {
@@ -536,6 +550,26 @@ export class AppController {
     };
     site.contents.on('input-event', closePanelOnClick);
     this.#card.contents.on('input-event', closePanelOnClick);
+  }
+
+  /** Suma una visita al sitio si es otro que el anterior. Solo sitios públicos; se guarda el origen, nunca la dirección completa. */
+  #countVisit(url: string): void {
+    const target = checkEligibility(url);
+    const origin = target.kind === 'eligible' ? sanitizeOrigin(target.url) : null;
+    if (!origin || origin === this.#visitedOrigin || this.#riskyHosts.has(new URL(origin).hostname)) return;
+    this.#visitedOrigin = origin;
+    this.options.prefs.update((current) => ({ frequentSites: recordVisit(current.frequentSites, origin, Date.now()) })).then(
+      () => this.#publish(),
+      () => log('prefs.error', { kind: 'kind:frequentSites' }),
+    );
+  }
+
+  #forgetSite(hostname: string): void {
+    if (!this.options.prefs.value.frequentSites.some((s) => new URL(s.origin).hostname === hostname)) return;
+    this.options.prefs.update((current) => ({ frequentSites: forgetHost(current.frequentSites, hostname) })).then(
+      () => this.#publish(),
+      () => log('prefs.error', { kind: 'kind:frequentSites' }),
+    );
   }
 
   /** Destino elegido en el chat: al cargar, la guía analiza la página con ese objetivo. */
@@ -702,6 +736,12 @@ export class AppController {
         this.#openDestination(candidate.url, command.guide ?? this.#wantGuide);
         return;
       }
+      case 'openFrequentSite': {
+        // Solo un origen de la lista guardada, nunca uno que mande el renderer. Se abre con ayuda, como «Guíame».
+        if (!topSites(this.options.prefs.value.frequentSites).some((s) => s.origin === command.origin)) return;
+        this.#openDestination(`${command.origin}/`, true);
+        return;
+      }
       case 'navigate': {
         const url = parseAddressInput(command.input);
         if (!url) {
@@ -739,6 +779,7 @@ export class AppController {
         this.#chat.reset();
         this.#wantGuide = true;
         this.#siteVisible = false;
+        this.#visitedOrigin = null;
         this.#protection.clear();
         this.#helpExited = false;
         this.#site.clear();

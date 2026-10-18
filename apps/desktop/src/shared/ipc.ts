@@ -120,6 +120,8 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   /** `dictated`: la búsqueda salió del dictado (prende el modo voz si la preferencia es `auto`). */
   z.strictObject({ type: z.literal('submitIntent'), text: z.string().trim().min(1).max(500), guide: z.boolean().optional(), dictated: z.literal(true).optional() }),
   z.strictObject({ type: z.literal('openCandidate'), candidateId: Id, guide: z.boolean().optional() }),
+  /** Opción rápida del inicio: uno de los sitios que más abre (el proceso principal lo busca en su lista). */
+  z.strictObject({ type: z.literal('openFrequentSite'), origin: z.string().min(1).max(300) }),
   z.strictObject({ type: z.literal('resetChat') }),
   z.strictObject({ type: z.literal('navigate'), input: z.string().trim().min(1).max(2048) }),
   /** Buscador de la barra: una dirección abre el sitio; cualquier otro texto vuelve al inicio con esa búsqueda. */
@@ -316,6 +318,15 @@ export interface AppState {
   };
   notices: Notice[];
   siteCheck: SiteCheckView;
+  /** Opciones rápidas del inicio: los sitios que más abre, el más usado primero. */
+  frequentSites: FrequentSiteView[];
+}
+
+export interface FrequentSiteView {
+  /** Lo que se manda en `openFrequentSite`. */
+  origin: string;
+  /** Host sin «www.», para mostrar. */
+  domain: string;
 }
 
 /** Protección de sitios: estado del indicador, panel y advertencia (textos ya resueltos). */
