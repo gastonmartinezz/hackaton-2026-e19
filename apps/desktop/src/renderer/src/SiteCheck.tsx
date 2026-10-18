@@ -95,7 +95,7 @@ function Details({ panel }: { panel: SiteCheckPanelCopy }) {
 
 /**
  * ¿Entra el indicador en la píldora «Estás en» sin cortar el dominio principal?
- * Mide el dominio (que nunca se corta), el resto de la píldora y un indicador
+ * Mide el dominio completo (aunque esté recortado), el resto de la píldora y un indicador
  * de prueba invisible; el ancho de la píldora no depende de su contenido, así
  * que la decisión no oscila.
  */

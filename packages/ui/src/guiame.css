@@ -408,7 +408,9 @@ select {
 }
 /*
  * La subdirección cede primero. Si el dominio principal no entra ni así, se
- * recorta el principio: la terminación (.gub.uy, .com.uy) siempre se ve.
+ * recorta el principio: la terminación (.gub.uy, .com.uy) siempre se ve. El
+ * texto va aislado en LTR (<bdi dir="ltr"> en TopBar.tsx): con `rtl` solo, un
+ * dominio que empieza con un número («3tienda.com») se mostraría desordenado.
  */
 .omni b {
   font-weight: var(--fw-semibold);

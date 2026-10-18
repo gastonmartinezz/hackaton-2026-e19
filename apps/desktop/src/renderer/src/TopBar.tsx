@@ -118,7 +118,9 @@ function Omni({ state, indicatorInline }: { state: AppState; indicatorInline: bo
           <span className="k-estas">Estás en</span>
           <span className="dom">
             {sub ? <span className="sub">{sub}</span> : null}
-            <b>{main}</b>
+            <b>
+              <bdi dir="ltr">{main}</bdi>
+            </b>
           </span>
         </button>
         {/*
