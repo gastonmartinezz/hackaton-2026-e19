@@ -392,7 +392,8 @@ export class AppController {
         {
           permission,
           mediaTypes: 'mediaTypes' in details ? details.mediaTypes : undefined,
-          fromWindow: contents === wc,
+          // La ventana (dictado) o la tarjeta (responder con la voz en 05); nunca el sitio.
+          fromOwnUi: contents === wc || contents === this.#card.contents,
           isMainFrame: details.isMainFrame,
           requestingUrl: details.requestingUrl,
         },
@@ -403,7 +404,7 @@ export class AppController {
     });
     wc.session.setPermissionCheckHandler((contents, permission, _origin, details) =>
       allowMicrophoneCheck(
-        { permission, mediaType: details.mediaType, fromWindow: contents === wc, isMainFrame: details.isMainFrame, requestingUrl: details.requestingUrl },
+        { permission, mediaType: details.mediaType, fromOwnUi: contents === wc || contents === this.#card.contents, isMainFrame: details.isMainFrame, requestingUrl: details.requestingUrl },
         rendererUrl,
       ),
     );
@@ -428,9 +429,8 @@ export class AppController {
 
   /** Dictado del buscador: solo desde la ventana (no la tarjeta) y con condiciones aceptadas. */
   async #onTranscribe(event: IpcMainInvokeEvent, raw: unknown): Promise<TranscribeResult> {
-    if (event.sender !== this.window.webContents || event.senderFrame !== event.sender.mainFrame || !this.#termsAccepted()) {
-      return { status: 'error', reason: 'failed' };
-    }
+    // Desde la ventana (dictado) o la tarjeta (responder con la voz qué opción se quiere).
+    if (!this.#isOwnUi(event) || !this.#termsAccepted()) return { status: 'error', reason: 'failed' };
     // El modo voz se prende recién cuando la búsqueda dictada se envía (submitIntent con `dictated`).
     return this.#transcriber.transcribe(raw);
   }

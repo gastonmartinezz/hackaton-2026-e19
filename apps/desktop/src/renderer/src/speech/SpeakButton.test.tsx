@@ -653,6 +653,36 @@ describe('systemSpeak: una lectura vieja nunca corta a una más nueva', () => {
   });
 });
 
+describe('onDone: para escuchar la respuesta después de leer', () => {
+  it('avisa `ended` cuando la lectura sonó completa', async () => {
+    const { deps, mp3 } = fakeDeps();
+    const onDone = vi.fn();
+    render(<SpeakButton text="Hola" deps={deps} auto onDone={onDone} />);
+    await flush();
+    expect(onDone).not.toHaveBeenCalled();
+    await act(async () => mp3.end());
+    expect(onDone).toHaveBeenCalledExactlyOnceWith('ended');
+  });
+
+  it('avisa `failed` si no se pudo leer (ocupado)', async () => {
+    const { deps } = fakeDeps({ status: 'error', reason: 'busy' });
+    const onDone = vi.fn();
+    render(<SpeakButton text="Hola" deps={deps} auto onDone={onDone} />);
+    await flush();
+    expect(onDone).toHaveBeenCalledExactlyOnceWith('failed');
+  });
+
+  it('no avisa si se cortó («Detener»): no se abre el micrófono', async () => {
+    const { deps } = fakeDeps();
+    const onDone = vi.fn();
+    render(<SpeakButton text="Hola" deps={deps} auto onDone={onDone} />);
+    await flush();
+    await click();
+    await flush();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+});
+
 describe('pickSpanishVoice', () => {
   const v = (lang: string, localService = true, name = lang) => ({ lang, localService, name });
 

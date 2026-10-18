@@ -9,6 +9,7 @@ import type { AppState, CardMode, OptionView } from '../../shared/ipc';
 import { Notices } from './Notices';
 import { SpeakButton } from './speech/SpeakButton';
 import { guideSpeech, optionsSpeech, stepSpeechKey } from './speech/speechText';
+import { VoiceAnswer, type VoiceChoice } from './voice/VoiceAnswer';
 import { send, useAppState } from './useAppState';
 
 /** Margen transparente de la vista para la sombra (CARD_SHADOW en main/help-card.ts). */
@@ -254,16 +255,26 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
 
 /** 05: hasta 3 opciones de la página. */
 function Options({ state, onMore }: { state: AppState; onMore: () => void }) {
-  const { primary } = state.guide;
+  const { primary, secondary } = state.guide;
+  // Modo voz: al terminar de leer las opciones, se puede contestar hablando.
+  const [readDone, setReadDone] = useState(0);
+  const choices: VoiceChoice[] = [
+    ...primary.map((o) => ({ label: o.title, run: () => send({ type: 'selectOption', optionId: o.id }) })),
+    { label: 'Ver otras opciones', kind: 'more', run: onMore },
+  ];
   return (
     <>
       <div>
         <div className="speak-row">
           <h2 className="title">¿Qué querés hacer acá?</h2>
           <SpeakButton
-            text={optionsSpeech(primary.map((o) => o.title))}
+            text={optionsSpeech(
+              primary.map((o) => o.title),
+              secondary.length > 0,
+            )}
             auto={state.voice.active}
             contentKey={`opciones:${state.guide.contentKey}`}
+            onDone={(outcome) => outcome === 'ended' && setReadDone((n) => n + 1)}
           />
         </div>
         <p className="lead-s">Encontré estas opciones en esta página.</p>
@@ -278,6 +289,7 @@ function Options({ state, onMore }: { state: AppState; onMore: () => void }) {
       <button type="button" className="linkish" onClick={onMore}>
         Ver otras opciones
       </button>
+      <VoiceAnswer choices={choices} active={state.voice.active} trigger={readDone} />
       <p className="panel-note">
         <Icon name="lock" />
         <span>Mostrame no recibe lo que escribís en la página.</span>
