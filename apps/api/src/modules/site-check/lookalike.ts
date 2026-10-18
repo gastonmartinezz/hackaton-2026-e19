@@ -79,6 +79,8 @@ export function lookalikeSignals(
   for (const zone of zones) {
     const parts = zone.suffix.split('.');
     if (parts.length < 2) continue; // .gov / .mil: demasiado genéricos como palabra
+    // El sufijo mismo (gob.ar) no se imita a sí mismo; su oficialidad la decide authority.
+    if (host.hostname === zone.suffix || domain === zone.suffix) continue;
     if (dotted.includes(`.${zone.suffix}.`)) {
       add('MISLEADING_SUBDOMAIN', zone.organization, `"${zone.suffix}" aparece antes del dominio real ${domain}`);
       continue;

@@ -47,13 +47,26 @@ export function checkEligibility(raw: string): Eligibility {
 }
 
 export function isLocalHostname(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/\.$/, '');
+  const host = canonicalHost(hostname.toLowerCase().replace(/\.$/, ''));
   if (host.startsWith('[')) return isLocalIpv6(host.slice(1, -1));
   const ipv4 = parseIpv4(host);
   if (ipv4) return isPrivateIpv4(ipv4);
   // Un nombre sin punto solo resuelve en una red interna.
   if (!host.includes('.')) return true;
   return LOCAL_SUFFIXES.some((suffix) => host === suffix || host.endsWith(`.${suffix}`));
+}
+
+/**
+ * Forma canónica del host según el parser WHATWG (el mismo que usa Chromium): 0177.0.0.1,
+ * 0x7f.0.0.1, 127.1 o 2130706433 pasan a 127.0.0.1. Si no se puede parsear, queda igual.
+ */
+function canonicalHost(host: string): string {
+  if (host.startsWith('[')) return host;
+  try {
+    return new URL(`http://${host}/`).hostname;
+  } catch {
+    return host;
+  }
 }
 
 function parseIpv4(host: string): number[] | null {

@@ -36,6 +36,8 @@ describe('fuentes de autoridad', () => {
     expect(view.official('evilanses.gobar.com')).toBeNull();
     expect(view.official('foo.gob.bo')).toBeNull(); // no se generaliza a cualquier gob.xx
     expect(view.official('gob.ar')).toBeNull();
+    // El sufijo de la zona no es oficial, pero tampoco un subdominio engañoso de sí mismo.
+    expect(signals('gob.ar')).toEqual([]);
   });
 
   it('padrón del BCRA: dominio registrable del sitio publicado por el regulador', () => {
@@ -199,6 +201,14 @@ describe('sanitización en el backend', () => {
     const text = redactText('Escribí a ana@mail.com, tu CBU 0110599520000001234567 y token abc123def456. Ver https://banco.com/x?dni=1', 200);
     expect(text).not.toMatch(/ana@mail|0110599520000001234567|abc123def456|dni=/);
     expect(text).toContain('banco.com');
+  });
+
+  it('oculta el valor que sigue a una palabra de credencial, aunque sean solo letras', () => {
+    const text = redactText('Usuario: marta\nContraseña: gatito\nMi clave es perro azul\ntoken=xyz', 200);
+    expect(text).not.toMatch(/gatito|perro|xyz/);
+    expect(text).toContain('marta');
+    // Un pedido no es un secreto.
+    expect(redactText('Olvidé mi contraseña del banco', 200)).toContain('del banco');
   });
 });
 

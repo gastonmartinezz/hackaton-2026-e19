@@ -64,4 +64,12 @@ describe('registrableDomain', () => {
     expect(isLocalHostname('es.wikipedia.org')).toBe(false);
     expect(isLocalHostname('8.8.8.8')).toBe(false);
   });
+
+  it('reconoce IPv4 locales escritas en forma no canónica (octal, hexadecimal, abreviada)', () => {
+    for (const host of ['0177.0.0.1', '0x7f.0.0.1', '127.1', '0x7f000001', '10.1', '0300.0250.0.1']) {
+      expect(isLocalHostname(host), host).toBe(true);
+      expect(checkEligibility(`http://${host}/`).kind, host).toBe('local');
+    }
+    expect(isLocalHostname('0x08.0x08.0x08.0x08')).toBe(false);
+  });
 });

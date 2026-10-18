@@ -29,6 +29,8 @@ describe('SiteCheckRequest.json', () => {
     ['fase de dirección con page', { ...address, page }, false],
     ['fase de contenido con page', { ...address, contentVersion: 1, page }, true],
     ['fase de contenido sin page', { ...address, contentVersion: 1 }, false],
+    ['URL con javascript:', { ...address, url: 'javascript:alert(1)' }, false],
+    ['enlace con file:', { ...address, contentVersion: 1, page: { ...page, links: [{ text: 'Abrir', href: 'file:///etc/passwd' }] } }, false],
   ]);
 });
 

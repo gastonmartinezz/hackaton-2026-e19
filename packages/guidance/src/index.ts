@@ -253,7 +253,7 @@ const DATA_ROLES: ReadonlySet<string> = new Set(['textbox', 'searchbox', 'combob
 
 /** Verbos y datos que invitan a ingresar información o confirmar una operación (sin tildes). */
 const SENSITIVE_INSTRUCTION =
-  /\b(escrib|complet|ingres|introduc|anot|carg|pone|tipe|confirm|acept|autoriz|valid|firm|pag(?:ar|a|as|o|os|ue|ues|uen)\b|abon|transfer|envi|compr|suscrib|registr|inicia r? ?sesion|clave|contrasen|codigo|token|pin\b|tarjeta|cvv|cbu|cvu|alias|dni|documento|password|sign in|log ?in|pay|submit|enter)/;
+  /\b(escrib|complet|ingres|introduc|anot|carg|pone|tipe|confirm|acept|autoriz|valid|firm|pag(?:ar|a|as|o|os|ue|ues|uen)\b|abon|transfer|envi|compr|suscrib|registr|inici(?:a|ar|e)? ?sesion|clave|contrasen|codigo|token|pin\b|tarjeta|cvv|cbu|cvu|alias|dni|documento|password|sign in|log ?in|pay|submit|enter)/;
 
 /**
  * Indica si un paso invita a ingresar datos o confirmar una operación. Ante un

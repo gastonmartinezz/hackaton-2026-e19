@@ -142,6 +142,9 @@ describe('isSensitiveStep', () => {
   it('pausa indicaciones que piden datos o confirmar operaciones', () => {
     expect(isSensitiveStep(s('Escribí tu número de documento.'))).toBe(true);
     expect(isSensitiveStep(s('Ingresá tu clave.'))).toBe(true);
+    expect(isSensitiveStep(s('Iniciar sesión con tu usuario.'))).toBe(true);
+    expect(isSensitiveStep(s('Iniciá sesión.'))).toBe(true);
+    expect(isSensitiveStep(s('Inicie sesión para continuar.'))).toBe(true);
     expect(isSensitiveStep(s('Hacé clic en «Confirmar transferencia».'))).toBe(true);
     expect(isSensitiveStep(s('Tocá «Pagar».'))).toBe(true);
     expect(isSensitiveStep(s('Iniciá sesión con tu usuario.'))).toBe(true);

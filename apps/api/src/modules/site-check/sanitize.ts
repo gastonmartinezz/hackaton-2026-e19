@@ -58,6 +58,20 @@ const urlToHost = (match: string) => {
   }
 };
 
+/**
+ * Valor que sigue a una palabra de credencial («clave: x», «mi contraseña es x», «token=xyz»).
+ * Mismo criterio que `@asistente/privacy` (que no se puede importar desde el build de la API):
+ * se oculta el resto de la línea, porque no hay forma de saber dónde termina el secreto. El
+ * navegador manda el texto por líneas, así que la segunda pasada es idempotente.
+ */
+const CREDENTIAL = String.raw`contraseñas?|claves?(?: fiscal(?:es)?)?|passwords?|passwd|tokens?|api[ _-]?keys?|pins?`;
+const WORD_START = String.raw`(?<![\p{L}\p{N}_])`;
+const WORD_END = String.raw`(?![\p{L}\p{N}_])`;
+const CREDENTIAL_VALUE = new RegExp(
+  String.raw`${WORD_START}(${CREDENTIAL})${WORD_END}([^\S\n]*(?::|=|${WORD_START}(?:es|son|is|are)${WORD_END})[^\S\n]*)[^\n]*\S`,
+  'giu',
+);
+
 const TEXT_PATTERNS: ReadonlyArray<readonly [RegExp, string | ((match: string) => string)]> = [
   [/\b(?:https?:\/\/|www\.)[^\s<>"']+/gi, urlToHost],
   [/[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu, '[correo]'],
@@ -67,6 +81,7 @@ const TEXT_PATTERNS: ReadonlyArray<readonly [RegExp, string | ((match: string) =
 /** Texto sin correos, URLs completas, tokens ni números largos (documentos, tarjetas, CBU, teléfonos). */
 export function redactText(input: string, maxLength: number): string {
   let text = input.normalize('NFC').replace(/[­​-‏‪-‮⁠-⁯﻿]/g, '');
+  text = text.replace(CREDENTIAL_VALUE, '$1$2[dato]');
   for (const [pattern, replacement] of TEXT_PATTERNS) text = text.replace(pattern, replacement as (match: string) => string);
   text = text.replace(/(?:\+\s?)?\d(?:[\d\s().\-/]*\d)?/g, (match) => (match.replace(/\D/g, '').length >= 5 ? '[número]' : match));
   text = text.replace(/\s+/g, ' ').trim();

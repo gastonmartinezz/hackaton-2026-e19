@@ -60,7 +60,8 @@
             },
             "url": {
               "type": "string",
-              "format": "uri"
+              "format": "uri",
+              "pattern": "^https?://"
             },
             "reviewedAt": {
               "type": "string",

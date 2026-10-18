@@ -23,7 +23,17 @@ const outDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'schemas', 'v
 await mkdir(outDir, { recursive: true });
 
 for (const [name, schema] of Object.entries(exported)) {
-  const json = withCrossFieldRules(name, z.toJSONSchema(schema, { target: 'draft-2020-12', io: 'input' }) as Record<string, unknown>);
+  const json = withCrossFieldRules(
+    name,
+    z.toJSONSchema(schema, {
+      target: 'draft-2020-12',
+      io: 'input',
+      // `format: uri` acepta cualquier esquema (javascript:, file:); WebUrl solo admite http(s).
+      override: (ctx) => {
+        if (ctx.zodSchema === contracts.WebUrl) ctx.jsonSchema.pattern = '^https?://';
+      },
+    }) as Record<string, unknown>,
+  );
   await writeFile(join(outDir, `${name}.json`), `${JSON.stringify({ title: name, ...json }, null, 2)}\n`);
 }
 
