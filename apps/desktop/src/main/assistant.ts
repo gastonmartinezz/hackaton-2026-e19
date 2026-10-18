@@ -19,6 +19,7 @@ import {
   evaluateObservation,
   expectedStep,
   initialState,
+  isIrreversibleAction,
   isSensitiveField,
   isSensitiveStep,
   type InteractionKind,
@@ -31,7 +32,7 @@ import {
 import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession } from './api/client';
 import { pastTense } from './done-steps';
 import { log } from './log';
-import type { FillResult, TargetRect } from '../shared/ipc';
+import type { ClickResult, FillResult, TargetRect } from '../shared/ipc';
 import type { ExtractedPage, ShownTarget } from './page-bridge';
 
 export interface PagePort {
@@ -41,6 +42,8 @@ export interface PagePort {
   fill(navigationId: string, elementId: string, value: string): Promise<FillResult>;
   /** Pone el cursor en el lugar para que la persona escriba. */
   focus(navigationId: string, elementId: string): void;
+  /** Toca el botón señalado, después de que la persona lo confirmó. */
+  click(navigationId: string, elementId: string): Promise<ClickResult>;
   clear(): void;
   cancelPending(): void;
 }
@@ -87,6 +90,8 @@ export class Assistant {
   announceKey = 0;
   /** Dato del formulario que pide el paso actual (sin el valor). */
   ask: { question: string; mode: 'dictate' | 'type'; filled: boolean } | null = null;
+  /** Guíame puede tocar el botón señalado si la persona lo confirma (ver #canOfferClick). */
+  offerClick = false;
   /** Después de un clic: se espera un instante por si la página cambia antes de mostrar el paso siguiente. */
   settling = false;
   /**
@@ -205,6 +210,24 @@ export class Assistant {
     return result;
   }
 
+  /**
+   * La persona confirmó que Guíame toque el botón señalado. El clic llega al
+   * sitio como uno de ella: el paso avanza por el camino de siempre.
+   */
+  async clickForMe(): Promise<ClickResult | 'notAllowed'> {
+    const { phase, step } = this.state;
+    const elementId = step?.targetElementId;
+    if (phase !== 'waitingForUser' || !step || !elementId || !this.offerClick || this.paused || this.settling || this.#riskHold) return 'notAllowed';
+    const result = await this.deps.page.click(this.#navigationId, elementId);
+    log('guide.clicked_for_user', { result: `code:${result}` });
+    if (result !== 'clicked' && this.state.step === step) {
+      // El sitio cambió o el preload no lo consideró seguro: lo toca la persona.
+      this.offerClick = false;
+      this.deps.onChange();
+    }
+    return result;
+  }
+
   /** «Lo escribo yo» (o un dato sensible): se deja de dictar y el cursor queda en el lugar. */
   typeMyself(): void {
     const elementId = this.state.step?.targetElementId;
@@ -308,6 +331,7 @@ export class Assistant {
     this.settling = false;
     this.#heldObservations = [];
     this.ask = null;
+    this.offerClick = false;
     if (next.phase !== 'waitingForUser') {
       this.targetVisible = null;
       this.target = null;
@@ -481,6 +505,7 @@ export class Assistant {
     if (!step) return;
     const generation = ++this.#showGeneration;
     this.ask = null;
+    this.offerClick = false;
     this.paused = this.#riskHold && isSensitiveStep(step, this.#targetOf(step.element));
     if (this.paused) {
       // No se señala ni se espera la acción: la persona decide desde el panel.
@@ -499,7 +524,7 @@ export class Assistant {
       this.deps.onChange();
       return;
     }
-    const { result, elementId, rect, field, fillable, sensitive } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
+    const { result, elementId, rect, field, fillable, sensitive, clickable } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
     // Otra invocación posterior (por ejemplo, la pausa por riesgo alto) ya decidió qué mostrar.
     if (epoch !== this.#epoch || generation !== this.#showGeneration) return;
     // Sin ID local no se puede verificar la interacción: se trata como no señalado.
@@ -510,6 +535,7 @@ export class Assistant {
       this.#unshown = 0;
       this.#dispatch({ type: 'SHOWN', elementId, field });
       this.ask = this.#askFor(step, elementId, { fillable: fillable ?? false, sensitive: sensitive ?? false });
+      this.offerClick = this.#canOfferClick(step, clickable ?? false);
       this.deps.onChange();
       // Lo que la persona ya hizo sobre este control mientras se esperaba cuenta ahora.
       const held = this.#heldObservations.filter((o) => o.kind === 'interaction' || o.kind === 'validationError');
@@ -539,6 +565,16 @@ export class Assistant {
       return { question: step.field.question, mode: 'type', filled: false };
     }
     return local.fillable ? { question: step.field.question, mode: 'dictate', filled: false } : null;
+  }
+
+  /**
+   * Se ofrece tocar el botón por la persona solo si la IA lo marcó seguro, es un
+   * botón o enlace de verdad, no pide un dato, no dice pagar, comprar, borrar o
+   * algo irreversible, y la página no tiene riesgo alto.
+   */
+  #canOfferClick(step: GuideStep, clickable: boolean): boolean {
+    if (!step.safeToClick || !clickable || step.field || step.waitFor === 'userConfirmation' || this.#riskHold) return false;
+    return !isIrreversibleAction(step.instruction, this.#targetOf(step.element)?.label);
   }
 
   /** Rol del destino según el snapshot local (solo selectores `#el-N`). */

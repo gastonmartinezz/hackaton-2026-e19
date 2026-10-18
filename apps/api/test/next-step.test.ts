@@ -71,11 +71,23 @@ describe('toGuideSteps', () => {
     const field = { question: '¿Cuál es tu correo?', sensitive: false };
     expect(
       toGuideSteps([
-        { ...step, field: null },
-        { ...step, element: '#el-2', field },
-        { ...step, element: null, field },
+        { ...step, field: null, safeToClick: false },
+        { ...step, element: '#el-2', field, safeToClick: false },
+        { ...step, element: null, field, safeToClick: false },
       ]),
     ).toEqual([step, { ...step, element: '#el-2', field }, { ...step, element: null }]);
+  });
+
+  it('safeToClick solo queda si es true, en un paso real y sin dato', () => {
+    const field = { question: '¿Cuál es tu correo?', sensitive: false };
+    expect(
+      toGuideSteps([
+        { ...step, field: null, safeToClick: true },
+        { ...step, field: null, safeToClick: false },
+        { ...step, element: null, field: null, safeToClick: true },
+        { ...step, element: '#el-2', field, safeToClick: true },
+      ]),
+    ).toEqual([{ ...step, safeToClick: true }, step, { ...step, element: null }, { ...step, element: '#el-2', field }]);
   });
 });
 

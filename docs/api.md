@@ -225,6 +225,10 @@ Al terminar:
   - Con `GUIDE_WEB_SEARCH=off`, el paso a paso se arma con lo que Claude ya sabe, sin buscar.
   - Si la investigación falla por un motivo pasajero o del modelo (`AI_UNAVAILABLE`, `TIMEOUT`, `RATE_LIMITED`, `AI_INVALID_RESPONSE`, `AI_REFUSED`), se guía igual sin ella y se vuelve a intentar en la llamada siguiente.
 - **`field`** (opcional) aparece solo en los pasos que piden un dato de un formulario. `element` apunta a ese lugar. No aparece en pasos teóricos.
+- **`safeToClick: true`** (opcional) marca un botón o enlace seguro para que Guíame lo toque por la persona cuando ella lo confirma: seguir, continuar, confirmar un paso intermedio, abrir una sección.
+  - Nunca aparece en pagos, compras, transferencias, firmas, bajas, borrados, inicio de sesión, aceptar condiciones ni en pasos de datos o teóricos.
+  - Si falta, el botón lo toca la persona.
+  - El front además tiene su propia barrera para acciones irreversibles.
   - **`question`:** la pregunta para decir en voz alta («¿Cuál es tu correo electrónico?»).
   - **`sensitive: false`:** la persona puede dictar el dato. El front lo escribe en el campo y le pide que lo revise.
   - **`sensitive: true`:** contraseña o clave, PIN, códigos de verificación, tarjeta, datos bancarios, cédula o documento. El front no pregunta el valor: pone el cursor en el lugar y la persona lo escribe. En este caso `question` dice que lo escribe la persona.

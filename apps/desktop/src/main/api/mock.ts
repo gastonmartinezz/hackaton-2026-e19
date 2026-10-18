@@ -7,7 +7,7 @@
  * también tiene modo mock con AI_PROVIDER=mock).
  */
 import { randomUUID } from 'node:crypto';
-import { isSensitiveField } from '@asistente/guidance';
+import { isIrreversibleAction, isSensitiveField } from '@asistente/guidance';
 import type {
   GuideStep,
   InterpretRequest,
@@ -310,6 +310,12 @@ const step = (element: MockElement, instruction: string, waitFor: GuideStep['wai
   waitFor,
 });
 
+/** Un botón o enlace: el simulador lo marca seguro para tocarlo por la persona, salvo que diga pagar, comprar o borrar. */
+function clickStep(element: MockElement, instruction: string, waitFor: GuideStep['waitFor']): GuideStep {
+  const base = step(element, instruction, waitFor);
+  return isIrreversibleAction(element.label) ? base : { ...base, safeToClick: true };
+}
+
 /** Un dato del formulario: se pregunta en voz alta; si es sensible, lo escribe la persona. */
 function fieldStep(field: MockElement): GuideStep {
   const name = field.label || 'este dato';
@@ -336,7 +342,7 @@ function buildOptions(page: MockElement[]): PageOption[] {
   if (search) {
     const button = enabled.find((e) => CLICKABLE(e) && e.parent === search.parent);
     const steps = [step(search, `Escribí lo que buscás en «${search.label || 'Buscar'}».`, 'userInteraction')];
-    if (button) steps.push(step(button, `Ahora hacé clic en «${button.label}».`, 'userInteraction'));
+    if (button) steps.push(clickStep(button, `Ahora hacé clic en «${button.label}».`, 'userInteraction'));
     options.push({ id: `search-${search.id}`, title: 'Buscar en este sitio', steps: [...steps, check('Revisá los resultados.')] });
   }
 
@@ -345,7 +351,7 @@ function buildOptions(page: MockElement[]): PageOption[] {
     const submit = enabled.find((e) => e.parent === form.id && CLICKABLE(e));
     if (fields.length < 2) continue;
     const steps = fields.map(fieldStep);
-    if (submit) steps.push(step(submit, `Cuando esté todo, hacé clic en «${submit.label}».`, 'navigation'));
+    if (submit) steps.push(clickStep(submit, `Cuando esté todo, hacé clic en «${submit.label}».`, 'navigation'));
     options.push({ id: `form-${form.id}`, title: `Completar: ${form.label || 'formulario'}`.slice(0, 120), steps: [...steps, check('Revisá el mensaje de confirmación.')].slice(0, 15) });
   }
 
@@ -353,7 +359,7 @@ function buildOptions(page: MockElement[]): PageOption[] {
     options.push({
       id: `go-${link.id}`,
       title: `Ir a «${link.label}»`.slice(0, 120),
-      steps: [step(link, `Hacé clic en «${link.label}».`, 'navigation'), check('Revisá la página que se abrió.')],
+      steps: [clickStep(link, `Hacé clic en «${link.label}».`, 'navigation'), check('Revisá la página que se abrió.')],
     });
   }
   return options.slice(0, 10);

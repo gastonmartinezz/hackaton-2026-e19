@@ -26,6 +26,7 @@ const STEPS = `Formato de cada step:
 - presentation: "scrollAndHighlight" si el lugar puede quedar fuera de la vista (por ejemplo, más abajo en la página); si no, "highlight".
 - waitFor: "userInteraction" para un clic en la misma página, "navigation" si el clic lleva a otra página, "userConfirmation" cuando la persona tiene que avisar que terminó (por ejemplo, después de completar un dato).
 - field: null, salvo en los pasos de datos de un formulario (ver abajo).
+- safeToClick: si la persona lo confirma, Guíame puede tocar el botón o enlace por ella. true solo en un botón o enlace que avanza sin consecuencias que no se puedan deshacer: «Continuar», «Siguiente», «Seguir», «Confirmar» o «Aceptar» en un paso intermedio, abrir una sección, un menú o un enlace del sitio, «Buscar». false en todo lo demás: pagar, comprar, confirmar una compra o un pago, transferir, firmar, dar de baja, eliminar o cancelar algo, suscribirse, iniciar sesión, aceptar condiciones, enviar datos personales por primera vez en un trámite que no se puede revisar después, y los pasos de datos (con field). Ante la duda, false.
 
 Formularios (el HTML nunca trae lo que la persona escribió):
 - Guiá por cada dato a completar, no por el título. Un paso por cada lugar para escribir o elegir (input, textarea, select), en el orden en que aparecen. element es ese lugar, nunca el título ni el formulario entero.

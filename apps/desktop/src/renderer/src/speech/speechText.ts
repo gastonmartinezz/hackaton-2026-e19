@@ -25,6 +25,8 @@ export const SPEECH_TEXTS = {
   /** Visibles en la tarjeta o el inicio (se copian para leerlos igual). */
   /** Privacidad al escribir (R10, 08). */
   fieldNote: 'Lo escribís vos. Yo no lo veo ni lo guardo.',
+  /** Guíame puede tocar el botón señalado si la persona lo confirma. */
+  clickOffer: 'Si querés, lo toco yo.',
   completed: 'Listo.',
   didYouFinish: '¿Pudiste terminar? No vi una confirmación en la página.',
   /** Respuesta de duda (R11): también es lo que se le manda al asistente. */
@@ -48,10 +50,10 @@ export function listSpeech(items: string[]): string {
 }
 
 /** Tarjeta flotante: la instrucción actual (06, 08), «Listo» sin la cita (09) o «¿Pudiste terminar?» (16). */
-export function guideSpeech(guide: Pick<AppState['guide'], 'phase' | 'instruction' | 'targetField' | 'evidence'>): string {
+export function guideSpeech(guide: Pick<AppState['guide'], 'phase' | 'instruction' | 'targetField' | 'evidence'> & { offerClick?: boolean }): string {
   switch (guide.phase) {
     case 'waitingForUser':
-      return guide.instruction ? joinSpeech(guide.instruction, guide.targetField && SPEECH_TEXTS.fieldNote) : '';
+      return guide.instruction ? joinSpeech(guide.instruction, guide.targetField && SPEECH_TEXTS.fieldNote, guide.offerClick && SPEECH_TEXTS.clickOffer) : '';
     case 'completed':
       // La evidencia es una cita textual de la página: no se manda a leer.
       return guide.evidence ? joinSpeech(SPEECH_TEXTS.completed) : joinSpeech(SPEECH_TEXTS.didYouFinish);
