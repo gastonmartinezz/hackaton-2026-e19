@@ -9,3 +9,5 @@ coverage/
 .idea/
 out/
 release/
+# Caché local de modelos de voz a texto (STT_MODEL_DIR).
+.models/

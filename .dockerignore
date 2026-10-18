@@ -1,0 +1,26 @@
+# Contexto de apps/api/Dockerfile (raíz del monorepo). Solo entra lo que la API necesita para compilar.
+**/node_modules
+**/dist
+**/out
+**/release
+**/coverage
+**/.models
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+**/.DS_Store
+.git
+.github
+.claude
+.idea
+design
+docs
+deploy
+tests
+scripts
+*.md
+
+# Del cliente de escritorio solo hace falta el package.json (pnpm valida el lockfile del workspace).
+apps/desktop/**
+!apps/desktop/package.json
