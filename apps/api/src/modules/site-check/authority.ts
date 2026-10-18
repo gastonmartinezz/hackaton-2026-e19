@@ -177,6 +177,11 @@ export class AuthorityView {
     return this.keys(b).some((key) => keys.has(key));
   }
 
+  /** El nombre, sin tildes, espacios ni guiones, es una palabra de uso corriente (data/common-words.json). */
+  private commonWord(name: string): boolean {
+    return this.sources.commonWords.has(normalizeName(name).replace(/[^a-z0-9]/g, ''));
+  }
+
   /** Organizaciones que el texto dice ser (marca declarada, texto de un enlace u organización extraída por la IA). */
   claims(text: string, hint?: ClaimHint): Claim[] {
     const found: Claim[] = [];
@@ -191,15 +196,17 @@ export class AuthorityView {
       const country = hint.country.toUpperCase();
       if (this.sources.zones.some((z) => z.country === country)) found.push({ organization: text.slice(0, 120), keys: [`gov:${country}`], via: 'government_domain' });
     }
-    // Catálogos curados.
+    const declared = coreTokens(text);
+    const financial = FINANCIAL_WORDS.test(normalizeName(text)) || hint?.kind === 'financial_entity';
+    // Catálogos curados. Un alias que es una palabra de uso corriente («Verde», «ASI», «correo», «Universal») solo
+    // cuenta con una palabra financiera o la pista de la IA, como los nombres de fantasía del BCU: si no, un enlace
+    // «Así funciona» o «Mi correo» se tomaría como la entidad. Los demás alias («Correo Uruguayo») alcanzan solos.
     for (const entry of this.sources.entries) {
-      if (organizationAliases(entry.organization, entry.id).some((alias) => containsName(text, alias))) {
+      if (organizationAliases(entry.organization, entry.id).some((alias) => containsName(text, alias) && (financial || !this.commonWord(alias)))) {
         found.push({ organization: entry.organization, keys: [`catalog:${entry.id}`], via: 'official_catalog' });
       }
     }
     // Registro del BCU: razón social («BANCO ITAU URUGUAY S.A.») o nombre de fantasía («OCA Card», «Prex»).
-    const declared = coreTokens(text);
-    const financial = FINANCIAL_WORDS.test(normalizeName(text)) || hint?.kind === 'financial_entity';
     const matches = this.institutions.filter((institution) =>
       [institution.name, institution.tradeName ?? ''].some((name) => {
         const all = coreTokens(name);
@@ -220,16 +227,20 @@ export class AuthorityView {
     return found;
   }
 
-  /** Referencias para dominios parecidos: registro del BCU (también viejo), catálogos y populares. */
+  /**
+   * Referencias para dominios parecidos: registro del BCU (también viejo), catálogos y populares. Las que tienen
+   * por nombre una palabra de uso corriente («correo», «delta», «verde») van marcadas: solo se comparan por el
+   * dominio completo y el aspecto (ver lookalike.ts).
+   */
   references(): Reference[] {
     const refs: Reference[] = [];
     const push = (domain: string, organization: string, kind: Reference['kind']) => {
       const host = describeHost(domain);
-      if (host.registrableDomain && host.label) refs.push({ domain: host.registrableDomain, label: host.label, organization, kind });
+      if (host.registrableDomain && host.label) refs.push({ domain: host.registrableDomain, label: host.label, organization, kind, commonWord: this.commonWord(host.label) });
     };
     for (const institution of this.institutions) for (const domain of institution.domains) push(domain, this.institutionName(institution), 'financial_regulator');
     for (const entry of this.sources.entries) for (const d of entry.domains) push(d.domain, entry.organization, 'official_catalog');
-    refs.push(...this.popular);
+    refs.push(...this.popular.map((ref) => ({ ...ref, commonWord: this.commonWord(ref.label) })));
     return refs;
   }
 

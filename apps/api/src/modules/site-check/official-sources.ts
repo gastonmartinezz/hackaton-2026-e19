@@ -11,6 +11,9 @@ import { describeHost, hostMatches } from './domain.js';
  * - `official-sites.<país>.json`: catálogos curados con fuente y fecha de revisión por entrada
  *   (por ejemplo, Uruguay). Sus `zones` también cuentan como zonas de gobierno, y sus `discarded`
  *   (dominios revisados a mano y descartados, con el motivo) no los aprueba el registro del BCU.
+ * - `common-words.json`: palabras de uso corriente («correo», «verde», «delta»). No es una fuente de
+ *   autoridad sino una heurística de dominios parecidos: una referencia con ese nombre solo se compara
+ *   por su dominio completo o su aspecto (ver lookalike.ts).
  * Un archivo inválido detiene el arranque: nunca se usa un catálogo a medias.
  */
 
@@ -84,6 +87,13 @@ const CatalogFile = z.object({
   discarded: z.array(z.unknown()).default([]),
 });
 
+const CommonWordsFile = z.strictObject({
+  version: z.string().min(1),
+  note: z.string().optional(),
+  /** Como etiqueta de dominio: minúsculas, sin tildes, espacios ni guiones. */
+  words: z.array(z.string().regex(/^[a-z0-9]+$/)).min(1),
+});
+
 /** Descarte con dominio: el texto puede traer varios («a.com.uy, b.uy») o ninguno («-»). */
 const Discarded = z.object({ domain: z.string(), reason: z.string().optional() });
 
@@ -129,6 +139,8 @@ export interface OfficialSources {
    * verificar…), con el motivo. Lo revisado a mano manda: el registro del BCU no los aprueba.
    */
   discarded: Map<string, string>;
+  /** Palabras de uso corriente (heurística de dominios parecidos, no fuente de autoridad). */
+  commonWords: Set<string>;
   /** Versiones cargadas, para la evidencia ("government-zones 2026-10-17.1", "official-sites.uy …"). */
   versions: string[];
 }
@@ -144,12 +156,16 @@ function describeError(file: string, error: unknown): Error {
 }
 
 /**
- * Carga zonas y catálogos. Por defecto, `government-zones.json` y todos los `official-sites.*.json`
- * de `data/`. Lanza si alguno es inválido o si un dominio aparece en dos entradas.
+ * Carga zonas, catálogos y palabras comunes. Por defecto, `government-zones.json`, todos los
+ * `official-sites.*.json` y `common-words.json` de `data/`. Lanza si alguno es inválido o si un
+ * dominio aparece en dos entradas.
  */
-export function loadOfficialSources(options: { dataDir?: string; zonesFile?: string; catalogFiles?: string[] } = {}): OfficialSources {
+export function loadOfficialSources(
+  options: { dataDir?: string; zonesFile?: string; catalogFiles?: string[]; commonWordsFile?: string } = {},
+): OfficialSources {
   const dataDir = options.dataDir ?? DATA_DIR;
   const zonesPath = options.zonesFile ?? join(dataDir, 'government-zones.json');
+  const commonWordsPath = options.commonWordsFile ?? join(dataDir, 'common-words.json');
   const catalogPaths =
     options.catalogFiles ??
     readdirSync(dataDir)
@@ -157,7 +173,7 @@ export function loadOfficialSources(options: { dataDir?: string; zonesFile?: str
       .sort()
       .map((name) => join(dataDir, name));
 
-  const sources: OfficialSources = { zones: [], entries: [], claims: [], discarded: new Map(), versions: [] };
+  const sources: OfficialSources = { zones: [], entries: [], claims: [], discarded: new Map(), commonWords: new Set(), versions: [] };
 
   try {
     const zones = ZonesFile.parse(readJson(zonesPath));
@@ -167,6 +183,12 @@ export function loadOfficialSources(options: { dataDir?: string; zonesFile?: str
     sources.claims.push(...zones.claims.map(({ country, organization, names, contextNames, context }) => ({ country, organization, names, contextNames, context })));
   } catch (error) {
     throw describeError(zonesPath, error);
+  }
+
+  try {
+    sources.commonWords = new Set(CommonWordsFile.parse(readJson(commonWordsPath)).words);
+  } catch (error) {
+    throw describeError(commonWordsPath, error);
   }
 
   for (const path of catalogPaths) {

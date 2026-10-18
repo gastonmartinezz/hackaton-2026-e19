@@ -18,12 +18,16 @@ const registry = (fetchImpl = fakeRdapFetch().impl, now?: () => number, extra: P
   new BcuRegistry({ enabled: true, fetchImpl, requestTimeoutMs: 1000, refreshAfterMs: 24 * HOUR, validForMs: 48 * HOUR, usableForMs: 168 * HOUR, retryAfterMs: 0, now, ...extra });
 
 let view: AuthorityView;
+/** Con el catálogo real de data/ (Udelar, Claro, Universal…), para las palabras comunes. */
+let realView: AuthorityView;
 beforeAll(async () => {
-  view = new AuthorityView(loadOfficialSources({ catalogFiles: TEST_CATALOGS }), await registry().state(1000), []);
+  const state = await registry().state(1000);
+  view = new AuthorityView(loadOfficialSources({ catalogFiles: TEST_CATALOGS }), state, []);
+  realView = new AuthorityView(loadOfficialSources(), state, []);
 });
 
-const signals = (hostname: string) =>
-  lookalikeSignals(describeHost(hostname), view.references(), view.zoneReferences()).map((s) => [s.code, s.organization]);
+const signals = (hostname: string, authority = view) =>
+  lookalikeSignals(describeHost(hostname), authority.references(), authority.zoneReferences()).map((s) => [s.code, s.organization]);
 
 describe('fuentes de autoridad', () => {
   it('zona de gobierno por límites de dominio, nunca por sufijo de texto', () => {
@@ -115,7 +119,7 @@ describe('fuentes de autoridad', () => {
     expect(reviewed.official('www.itau.com.uy')?.basis).toBe('financial_regulator');
     expect(reviewed.official('www.antel.com.uy')?.basis).toBe('official_catalog');
     // Sigue siendo referencia de dominios parecidos.
-    expect(lookalikeSignals(describeHost('cash-login.com.uy'), reviewed.references(), []).map((s) => s.code)).toContain('LOOKALIKE_DOMAIN');
+    expect(lookalikeSignals(describeHost('credisol-login.com.uy'), reviewed.references(), []).map((s) => s.code)).toContain('LOOKALIKE_DOMAIN');
   });
 
   it('catálogo curado con fuente y fecha por entrada; alcance exact', () => {
@@ -135,6 +139,10 @@ describe('fuentes de autoridad', () => {
     const entry = (id: string) => ({ id, organization: id, category: 'x', domains: [{ domain: 'x.com.uy', scope: 'exact' }], source: 's', sourceType: 't', reviewedAt: '2026-10-17' });
     writeFileSync(dup, JSON.stringify({ version: '1', country: 'UY', reviewedAt: '2026-10-17', entries: [entry('a'), entry('b')] }));
     expect(() => loadOfficialSources({ catalogFiles: [dup] })).toThrow(/x\.com\.uy/);
+    // Las palabras comunes se escriben como etiqueta de dominio: sin mayúsculas, tildes ni espacios.
+    const words = join(tmpdir(), `common-words.bad-${process.pid}.json`);
+    writeFileSync(words, JSON.stringify({ version: '1', words: ['Correo Uruguayo'] }));
+    expect(() => loadOfficialSources({ catalogFiles: TEST_CATALOGS, commonWordsFile: words })).toThrow(/common-words\.bad/);
   });
 
   it('organismos del Estado uruguayo: nombres y siglas, sin chocar con palabras comunes', () => {
@@ -179,6 +187,19 @@ describe('fuentes de autoridad', () => {
     expect(view.claims('Montevideo')).toEqual([]);
     expect(view.claims('Pago de impuestos')).toEqual([]);
     expect(view.claims('Organismo X', { kind: 'government', country: 'UY' })[0]?.keys).toEqual(['gov:UY']);
+  });
+
+  it('alias del catálogo que son palabras comunes: solo con una palabra financiera o la pista de la IA', () => {
+    const names = (text: string, hint?: Parameters<AuthorityView['claims']>[1]) => realView.claims(text, hint).map((c) => c.organization);
+    // Textos de enlaces y marcas con palabras de uso corriente no nombran a ASI, Correo Uruguayo, Pronto+…
+    for (const text of ['Así funciona', 'Mi correo', 'Hacelo pronto', 'Anda a la página', 'Universal Music', 'Provincia de Buenos Aires', 'Verde', 'Nativa', 'Cabal', 'Handy']) {
+      expect(names(text), text).toEqual([]);
+    }
+    expect(names('Tarjeta Verde')).toContain('Verde');
+    expect(names('Cabal', { kind: 'financial_entity', country: 'UY' })).toContain('Cabal');
+    // Los alias que no son palabras comunes alcanzan solos.
+    expect(names('Correo Uruguayo')).toEqual(['Correo Uruguayo']);
+    expect(names('Antel')).toEqual(['Antel']);
   });
 
   it('organizaciones declaradas: registro del BCU y catálogo', () => {
@@ -310,6 +331,10 @@ describe('dominios parecidos (sin lista manual)', () => {
     ['tramites-gub-uy.com', 'LOOKALIKE_DOMAIN', 'Estado uruguayo'],
     ['gub-uy.com', 'LOOKALIKE_DOMAIN', 'Estado uruguayo'],
     ['bancorepublica-seguro.com', 'LOOKALIKE_DOMAIN', 'Banco República (BROU)'], // marca + palabra clave
+    ['brou-seguro.com', 'LOOKALIKE_DOMAIN', 'Banco República (BROU)'],
+    ['br0u.com.uy', 'LOOKALIKE_DOMAIN', 'Banco República (BROU)'], // mismo esqueleto visual
+    ['itau-login.com', 'LOOKALIKE_DOMAIN', 'Banco Itaú'],
+    ['prexcard-verificacion.com', 'LOOKALIKE_DOMAIN', 'Prex'],
     ['bancorepublica.com.uy.verificacion.net', 'MISLEADING_SUBDOMAIN', 'Banco República (BROU)'],
     ['itau.secure-login.com', 'MISLEADING_SUBDOMAIN', 'Banco Itaú'],
     ['scotiabamk.com.uy', 'LOOKALIKE_DOMAIN', 'Scotiabank'], // una letra
@@ -321,6 +346,51 @@ describe('dominios parecidos (sin lista manual)', () => {
     ['bps.xn--gb-1bc.uy', 'CONFUSABLE_CHARACTERS', 'Estado uruguayo'], // "gυb.uy" con ípsilon griega
   ])('%s → %s', (hostname, code, organization) => {
     expect(signals(hostname)).toContainEqual([code, organization]);
+  });
+
+  it.each([
+    'correo.miempresa.com.uy', // el webmail de una empresa
+    'delta.algo.com',
+    'consorcios.com.uy',
+    'avenidas.com.uy',
+    'visa-uruguay.com',
+    'disco-online.com',
+    'pronto.algunblog.com',
+    'verde.ejemplo.com',
+    'provincia.blog.com',
+    'anda-online.com',
+    'asi-uruguay.com',
+    'handy-app.com',
+    'cabal-online.com',
+    'lafavorita.tiendanube.com',
+  ])('%s: una palabra común en el nombre no es una imitación', (hostname) => {
+    expect(signals(hostname)).toEqual([]);
+  });
+
+  it('una referencia que es una palabra común se detecta por el dominio completo o el aspecto', () => {
+    const codes = (hostname: string) => signals(hostname).map(([code]) => code);
+    expect(codes('correo.com.uy.evil.com')).toEqual(['MISLEADING_SUBDOMAIN']);
+    expect(codes('correo-com-uy.net')).toEqual(['LOOKALIKE_DOMAIN']);
+    expect(codes('c0rreo.com.uy')).toEqual(['LOOKALIKE_DOMAIN']);
+    expect(codes('xn--rreo-45dr.com.uy')).toEqual(['CONFUSABLE_CHARACTERS']); // «соrreo» con c y o cirílicas
+    // Con la lista de populares, el cambio de terminación tampoco aplica: verde.com no imita a verde.com.uy.
+    const tldSwap = (hostname: string) => lookalikeSignals(describeHost(hostname), view.references(), [], { tldSwap: true }).map((s) => s.code);
+    expect(tldSwap('verde.com')).toEqual([]);
+    expect(tldSwap('delta.com')).toEqual([]);
+  });
+
+  it('la lista de palabras comunes marca nombres de uso corriente, nunca las marcas', () => {
+    const common = new Set(realView.references().filter((r) => r.commonWord).map((r) => r.label));
+    expect([...common]).toEqual(
+      expect.arrayContaining(['correo', 'delta', 'consorcio', 'avenida', 'visa', 'disco', 'verde', 'pronto', 'provincia', 'anda', 'asi', 'handy', 'cabal', 'universidad']),
+    );
+    for (const brand of ['brou', 'bancorepublica', 'itau', 'antel', 'prexcard', 'oca', 'ute', 'ose', 'bse', 'santander', 'claro', 'abitab', 'redpagos', 'midinero', 'mercadopago']) {
+      expect(common.has(brand), brand).toBe(false);
+    }
+    // Con el catálogo real: Udelar publica universidad.edu.uy.
+    expect(signals('universidad-online.com', realView)).toEqual([]);
+    expect(signals('universidad.edu.uy.inscripciones.com', realView)).toEqual([['MISLEADING_SUBDOMAIN', 'Udelar']]);
+    expect(signals('antel-uy.com', realView)).toEqual([['LOOKALIKE_DOMAIN', 'Antel']]);
   });
 
   it('cambio de terminación: solo con lista de populares, para no marcar sitios globales', () => {

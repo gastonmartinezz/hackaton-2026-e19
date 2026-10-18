@@ -194,6 +194,34 @@ describe('POST /v1/site-check: identidad oficial por fuentes de autoridad', () =
   });
 });
 
+describe('POST /v1/site-check: dominios parecidos y palabras comunes', () => {
+  it.each(['brou-seguro.com', 'br0u.com.uy', 'brou.com.uy.verificacion.net', 'antel-uy.com', 'itau-login.com', 'prexcard-verificacion.com', 'bps-gub-uy.com'])(
+    '%s: posible estafa desde la fase de dirección',
+    async (hostname) => {
+      app = await testApp({ siteCheck: fakeProviders() });
+      const r = await check(addressRequest(`https://${hostname}/`));
+      expect(r.risk).toBe('high');
+      expect(siteIndicatorState(r)).toBe('possible_scam');
+    },
+  );
+
+  it.each([
+    'correo.miempresa.com.uy',
+    'delta.algo.com',
+    'consorcios.com.uy',
+    'avenidas.com.uy',
+    'visa-uruguay.com',
+    'disco-online.com',
+    'pronto.algunblog.com',
+    'verde.ejemplo.com',
+  ])('%s: sin señales de dominio parecido', async (hostname) => {
+    app = await testApp({ siteCheck: fakeProviders() });
+    const r = await check(contentRequest(`https://${hostname}/`));
+    expect(codes(r)).toEqual([]);
+    expect(r.risk).toBe('no_signals');
+  });
+});
+
 describe('POST /v1/site-check: fallas externas', () => {
   it('sin proveedor de reputación la cobertura es unavailable y nunca favorable', async () => {
     app = await testApp({ siteCheck: fakeProviders({ reputationProvider: null }) });
