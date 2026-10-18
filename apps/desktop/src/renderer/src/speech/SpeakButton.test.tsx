@@ -41,13 +41,20 @@ function fakePlayback() {
 function fakeDeps(result: SpeakResult = { status: 'ok', audio: new Uint8Array([1]) }) {
   const mp3 = fakePlayback();
   const system = fakePlayback();
+  /** Lo que haría el proceso principal al avisar «cortá» a esta vista. */
+  const cutListeners = new Set<() => void>();
   const deps = {
     speak: vi.fn(async () => result),
     stopSpeaking: vi.fn(),
+    onCut: vi.fn((listener: () => void) => {
+      cutListeners.add(listener);
+      return () => cutListeners.delete(listener);
+    }),
     playMp3: vi.fn(() => mp3.playback),
     systemSpeak: vi.fn(async (): Promise<Playback | null> => system.playback),
   } satisfies ReadAloudDeps;
-  return { deps, mp3, system };
+  const cutFromMain = () => act(async () => cutListeners.forEach((l) => l()));
+  return { deps, mp3, system, cutFromMain, cutListeners };
 }
 
 describe('SpeakButton', () => {
@@ -150,6 +157,79 @@ describe('SpeakButton', () => {
     await flush();
     expect(button()).toBeNull();
     expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('«Detener» avisa al proceso principal aunque ya esté sonando (para que corte la otra vista)', async () => {
+    const { deps } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    expect(deps.stopSpeaking).not.toHaveBeenCalled();
+    await click();
+    expect(deps.stopSpeaking).toHaveBeenCalledOnce();
+  });
+
+  it('si otra vista empieza a leer, el proceso principal avisa y esta corta y vuelve a «Escuchar»', async () => {
+    const { deps, mp3, cutFromMain } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.stop);
+    await cutFromMain();
+    expect(mp3.playback.stop).toHaveBeenCalled();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.listen);
+    // El aviso viene del proceso principal: no se reenvía (sin rebotes).
+    expect(deps.stopSpeaking).not.toHaveBeenCalled();
+  });
+
+  it('el aviso corta también una descarga en curso: el audio que llega tarde no suena', async () => {
+    const { deps, cutFromMain } = fakeDeps();
+    let resolve: (r: SpeakResult) => void = () => {};
+    deps.speak.mockImplementationOnce(() => new Promise<SpeakResult>((r) => (resolve = r)));
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    await cutFromMain();
+    await act(async () => resolve({ status: 'ok', audio: new Uint8Array([1]) }));
+    expect(deps.playMp3).not.toHaveBeenCalled();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.listen);
+  });
+
+  it('con la voz del sistema: avisa al empezar y el aviso de la otra vista la corta', async () => {
+    speechSource.mode = 'system';
+    const { deps, system, cutFromMain } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} />);
+    await click();
+    await flush();
+    expect(deps.speak).not.toHaveBeenCalled();
+    expect(deps.stopSpeaking).toHaveBeenCalledOnce();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.stop);
+    await cutFromMain();
+    expect(system.playback.stop).toHaveBeenCalled();
+    expect(button()!.textContent).toBe(SPEECH_TEXTS.listen);
+  });
+
+  it('dos botones en la misma vista: empezar uno calla al otro', async () => {
+    const a = fakeDeps();
+    const b = fakeDeps();
+    render(
+      <>
+        <SpeakButton text="Primero" deps={a.deps} />
+        <SpeakButton text="Segundo" deps={b.deps} />
+      </>,
+    );
+    const [first, second] = [...container.querySelectorAll<HTMLButtonElement>('button.speak-btn')];
+    await act(async () => first!.click());
+    expect(first!.textContent).toBe(SPEECH_TEXTS.stop);
+    await act(async () => second!.click());
+    expect(a.mp3.playback.stop).toHaveBeenCalled();
+    expect(first!.textContent).toBe(SPEECH_TEXTS.listen);
+    expect(second!.textContent).toBe(SPEECH_TEXTS.stop);
+  });
+
+  it('al desmontar deja de escuchar los avisos', async () => {
+    const { deps, cutListeners } = fakeDeps();
+    render(<SpeakButton text="Hola" deps={deps} />);
+    expect(cutListeners.size).toBe(1);
+    act(() => root.render(null));
+    expect(cutListeners.size).toBe(0);
   });
 
   it('sin texto no se muestra', () => {

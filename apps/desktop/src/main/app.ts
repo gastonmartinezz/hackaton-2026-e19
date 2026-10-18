@@ -32,7 +32,7 @@ import { PageBridge } from './page-bridge';
 import { allowMicrophoneCheck, allowMicrophoneRequest } from './permissions';
 import type { PrefsStore } from './prefs';
 import { SiteView } from './site-view';
-import { Speaker } from './speech';
+import { SpeechHub } from './speech';
 import { classifyUrl, isLoopback, parseAddressInput } from './url-policy';
 import { buildUserContext, type SystemInfo } from './user-context';
 import { Transcriber } from './voice';
@@ -73,7 +73,7 @@ export class AppController {
   readonly #chat: Chat;
   readonly #card: HelpCardView;
   readonly #transcriber: Transcriber;
-  readonly #speaker: Speaker;
+  readonly #speech: SpeechHub;
   #cardLayout: CardLayout = { placement: 'top', maxHeight: 0 };
   #siteVisible = false;
   /** La persona tocó «Salir de la ayuda» en esta página (pantalla 21). */
@@ -122,14 +122,15 @@ export class AppController {
     );
     this.#assistant = new Assistant({ api: options.api, session, page: this.#bridge, onChange: () => this.#publish() });
     this.#transcriber = new Transcriber(options.api);
-    this.#speaker = new Speaker(options.api);
+    // Una sola lectura en toda la app: el hub avisa a la ventana y a la tarjeta.
+    this.#speech = new SpeechHub(options.api, () => [this.window.webContents, this.#card.contents]);
     this.#wireSite();
 
     ipcMain.handle(UI_COMMAND_CHANNEL, (event, raw: unknown) => this.#onCommand(event, raw));
     ipcMain.handle(UI_TRANSCRIBE_CHANNEL, (event, raw: unknown) => this.#onTranscribe(event, raw));
     ipcMain.handle(UI_SPEAK_CHANNEL, (event, raw: unknown) => this.#onSpeak(event, raw));
     const stopSpeaking = (event: IpcMainEvent) => {
-      if (this.#isOwnUi(event)) this.#speaker.stop();
+      if (this.#isOwnUi(event)) this.#speech.stop(event.sender);
     };
     ipcMain.on(UI_SPEAK_STOP_CHANNEL, stopSpeaking);
     this.window.on('resize', () => this.#layout());
@@ -140,7 +141,7 @@ export class AppController {
       ipcMain.removeHandler(UI_SPEAK_CHANNEL);
       ipcMain.removeListener(UI_SPEAK_STOP_CHANNEL, stopSpeaking);
       this.#transcriber.cancel();
-      this.#speaker.stop();
+      this.#speech.stopAll();
       this.#bridge.dispose();
     });
   }
@@ -373,7 +374,7 @@ export class AppController {
   /** Leer en voz alta: desde la ventana o la tarjeta, con condiciones aceptadas. */
   async #onSpeak(event: IpcMainInvokeEvent, raw: unknown): Promise<SpeakResult> {
     if (!this.#isOwnUi(event) || !this.#termsAccepted()) return { status: 'error', reason: 'failed' };
-    return this.#speaker.speak(raw);
+    return this.#speech.speak(event.sender, raw);
   }
 
   /** Dictado del buscador: solo desde la ventana (no la tarjeta) y con condiciones aceptadas. */
@@ -462,7 +463,7 @@ export class AppController {
         this.#site.reload();
         return;
       case 'home':
-        this.#speaker.stop();
+        this.#speech.stopAll();
         this.#assistant.exit();
         this.#chat.reset();
         this.#wantGuide = true;
@@ -495,7 +496,7 @@ export class AppController {
         this.#assistant.back();
         return;
       case 'exitHelp':
-        this.#speaker.stop();
+        this.#speech.stopAll();
         this.#helpExited = this.#assistant.state.phase !== 'idle';
         this.#assistant.exit();
         this.#publish();

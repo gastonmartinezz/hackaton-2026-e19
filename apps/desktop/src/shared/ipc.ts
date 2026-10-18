@@ -38,6 +38,8 @@ export type TranscribeResult = { status: 'ok'; text: string } | { status: 'empty
 export const UI_SPEAK_CHANNEL = 'ui:speak';
 /** «Detener»: corta la descarga en curso (la reproducción la corta la interfaz). */
 export const UI_SPEAK_STOP_CHANNEL = 'ui:speak-stop';
+/** Del proceso principal a las vistas: otra vista empezó a leer o se detuvo todo; cortar lo que suena. */
+export const UI_SPEECH_CUT_CHANNEL = 'ui:speech-cut';
 /**
  * `busy`: el servidor pide esperar; `off`: voz apagada en el servidor (la
  * interfaz usa la voz del sistema); `stopped`: se cortó a pedido; `failed`:
@@ -208,7 +210,10 @@ export interface AsistenteBridge {
   transcribe(wav: ArrayBuffer): Promise<TranscribeResult>;
   /** Lee en voz alta un texto de Mostrame (nunca datos de la página). Devuelve el MP3. */
   speak(text: string): Promise<SpeakResult>;
+  /** «Detener» (o «voy a leer con la voz del sistema»): corta la descarga y avisa a la otra vista. */
   stopSpeaking(): void;
+  /** Otra vista empezó a leer o se detuvo todo: cortar lo que suena acá. */
+  onSpeechCut(listener: () => void): () => void;
 }
 
 /* ---------------------------- Página externa ---------------------------- */

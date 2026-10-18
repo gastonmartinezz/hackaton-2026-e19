@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiFailure, type ApiClient } from './api/client';
 import { HttpApiClient } from './api/http';
 import { MockApiClient, silentMp3 } from './api/mock';
-import { Speaker, speakErrorReason } from './speech';
+import { UI_SPEECH_CUT_CHANNEL } from '../shared/ipc';
+import { Speaker, SpeechHub, speakErrorReason } from './speech';
 
 const base = new URL('https://api.ejemplo.test');
 const MP3 = new Uint8Array([0xff, 0xfb, 0x10, 0xc0, 0, 0]);
@@ -74,6 +75,56 @@ describe('Speaker', () => {
     await expect(second).resolves.toEqual({ status: 'error', reason: 'stopped' });
     speaker.stop();
     await expect(third).resolves.toEqual({ status: 'error', reason: 'stopped' });
+  });
+});
+
+describe('SpeechHub: una sola lectura en toda la app', () => {
+  const view = () => ({ send: vi.fn(), isDestroyed: vi.fn(() => false) });
+
+  it('una lectura nueva desde la tarjeta avisa a la ventana que corte (y no a la tarjeta)', async () => {
+    const [win, card] = [view(), view()];
+    const hub = new SpeechHub(fakeApi(vi.fn(async () => MP3)), () => [win, card]);
+    await expect(hub.speak(card, 'Hola')).resolves.toEqual({ status: 'ok', audio: MP3 });
+    expect(win.send).toHaveBeenCalledWith(UI_SPEECH_CUT_CHANNEL);
+    expect(card.send).not.toHaveBeenCalled();
+  });
+
+  it('una lectura nueva corta la descarga de la otra vista', async () => {
+    const speak = vi.fn(
+      (_r: unknown, signal: AbortSignal) =>
+        new Promise<Uint8Array>((resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new ApiFailure('ABORTED', false)));
+          setTimeout(() => resolve(MP3), 50);
+        }),
+    );
+    const [win, card] = [view(), view()];
+    const hub = new SpeechHub(fakeApi(speak), () => [win, card]);
+    const fromWindow = hub.speak(win, 'Primera');
+    const fromCard = hub.speak(card, 'Segunda');
+    await expect(fromWindow).resolves.toEqual({ status: 'error', reason: 'stopped' });
+    await expect(fromCard).resolves.toEqual({ status: 'ok', audio: MP3 });
+    expect(win.send).toHaveBeenCalledWith(UI_SPEECH_CUT_CHANNEL);
+  });
+
+  it('«Detener» (o empezar con la voz del sistema) desde una vista corta la descarga y avisa a la otra', async () => {
+    const speak = vi.fn(
+      (_r: unknown, signal: AbortSignal) => new Promise<Uint8Array>((_resolve, reject) => signal.addEventListener('abort', () => reject(new ApiFailure('ABORTED', false)))),
+    );
+    const [win, card] = [view(), view()];
+    const hub = new SpeechHub(fakeApi(speak), () => [win, card]);
+    const pending = hub.speak(win, 'Hola');
+    hub.stop(card);
+    await expect(pending).resolves.toEqual({ status: 'error', reason: 'stopped' });
+    expect(win.send).toHaveBeenCalledWith(UI_SPEECH_CUT_CHANNEL);
+  });
+
+  it('salir de la ayuda o Inicio callan todas las vistas; las cerradas se saltean', () => {
+    const [win, card] = [view(), view()];
+    card.isDestroyed.mockReturnValue(true);
+    const hub = new SpeechHub(fakeApi(vi.fn()), () => [win, card]);
+    hub.stopAll();
+    expect(win.send).toHaveBeenCalledWith(UI_SPEECH_CUT_CHANNEL);
+    expect(card.send).not.toHaveBeenCalled();
   });
 });
 

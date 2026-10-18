@@ -3,6 +3,11 @@
  * la persona, y se puede detener. Si el texto cambia (otra instrucción) o el
  * componente se desmonta (se cierra la tarjeta o se sale de la ayuda), se corta.
  *
+ * Una sola lectura en toda la app: al empezar una lectura se cortan las demás
+ * de esta vista (bus local) y el proceso principal avisa a la otra vista
+ * (ventana o tarjeta) con `onCut`, que vuelve a «Escuchar». Vale también para
+ * la voz del sistema.
+ *
  * Con la voz apagada en el servidor (`off`) se usa la voz del sistema en
  * español; si tampoco hay, el botón deja de ofrecerse.
  */
@@ -14,7 +19,10 @@ export type ReadAloudState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'p
 
 export interface ReadAloudDeps {
   speak(text: string): Promise<SpeakResult>;
+  /** «Detener» o «voy a leer con la voz del sistema»: el proceso principal corta su descarga y avisa a la otra vista. */
   stopSpeaking(): void;
+  /** Aviso del proceso principal: otra vista empezó a leer o se detuvo todo. */
+  onCut(listener: () => void): () => void;
   playMp3(audio: Uint8Array): Playback;
   systemSpeak(text: string): Promise<Playback | null>;
 }
@@ -22,6 +30,7 @@ export interface ReadAloudDeps {
 const defaultDeps: ReadAloudDeps = {
   speak: (text) => window.asistente.speak(text),
   stopSpeaking: () => window.asistente.stopSpeaking(),
+  onCut: (listener) => window.asistente.onSpeechCut(listener),
   playMp3,
   systemSpeak,
 };
@@ -32,6 +41,9 @@ const defaultDeps: ReadAloudDeps = {
  */
 export const speechSource: { mode: 'server' | 'system' | 'none' } = { mode: 'server' };
 
+/** Lecturas de esta vista: al empezar una, se callan las otras. */
+const localReaders = new Set<() => void>();
+
 export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
   const [state, setState] = useState<ReadAloudState>({ kind: 'idle' });
   const [, setSourceVersion] = useState(0);
@@ -40,19 +52,27 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
   /** Hay una descarga en curso en el proceso principal. */
   const pending = useRef(false);
 
-  /** Corta la descarga y lo que esté sonando. */
-  const cut = useCallback(() => {
+  /** Corta lo que esté sonando o descargando en esta lectura, sin avisar a nadie. */
+  const silence = useCallback(() => {
     attempt.current++;
     playback.current?.stop();
     playback.current = null;
-    if (pending.current) deps.stopSpeaking();
     pending.current = false;
-  }, [deps]);
+  }, []);
 
-  const stop = useCallback(() => {
-    cut();
+  /** La cortó otra lectura (de esta vista o de la otra): vuelve a «Escuchar». */
+  const cutFromOutside = useCallback(() => {
+    if (!playback.current && !pending.current) return;
+    silence();
     setState({ kind: 'idle' });
-  }, [cut]);
+  }, [silence]);
+
+  /** «Detener»: corta acá y el proceso principal corta la descarga y avisa a la otra vista. */
+  const stop = useCallback(() => {
+    silence();
+    deps.stopSpeaking();
+    setState({ kind: 'idle' });
+  }, [silence, deps]);
 
   const play = useCallback((id: number, started: Playback) => {
     if (id !== attempt.current) {
@@ -70,6 +90,8 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
 
   const readWithSystem = useCallback(
     async (id: number, value: string) => {
+      // La voz del sistema no pasa por el proceso principal: se le avisa para que corte la otra vista.
+      deps.stopSpeaking();
       const started = await deps.systemSpeak(value);
       if (id !== attempt.current) return started?.stop();
       if (!started) {
@@ -86,6 +108,7 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
   const start = useCallback(async () => {
     const value = text.trim();
     if (!value || speechSource.mode === 'none') return;
+    for (const other of localReaders) if (other !== cutFromOutside) other();
     const id = ++attempt.current;
     setState({ kind: 'loading' });
     if (speechSource.mode === 'system') return readWithSystem(id, value);
@@ -104,7 +127,7 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
       default:
         return setState({ kind: 'error', reason: result.reason });
     }
-  }, [text, deps, play, readWithSystem]);
+  }, [text, deps, play, readWithSystem, cutFromOutside]);
 
   const active = state.kind === 'loading' || state.kind === 'playing';
   /** Escuchar o detener. */
@@ -113,13 +136,24 @@ export function useReadAloud(text: string, deps: ReadAloudDeps = defaultDeps) {
     else void start();
   }, [active, start, stop]);
 
+  // Una sola lectura: avisos de la otra vista y de otras lecturas de esta.
+  useEffect(() => {
+    localReaders.add(cutFromOutside);
+    const unsubscribe = deps.onCut(cutFromOutside);
+    return () => {
+      localReaders.delete(cutFromOutside);
+      unsubscribe();
+    };
+  }, [deps, cutFromOutside]);
+
   // Otra instrucción, o la vista se cierra: se corta lo que estaba sonando.
   useEffect(
     () => () => {
-      cut();
+      if (pending.current) deps.stopSpeaking();
+      silence();
       setState({ kind: 'idle' });
     },
-    [text, cut],
+    [text, deps, silence],
   );
 
   return { state, active, toggle, stop, available: speechSource.mode !== 'none' };

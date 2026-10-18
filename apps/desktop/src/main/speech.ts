@@ -1,13 +1,14 @@
 /**
  * Leer en voz alta: la interfaz pide un texto de Mostrame y el proceso
- * principal lo pasa a audio con POST /v1/speak. Solo una lectura a la vez:
- * una nueva (o «Detener») cancela la anterior.
+ * principal lo pasa a audio con POST /v1/speak. Una sola lectura en toda la
+ * app: una nueva (o «Detener») cancela la descarga anterior y `SpeechHub`
+ * avisa a las demás vistas (ventana y tarjeta) que corten lo que suena.
  *
  * Privacidad: el texto y el audio solo viven en memoria durante la solicitud.
  * No se guardan en disco ni se loguean (solo códigos y duración).
  */
 import { clipForSpeech } from '../shared/speech';
-import type { SpeakErrorReason, SpeakResult } from '../shared/ipc';
+import { UI_SPEECH_CUT_CHANNEL, type SpeakErrorReason, type SpeakResult } from '../shared/ipc';
 import { ApiFailure, type ApiClient } from './api/client';
 import { log } from './log';
 
@@ -62,5 +63,50 @@ export class Speaker {
   stop(): void {
     this.#current?.abort();
     this.#current = null;
+  }
+}
+
+/** Una vista propia de Mostrame (la ventana o la tarjeta), como la ve el hub. */
+export interface SpeechView {
+  send(channel: string): void;
+  isDestroyed(): boolean;
+}
+
+/**
+ * Coordina la lectura entre vistas. La reproducción vive en cada vista; el
+ * hub se asegura de que suene una sola: cuando una vista empieza a leer (con
+ * el servidor o con la voz del sistema) o se detiene, las demás reciben
+ * UI_SPEECH_CUT_CHANNEL, cortan y vuelven a «Escuchar».
+ */
+export class SpeechHub {
+  readonly #speaker: Speaker;
+
+  constructor(
+    api: ApiClient,
+    private readonly views: () => SpeechView[],
+  ) {
+    this.#speaker = new Speaker(api);
+  }
+
+  /** Lectura nueva desde `from`: se corta la descarga anterior y callan las demás vistas. */
+  speak(from: SpeechView, raw: unknown): Promise<SpeakResult> {
+    this.#cutOthers(from);
+    return this.#speaker.speak(raw);
+  }
+
+  /** «Detener», o `from` va a leer con la voz del sistema: corta la descarga y las demás vistas. */
+  stop(from: SpeechView): void {
+    this.#speaker.stop();
+    this.#cutOthers(from);
+  }
+
+  /** Salir de la ayuda, Inicio o la ventana se cierra: calla todo. */
+  stopAll(): void {
+    this.#speaker.stop();
+    this.#cutOthers(null);
+  }
+
+  #cutOthers(from: SpeechView | null): void {
+    for (const view of this.views()) if (view !== from && !view.isDestroyed()) view.send(UI_SPEECH_CUT_CHANNEL);
   }
 }

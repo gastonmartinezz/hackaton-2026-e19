@@ -9,6 +9,7 @@ import {
   UI_COMMAND_CHANNEL,
   UI_SPEAK_CHANNEL,
   UI_SPEAK_STOP_CHANNEL,
+  UI_SPEECH_CUT_CHANNEL,
   UI_STATE_CHANNEL,
   UI_TRANSCRIBE_CHANNEL,
   type AppState,
@@ -26,6 +27,11 @@ const bridge: AsistenteBridge = {
   transcribe: (wav: ArrayBuffer) => ipcRenderer.invoke(UI_TRANSCRIBE_CHANNEL, wav),
   speak: (text: string) => ipcRenderer.invoke(UI_SPEAK_CHANNEL, text),
   stopSpeaking: () => ipcRenderer.send(UI_SPEAK_STOP_CHANNEL),
+  onSpeechCut(listener) {
+    const handler = () => listener();
+    ipcRenderer.on(UI_SPEECH_CUT_CHANNEL, handler);
+    return () => ipcRenderer.removeListener(UI_SPEECH_CUT_CHANNEL, handler);
+  },
 };
 
 contextBridge.exposeInMainWorld('asistente', bridge);
