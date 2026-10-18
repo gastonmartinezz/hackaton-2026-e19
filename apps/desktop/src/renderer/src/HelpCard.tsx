@@ -7,6 +7,8 @@ import { BrandSymbol, Button, Icon, LoadingDots } from '@asistente/ui';
 import { Fragment, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { AppState, CardMode, OptionView } from '../../shared/ipc';
 import { Notices } from './Notices';
+import { SpeakButton } from './speech/SpeakButton';
+import { guideSpeech } from './speech/speechText';
 import { send, useAppState } from './useAppState';
 
 /** Margen transparente de la vista para la sombra (CARD_SHADOW en main/help-card.ts). */
@@ -193,7 +195,9 @@ function cardBody(state: AppState, view: { more: boolean; setMore: (v: boolean) 
       return { foot: 'full', content: <CurrentStep state={state} /> };
 
     case 'completed':
-      return guide.evidence ? { tone: 'success', foot: 'none', content: <Completed evidence={guide.evidence} /> } : { tone: 'ask', foot: 'none', content: <DidYouFinish /> };
+      return guide.evidence
+        ? { tone: 'success', foot: 'none', content: <Completed evidence={guide.evidence} speech={guideSpeech(guide)} /> }
+        : { tone: 'ask', foot: 'none', content: <DidYouFinish speech={guideSpeech(guide)} /> };
 
     case 'unsupported':
       return {
@@ -339,10 +343,14 @@ function CurrentStep({ state }: { state: AppState }) {
   const confirm = field || guide.waitFor === 'userConfirmation';
   return (
     <section className="mm-section" aria-label="Paso actual">
-      <p className="now">
-        <Icon name="arrow-right" />
-        Ahora
-      </p>
+      <div className="now-row">
+        <p className="now">
+          <Icon name="arrow-right" />
+          Ahora
+        </p>
+        {/* Leer en voz alta (opcional, S11): solo si la persona lo pide; se corta al cambiar de instrucción. */}
+        <SpeakButton text={guideSpeech(guide)} />
+      </div>
       {/* Única región que anuncia instrucciones; Repetir cambia la clave y se vuelve a anunciar. No mueve el foco. */}
       <div aria-live="polite" key={guide.announceKey}>
         <p className="instr">{withControlNames(guide.instruction ?? '')}</p>
@@ -399,13 +407,15 @@ function DoneList({ done }: { done: string[] }) {
 }
 
 /** 09: «Listo» solo con evidencia de la página, citada tal cual. */
-function Completed({ evidence }: { evidence: string }) {
+function Completed({ evidence, speech }: { evidence: string; speech: string }) {
   return (
     <section className="status success" role="status">
       <div className="head">
         <Icon name="circle-check" size="lg" />
         {/* TODO(textos): «completada.titulo» pide «Listo: {resultado}.»; el backend todavía no manda el resultado. */}
         <h2 className="title">Listo.</h2>
+        {/* Se lee «Listo.» sin la cita de la página. */}
+        <SpeakButton text={speech} />
       </div>
       <p className="evidence">
         <Icon name="check" size="sm" />
@@ -424,7 +434,7 @@ function Completed({ evidence }: { evidence: string }) {
 }
 
 /** 16 y 17: sin evidencia no hay festejo; se pregunta y, si falta algo, se sigue. */
-function DidYouFinish() {
+function DidYouFinish({ speech }: { speech: string }) {
   const [notYet, setNotYet] = useState(false);
   if (notYet) {
     const reasons = [
@@ -456,6 +466,7 @@ function DidYouFinish() {
       <div className="head">
         <Icon name="circle-help" size="lg" />
         <h2 className="title">¿Pudiste terminar?</h2>
+        <SpeakButton text={speech} />
       </div>
       <p>La página cambió, pero no sé si terminaste. Fijate si la página lo confirma.</p>
       <div className="actions">

@@ -10,6 +10,8 @@
 import { BrandSymbol, Button, Icon, LoadingDots, Logo } from '@asistente/ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { AppState, CandidateView } from '../../shared/ipc';
+import { SpeakButton } from './speech/SpeakButton';
+import { questionSpeech, recommendationSpeech } from './speech/speechText';
 import { send } from './useAppState';
 import { MicButton, VoiceMessages } from './voice/VoiceSearch';
 import { useVoiceInput } from './voice/useVoiceInput';
@@ -128,10 +130,13 @@ function Question({ state }: { state: AppState }) {
 
   return (
     <section className="ask-card" aria-labelledby="ask-q">
-      <p className="lead2">
-        <BrandSymbol />
-        Para llevarte directo al sitio justo, necesito un dato.
-      </p>
+      <div className="speak-row">
+        <p className="lead2">
+          <BrandSymbol />
+          Para llevarte directo al sitio justo, necesito un dato.
+        </p>
+        <SpeakButton text={questionSpeech(question)} />
+      </div>
       {answered.length > 0 ? (
         <ul className="ask-done" aria-label="Lo que ya me contaste">
           {answered.map((a, i) => (
@@ -185,10 +190,13 @@ function Recommendation({ state }: { state: AppState }) {
 
   return (
     <div className="reco-main">
-      <p className="reco-why" aria-live="polite">
-        <BrandSymbol />
-        <span>{intro}</span>
-      </p>
+      <div className="speak-row">
+        <p className="reco-why" aria-live="polite">
+          <BrandSymbol />
+          <span>{intro}</span>
+        </p>
+        <SpeakButton text={recommendationSpeech(intro, first)} />
+      </div>
       <SiteCard candidate={first} recommended />
       {others.length > 0 ? (
         <>

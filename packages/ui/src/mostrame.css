@@ -483,6 +483,38 @@ body {
   font-size: var(--fs-sm);
   text-align: center;
 }
+/* Leer en voz alta (S11): «Escuchar» / «Detener» al lado del rótulo o del título. */
+.now-row,
+.speak-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.speak {
+  margin-left: auto;
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+}
+.speak-btn.btn {
+  padding: 0 var(--space-4);
+  font-size: var(--fs-sm);
+}
+/* Sonando: estado fijo (sin animación), también con «reducir movimiento». */
+.speak-btn.btn[data-active] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.speak-error {
+  margin: 0;
+  max-width: 22em;
+  font-size: var(--fs-xs);
+  color: var(--color-danger);
+  text-align: end;
+}
 /* Vacía sigue montada (región aria-live), pero sin ocupar lugar. */
 .voice-status:empty {
   position: absolute;
