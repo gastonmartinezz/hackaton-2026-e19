@@ -289,7 +289,7 @@ function isLarge(element: Element): boolean {
 }
 
 /** Un custom element grande, sin hijos ni shadow root abierto, suele tener shadow DOM cerrado. */
-export function looksLikeClosedShadow(element: Element): boolean {
+function looksLikeClosedShadow(element: Element): boolean {
   const rect = element.getBoundingClientRect();
   return rect.width >= 80 && rect.height >= 24;
 }

@@ -456,7 +456,6 @@ export const SummaryMessageSchema = z.strictObject({
   navigationId: Id,
   contentVersion: ContentVersion,
   summary: PageSummary,
-  notes: z.array(z.enum(EXTRACT_NOTES)).max(EXTRACT_NOTES.length),
 });
 
 /** Huella de formularios e identidad (hash): avisa que conviene reanalizar. Sin contenido. */
