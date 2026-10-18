@@ -95,10 +95,10 @@ export const CONTINUE_ACTION: SiteCheckAction = { id: 'continue', label: 'Contin
 
 const NO_DATA = 'No ingreses contraseñas ni códigos.';
 
-/** Terminaciones reservadas al Estado que reconoce el backend (`identity.basis: government_domain`): Argentina, Uruguay y EE. UU. */
-const GOVERNMENT_SUFFIXES = ['gob.ar', 'gov.ar', 'mil.ar', 'gub.uy', 'gov', 'mil'];
+/** Terminaciones reservadas al Estado que reconoce el backend (`identity.basis: government_domain`): Uruguay y EE. UU. */
+const GOVERNMENT_SUFFIXES = ['gub.uy', 'mil.uy', 'gov', 'mil'];
 
-/** Terminación reservada al Estado con la que termina el hostname («.gob.ar»), o null. */
+/** Terminación reservada al Estado con la que termina el hostname («.gub.uy»), o null. */
 export function governmentSuffix(hostname: string | null | undefined): string | null {
   const host = hostname?.toLowerCase().replace(/\.$/, '');
   if (!host) return null;
@@ -106,23 +106,30 @@ export function governmentSuffix(hostname: string | null | undefined): string | 
   return suffix ? `.${suffix}` : null;
 }
 
-/** «del Estado argentino», «del Gobierno de Estados Unidos», «de Banco Nación». */
+/** «del Estado uruguayo», «del Gobierno de Estados Unidos», «de Banco del Sur». */
 function ofOrganization(organization: string): string {
   return /^(estado|gobierno)\b/i.test(organization) ? `del ${organization}` : `de ${organization}`;
 }
 
-/** Fecha simple para personas: «17 de octubre de 2026». */
 /**
- * Fecha de revisión de una fuente. Las fuentes guardan solo el día (medianoche UTC), así que se
- * formatea en UTC: en hora de Uruguay o Argentina «2026-10-17» se vería como el 16.
+ * Configuración regional de las fechas: español de Uruguay si el runtime la trae; si no,
+ * `es-AR`, que da el mismo formato («17 de octubre de 2026»).
+ */
+const DATE_LOCALE = Intl.DateTimeFormat.supportedLocalesOf(['es-UY'])[0] ?? 'es-AR';
+
+/**
+ * Fecha de revisión de una fuente, simple para personas: «17 de octubre de 2026». Las fuentes
+ * guardan solo el día (medianoche UTC), así que se formatea en UTC: en hora de Uruguay
+ * «2026-10-17» se vería como el 16.
  */
 export function plainDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return new Date(iso).toLocaleDateString(DATE_LOCALE, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
 /**
  * Frase de «Sitio oficial» según la fuente de autoridad del contrato (`identity.basis`).
- * La oficialidad nunca sale de la IA: solo de la zona reservada al Estado o del padrón del BCRA.
+ * La oficialidad nunca sale de la IA: solo de la zona reservada al Estado, del registro de instituciones
+ * del Banco Central del Uruguay o del catálogo curado.
  */
 export function officialSummary(response: SiteCheckResponse | null, hostname?: string | null): string {
   const { basis, organization } = response?.identity ?? {};
@@ -136,7 +143,7 @@ export function officialSummary(response: SiteCheckResponse | null, hostname?: s
         : `Es un sitio ${who}: su dirección usa una terminación que solo pueden usar organismos públicos.`;
     }
     case 'financial_regulator':
-      return `La dirección pertenece a ${organization ?? 'una entidad financiera registrada'}, según el registro de entidades del Banco Central.`;
+      return `La dirección pertenece a ${organization ?? 'una entidad financiera registrada'}, según el registro de instituciones del Banco Central del Uruguay.`;
     default:
       return `La dirección pertenece a ${organization ?? 'una organización de nuestra lista'}, según nuestra lista de sitios oficiales revisada.`;
   }
@@ -154,14 +161,14 @@ function officialSources(response: SiteCheckResponse | null, hostname?: string |
     basis === 'government_domain'
       ? `Las direcciones terminadas en ${governmentSuffix(hostname) ?? 'esa terminación'} solo se entregan a organismos ${ofOrganization(organization ?? 'Estado')}.`
       : basis === 'financial_regulator'
-        ? 'Figura en el registro de entidades financieras del Banco Central.'
+        ? 'Figura en el registro de instituciones del Banco Central del Uruguay.'
         : 'Figura en nuestra lista de sitios oficiales revisada.';
   if (!source) return [how];
   const domain = sourceDomain(source.url);
   return [how, `Fuente: ${source.name}${domain ? ` (${domain})` : ''}.`, `Revisado el ${plainDate(source.reviewedAt)}.`];
 }
 
-/** Dominio de la dirección de la fuente, solo como texto («bcra.gob.ar»). */
+/** Dominio de la dirección de la fuente, solo como texto («bcu.gub.uy»). */
 function sourceDomain(url: string | undefined): string | null {
   if (!url) return null;
   try {
