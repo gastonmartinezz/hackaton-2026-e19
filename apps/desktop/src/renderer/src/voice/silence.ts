@@ -10,10 +10,14 @@
  * ventilador, el propio procesamiento) puede quedar por encima de un umbral
  * fijo y nunca se detectaba el silencio. Ahora:
  * - el nivel se suaviza (promedio de los últimos 300 ms);
- * - el piso de ruido se calibra con los primeros ~300 ms y después sigue el
- *   mínimo (si el ambiente se calma, baja);
+ * - el piso de ruido se calibra con los primeros ~300 ms, con un tope de
+ *   ruido razonable: si la persona habla desde el primer instante, su voz no
+ *   puede quedar como «ruido» (y nunca termina en «no te escuché»);
+ * - después el piso baja enseguida si el ambiente se calma y sube despacio
+ *   (media móvil lenta) si el ruido aumenta, solo con los momentos que no son
+ *   voz: la voz nunca lo arrastra;
  * - hay voz si el nivel supera el piso con margen (×3, y al menos el mínimo
- *   absoluto) y además no está muy por debajo de la voz ya escuchada (25 % del
+ *   absoluto) y además no está muy por debajo de la voz ya escuchada (35 % del
  *   pico, que decae de a poco para que un golpe no tape lo demás).
  */
 import { WAV_MAX_SECONDS } from '../../../shared/wav';
@@ -25,6 +29,10 @@ export interface SilenceOptions {
   floorFactor: number;
   /** Margen mínimo sobre el piso. */
   floorMargin: number;
+  /** Tope del piso calibrado: más que esto no es ruido de fondo (es voz). */
+  calibrationCap: number;
+  /** Cuánto sube el piso por medición sin voz hacia el nivel actual (media móvil lenta). */
+  floorRise: number;
   /** Fracción del pico de voz ya escuchado por debajo de la cual es silencio. */
   peakRatio: number;
   /** Decaimiento del pico por medición (100 ms). */
@@ -41,7 +49,9 @@ export const SILENCE_DEFAULTS: SilenceOptions = {
   minThreshold: 0.015,
   floorFactor: 3,
   floorMargin: 0.01,
-  peakRatio: 0.25,
+  calibrationCap: 0.03,
+  floorRise: 0.05,
+  peakRatio: 0.35,
   peakDecay: 0.995,
   smoothFrames: 3,
   calibrationMs: 300,
@@ -89,12 +99,15 @@ export class SilenceDetector {
     if (this.#recent.length > this.options.smoothFrames) this.#recent.shift();
     const smoothed = this.#recent.reduce((sum, value) => sum + value, 0) / this.#recent.length;
 
-    // Calibración: el piso arranca en el nivel más bajo de los primeros ~300 ms.
-    this.#floor = Math.min(this.#floor ?? Infinity, elapsed < this.options.calibrationMs ? level : smoothed);
-    if (elapsed < this.options.calibrationMs) return 'continue';
+    // Calibración: el piso arranca en el nivel más bajo de los primeros ~300 ms, con tope.
+    if (elapsed < this.options.calibrationMs) {
+      this.#floor = Math.min(this.#floor ?? Infinity, level, this.options.calibrationCap);
+      return 'continue';
+    }
+    const floor = this.#floor ?? Math.min(level, this.options.calibrationCap);
 
-    const { floorFactor, floorMargin, minThreshold, peakRatio, peakDecay } = this.options;
-    this.#threshold = Math.max(minThreshold, this.#floor * floorFactor, this.#floor + floorMargin);
+    const { floorFactor, floorMargin, minThreshold, peakRatio, peakDecay, floorRise } = this.options;
+    this.#threshold = Math.max(minThreshold, floor * floorFactor, floor + floorMargin);
     this.#peak *= peakDecay;
     const voice = smoothed >= this.#threshold && smoothed >= this.#peak * peakRatio;
     if (voice) {
@@ -102,6 +115,8 @@ export class SilenceDetector {
       this.#peak = Math.max(this.#peak, smoothed);
       return 'continue';
     }
+    // Sin voz: el piso baja enseguida o sube despacio hacia el ruido actual.
+    this.#floor = smoothed < floor ? smoothed : floor + floorRise * (smoothed - floor);
     if (this.#lastVoice === null) return elapsed >= this.options.silenceMs ? 'noSpeech' : 'continue';
     return now - this.#lastVoice >= this.options.silenceMs ? 'silence' : 'continue';
   }

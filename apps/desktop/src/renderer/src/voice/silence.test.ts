@@ -54,6 +54,36 @@ describe('SilenceDetector (umbral adaptativo)', () => {
     expect(run(detector, room, 10_100, 11_000).verdict).toBe('silence');
   });
 
+  it('hablar desde el primer instante (voz en la calibración) nunca termina en «no te escuché»', () => {
+    const detector = new SilenceDetector();
+    // Voz desde el frame 0, 4 s seguidos.
+    const talking = run(detector, (t) => noise(t, 0.2, 0.4), 0, 4_000);
+    expect(talking.verdict).toBe('continue');
+    expect(detector.heardVoice).toBe(true);
+    expect(detector.stats.floor).toBeLessThanOrEqual(SILENCE_DEFAULTS.calibrationCap);
+    // Cuando deja de hablar, corta por silencio (no por «no te escuché»).
+    const after = run(detector, (t) => noise(t, 0.01, 0.02), 4_100, 12_000);
+    expect(after.verdict).toBe('silence');
+  });
+
+  it('si el ruido ambiente sube a mitad de la grabación, el piso sube despacio y corta a los 5 s del final de la voz', () => {
+    const detector = new SilenceDetector();
+    run(detector, (t) => noise(t, 0.01, 0.02), 0, 900); // calibra en una sala tranquila
+    run(detector, (t) => noise(t, 0.2, 0.4), 1_000, 3_000); // habla 2 s
+    // Al terminar de hablar, el ruido sube (por ejemplo, se prende un ventilador) por encima del umbral inicial.
+    const result = run(detector, (t) => noise(t, 0.05, 0.09), 3_100, 20_000);
+    expect(result.verdict).toBe('silence');
+    expect(result.at).toBeLessThanOrEqual(3_000 + 5_500);
+    expect(detector.stats.floor).toBeGreaterThan(0.04);
+  });
+
+  it('el piso no sube mientras habla: la voz larga no se vuelve «silencio»', () => {
+    const detector = new SilenceDetector();
+    run(detector, () => 0.01, 0, 400);
+    expect(run(detector, (t) => noise(t, 0.2, 0.4), 500, 15_000).verdict).toBe('continue');
+    expect(detector.stats.floor).toBeLessThan(0.03);
+  });
+
   it('corta antes de los 30 s aunque siga hablando', () => {
     const detector = new SilenceDetector();
     run(detector, () => 0.01, 0, 400);
