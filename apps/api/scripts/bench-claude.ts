@@ -1,7 +1,7 @@
 // Benchmark chico de latencia, costo y corrección de Claude por tarea, con entradas
 // de prueba uruguayas sin datos personales. Llama a la API real (gasta dinero):
 //
-//   BENCH_ENV_FILE=apps/api/.env pnpm --filter @hackaton/api bench:claude [repeticiones]
+//   BENCH_ENV_FILE=apps/api/.env pnpm --filter @hackaton/api bench:claude [repeticiones] [interpret|nextStep]
 //
 // Lee ANTHROPIC_API_KEY del entorno o de BENCH_ENV_FILE y nunca la imprime. Usa los
 // servicios reales (InterpretService, NextStepService) con los prompts y esquemas de
@@ -23,6 +23,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
   process.exit(1);
 }
 const REPS = Number(process.argv[2] ?? 3);
+const ONLY = process.argv[3] as AiTask | undefined;
 const OWNER = 'bench';
 
 /** USD por millón de tokens (tabla del skill claude-api, 2026-10). Escritura de caché = 1,25 × entrada. */
@@ -162,6 +163,8 @@ async function runVariant(variant: Variant) {
   let total = 0;
   let errors = 0;
   const failures: string[] = [];
+  // Qué respondió interpret en los casos con organismo claro: ir directo es mejor que preguntar.
+  const types: Record<string, number> = {};
 
   for (let rep = 0; rep < REPS; rep++) {
     if (variant.task === 'interpret') {
@@ -170,6 +173,7 @@ async function runVariant(variant: Variant) {
         total++;
         try {
           const result = await service.interpret({ messages: [{ role: 'user', content: testCase.text }], user: location }, OWNER);
+          if (testCase.hosts.length > 0) types[result.type] = (types[result.type] ?? 0) + 1;
           if (interpretOk(result, testCase.hosts)) ok++;
           else failures.push(`${testCase.name}: ${result.type}${result.type === 'redirect' ? ` ${host(result.url)}` : ''}`);
         } catch (error) {
@@ -222,6 +226,9 @@ async function runVariant(variant: Variant) {
     avgOutput: Math.round(metrics.reduce((sum, m) => sum + m.outputTokens, 0) / Math.max(1, metrics.length)),
     usdPerCall: Number((costs.reduce((a, b) => a + b, 0) / Math.max(1, costs.length)).toFixed(5)),
     correct: `${ok}/${total}`,
+    types: Object.entries(types)
+      .map(([type, count]) => `${type}:${count}`)
+      .join(' '),
     errors,
     fallbacks: metrics.filter((m) => m.servedBy !== m.model).length,
     failures,
@@ -229,7 +236,7 @@ async function runVariant(variant: Variant) {
 }
 
 const results = [];
-for (const variant of variants) {
+for (const variant of variants.filter((v) => !ONLY || v.task === ONLY)) {
   process.stderr.write(`${variant.task} · ${variant.label}…\n`);
   results.push(await runVariant(variant));
 }
