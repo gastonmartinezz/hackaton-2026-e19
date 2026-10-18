@@ -31,12 +31,12 @@ const signals = (hostname: string, authority = view) =>
 
 describe('fuentes de autoridad', () => {
   it('zona de gobierno por límites de dominio, nunca por sufijo de texto', () => {
-    expect(view.official('www.bps.gub.uy')).toMatchObject({ basis: 'government_domain', organization: 'Estado uruguayo', matched: 'gub.uy' });
+    expect(view.official('www.bps.gub.uy')).toMatchObject({ basis: 'government_domain', organization: 'Estado uruguayo' });
     expect(view.official('www.bps.gub.uy')?.source).toMatchObject({ url: 'https://www.gub.uy/', reviewedAt: '2026-10-17T00:00:00.000Z' });
     // La app es para Uruguay: las zonas de Estados Unidos (.gov, .mil) no se reconocen.
     expect(realView.official('www.irs.gov')).toBeNull();
     expect(realView.official('www.army.mil')).toBeNull();
-    expect(realView.official('www.ejercito.mil.uy')).toMatchObject({ basis: 'government_domain', matched: 'mil.uy' });
+    expect(realView.official('www.ejercito.mil.uy')).toMatchObject({ basis: 'government_domain', organization: 'Fuerzas Armadas de Uruguay' });
     expect(view.official('bps.gub.uy.evil.com')).toBeNull();
     expect(view.official('bps-gub-uy.com')).toBeNull();
     expect(view.official('evilbps.gubuy.com')).toBeNull();
@@ -48,7 +48,7 @@ describe('fuentes de autoridad', () => {
 
   it('registro del BCU: banco con su ficha como fuente y el nombre corto del catálogo', () => {
     const match = view.official('www.bancorepublica.com.uy');
-    expect(match).toMatchObject({ basis: 'financial_regulator', organization: 'Banco República (BROU)', matched: 'bancorepublica.com.uy' });
+    expect(match).toMatchObject({ basis: 'financial_regulator', organization: 'Banco República (BROU)' });
     expect(match?.source).toEqual({
       name: 'Registro de instituciones del BCU',
       url: 'https://www.bcu.gub.uy/Servicios-Financieros-SSF/Paginas/InformacionInstitucion.aspx?nroinst=1001',
@@ -275,7 +275,7 @@ describe('registro del BCU', () => {
 
   it('un sitio publicado en un subdominio ajeno no hace oficial al dominio entero ni es referencia de parecido', () => {
     // El BCU publica la casa de cambio Balumacambio en balumacambio.enjoypuntadeleste.com.uy (fixture real).
-    expect(view.official('balumacambio.enjoypuntadeleste.com.uy')).toMatchObject({ basis: 'financial_regulator', matched: 'balumacambio.enjoypuntadeleste.com.uy' });
+    expect(view.official('balumacambio.enjoypuntadeleste.com.uy')?.basis).toBe('financial_regulator');
     expect(view.official('www.enjoypuntadeleste.com.uy')).toBeNull();
     expect(view.official('otra-cosa.enjoypuntadeleste.com.uy')).toBeNull();
     expect(view.references().some((ref) => ref.domain === 'enjoypuntadeleste.com.uy')).toBe(false);
