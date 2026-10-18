@@ -1,0 +1,38 @@
+/*
+ * Vista flotante del panel de Protección de sitios (main/site-check-popover.ts):
+ * fondo transparente y 16px de margen para el halo (POPOVER_SHADOW). El
+ * contenido mide lo suyo (ancho del panel o del sello) sin depender del tamaño
+ * de la vista: el proceso principal la ajusta a lo que se informa.
+ */
+html,
+body {
+  background: transparent;
+}
+#root {
+  height: auto;
+}
+.popover-host {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: calc(var(--popover-max-w) + 32px);
+  max-height: calc(var(--popover-max-h) + 32px);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+/* El panel tiene el ancho de la tarjeta (R4) y se desplaza por dentro si no entra. */
+.popover-host .site-check-panel {
+  flex: 0 1 auto;
+  min-height: 0;
+  width: min(var(--site-panel-w), var(--popover-max-w));
+  max-height: var(--popover-max-h);
+  box-shadow: var(--g-shadow-card-view);
+}
+/* El sello que no entra en la píldora flota con el halo de la tarjeta. */
+.popover-host .site-check-strip .site-badge {
+  box-shadow: var(--g-shadow-card-view);
+}

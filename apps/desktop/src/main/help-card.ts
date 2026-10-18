@@ -22,6 +22,31 @@ export interface Rect {
   height: number;
 }
 
+/**
+ * Vista propia que flota sobre el sitio (tarjeta de ayuda, panel de Protección
+ * de sitios): el mismo preload mínimo que la ventana, sandbox, aislamiento de
+ * contexto, sin Node, fondo transparente, sin ventanas nuevas ni navegación.
+ */
+export function createOverlayView(preloadPath: string): WebContentsView {
+  const view = new WebContentsView({
+    webPreferences: {
+      preload: preloadPath,
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true,
+      webviewTag: false,
+      spellcheck: true,
+    },
+  });
+  view.setBackgroundColor('#00000000');
+  view.setVisible(false);
+  const wc = view.webContents;
+  wc.setWindowOpenHandler(() => ({ action: 'deny' }));
+  wc.on('will-navigate', (event) => event.preventDefault());
+  return view;
+}
+
 export class HelpCardView {
   readonly view: WebContentsView;
   #mode: CardMode = 'none';
@@ -30,26 +55,18 @@ export class HelpCardView {
   #cardHeight = 0;
 
   constructor(preloadPath: string) {
-    this.view = new WebContentsView({
-      webPreferences: {
-        preload: preloadPath,
-        sandbox: true,
-        contextIsolation: true,
-        nodeIntegration: false,
-        webSecurity: true,
-        webviewTag: false,
-        spellcheck: true,
-      },
-    });
-    this.view.setBackgroundColor('#00000000');
-    this.view.setVisible(false);
-    const wc = this.view.webContents;
-    wc.setWindowOpenHandler(() => ({ action: 'deny' }));
-    wc.on('will-navigate', (event) => event.preventDefault());
+    this.view = createOverlayView(preloadPath);
   }
 
   get contents() {
     return this.view.webContents;
+  }
+
+  /** Dónde se ve la tarjeta ahora (sin el margen del halo), o null si no se ve. */
+  get box(): Rect | null {
+    if (!this.view.getVisible()) return null;
+    const b = this.view.getBounds();
+    return { x: b.x + CARD_SHADOW, y: b.y + CARD_SHADOW, width: b.width - CARD_SHADOW * 2, height: b.height - CARD_SHADOW * 2 };
   }
 
   /** Lo que la tarjeta informa después de dibujarse. Devuelve true si cambió algo. */

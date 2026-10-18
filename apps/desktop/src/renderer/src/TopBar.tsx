@@ -8,7 +8,7 @@ import { Button, Icon, Logo } from '@asistente/ui';
 import { useState, type FormEvent } from 'react';
 import { splitDomain } from '../../shared/domain';
 import { TEXT_SCALES, type AppState } from '../../shared/ipc';
-import { SiteCheckIndicator, SiteCheckProbe } from './SiteCheck';
+import { FIT_ALL, OmniProbe, SiteCheckIndicator, type IndicatorFit } from './SiteCheck';
 import { send } from './useAppState';
 
 const SCALE_NAMES: Record<number, string> = { 1.2: 'normal', 1.45: 'grande', 1.75: 'muy grande' };
@@ -23,7 +23,7 @@ export const VOICE_TOGGLE_TEXTS = {
   description: ': leer en voz alta',
 } as const;
 
-export function TopBar({ state, indicatorInline = true }: { state: AppState; indicatorInline?: boolean }) {
+export function TopBar({ state, fit = FIT_ALL }: { state: AppState; fit?: IndicatorFit }) {
   const { nav, prefs, guide } = state;
   const site = nav.visible;
   const helpOn = site && prefs.aiEnabledForSite && guide.phase !== 'idle';
@@ -48,7 +48,7 @@ export function TopBar({ state, indicatorInline = true }: { state: AppState; ind
               <Icon name="arrow-left" />
             </Button>
           </nav>
-          <Omni state={state} indicatorInline={indicatorInline} />
+          <Omni state={state} fit={fit} />
           <Button variant="help" icon="navigation" aria-pressed={helpOn} onClick={() => send({ type: helpOn ? 'exitHelp' : 'analyzePage' })}>
             Ayuda
           </Button>
@@ -88,7 +88,7 @@ export function VoiceToggle({ active }: { active: boolean }) {
  * escribir otra búsqueda. Una dirección abre el sitio; otro texto vuelve al inicio.
  * Sin candado (R6): el sello es el de Protección de sitios, nunca HTTPS.
  */
-function Omni({ state, indicatorInline }: { state: AppState; indicatorInline: boolean }) {
+function Omni({ state, fit }: { state: AppState; fit: IndicatorFit }) {
   const { nav } = state;
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
@@ -104,7 +104,7 @@ function Omni({ state, indicatorInline }: { state: AppState; indicatorInline: bo
   if (!editing && nav.domain) {
     const { sub, main } = splitDomain(nav.domain);
     return (
-      <div className="omni" role="group" aria-label="Sitio abierto">
+      <div className="omni" role="group" aria-label="Sitio abierto" data-compact={fit.compact} data-sub={fit.sub} data-overflow={fit.overflow}>
         <button type="button" className="where" onClick={() => setEditing(true)} aria-label={`Estás en ${nav.domain}. Buscar otra cosa`}>
           {nav.secure ? null : (
             <span className="insecure">
@@ -122,11 +122,12 @@ function Omni({ state, indicatorInline }: { state: AppState; indicatorInline: bo
         </button>
         {/*
           Sello (R6) de Protección de sitios: junto al dominio, en la interfaz del navegador (la página no puede taparlo).
-          Si no entra sin cortar el dominio, va en la franja de abajo (SiteCheckUnderBar).
+          Para que entre se compacta la píldora (useIndicatorFit); si ni así entra sin cortar el dominio,
+          flota debajo de la píldora, en la vista del panel (SiteCheckPopover).
           TODO(contrato): «La tienda que elegiste» cuando el backend sepa qué tienda eligió la persona.
         */}
-        {indicatorInline ? <SiteCheckIndicator view={state.siteCheck} /> : null}
-        <SiteCheckProbe view={state.siteCheck} />
+        {fit.inline ? <SiteCheckIndicator view={state.siteCheck} /> : null}
+        <OmniProbe view={state.siteCheck} insecure={!nav.secure} sub={sub} />
       </div>
     );
   }
