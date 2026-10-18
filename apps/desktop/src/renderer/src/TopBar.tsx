@@ -57,13 +57,13 @@ export function TopBar({ state, indicatorInline = true }: { state: AppState; ind
         <span className="spacer" />
       )}
       <VoiceToggle active={state.voice.active} />
-      <Button variant="chrome" onClick={nextScale}>
+      {/* Con aria-label: un texto oculto aparte suma un espacio antes de «:» en el nombre que arma Chromium. */}
+      <Button variant="chrome" aria-label={`Tamaño de letra: ${SCALE_NAMES[prefs.textScale] ?? 'normal'}`} onClick={nextScale}>
         <span className="aa" aria-hidden="true">
           A<span>A</span>
         </span>
         <span className="lbl-long">Tamaño de letra</span>
         <span className="lbl-short">Letra</span>
-        <span className="sr-only">: {SCALE_NAMES[prefs.textScale] ?? ''}</span>
       </Button>
     </header>
   );
@@ -75,10 +75,15 @@ export function TopBar({ state, indicatorInline = true }: { state: AppState; ind
  */
 export function VoiceToggle({ active }: { active: boolean }) {
   return (
-    <Button variant="chrome" className="voice-toggle" aria-pressed={active} onClick={() => send({ type: 'setVoiceMode', mode: active ? 'off' : 'on' })}>
+    <Button
+      variant="chrome"
+      className="voice-toggle"
+      aria-pressed={active}
+      aria-label={`${VOICE_TOGGLE_TEXTS.label}${VOICE_TOGGLE_TEXTS.description}`}
+      onClick={() => send({ type: 'setVoiceMode', mode: active ? 'off' : 'on' })}
+    >
       {active ? <Icon name="check" /> : null}
       {VOICE_TOGGLE_TEXTS.label}
-      <span className="sr-only">{VOICE_TOGGLE_TEXTS.description}</span>
     </Button>
   );
 }
