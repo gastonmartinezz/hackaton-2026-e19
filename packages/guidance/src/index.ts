@@ -67,7 +67,8 @@ export interface GuideState {
 
 export type GuideEvent =
   | { type: 'ANALYZE'; goal?: string | undefined; request?: string | undefined }
-  | { type: 'OPTIONS'; options: PageOption[] }
+  /** `requested`: la opción que hace lo que pidió la persona (solo si hubo pedido y el backend la encontró). */
+  | { type: 'OPTIONS'; options: PageOption[]; requested?: string | undefined }
   | { type: 'SELECT'; optionId: string }
   | { type: 'SHOWN'; elementId: string; field?: boolean | undefined }
   | { type: 'OUTCOME'; outcome: Exclude<StepOutcome, 'none'> }
@@ -95,7 +96,7 @@ export const initialState: GuideState = {
 export const PENDING_PHASES: ReadonlySet<Phase> = new Set(['analyzing', 'guiding']);
 
 const NO_OPTIONS_MESSAGE = 'No encontré tareas claras en esta página. Podés seguir navegando o volver al inicio.';
-const NO_REQUEST_MESSAGE = 'No encontré cómo hacer eso en este sitio. Podés volver a las opciones o al inicio.';
+const NO_REQUEST_MESSAGE = 'No encontré cómo hacer eso en este sitio. Podés elegir otra opción o volver al inicio.';
 const NO_STEP_MESSAGE = 'No encuentro cómo seguir desde esta página. Podés elegir otra tarea o abrirla en tu navegador.';
 const DONE_MESSAGE = 'Listo, terminaste. Si no es lo que buscabas, tocá «Elegir otra tarea».';
 
@@ -108,9 +109,11 @@ export function transition(state: GuideState, event: GuideEvent): GuideState {
       if (state.phase !== 'analyzing') return state;
       const options = uniqueOptions(event.options);
       if (options.length === 0) return { ...state, phase: 'unsupported', request: undefined, message: state.request ? NO_REQUEST_MESSAGE : NO_OPTIONS_MESSAGE };
-      const choosing: GuideState = { ...state, phase: 'choosing', options, request: undefined, message: undefined };
-      // La persona ya dijo qué quería: la primera opción es esa tarea y se empieza sola.
-      return state.request ? transition(choosing, { type: 'SELECT', optionId: options[0]!.id }) : choosing;
+      const requested = state.request ? options.find((o) => o.id === event.requested) : undefined;
+      // Ninguna opción hace lo pedido: se muestran las de la página, sin empezar ninguna sola.
+      const choosing: GuideState = { ...state, phase: 'choosing', options, request: undefined, message: state.request && !requested ? NO_REQUEST_MESSAGE : undefined };
+      // La persona ya dijo qué quería y el backend encontró esa tarea: se empieza sola.
+      return requested ? transition(choosing, { type: 'SELECT', optionId: requested.id }) : choosing;
     }
 
     case 'SELECT': {

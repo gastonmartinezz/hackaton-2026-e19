@@ -262,7 +262,8 @@ function Options({ state, visit, onMore }: { state: AppState; visit: number; onM
     <>
       <div className="hc-section">
         <h2 className="hc-title">{SPEECH_TEXTS.optionsTitle}</h2>
-        <p className="support">Encontré estas opciones en esta página.</p>
+        {/* Si lo que pidió no se puede hacer acá, se dice antes de mostrar las opciones de la página. */}
+        <p className="support">{state.guide.message ?? 'Encontré estas opciones en esta página.'}</p>
         <SpeakButton
           text={optionsSpeech(
             primary.map((o) => o.title),

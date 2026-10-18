@@ -29,12 +29,16 @@ describe('transition', () => {
     expect(choosing()).toMatchObject({ phase: 'choosing', goal: 'turno', options: [turno, buscar] });
   });
 
-  it('con un pedido propio, la primera opción es esa tarea y empieza sola; «Volver un paso» muestra las opciones', () => {
+  it('con un pedido propio, la opción que lo hace empieza sola; «Volver un paso» muestra las opciones', () => {
     let state = run({ type: 'ANALYZE', goal: 'turno', request: 'Cambiar mi dirección' });
     expect(state).toMatchObject({ phase: 'analyzing', request: 'Cambiar mi dirección' });
-    state = transition(state, { type: 'OPTIONS', options: [buscar, turno] });
+    state = transition(state, { type: 'OPTIONS', options: [buscar, turno], requested: 'buscar' });
     expect(state).toMatchObject({ phase: 'guiding', option: buscar, step: real('el-1'), request: undefined });
     expect(transition(state, { type: 'BACK' })).toMatchObject({ phase: 'choosing', options: [buscar, turno] });
+    // Si ninguna opción hace lo pedido, se muestran las de la página y no empieza ninguna sola.
+    const unmatched = transition(run({ type: 'ANALYZE', request: 'Pagar una multa' }), { type: 'OPTIONS', options: [buscar, turno] });
+    expect(unmatched).toMatchObject({ phase: 'choosing', message: expect.stringMatching(/cómo hacer eso/) });
+    expect(unmatched.option).toBeUndefined();
     const none = transition(run({ type: 'ANALYZE', request: 'Algo imposible' }), { type: 'OPTIONS', options: [] });
     expect(none).toMatchObject({ phase: 'unsupported', message: expect.stringMatching(/cómo hacer eso/) });
   });

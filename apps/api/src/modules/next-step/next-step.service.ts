@@ -74,8 +74,11 @@ export class NextStepService {
    */
   private async research(request: NextStepRequest, owner: string, option: PageOption, log: FastifyBaseLogger): Promise<Procedure | undefined> {
     const context = this.sessions.context(request.sessionId, owner)!;
-    const output = await this.researcher.research(context, { option: { title: option.title, steps: option.steps.map((s) => s.instruction) } }, log);
+    const output = await this.researcher.research(`${request.sessionId}:option:${request.optionId}`, context, { option: { title: option.title, steps: option.steps.map((s) => s.instruction) } }, log);
     if (!output) return undefined;
+    // Dos llamadas que esperaron la misma investigación la guardan una sola vez.
+    const stored = findProcedure(this.sessions.context(request.sessionId, owner)?.history ?? [], request.optionId);
+    if (stored) return stored;
     const procedure: Procedure = { type: 'procedure', optionId: request.optionId, ...output };
     this.sessions.append(request.sessionId, owner, procedure);
     return procedure;

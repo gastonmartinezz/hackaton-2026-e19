@@ -12,9 +12,10 @@
  * - Si no hay coincidencia clara o hay empate, pregunta una vez «No te
  *   entendí. ¿Cuál querés?» y vuelve a escuchar; si vuelve a fallar, deja de
  *   escuchar y quedan los botones.
- * - Con `onFreeText`, si lo dicho no se parece a ninguna opción (y no es un
- *   empate), se toma como un pedido propio: dice «Busco cómo hacer eso acá.»
- *   y se lo pasa a `onFreeText` (Guíame lo investiga en el sitio).
+ * - Con `onFreeText`, si después de «No te entendí» lo dicho sigue sin
+ *   parecerse a ninguna opción (y no es un empate), se toma como un pedido
+ *   propio: dice «Busco cómo hacer eso acá.» y se lo pasa a `onFreeText`
+ *   (Guíame lo investiga en el sitio). La primera vez siempre se repregunta.
  * - Ni el audio ni lo transcripto se guardan ni se registran.
  */
 import { Button, Icon, LoadingDots } from '@asistente/ui';
@@ -117,8 +118,8 @@ export function useVoiceAnswer(
     const said = result.status === 'ok' ? result.text.trim() : '';
     const match = matchChoice(said, choicesRef.current);
     if (match.kind === 'match') return say(ANSWER_TEXTS.chosen(choicesRef.current[match.index]!.label), { run: match.index });
-    // No es ninguna opción: se toma como un pedido propio y se busca en el sitio.
-    if (match.kind === 'none' && onFreeTextRef.current && normalizeSpoken(said).length >= MIN_FREE_TEXT) return say(ANSWER_TEXTS.searching, { free: said });
+    // Ya se repreguntó y sigue sin ser ninguna opción: se toma como un pedido propio y se busca en el sitio.
+    if (retried.current && match.kind === 'none' && onFreeTextRef.current && normalizeSpoken(said).length >= MIN_FREE_TEXT) return say(ANSWER_TEXTS.searching, { free: said });
     if (!retried.current) {
       retried.current = true;
       return say(ANSWER_TEXTS.retry, { listen: true });

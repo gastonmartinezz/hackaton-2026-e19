@@ -99,6 +99,11 @@
         ],
         "additionalProperties": false
       }
+    },
+    "requestedOptionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
     }
   },
   "required": [

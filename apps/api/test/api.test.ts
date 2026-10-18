@@ -241,7 +241,7 @@ describe('POST /v1/options', () => {
   it('rechaza una opción sin pasos', async () => {
     const model = new MockModel({
       ...defaultMockHandlers,
-      options: () => ({ options: [{ id: 'x', title: 'Sin pasos', steps: [] }] }),
+      options: () => ({ options: [{ id: 'x', title: 'Sin pasos', steps: [] }], requestedOptionId: null }),
     });
     app = await testApp({ model });
     const res = await post('/v1/options', { html });
@@ -340,7 +340,7 @@ describe('POST /v1/next-step', () => {
     expect(inputs.procedure).toHaveLength(2);
   });
 
-  it('si el paso a paso falla, guía igual sin él y lo vuelve a intentar después', async () => {
+  it('si el paso a paso falla, guía igual sin él y no lo vuelve a buscar en cada llamada', async () => {
     let calls = 0;
     const nextInputs: any[] = [];
     const model = new MockModel({
@@ -361,8 +361,9 @@ describe('POST /v1/next-step', () => {
     expect(first.statusCode).toBe(200);
     expect(nextInputs[0].procedure).toBeNull();
     await post('/v1/next-step', request);
-    expect(calls).toBe(2);
-    expect(nextInputs[1].procedure).not.toBeNull();
+    // Después de un fallo se espera un rato antes de volver a investigar (no se paga la demora en cada paso).
+    expect(calls).toBe(1);
+    expect(nextInputs[1].procedure).toBeNull();
   });
 
   it('un error de configuración del paso a paso no se tapa', async () => {

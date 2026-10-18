@@ -167,10 +167,11 @@ Respuesta:
 - Se puede volver a llamar con el mismo `sessionId`, por ejemplo en una página nueva de la misma tarea.
 - **`request`** (opcional, hasta 1000 caracteres) es lo que la persona pidió con sus palabras, escrito en «¿No está lo que buscás?» o dicho al responder las opciones con la voz, cuando no estaba entre las opciones. En ese caso:
   - El backend primero investiga cómo se hace eso en este sitio, con la tarea `procedure` y búsqueda web (`GUIDE_WEB_SEARCH`). Tarda entre 10 y 20 s más.
-  - Devuelve esa tarea como **primera opción**, con el camino desde esta página: el menú, la sección o el buscador que lleva ahí.
-  - El paso a paso queda guardado para esa opción, así que `/v1/next-step` no lo vuelve a buscar.
-  - Si en el sitio no se puede hacer, `options` viene vacío.
-  - El front empieza la guía sola con la primera opción.
+  - Si se puede hacer, devuelve esa tarea como **primera opción**, con el camino desde esta página (el menú, la sección o el buscador que lleva ahí), y su id en **`requestedOptionId`**.
+  - El paso a paso queda guardado solo para esa opción, así que `/v1/next-step` no lo vuelve a buscar.
+  - Si ninguna opción hace lo pedido, `requestedOptionId` no viene y las opciones son las de la página.
+  - El front empieza la guía sola solo con `requestedOptionId`. Sin él, muestra las opciones y avisa que no encontró cómo hacerlo.
+  - Una investigación en curso con la misma sesión y el mismo pedido u opción no se repite. Si falla, se guía sin ella y no se vuelve a buscar durante 10 minutos.
 
 ### POST /v1/next-step
 

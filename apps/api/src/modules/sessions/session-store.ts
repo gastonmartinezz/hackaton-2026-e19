@@ -86,7 +86,12 @@ export class SessionStore {
     const session = this.touch(id, owner);
     if (!session) return;
     session.history.push(entry);
-    if (session.history.length > MAX_HISTORY) session.history.shift();
+    if (session.history.length > MAX_HISTORY) {
+      // Se descartan primero los pasos viejos de next-step: las opciones y el paso a paso
+      // investigado hacen falta mientras dure la guía.
+      const oldStep = session.history.findIndex((e) => e.type === 'nextStep');
+      session.history.splice(oldStep >= 0 ? oldStep : 0, 1);
+    }
   }
 
   sweep(): void {

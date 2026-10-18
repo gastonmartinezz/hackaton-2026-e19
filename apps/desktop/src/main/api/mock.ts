@@ -69,7 +69,8 @@ export class MockApiClient implements ApiClient {
     const sessionId = this.#session(request.sessionId);
     const options = buildOptions(parse(request.html));
     for (const option of options) this.#sessions.get(sessionId)!.options.add(option.id);
-    return { sessionId, options };
+    // Con un pedido propio, el simulador toma la primera opción como la que lo hace.
+    return { sessionId, options, ...(request.request && options[0] ? { requestedOptionId: options[0].id } : {}) };
   }
 
   /**

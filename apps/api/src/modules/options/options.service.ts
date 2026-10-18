@@ -31,7 +31,7 @@ export class OptionsService {
 
     const context = this.sessions.context(sessionId, owner)!;
     const asked = request.request;
-    const procedure = asked ? await this.researcher.research(context, { request: asked }, log) : undefined;
+    const procedure = asked ? await this.researcher.research(`${sessionId}:request:${asked}`, context, { request: asked }, log) : undefined;
     const output = await this.model.generate({
       task: 'options',
       system: asked ? SYSTEM_PROMPTS.optionsForRequest : SYSTEM_PROMPTS.options,
@@ -45,7 +45,10 @@ export class OptionsService {
     });
 
     const options = output.options.map((option) => ({ ...option, steps: toGuideSteps(option.steps) }));
-    const parsed = OptionsResponse.safeParse({ sessionId, options });
+    // La opción pedida solo vale si existe en la respuesta; va primera.
+    const requested = asked ? options.find((option) => option.id === output.requestedOptionId) : undefined;
+    if (requested) options.unshift(...options.splice(options.indexOf(requested), 1));
+    const parsed = OptionsResponse.safeParse({ sessionId, options, ...(requested ? { requestedOptionId: requested.id } : {}) });
     if (!parsed.success) throw new AppError('AI_INVALID_RESPONSE', 'Respuesta de Claude incoherente con el contrato');
 
     this.sessions.append(sessionId, owner, {
@@ -54,9 +57,9 @@ export class OptionsService {
       options: parsed.data.options,
       ...(asked ? { request: asked } : {}),
     });
-    // El paso a paso investigado queda para la primera opción (la tarea pedida): /v1/next-step no lo vuelve a buscar.
-    const first = parsed.data.options[0];
-    if (procedure && first) this.sessions.append(sessionId, owner, { type: 'procedure', optionId: first.id, ...procedure });
+    // El paso a paso investigado queda solo para la opción pedida: /v1/next-step no lo vuelve a buscar.
+    // Si ninguna opción hace lo pedido, no se le pega a otra tarea.
+    if (procedure && requested) this.sessions.append(sessionId, owner, { type: 'procedure', optionId: requested.id, ...procedure });
     return parsed.data;
   }
 }

@@ -28,6 +28,8 @@ export type StepOutput = z.infer<typeof StepOutput>;
 
 export const OptionsOutput = z.object({
   options: z.array(z.object({ id: z.string(), title: z.string(), steps: z.array(StepOutput) })),
+  /** Con request: el id de la opción que hace lo que pidió la persona, o null si ninguna. Sin request, null. */
+  requestedOptionId: z.string().nullable(),
 });
 export type OptionsOutput = z.infer<typeof OptionsOutput>;
 

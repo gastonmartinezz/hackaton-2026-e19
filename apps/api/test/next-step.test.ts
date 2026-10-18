@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { StructuredModel, StructuredRequest } from '../src/modules/ai/model.js';
-import { defaultMockHandlers } from '../src/modules/ai/mock-model.js';
+import { defaultMockHandlers, MockModel } from '../src/modules/ai/mock-model.js';
 import { SYSTEM_PROMPTS } from '../src/modules/ai/prompts.js';
+import type { OptionsOutput } from '../src/modules/ai/schemas.js';
 import { toGuideSteps, verifiedEvidence } from '../src/modules/ai/steps.js';
+import { AppError } from '../src/lib/errors.js';
 import { NextStepService } from '../src/modules/next-step/next-step.service.js';
 import { OptionsService } from '../src/modules/options/options.service.js';
 import { ProcedureResearcher } from '../src/modules/procedure/procedure.service.js';
@@ -127,6 +129,7 @@ describe('OptionsService: algo que no estaba entre las opciones', () => {
     expect(requests[1]!.input).toMatchObject({ request: 'Cambiar mi dirección', procedure: { summary: expect.any(String) } });
     const first = response.options[0]!;
     expect(first.title).toBe('Cambiar mi dirección');
+    expect(response.requestedOptionId).toBe(first.id);
 
     // Al elegirla, next-step usa el paso a paso ya investigado: no se busca de nuevo.
     requests.length = 0;
@@ -145,6 +148,65 @@ describe('OptionsService: algo que no estaba entre las opciones', () => {
     await new OptionsService(model, sessions, new ProcedureResearcher(model)).options({ html: '<button id="el-1">Agenda</button>' }, OWNER);
     expect(requests.map((r) => r.task)).toEqual(['options']);
     expect(requests[0]!.system).toBe(SYSTEM_PROMPTS.options);
+    sessions.close();
+  });
+});
+
+describe('ProcedureResearcher y la sesión', () => {
+  const silent = { info: () => undefined, warn: () => undefined } as never;
+
+  it('dos pedidos con la misma clave esperan una sola investigación; un fallo no se reintenta enseguida', async () => {
+    let calls = 0;
+    let fail = false;
+    const model: StructuredModel = {
+      async generate(request) {
+        calls++;
+        await new Promise((r) => setTimeout(r, 10));
+        if (fail) throw new AppError('TIMEOUT', 'x');
+        return request.schema.parse(defaultMockHandlers[request.task](request.input));
+      },
+    };
+    let now = 0;
+    const researcher = new ProcedureResearcher(model, undefined, () => now);
+    const context = { chat: [], metadata: {}, history: [] };
+    const subject = { option: { title: 'Turno', steps: [] } };
+    const [a, b] = await Promise.all([researcher.research('s:1', context, subject, silent), researcher.research('s:1', context, subject, silent)]);
+    expect(calls).toBe(1);
+    expect(a).toBe(b);
+
+    fail = true;
+    expect(await researcher.research('s:2', context, subject, silent)).toBeUndefined();
+    expect(await researcher.research('s:2', context, subject, silent)).toBeUndefined();
+    expect(calls).toBe(2);
+    now += 11 * 60_000;
+    fail = false;
+    expect(await researcher.research('s:2', context, subject, silent)).toBeDefined();
+    expect(calls).toBe(3);
+  });
+
+  it('un historial largo descarta primero los pasos viejos: las opciones y el paso a paso quedan', () => {
+    const sessions = new SessionStore(60_000);
+    const sessionId = sessionWithOption(sessions);
+    sessions.append(sessionId, OWNER, { type: 'procedure', optionId: 'turno', summary: 'x', steps: [], completion: 'x', sources: [] });
+    for (let i = 0; i < 80; i++)
+      sessions.append(sessionId, OWNER, { type: 'nextStep', optionId: 'turno', expectedStep: step, completedSteps: [], steps: [], done: false });
+    const history = sessions.context(sessionId, OWNER)!.history;
+    expect(history.length).toBeLessThanOrEqual(50);
+    expect(history.some((e) => e.type === 'options')).toBe(true);
+    expect(history.some((e) => e.type === 'procedure')).toBe(true);
+    sessions.close();
+  });
+
+  it('si ninguna opción hace lo pedido, no se marca ninguna ni se le pega el paso a paso', async () => {
+    const sessions = new SessionStore(60_000);
+    const model = new MockModel({ ...defaultMockHandlers, options: (input) => ({ ...(defaultMockHandlers.options(input) as OptionsOutput), requestedOptionId: 'inventada' }) });
+    const sessionId = sessions.create(OWNER);
+    const response = await new OptionsService(model, sessions, new ProcedureResearcher(model)).options(
+      { sessionId, html: '<button id="el-1">Noticias</button>', request: 'Pagar una multa' },
+      OWNER,
+    );
+    expect(response.requestedOptionId).toBeUndefined();
+    expect(sessions.context(sessionId, OWNER)!.history.some((e) => e.type === 'procedure')).toBe(false);
     sessions.close();
   });
 });

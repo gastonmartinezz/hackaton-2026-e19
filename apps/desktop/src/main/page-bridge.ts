@@ -157,6 +157,7 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
 
   /** Escribe lo dictado en el lugar señalado. El valor solo viaja al preload; nunca se registra. */
   fill(navigationId: string, elementId: string, value: string): Promise<FillResult> {
+    if (this.site.contents.isDestroyed()) return Promise.resolve('stale');
     const requestId = shortId();
     return new Promise((resolve) => {
       const timer = setTimeout(() => {

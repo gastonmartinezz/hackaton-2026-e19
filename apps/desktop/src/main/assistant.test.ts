@@ -213,6 +213,64 @@ describe('Assistant', () => {
     expect((sent[2] as NextStepRequest).completedSteps).toHaveLength(1);
   });
 
+  it('durante la espera después de un clic, lo que hace la persona sobre el control siguiente cuenta al mostrarlo y «Ya lo hice» no salta pasos', async () => {
+    load('horarios.html');
+    const mock = mockApi();
+    let links: GuideStep[] = [];
+    const { api } = recording(mock, {
+      options: async (r, s) => {
+        const response = await mock.options(r, s);
+        links = response.options.filter((o) => o.id.startsWith('go-')).slice(0, 3).map((o) => ({ ...o.steps[0]!, waitFor: 'userInteraction' as const }));
+        return { ...response, options: [{ id: 'x', title: 'X', steps: links }] };
+      },
+      nextStep: async (r) => ({ sessionId: r.sessionId, steps: links, done: false }),
+    });
+    const page = new FakePage();
+    const assistant = new Assistant({ api, session: new ApiSession(), page, onChange: () => {}, settleMs: 0, afterClickMs: 30 });
+    const until = (predicate: () => boolean) => vi.waitFor(() => expect(predicate()).toBe(true), { timeout: 2000, interval: 5 });
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    assistant.select('x');
+    await until(() => assistant.state.phase === 'waitingForUser' && assistant.state.step?.targetElementId !== undefined);
+    assistant.interaction(assistant.state.step!.targetElementId!, 'click');
+    expect(assistant.settling).toBe(true);
+    // «Ya lo hice» de la indicación anterior no cuenta para la que todavía no se mostró.
+    assistant.confirmDone();
+    expect(assistant.state.step).toEqual(links[1]);
+    // La persona ya hizo clic en el control siguiente: se toma en cuenta al mostrarlo.
+    const next = resolveSelector(links[1]!.element!, page.html, document, (n) => page.registry!.idOf(n))!;
+    assistant.interaction(next, 'click');
+    await until(() => assistant.state.step?.instruction === links[2]!.instruction);
+    expect(assistant.done).toHaveLength(3);
+  });
+
+  it('si la navegación después del clic no termina ni falla, el paso siguiente se muestra igual', async () => {
+    load('horarios.html');
+    const mock = mockApi();
+    let links: GuideStep[] = [];
+    const { api } = recording(mock, {
+      options: async (r, s) => {
+        const response = await mock.options(r, s);
+        links = response.options.filter((o) => o.id.startsWith('go-')).slice(0, 2).map((o) => ({ ...o.steps[0]!, waitFor: 'userInteraction' as const }));
+        return { ...response, options: [{ id: 'x', title: 'X', steps: links }] };
+      },
+      nextStep: async (r) => ({ sessionId: r.sessionId, steps: links, done: false }),
+    });
+    const page = new FakePage();
+    const assistant = new Assistant({ api, session: new ApiSession(), page, onChange: () => {}, settleMs: 0, afterClickMs: 20, navigationWatchdogMs: 40 });
+    const until = (predicate: () => boolean) => vi.waitFor(() => expect(predicate()).toBe(true), { timeout: 2000, interval: 5 });
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    assistant.analyze();
+    await until(() => assistant.state.phase === 'choosing');
+    assistant.select('x');
+    await until(() => assistant.state.phase === 'waitingForUser' && assistant.state.step?.targetElementId !== undefined);
+    assistant.interaction(assistant.state.step!.targetElementId!, 'click');
+    // Una descarga: empieza la navegación y no llega ni la carga ni el fallo.
+    assistant.navigationStarted();
+    await until(() => !assistant.settling && page.shown.length === 2);
+  });
+
   it('si después del clic la página no carga, el paso siguiente se muestra igual', async () => {
     load('horarios.html');
     const mock = mockApi();

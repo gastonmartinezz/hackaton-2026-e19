@@ -52,6 +52,8 @@ export interface AssistantDeps {
   onChange(): void;
   /** Espera antes de leer la página después de una interacción (el DOM cambia de forma asíncrona). */
   settleMs?: number;
+  /** Cuánto se espera a que cargue una navegación que empezó después de un clic (NAVIGATION_WATCHDOG_MS). */
+  navigationWatchdogMs?: number;
   /**
    * Espera después de un clic antes de mostrar (y leer en voz alta) el paso
    * siguiente: si el clic cambia de página, no se empieza a leer algo que la
@@ -65,6 +67,12 @@ const MAX_UNSHOWN_STEPS = 3;
 const MAX_STEPS = 60;
 /** «Ya hiciste» muestra solo los últimos pasos para no empujar la instrucción actual. */
 const MAX_DONE = 4;
+/**
+ * Después de un clic que empezó a cambiar de página, cuánto se espera a que
+ * cargue antes de dar la navegación por cancelada (por ejemplo, una descarga)
+ * y mostrar el paso siguiente.
+ */
+const NAVIGATION_WATCHDOG_MS = 8000;
 
 export class Assistant {
   state: GuideState = initialState;
@@ -101,6 +109,9 @@ export class Assistant {
   #epoch = 0;
   /** Cada #showStep toma un número; solo la última invocación aplica su resultado (pausa por riesgo, «Repetir»). */
   #showGeneration = 0;
+  /** Lo que hizo la persona mientras se esperaba después de un clic: se revisa contra el paso siguiente al mostrarlo. */
+  #heldObservations: Observation[] = [];
+  #watchdog: NodeJS.Timeout | undefined;
   #controller: AbortController | undefined;
   #pendingGoal: string | undefined;
   /** Sesión en la que se pidieron las opciones de la guía actual. */
@@ -127,7 +138,8 @@ export class Assistant {
   }
 
   confirmDone(): void {
-    if (this.paused) return;
+    // Durante la espera después de un clic el paso actual todavía no se mostró: la confirmación era del anterior.
+    if (this.paused || this.settling) return;
     this.#dispatch({ type: 'OUTCOME', outcome: 'userConfirmed' });
   }
 
@@ -209,6 +221,11 @@ export class Assistant {
     this.#invalidate();
     this.targetVisible = null;
     this.target = null;
+    // Si la navegación no termina ni falla (una descarga cancelada), no se queda en «fijándome».
+    if (this.settling) {
+      clearTimeout(this.#watchdog);
+      this.#watchdog = setTimeout(() => this.loadFailed(), this.deps.navigationWatchdogMs ?? NAVIGATION_WATCHDOG_MS);
+    }
   }
 
   /**
@@ -216,6 +233,7 @@ export class Assistant {
    * siguiente estaba en espera por el clic, se muestra: no hubo cambio de página.
    */
   loadFailed(): void {
+    clearTimeout(this.#watchdog);
     if (!this.settling || this.state.phase !== 'waitingForUser') return;
     this.settling = false;
     this.#pageReady = true;
@@ -223,6 +241,7 @@ export class Assistant {
   }
 
   navigated({ sameDocument, aiEnabled }: { sameDocument: boolean; aiEnabled: boolean }): void {
+    clearTimeout(this.#watchdog);
     this.#navigationId = `nav-${++this.#navigationSeq}`;
     this.#revision = 0;
     this.#snapshot = undefined;
@@ -265,7 +284,12 @@ export class Assistant {
 
   #observe(observation: Observation): void {
     const { phase, step } = this.state;
-    if (phase !== 'waitingForUser' || !step || this.paused || this.settling) return;
+    if (phase !== 'waitingForUser' || !step || this.paused) return;
+    if (this.settling) {
+      // El paso siguiente todavía no se mostró: lo que haga la persona se revisa cuando aparezca.
+      this.#heldObservations.push(observation);
+      return;
+    }
     const outcome = evaluateObservation(step, observation);
     if (outcome) this.#dispatch({ type: 'OUTCOME', outcome });
   }
@@ -282,6 +306,7 @@ export class Assistant {
     const epoch = this.#invalidate();
     this.paused = false;
     this.settling = false;
+    this.#heldObservations = [];
     this.ask = null;
     if (next.phase !== 'waitingForUser') {
       this.targetVisible = null;
@@ -311,6 +336,7 @@ export class Assistant {
 
   async #settleThenShow(epoch: number): Promise<void> {
     this.settling = true;
+    this.#heldObservations = [];
     this.deps.page.clear();
     this.deps.onChange();
     await new Promise((resolve) => setTimeout(resolve, this.deps.afterClickMs ?? 900));
@@ -386,7 +412,7 @@ export class Assistant {
       // Las opciones existen en esta sesión: /v1/next-step usa la misma, aunque
       // la compartida haya cambiado mientras tanto.
       this.#guideSessionId = response.sessionId;
-      this.#dispatch({ type: 'OPTIONS', options: response.options });
+      this.#dispatch({ type: 'OPTIONS', options: response.options, requested: response.requestedOptionId });
     } catch (error) {
       this.#fail(epoch, error);
     }
@@ -484,6 +510,10 @@ export class Assistant {
       this.#dispatch({ type: 'SHOWN', elementId, field });
       this.ask = this.#askFor(step, elementId, { fillable: fillable ?? false, sensitive: sensitive ?? false });
       this.deps.onChange();
+      // Lo que la persona ya hizo sobre este control mientras se esperaba cuenta ahora.
+      const held = this.#heldObservations.filter((o) => o.kind === 'interaction' || o.kind === 'validationError');
+      this.#heldObservations = [];
+      for (const observation of held) this.#observe(observation);
       return;
     }
     // Selector que no encuentra nada o destino invisible: se pide un nuevo paso.

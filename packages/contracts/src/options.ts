@@ -66,5 +66,11 @@ export type OptionsRequest = z.infer<typeof OptionsRequest>;
 export const OptionsResponse = z.strictObject({
   sessionId: SessionId,
   options: z.array(PageOption).max(10),
+  /**
+   * Solo con `request`: el id de la opción que hace lo que pidió la persona
+   * (va primera). Ausente si ninguna lo hace: el front muestra las opciones y
+   * no empieza ninguna sola.
+   */
+  requestedOptionId: ShortText(60).optional(),
 });
 export type OptionsResponse = z.infer<typeof OptionsResponse>;

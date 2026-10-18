@@ -63,8 +63,9 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
   // Con request (algo que la persona pidió con sus palabras), esa opción se llama como el pedido.
   options: (input: { html: string; request?: string }): OptionsOutput => {
     const id = firstId(input.html);
-    if (!id) return { options: [] };
+    if (!id) return { options: [], requestedOptionId: null };
     return {
+      requestedOptionId: input.request ? 'request' : null,
       options: [
         {
           id: input.request ? 'request' : 'start',
