@@ -13,11 +13,11 @@ import {
 describe('InterpretRequest', () => {
   it('exige que el último mensaje sea del usuario', () => {
     const messages = [
-      { role: 'user', content: 'Quiero renovar mi documento' },
+      { role: 'user', content: 'Quiero renovar la cédula' },
       { role: 'assistant', content: '¿En qué país?' },
     ];
     expect(InterpretRequest.safeParse({ messages }).success).toBe(false);
-    expect(InterpretRequest.safeParse({ messages: [...messages, { role: 'user', content: 'Argentina' }] }).success).toBe(true);
+    expect(InterpretRequest.safeParse({ messages: [...messages, { role: 'user', content: 'Uruguay' }] }).success).toBe(true);
   });
 });
 
@@ -26,17 +26,17 @@ describe('InterpretRequest.user', () => {
 
   it('acepta localidad, rango de edad, idioma y zona horaria', () => {
     const user = {
-      location: { country: 'AR', region: 'Buenos Aires', city: 'La Plata' },
+      location: { country: 'UY', region: 'Montevideo', city: 'Montevideo' },
       ageRange: '75-plus',
-      language: 'es-AR',
-      timeZone: 'America/Argentina/Buenos_Aires',
+      language: 'es-UY',
+      timeZone: 'America/Montevideo',
     };
     expect(InterpretRequest.safeParse({ messages, user }).success).toBe(true);
     expect(InterpretRequest.safeParse({ messages, user: {} }).success).toBe(true);
   });
 
   it.each([
-    ['país que no es ISO', { location: { country: 'Argentina' } }],
+    ['país que no es ISO', { location: { country: 'Uruguay' } }],
     ['edad exacta', { age: 70 }],
     ['rango inexistente', { ageRange: '70' }],
     ['campo desconocido', { location: { address: 'Calle 1' } }],
@@ -48,7 +48,7 @@ describe('InterpretRequest.user', () => {
 
 describe('InterpretResponse', () => {
   it('acepta redirect con URL https', () => {
-    const response = { sessionId: 's-abc', type: 'redirect', message: 'Te llevo.', url: 'https://www.argentina.gob.ar' };
+    const response = { sessionId: 's-abc', type: 'redirect', message: 'Te llevo.', url: 'https://www.gub.uy' };
     expect(InterpretResponse.safeParse(response).success).toBe(true);
   });
 
@@ -89,7 +89,7 @@ describe('NextStepResponse', () => {
 describe('TranscribeResponse', () => {
   it('acepta texto vacío y rechaza campos de más o texto demasiado largo', () => {
     expect(TranscribeResponse.safeParse({ text: '' }).success).toBe(true);
-    expect(TranscribeResponse.safeParse({ text: 'quiero renovar mi documento' }).success).toBe(true);
+    expect(TranscribeResponse.safeParse({ text: 'quiero renovar la cédula' }).success).toBe(true);
     expect(TranscribeResponse.safeParse({ text: 'hola', extra: 1 }).success).toBe(false);
     expect(TranscribeResponse.safeParse({ text: 'a'.repeat(1001) }).success).toBe(false);
   });

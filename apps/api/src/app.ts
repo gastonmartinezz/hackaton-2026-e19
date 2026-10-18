@@ -3,6 +3,7 @@ import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import Fastify, { type FastifyInstance } from 'fastify';
+import type OpenAI from 'openai';
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { AppConfig } from './config/env.js';
 import { AppError, registerErrorHandling, toApiError } from './lib/errors.js';
@@ -17,9 +18,16 @@ import { NextStepService } from './modules/next-step/next-step.service.js';
 import { nextStepRoutes } from './modules/next-step/next-step.routes.js';
 import { OptionsService } from './modules/options/options.service.js';
 import { optionsRoutes } from './modules/options/options.routes.js';
+import { createOpenAI } from './modules/openai/client.js';
 import { SessionStore } from './modules/sessions/session-store.js';
+import { MockSpeechProvider } from './modules/speak/mock-provider.js';
+import { OpenAISpeechProvider } from './modules/speak/openai-provider.js';
+import type { SpeechProvider } from './modules/speak/provider.js';
+import { speakRoutes } from './modules/speak/speak.routes.js';
+import { SpeakService } from './modules/speak/speak.service.js';
 import { LocalWhisperProvider } from './modules/transcribe/local-provider.js';
 import { MockTranscriptionProvider } from './modules/transcribe/mock-provider.js';
+import { OpenAITranscriptionProvider } from './modules/transcribe/openai-provider.js';
 import type { TranscriptionProvider } from './modules/transcribe/provider.js';
 import { transcribeRoutes } from './modules/transcribe/transcribe.routes.js';
 import { TranscribeService } from './modules/transcribe/transcribe.service.js';
@@ -29,9 +37,13 @@ export interface AppDeps {
   model?: StructuredModel;
   /** null: voz a texto apagada. Si no se pasa, sale de STT_PROVIDER. */
   transcriber?: TranscriptionProvider | null;
+  /** null: texto a voz apagado. Si no se pasa, sale de TTS_PROVIDER. */
+  speaker?: SpeechProvider | null;
+  /** Cliente de OpenAI (en pruebas, uno falso). Si no se pasa, se crea con OPENAI_API_KEY cuando hace falta. */
+  openai?: OpenAI;
 }
 
-function createTranscriber(config: AppConfig, app: FastifyInstance): TranscriptionProvider | null {
+function createTranscriber(config: AppConfig, app: FastifyInstance, openai: () => OpenAI): TranscriptionProvider | null {
   switch (config.STT_PROVIDER) {
     case 'off':
       return null;
@@ -40,6 +52,19 @@ function createTranscriber(config: AppConfig, app: FastifyInstance): Transcripti
     case 'local':
       // Empieza a cargar el modelo en segundo plano; el servidor arranca igual.
       return new LocalWhisperProvider(config, app.log);
+    case 'openai':
+      return new OpenAITranscriptionProvider(openai(), config);
+  }
+}
+
+function createSpeaker(config: AppConfig, openai: () => OpenAI): SpeechProvider | null {
+  switch (config.TTS_PROVIDER) {
+    case 'off':
+      return null;
+    case 'mock':
+      return new MockSpeechProvider();
+    case 'openai':
+      return new OpenAISpeechProvider(openai(), config);
   }
 }
 
@@ -95,7 +120,10 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
   const sessions = new SessionStore(config.SESSION_TTL_MINUTES * 60_000);
   app.addHook('onClose', async () => sessions.close());
 
-  const transcriber = deps.transcriber !== undefined ? deps.transcriber : createTranscriber(config, app);
+  let openaiClient = deps.openai;
+  const openai = () => (openaiClient ??= createOpenAI(config));
+  const transcriber = deps.transcriber !== undefined ? deps.transcriber : createTranscriber(config, app, openai);
+  const speakService = new SpeakService(deps.speaker !== undefined ? deps.speaker : createSpeaker(config, openai), app.log);
   app.addHook('onClose', async () => transcriber?.close?.());
   const transcribeService = new TranscribeService(
     transcriber,
@@ -103,13 +131,17 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
     app.log,
   );
 
-  await app.register(healthRoutes, { sttStatus: () => transcribeService.status });
+  await app.register(healthRoutes, { sttStatus: () => transcribeService.status, ttsStatus: () => speakService.status });
   await app.register(interpretRoutes, { service: new InterpretService(model, sessions) });
   await app.register(optionsRoutes, { service: new OptionsService(model, sessions) });
   await app.register(nextStepRoutes, { service: new NextStepService(model, sessions) });
   await app.register(transcribeRoutes, {
     service: transcribeService,
     rateLimit: { max: config.STT_RATE_LIMIT_MAX, timeWindow: config.RATE_LIMIT_WINDOW_MS },
+  });
+  await app.register(speakRoutes, {
+    service: speakService,
+    rateLimit: { max: config.TTS_RATE_LIMIT_MAX, timeWindow: config.RATE_LIMIT_WINDOW_MS },
   });
 
   return app;

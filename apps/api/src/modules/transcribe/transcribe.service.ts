@@ -66,6 +66,7 @@ export class TranscribeService {
 
     const { samples, durationMs } = decodeWav(body);
     onDecoded(durationMs);
+    const audio = { pcm: samples, wav: body, durationMs };
 
     if (provider.status !== 'ready') {
       // Cargando o reiniciándose después de un fallo: en los dos casos conviene reintentar.
@@ -77,7 +78,7 @@ export class TranscribeService {
     const timeout = AbortSignal.timeout(this.options.timeoutMs);
     const signal = clientSignal ? AbortSignal.any([timeout, clientSignal]) : timeout;
     try {
-      const raw = await this.queue.run(() => provider.transcribe(samples, signal), signal);
+      const raw = await this.queue.run(() => provider.transcribe(audio, signal), signal);
       return cleanTranscript(raw);
     } catch (error) {
       if (error instanceof QueueFullError) {
