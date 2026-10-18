@@ -549,7 +549,7 @@ La regla está en `siteIndicatorState()` del contrato y la usan front y tests de
 | `BRAND_IMPERSONATION` | fraud | Contenido / IA | El sitio dice ser un organismo del Estado uruguayo, una institución del BCU o una organización del catálogo y el dominio no le pertenece |
 | `SENSITIVE_DATA_REQUEST` | fraud | Contenido / IA | Pide tarjeta, cuenta bancaria, claves de BPS o DGI, pagos o códigos en un sitio sin identidad oficial (o contraseña junto a otra señal) |
 | `FORM_SENDS_TO_OTHER_DOMAIN` | fraud | Contenido | Un formulario con datos sensibles envía a otro dominio |
-| `LINK_TEXT_MISMATCH` | fraud | Contenido | El texto del enlace muestra un dominio u organización distinta del destino real |
+| `LINK_TEXT_MISMATCH` | fraud | Contenido | El texto del enlace muestra un dominio u organización distinta del destino real. No cuenta cuando un sitio oficial nombra a su propia organización en un enlace a otro dominio (descargar su app, WhatsApp, otro dominio propio) |
 | `URGENCY_OR_THREAT` | fraud | Contenido | Combinación de amenazas o urgencia con un pedido de datos |
 | `RECENTLY_REGISTERED` | fraud (apoyo) | RDAP | Dominio registrado hace menos de 30 días. Nunca da riesgo alto por sí solo |
 | `NO_HTTPS` | technical | Dirección | La página no usa https |
