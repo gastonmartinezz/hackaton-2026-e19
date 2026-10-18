@@ -92,6 +92,32 @@ describe('fuentes de autoridad', () => {
     expect(view.official('www.acac.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'COOPERATIVA ACAC' });
   });
 
+  it('lo que el catálogo revisó y descartó no lo aprueba el BCU', () => {
+    const file = join(tmpdir(), `official-sites.descartes-${process.pid}.json`);
+    const discarded = [
+      { organization: 'CASH S.A.', domain: 'cash.com.uy', reason: 'BCU lo publica pero no respondió.' },
+      { organization: 'Paigo', domain: 'uinuin.com.uy, www.floder.uy, credisol.com.uy', reason: 'Sin verificar.' },
+      // Un subdominio descartado no descarta el dominio registrable.
+      { organization: 'Itaú', domain: 'viejo.itau.com.uy', reason: 'No resolvió.' },
+      // Una nota sobre un dominio que sí es una entrada no lo descarta.
+      { organization: 'Antel', domain: 'antel.com.uy', reason: 'No es un descarte.' },
+      { organization: 'Sin dominio', domain: '-', reason: 'Nota.' },
+    ];
+    const catalog = JSON.parse(readFileSync(TEST_CATALOGS[0]!, 'utf8'));
+    writeFileSync(file, JSON.stringify({ ...catalog, discarded }));
+    const sources = loadOfficialSources({ catalogFiles: [file] });
+    expect([...sources.discarded.keys()]).toEqual(['cash.com.uy', 'uinuin.com.uy', 'credisol.com.uy']);
+    const reviewed = new AuthorityView(sources, view.registry, []);
+    expect(view.official('www.cash.com.uy')?.basis).toBe('financial_regulator');
+    expect(reviewed.official('www.cash.com.uy')).toBeNull();
+    expect(reviewed.official('www.credisol.com.uy')).toBeNull();
+    expect(reviewed.official('www.paigo.com.uy')).toMatchObject({ basis: 'financial_regulator', organization: 'Paigo' });
+    expect(reviewed.official('www.itau.com.uy')?.basis).toBe('financial_regulator');
+    expect(reviewed.official('www.antel.com.uy')?.basis).toBe('official_catalog');
+    // Sigue siendo referencia de dominios parecidos.
+    expect(lookalikeSignals(describeHost('cash-login.com.uy'), reviewed.references(), []).map((s) => s.code)).toContain('LOOKALIKE_DOMAIN');
+  });
+
   it('catálogo curado con fuente y fecha por entrada; alcance exact', () => {
     expect(view.official('www.antel.com.uy')).toMatchObject({ basis: 'official_catalog', organization: 'Antel' });
     expect(view.official('www.antel.com.uy')?.source).toEqual({ name: 'https://www.antel.com.uy/', url: 'https://www.antel.com.uy/', reviewedAt: '2026-10-16T00:00:00.000Z' });

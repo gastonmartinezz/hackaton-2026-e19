@@ -18,7 +18,7 @@ import {
  * 1. Registro de instituciones del BCU (`financial_regulator`), solo con la copia vigente: el dominio
  *    registrable es el del sitio web que el BCU publica para una institución supervisada. Si el dominio
  *    también está en el catálogo, la organización es el nombre corto del catálogo («Banco República (BROU)»
- *    en vez de la razón social).
+ *    en vez de la razón social). Los dominios que el catálogo revisó y descartó no los aprueba el BCU.
  * 2. Catálogo curado (`official_catalog`): entrada con fuente y fecha de revisión. Cubre lo que no está en
  *    el BCU y los dominios verificados que el BCU no publica (brou.com.uy, además de bancorepublica.com.uy).
  * 3. Zona reservada al Estado (`government_domain`): gub.uy, mil.uy, .gov… por regla de zona.
@@ -111,7 +111,7 @@ export class AuthorityView {
   official(hostname: string): OfficialMatch | null {
     const entry = this.catalogEntry(hostname);
     const domain = describeHost(hostname).registrableDomain;
-    const candidates = this.registry.status === 'fresh' && domain ? this.registryInstitutions(hostname) : [];
+    const candidates = this.registry.status === 'fresh' && domain && !this.sources.discarded.has(domain) ? this.registryInstitutions(hostname) : [];
     const institution = candidates.find((i) => atRoot(i.website)) ?? candidates[0];
     if (domain && institution && this.registry.snapshot) {
       return {

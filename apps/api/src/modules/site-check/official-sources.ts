@@ -3,13 +3,14 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Hostname } from '@hackaton/contracts';
 import { z } from 'zod';
-import { hostMatches } from './domain.js';
+import { describeHost, hostMatches } from './domain.js';
 
 /**
  * Fuentes de autoridad locales y versionadas (en `data/`):
  * - `government-zones.json`: zonas reservadas al Estado (.gov, .mil) y nombres de organismos (`claims`).
  * - `official-sites.<país>.json`: catálogos curados con fuente y fecha de revisión por entrada
- *   (por ejemplo, Uruguay). Sus `zones` también cuentan como zonas de gobierno.
+ *   (por ejemplo, Uruguay). Sus `zones` también cuentan como zonas de gobierno, y sus `discarded`
+ *   (dominios revisados a mano y descartados, con el motivo) no los aprueba el registro del BCU.
  * Un archivo inválido detiene el arranque: nunca se usa un catálogo a medias.
  */
 
@@ -83,6 +84,9 @@ const CatalogFile = z.object({
   discarded: z.array(z.unknown()).default([]),
 });
 
+/** Descarte con dominio: el texto puede traer varios («a.com.uy, b.uy») o ninguno («-»). */
+const Discarded = z.object({ domain: z.string(), reason: z.string().optional() });
+
 export interface GovernmentZone {
   suffix: string;
   organization: string;
@@ -120,6 +124,11 @@ export interface OfficialSources {
   zones: GovernmentZone[];
   entries: CatalogEntry[];
   claims: ClaimGroup[];
+  /**
+   * Dominios registrables que un catálogo revisó y descartó (no respondían, redirigían a otro sitio, sin
+   * verificar…), con el motivo. Lo revisado a mano manda: el registro del BCU no los aprueba.
+   */
+  discarded: Map<string, string>;
   /** Versiones cargadas, para la evidencia ("government-zones 2026-10-17.1", "official-sites.uy …"). */
   versions: string[];
 }
@@ -148,7 +157,7 @@ export function loadOfficialSources(options: { dataDir?: string; zonesFile?: str
       .sort()
       .map((name) => join(dataDir, name));
 
-  const sources: OfficialSources = { zones: [], entries: [], claims: [], versions: [] };
+  const sources: OfficialSources = { zones: [], entries: [], claims: [], discarded: new Map(), versions: [] };
 
   try {
     const zones = ZonesFile.parse(readJson(zonesPath));
@@ -175,6 +184,14 @@ export function loadOfficialSources(options: { dataDir?: string; zonesFile?: str
     for (const entry of file.entries) {
       sources.entries.push({ ...entry, country: file.country, catalog });
     }
+    for (const item of file.discarded) {
+      const discarded = Discarded.safeParse(item);
+      if (!discarded.success) continue;
+      // Solo dominios registrables completos: «mi.movistar.com.uy» descartado no descarta movistar.com.uy.
+      for (const domain of discarded.data.domain.toLowerCase().split(/[\s,;/]+/)) {
+        if (domain && describeHost(domain).registrableDomain === domain) sources.discarded.set(domain, `${discarded.data.reason ?? 'Descartado'} (${catalog})`);
+      }
+    }
   }
 
   const seen = new Map<string, string>();
@@ -185,6 +202,8 @@ export function loadOfficialSources(options: { dataDir?: string; zonesFile?: str
       seen.set(domain, entry.id);
     }
   }
+  // Una nota en `discarded` sobre un dominio que sí es una entrada («No es un descarte») no lo descarta.
+  for (const domain of seen.keys()) sources.discarded.delete(domain);
   return sources;
 }
 
