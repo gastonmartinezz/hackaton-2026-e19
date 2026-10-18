@@ -126,18 +126,14 @@ export class Highlighter {
       width: `${rect.width + MARGIN * 2}px`,
       height: `${rect.height + MARGIN * 2}px`,
     });
-    // Rótulo (R8): arriba a la izquierda; a la derecha si es un campo
-    // (no tapa su etiqueta); abajo si arriba no entra.
+    // Rótulo (R8): arriba a la izquierda; a la derecha si es un campo (no tapa
+    // su etiqueta); abajo si arriba no entra o tapa texto. Nunca tapa texto.
     const view = this.doc.defaultView;
-    const place = labelPlacement(target, rect, view?.innerWidth ?? Infinity);
+    const size = { width: this.#badge.offsetWidth || BADGE_WIDTH, height: this.#badge.offsetHeight || BADGE_HEIGHT };
+    const place = labelPlacement(target, rect, view?.innerWidth ?? Infinity, (box) => coveredContent(this.doc, box), size);
     this.#badge.dataset.place = place;
-    const position =
-      place === 'side'
-        ? { left: rect.right + MARGIN + BADGE_GAP, top: rect.top + rect.height / 2 - BADGE_HEIGHT / 2 }
-        : place === 'above'
-          ? { left: rect.left - MARGIN, top: rect.top - MARGIN - BADGE_GAP - BADGE_HEIGHT }
-          : { left: rect.left - MARGIN, top: rect.bottom + MARGIN + BADGE_GAP };
-    Object.assign(this.#badge.style, { display: 'block', left: `${Math.max(4, position.left)}px`, top: `${position.top}px` });
+    const position = badgePosition(place, rect, size);
+    Object.assign(this.#badge.style, { display: 'block', left: `${position.left}px`, top: `${position.top}px` });
   };
 
   #schedule = (): void => {
@@ -176,9 +172,80 @@ export function isField(element: Element): boolean {
   return element.getAttribute('contenteditable') === 'true' || element.getAttribute('role') === 'textbox' || element.getAttribute('role') === 'combobox';
 }
 
-export function labelPlacement(target: Element, rect: DOMRect, viewportWidth: number): 'above' | 'side' | 'below' {
-  if (isField(target) && rect.right + MARGIN + BADGE_GAP + BADGE_WIDTH < viewportWidth) return 'side';
-  return rect.top - MARGIN - BADGE_GAP - BADGE_HEIGHT > 0 ? 'above' : 'below';
+type Placement = 'above' | 'side' | 'below';
+interface Box {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Dónde va el rótulo. En orden de R8 (al costado en campos, arriba, abajo) se
+ * elige el primer lugar que entra en la pantalla y no tapa contenido de la
+ * página; si todos tapan algo, el que menos tapa. `covered` cuenta cuánto
+ * contenido queda debajo de un lugar (sin medirlo, se elige solo por espacio).
+ */
+export function labelPlacement(
+  target: Element,
+  rect: DOMRect,
+  viewportWidth: number,
+  covered: (box: Box) => number = () => 0,
+  size = { width: BADGE_WIDTH, height: BADGE_HEIGHT },
+): Placement {
+  const order: Placement[] = isField(target) ? ['side', 'above', 'below'] : ['above', 'below', 'side'];
+  const fits = (place: Placement) => {
+    const box = badgePosition(place, rect, size);
+    if (place === 'side') return box.left + size.width < viewportWidth;
+    return place === 'below' || box.top > 0;
+  };
+  let best: { place: Placement; score: number } | null = null;
+  for (const place of order.filter(fits)) {
+    const score = covered({ ...badgePosition(place, rect, size), ...size });
+    if (score === 0) return place;
+    if (!best || score < best.score) best = { place, score };
+  }
+  return best?.place ?? 'below';
+}
+
+function badgePosition(place: Placement, rect: DOMRect, size: { width: number; height: number }): { left: number; top: number } {
+  const position =
+    place === 'side'
+      ? { left: rect.right + MARGIN + BADGE_GAP, top: rect.top + rect.height / 2 - size.height / 2 }
+      : place === 'above'
+        ? { left: rect.left - MARGIN, top: rect.top - MARGIN - BADGE_GAP - size.height }
+        : { left: rect.left - MARGIN, top: rect.bottom + MARGIN + BADGE_GAP };
+  return { left: Math.max(4, position.left), top: position.top };
+}
+
+/**
+ * Cuántos puntos de una grilla sobre `box` caen en texto o en un control de la
+ * página. El overlay no intercepta clics (pointer-events: none), así que no se
+ * mide a sí mismo.
+ */
+function coveredContent(doc: Document, box: Box): number {
+  const caret = (doc as Document & { caretRangeFromPoint?: (x: number, y: number) => Range | null }).caretRangeFromPoint;
+  if (typeof doc.elementFromPoint !== 'function') return 0;
+  let hits = 0;
+  for (const fx of [0.1, 0.5, 0.9]) {
+    for (const fy of [0.2, 0.8]) {
+      const x = box.left + box.width * fx;
+      const y = box.top + box.height * fy;
+      const element = doc.elementFromPoint(x, y);
+      if (!element) continue;
+      if (element.closest('a, button, input, select, textarea, label, img, svg, video, [role="button"], [role="link"]')) {
+        hits++;
+        continue;
+      }
+      const range = caret?.call(doc, x, y);
+      const node = range?.startContainer;
+      if (node?.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) continue;
+      const text = doc.createRange();
+      text.selectNodeContents(node);
+      if ([...text.getClientRects()].some((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) hits++;
+    }
+  }
+  return hits;
 }
 
 function isDisplayed(element: Element): boolean {

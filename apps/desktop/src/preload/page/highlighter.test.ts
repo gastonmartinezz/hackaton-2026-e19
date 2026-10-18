@@ -61,4 +61,17 @@ describe('labelPlacement', () => {
     expect(labelPlacement(input, rect(200), 1200)).toBe('side');
     expect(labelPlacement(input, rect(200, 1180), 1200)).toBe('above');
   });
+
+  it('nunca tapa texto si hay otro lugar libre; si no, el que menos tapa (R8)', () => {
+    const button = document.getElementById('b')!;
+    const input = document.getElementById('a')!;
+    // Texto encima del control: va abajo aunque arriba entre.
+    expect(labelPlacement(button, rect(200), 1200, (box) => (box.top < 200 ? 3 : 0))).toBe('below');
+    // Sin lugar arriba y texto abajo: a la derecha.
+    expect(labelPlacement(button, rect(20), 1200, (box) => (box.top > 50 ? 2 : 0))).toBe('side');
+    // Todo tapa algo: el que menos.
+    expect(labelPlacement(button, rect(200), 1200, (box) => (box.left > 200 ? 1 : box.top < 200 ? 4 : 2))).toBe('side');
+    // En un campo, a la derecha salvo que tape su etiqueta u otro texto.
+    expect(labelPlacement(input, rect(200), 1200, (box) => (box.left > 200 ? 2 : 0))).toBe('above');
+  });
 });
