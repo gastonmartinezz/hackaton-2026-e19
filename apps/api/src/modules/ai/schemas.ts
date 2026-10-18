@@ -35,6 +35,12 @@ export const OptionsOutput = z.object({
 });
 export type OptionsOutput = z.infer<typeof OptionsOutput>;
 
+/** Si cada página que propuso interpret es, por su título real, de lo que pidió la persona. */
+export const PageCheckOutput = z.object({
+  pages: z.array(z.object({ url: z.string(), matches: z.boolean(), reason: z.string() })),
+});
+export type PageCheckOutput = z.infer<typeof PageCheckOutput>;
+
 /** Qué opción de las que ya se mostraron hace lo que pidió la persona, o null si ninguna. */
 export const MatchOutput = z.object({
   optionId: z.string().nullable(),

@@ -33,6 +33,7 @@ export function taskSettings(config: AppConfig, task: AiTask): TaskSettings {
     nextStep: [config.CLAUDE_MODEL_NEXT_STEP, config.CLAUDE_EFFORT_NEXT_STEP],
     procedure: [config.CLAUDE_MODEL_PROCEDURE, config.CLAUDE_EFFORT_PROCEDURE],
     match: [config.CLAUDE_MODEL_MATCH, config.CLAUDE_EFFORT_MATCH],
+    pageCheck: [config.CLAUDE_MODEL_PAGE_CHECK, config.CLAUDE_EFFORT_PAGE_CHECK],
     // Protección de sitios no tiene variables propias: usa las generales.
     siteCheck: [undefined, undefined],
   } as const;
