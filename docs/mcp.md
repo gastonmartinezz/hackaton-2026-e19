@@ -17,16 +17,16 @@ Interfaz privada de herramientas para el componente de IA (y para depurar a mano
 
 ## Tools
 
-Todas son de solo lectura. Ninguna ejecuta código ni hace peticiones HTTP arbitrarias: solo consultan el catálogo, el proveedor de reputación configurado, RDAP (servidores del bootstrap de IANA) o el inspector de conexión con protección contra SSRF. Los argumentos se validan con los esquemas Zod del contrato y las URLs se depuran (sin query, fragmento ni secretos) antes de usarse. Las direcciones locales, privadas o internas devuelven `coverage: "not_applicable"`, `errors: ["internal_host"]` e `isError: true`, sin consultar afuera.
+Todas son de solo lectura. Ninguna ejecuta código ni hace peticiones HTTP arbitrarias: solo consultan las fuentes de autoridad (zonas de gobierno, padrón del BCRA ya descargado, catálogos curados), el proveedor de reputación configurado, RDAP (servidores del bootstrap de IANA) o el inspector de conexión con protección contra SSRF. Los argumentos se validan con los esquemas Zod del contrato y las URLs se depuran (sin query, fragmento ni secretos) antes de usarse. Las direcciones locales, privadas o internas devuelven `coverage: "not_applicable"`, `errors: ["internal_host"]` e `isError: true`, sin consultar afuera.
 
 | Tool | Argumentos | Qué hace |
 |---|---|---|
 | `check_url_reputation` | `url` | Consulta reportes **existentes** de phishing y malware. Nunca envía la URL a escanear ni la publica |
-| `lookup_official_identity` | `hostname` | Organización, dominio autorizado, alcance (`exact`/`subdomains`), fuente y fecha de revisión del catálogo; además, señales de dominio parecido, caracteres confusos y subdominio engañoso |
+| `lookup_official_identity` | `hostname` | Identidad oficial según las fuentes de autoridad: `basis` (`government_domain`, `financial_regulator`, `official_catalog`), organización, zona o dominio que autoriza, fuente (nombre, URL y fecha de revisión o de descarga del padrón) y estado del padrón; además, señales de dominio parecido, caracteres confusos y subdominio engañoso |
 | `get_domain_registration` | `domain` | Fecha de alta y registrador por RDAP del dominio registrable |
 | `inspect_connection` | `url` | HTTPS, certificado y redirecciones (máx. 5) con fetch controlado: solo puertos 80/443, DNS validado en cada salto, sin cookies ni credenciales, sin descargar el cuerpo |
 | `analyze_page_structure` | `url`, `page` (`PageSummary` del contrato) | Reglas sobre formularios (sin valores), enlaces, scripts e iframes |
-| `compare_brand_identity` | `hostname`, `declaredBrand` | Contrasta la marca declarada con el catálogo; la marca nunca prueba identidad |
+| `compare_brand_identity` | `hostname`, `declaredBrand` | Contrasta la organización declarada con las fuentes de autoridad (organismos del Estado, entidades del padrón del BCRA, catálogos curados). Solo detecta suplantación: la marca nunca prueba identidad |
 
 ### Formato de respuesta
 
@@ -35,20 +35,31 @@ Todas son de solo lectura. Ninguna ejecuta código ni hace peticiones HTTP arbit
 ```json
 {
   "tool": "lookup_official_identity",
-  "source": "Registro de sitios oficiales v2026-10-17.1",
-  "checkedAt": "2026-10-17T22:00:00.000Z",
+  "source": "Padrón de entidades financieras del BCRA",
+  "checkedAt": "2026-10-18T01:20:00.000Z",
   "coverage": "complete",
-  "expiresAt": "2026-10-17T22:10:00.000Z",
-  "limitations": ["Solo reconoce las organizaciones incluidas en el registro. …", "Revisión del registro: 2026-10-17."],
+  "expiresAt": "2026-10-18T01:30:00.000Z",
+  "limitations": ["«Oficial» solo sale de una autoridad: …", "Padrón de entidades financieras del BCRA: 70 entidades con sitio web (3 sin sitio utilizable), descargado 2026-10-18T01:15:59.769Z"],
   "errors": [],
-  "data": { "hostname": "anses-turnos.com", "registrableDomain": "anses-turnos.com", "official": null, "catalogVersion": "2026-10-17.1" },
-  "findings": [
-    { "code": "LOOKALIKE_DOMAIN", "category": "fraud", "observedBy": "service", "detail": "El dominio anses-turnos.com se parece a anses.gob.ar", "impersonatedOrganization": "ANSES (Administración Nacional de la Seguridad Social)" }
-  ]
+  "data": {
+    "hostname": "www.bna.com.ar",
+    "registrableDomain": "bna.com.ar",
+    "official": {
+      "basis": "financial_regulator",
+      "organization": "BANCO DE LA NACION ARGENTINA",
+      "matched": "bna.com.ar",
+      "source": { "name": "Padrón de entidades financieras del BCRA", "url": "https://www.bcra.gob.ar/api/endpoints/entidades-financieras.php?action=detail&category=00011", "reviewedAt": "2026-10-18T01:15:59.769Z" },
+      "detail": "bna.com.ar es el sitio que el BCRA publica para BANCO DE LA NACION ARGENTINA"
+    },
+    "sources": { "versions": ["government-zones 2026-10-17.1"], "registry": "…", "registryStatus": "fresh" }
+  },
+  "findings": []
 }
 ```
 
-- `coverage`: `complete`, `partial`, `unavailable` o `not_applicable`. Una fuente caída **no** es error de la tool: vuelve `coverage: "unavailable"` y el motivo en `errors` (`timeout`, `rate_limited`, `http_503`, `not_configured`, `no_rdap_service`, `blocked_destination`…).
+Para `bna-seguro.com`, `official` es `null` y `findings` trae `LOOKALIKE_DOMAIN` con `impersonatedOrganization: "BANCO DE LA NACION ARGENTINA"`. Con el padrón caído, un host fuera de zonas y catálogos devuelve `coverage: "unavailable"` y `errors: ["registry_unavailable"]`, sin aprobación.
+
+- `coverage`: `complete`, `partial`, `unavailable` o `not_applicable`. Una fuente caída **no** es error de la tool: vuelve `coverage: "unavailable"` y el motivo en `errors` (`timeout`, `rate_limited`, `http_503`, `not_configured`, `no_rdap_service`, `blocked_destination`, `registry_unavailable`, `registry_stale`…).
 - `expiresAt`: vigencia del dato según la fuente (`null` si no se guarda en caché).
 
 ## Cómo correrlo
@@ -75,7 +86,7 @@ Con un cliente MCP (por ejemplo MCP Inspector), usar el transporte «Streamable 
 
 ## Relación con la IA de /v1/site-check
 
-Hoy `/v1/site-check` ejecuta **siempre** las seis verificaciones desde el servicio y entrega la evidencia a la IA, que solo produce una explicación (y como mucho un motivo de riesgo medio). La IA no puede omitir verificaciones ni declarar oficialidad. Que la IA invoque estas tools para ampliar la investigación (bucle de tool use) queda como mejora: el servidor y los servicios ya están listos para eso.
+Hoy `/v1/site-check` ejecuta **siempre** las seis verificaciones desde el servicio y entrega la evidencia a la IA, que solo identifica la organización que la página dice ser y qué pide (credenciales, pagos, códigos), y redacta una explicación. Esa organización se contrasta con las fuentes de autoridad. La IA no puede omitir verificaciones ni declarar oficialidad. Que la IA invoque estas tools para ampliar la investigación (bucle de tool use) queda como mejora: el servidor y los servicios ya están listos para eso.
 
 ## Limitaciones
 

@@ -51,7 +51,12 @@ const ORDER: ReferenceKind[] = ['financial_regulator', 'official_catalog', 'popu
  * Señales de imitación. El llamador garantiza que el host NO es oficial; si el dominio
  * registrable es una referencia (por ejemplo, un dominio popular), no hay señal.
  */
-export function lookalikeSignals(host: HostInfo, references: readonly Reference[], zones: readonly ZoneReference[]): DomainSignal[] {
+export function lookalikeSignals(
+  host: HostInfo,
+  references: readonly Reference[],
+  zones: readonly ZoneReference[],
+  options: { tldSwap?: boolean } = {},
+): DomainSignal[] {
   const domain = host.registrableDomain;
   const label = host.label;
   if (host.isIp || !domain || !label) return [];
@@ -106,8 +111,9 @@ export function lookalikeSignals(host: HostInfo, references: readonly Reference[
     if (unicodeLabel !== refLabel && visualLabel === compact(skeleton(refLabel))) {
       add(nonAscii ? 'CONFUSABLE_CHARACTERS' : 'LOOKALIKE_DOMAIN', ref.organization, `${domain} se ve igual que ${ref.domain}`);
     }
-    // Misma marca con otra terminación: bancociudad.com frente a bancociudad.com.ar.
-    if (label === refLabel && refLabel.length >= 4) add('LOOKALIKE_DOMAIN', ref.organization, `Mismo nombre que ${ref.domain} con otra terminación`);
+    // Misma marca con otra terminación: bancociudad.com frente a bancociudad.com.ar. Solo con una lista de
+    // dominios populares para excluir los sitios globales legítimos (santander.com, bbva.com).
+    if (options.tldSwap && label === refLabel && refLabel.length >= 4) add('LOOKALIKE_DOMAIN', ref.organization, `Mismo nombre que ${ref.domain} con otra terminación`);
     // Una letra de diferencia, solo con nombres largos (los cortos chocan con sitios legítimos).
     if (refLabel.length >= 7 && editDistance(flat, refLabel) === 1) add('LOOKALIKE_DOMAIN', ref.organization, `${domain} difiere en una letra de ${ref.domain}`);
     // Marca + palabra clave: bna-seguro.com, antel-uy.com, macrologin.com.

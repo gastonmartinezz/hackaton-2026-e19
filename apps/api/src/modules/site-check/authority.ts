@@ -167,8 +167,8 @@ export class AuthorityView {
       const distinctive = all.filter((t) => (this.df.get(t) ?? 0) === 1);
       const declaredInName = declared.length > 0 && declared.every((t) => all.includes(t)) && declared.some((t) => (this.df.get(t) ?? 0) <= 4);
       const nameInDeclared = distinctive.length > 0 && distinctive.every((t) => declared.includes(t));
-      const exact = declared.length > 0 && distinctive.length === declared.length && declaredInName;
-      return (declaredInName || nameInDeclared) && (financial || exact);
+      // Sin una palabra financiera (o la pista de la IA) no alcanza: "La Nación" es también un diario.
+      return (declaredInName || nameInDeclared) && financial;
     });
     if (matches.length > 0) {
       found.push({ organization: matches[0]!.name.slice(0, 120), keys: matches.map((m) => `bcra:${m.code}`), via: 'financial_regulator' });
@@ -187,6 +187,11 @@ export class AuthorityView {
     for (const entry of this.sources.entries) for (const d of entry.domains) push(d.domain, entry.organization, 'official_catalog');
     refs.push(...this.popular);
     return refs;
+  }
+
+  /** El cambio de terminación solo se evalúa si hay lista de populares para excluir sitios globales legítimos. */
+  get tldSwap(): boolean {
+    return this.popular.length > 0;
   }
 
   zoneReferences(): ZoneReference[] {

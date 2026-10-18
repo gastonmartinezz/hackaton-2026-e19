@@ -90,7 +90,7 @@ export class SiteCheckService {
     const official = authority.official(host.hostname);
     const findings: Finding[] = official
       ? []
-      : lookalikeSignals(host, authority.references(), authority.zoneReferences()).map((signal) => ({
+      : lookalikeSignals(host, authority.references(), authority.zoneReferences(), { tldSwap: authority.tldSwap }).map((signal) => ({
           code: signal.code,
           source: IDENTITY_SOURCE,
           checkedAt,

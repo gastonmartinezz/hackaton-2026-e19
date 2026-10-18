@@ -77,7 +77,10 @@ describe('fuentes de autoridad', () => {
   it('organizaciones declaradas: Estado, padrón y catálogo', () => {
     expect(view.claims('ANSES - Mi cuenta').map((c) => [c.via, c.keys])).toEqual([['government_domain', ['gov:AR']]]);
     expect(view.claims('Banco Nación').map((c) => c.organization)).toEqual(['BANCO DE LA NACION ARGENTINA']);
-    expect(view.claims('Galicia').map((c) => c.organization)).toEqual(['BANCO DE GALICIA Y BUENOS AIRES S.A']);
+    expect(view.claims('Banco Galicia').map((c) => c.organization)).toEqual(['BANCO DE GALICIA Y BUENOS AIRES S.A']);
+    expect(view.claims('Galicia', { kind: 'financial_entity', country: 'AR' }).map((c) => c.organization)).toEqual(['BANCO DE GALICIA Y BUENOS AIRES S.A']);
+    expect(view.claims('LA NACION')).toEqual([]); // un diario, no el banco
+    expect(view.claims('Galicia')).toEqual([]);
     expect(view.claims('Banco Provincia')[0]?.keys).toContain('bcra:00014');
     expect(view.claims('Antel')[0]).toMatchObject({ via: 'official_catalog', keys: ['catalog:antel'] });
     expect(view.claims('BROU')[0]?.keys).toEqual(['catalog:brou']);
@@ -123,7 +126,6 @@ describe('dominios parecidos (sin lista manual)', () => {
     ['bna.com.ar.verificacion.net', 'MISLEADING_SUBDOMAIN', 'BANCO DE LA NACION ARGENTINA'],
     ['bna.secure-login.com', 'MISLEADING_SUBDOMAIN', 'BANCO DE LA NACION ARGENTINA'],
     ['bancoprovincla.com.ar', 'LOOKALIKE_DOMAIN', 'BANCO DE LA PROVINCIA DE BUENOS AIR'], // una letra
-    ['bancociudad.com', 'LOOKALIKE_DOMAIN', 'BANCO DE LA CIUDAD DE BUENOS AIRES'], // otra terminación
     ['santander-login.com', 'LOOKALIKE_DOMAIN', 'BANCO SANTANDER ARGENTINA S.A.'],
     ['antel-uy.com', 'LOOKALIKE_DOMAIN', 'Antel (Administración Nacional de Telecomunicaciones)'],
     ['brou.com.uy.verificacion.net', 'MISLEADING_SUBDOMAIN', 'Banco de la República Oriental del Uruguay (BROU)'],
@@ -131,6 +133,13 @@ describe('dominios parecidos (sin lista manual)', () => {
     ['anses.xn--gb-jbc.ar', 'CONFUSABLE_CHARACTERS', 'Estado argentino'], // "gοb.ar" con ómicron griega
   ])('%s → %s', (hostname, code, organization) => {
     expect(signals(hostname)).toContainEqual([code, organization]);
+  });
+
+  it('cambio de terminación: solo con lista de populares, para no marcar sitios globales', () => {
+    expect(signals('bancociudad.com')).toEqual([]);
+    expect(signals('www.santander.com')).toEqual([]);
+    const tldSwap = (hostname: string) => lookalikeSignals(describeHost(hostname), view.references(), [], { tldSwap: true }).map((s) => s.code);
+    expect(tldSwap('bancociudad.com')).toEqual(['LOOKALIKE_DOMAIN']);
   });
 
   it('no marca sitios sin relación ni marcas dentro de otras palabras', () => {
