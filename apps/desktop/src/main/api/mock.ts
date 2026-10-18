@@ -17,10 +17,10 @@ import type {
   OptionsResponse,
   PageOption,
   SiteOption,
+  TranscribeResponse,
 } from '@hackaton/contracts';
 import { isTranscribableWav, rms, wavSamples } from '../../shared/wav';
 import { ApiFailure, type ApiClient } from './client';
-import type { TranscribeResponse } from './pending-contract';
 
 /** Texto fijo del dictado simulado: el mismo que devuelve el modo mock del servidor. */
 export const MOCK_TRANSCRIPT = 'Quiero renovar mi documento';
@@ -72,8 +72,7 @@ export class MockApiClient implements ApiClient {
   }
 
   /**
-   * TEMPORAL: /v1/transcribe todavía no está en el contrato (ver
-   * api/pending-contract.ts). Sin Whisper: si el audio es casi silencio
+   * /v1/transcribe sin Whisper: si el audio es casi silencio
    * devuelve `""` («no te escuché»); si no, el mismo texto fijo que el modo
    * mock del servidor.
    */

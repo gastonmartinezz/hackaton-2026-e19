@@ -2,19 +2,23 @@
  * Audio del dictado (POST /v1/transcribe): WAV RIFF, PCM entero de 16 bits
  * little-endian, mono, 16 000 Hz, entre 0,3 s y 30 s. Funciones puras: la
  * interfaz codifica con `encodeWav` y el proceso principal revisa con
- * `isTranscribableWav` antes de mandarlo.
+ * `isTranscribableWav` antes de mandarlo. Frecuencia, duración y tamaño
+ * máximos salen del contrato (@hackaton/contracts).
  */
+import { TRANSCRIBE_MAX_BYTES, TRANSCRIBE_MAX_SECONDS, TRANSCRIBE_SAMPLE_RATE } from '@hackaton/contracts';
 
-export const WAV_SAMPLE_RATE = 16_000;
+export const WAV_SAMPLE_RATE = TRANSCRIBE_SAMPLE_RATE;
+/** Cabecera canónica: la única que produce `encodeWav`. */
 export const WAV_HEADER_BYTES = 44;
+/** El contrato no exporta el mínimo: 0,3 s, acordado con el backend. */
 export const WAV_MIN_SECONDS = 0.3;
-export const WAV_MAX_SECONDS = 30;
+export const WAV_MAX_SECONDS = TRANSCRIBE_MAX_SECONDS;
 export const WAV_MIN_SAMPLES = Math.round(WAV_MIN_SECONDS * WAV_SAMPLE_RATE);
 export const WAV_MAX_SAMPLES = WAV_MAX_SECONDS * WAV_SAMPLE_RATE;
 /** 9 644 bytes. */
 export const WAV_MIN_BYTES = WAV_HEADER_BYTES + WAV_MIN_SAMPLES * 2;
-/** 960 044 bytes. */
-export const WAV_MAX_BYTES = WAV_HEADER_BYTES + WAV_MAX_SAMPLES * 2;
+/** 960 044 bytes: TRANSCRIBE_MAX_BYTES (cabecera canónica + 30 s). */
+export const WAV_MAX_BYTES = TRANSCRIBE_MAX_BYTES;
 
 /** Pasa muestras en [-1, 1] a PCM16; lo que se sale del rango se recorta (y NaN es silencio). */
 export function toPcm16(sample: number): number {
