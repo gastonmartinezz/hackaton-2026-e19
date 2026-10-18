@@ -58,9 +58,7 @@ Preparación en el panel de Railway, una sola vez:
    - `API_ACCESS_TOKENS`
    - `OPENAI_API_KEY`
    - `STT_PROVIDER=openai` y `TTS_PROVIDER=openai`, que activan la voz.
-   - `CLAUDE_EFFORT_INTERPRET=high` y `CLAUDE_EFFORT_NEXT_STEP=high` (Claude Opus 5.5; ver `docs/railway.md`).
-
-   `PORT` lo define Railway y `NODE_ENV=production` ya viene en la imagen.
+   `PORT` lo define Railway y `NODE_ENV=production` ya viene en la imagen. Claude queda en Opus 5.5 con effort `medium`, los valores por defecto, así que no hace falta cargar `CLAUDE_*` (ver `docs/railway.md`).
 3. En **Settings → Networking**, generar el dominio público.
 4. Dejar una sola réplica. Alcanza con 1 vCPU y 512 MB (Whisper local, opcional, pide 2 vCPU y 2 GB).
 

@@ -49,7 +49,7 @@ No es alpine: si algún día se usa Whisper local, los binarios de `onnxruntime-
 | `OPENAI_API_KEY` | clave de OpenAI | **Secreto**. Obligatoria con `STT_PROVIDER=openai` o `TTS_PROVIDER=openai` |
 | `STT_PROVIDER` | `openai` | Voz a texto. Con `off` (valor por defecto) `/v1/transcribe` responde 503 no reintentable |
 | `TTS_PROVIDER` | `openai` | Texto a voz. Con `off` (valor por defecto) `/v1/speak` responde 503 no reintentable |
-| `CLAUDE_EFFORT_INTERPRET`, `CLAUDE_EFFORT_NEXT_STEP` | `high` | Ver [Claude: modelo, effort y URLs](#claude-modelo-effort-y-urls). El modelo queda en Opus 5.5 (`CLAUDE_MODEL`, valor por defecto) |
+| `CLAUDE_EFFORT`, `CLAUDE_EFFORT_*` | *(no cargar)* | Opus 5.5 usa `medium` por defecto, con razonamiento adaptativo. Ver [Claude: modelo, effort y URLs](#claude-modelo-effort-y-urls) |
 | `URL_CHECK_*`, `INTERPRET_WEB_SEARCH` | *(opcionales)* | Verificación de URLs (siempre activa) y búsqueda web (`off`) |
 | `OPENAI_STT_KEYWORDS`, `OPENAI_STT_PROMPT` | *(opcionales)* | Vacías por defecto. Valor propuesto y fuentes en [api.md](api.md#vocabulario-para-openai-openai_stt_prompt-y-openai_stt_keywords) |
 | `OPENAI_STT_MODEL` | *(opcional)* `gpt-transcribe` | |
@@ -82,15 +82,15 @@ Sin modelos en el servidor alcanza con lo mínimo:
 
 El benchmark anterior solo miraba el dominio, no si la página existía.
 
-**Valores recomendados** (cargarlos en Railway; en el código el effort por defecto sigue en `medium`):
+**Valores recomendados:** los valores por defecto del código. No hace falta cargar nada en Railway:
 
 ```sh
-CLAUDE_MODEL=claude-opus-5-5
-CLAUDE_EFFORT_INTERPRET=high
-CLAUDE_EFFORT_NEXT_STEP=high
-# options no se midió: queda en CLAUDE_EFFORT=medium.
-INTERPRET_WEB_SEARCH=off
+# CLAUDE_MODEL=claude-opus-5-5   (valor por defecto)
+# CLAUDE_EFFORT=medium           (valor por defecto de Opus 5.5; no cargar CLAUDE_EFFORT_*)
+# INTERPRET_WEB_SEARCH=off       (valor por defecto)
 ```
+
+En Opus 5.5 el razonamiento siempre es adaptativo: el modelo decide en cada pedido cuánto pensar. `effort` solo marca el esfuerzo general, y no hay un valor «automático»: sin configurarlo, Opus 5.5 usa `medium`.
 
 ### Verificador de URLs
 
@@ -112,10 +112,10 @@ Se corrió con `pnpm --filter @hackaton/api bench:claude`, de punta a punta por 
 
 | `interpret` | Solicitudes | p50 | p95 | URLs válidas antes | URLs válidas después | Reintentos | USD por solicitud | Correctas |
 |---|---|---|---|---|---|---|---|---|
-| Opus 5.5 medium (corrida 1) | 16 | 4,5 s | 22,5 s | 94 % (15/16) | 100 % (17/17) | 1 | 0,011 | 16/16 |
-| Opus 5.5 medium (corrida 2) | 24 | 4,4 s | 9,0 s | 95 % (21/22) | 100 % (22/22) | 1 | 0,0085 | 24/24 |
-| **Opus 5.5 high** (corrida 1) | 16 | 4,9 s | 9,8 s | 100 % (16/16) | 100 % (16/16) | 0 | 0,0092 | 16/16 |
-| **Opus 5.5 high** (corrida 2) | 24 | 4,7 s | 10,1 s | 96 % (22/23) | 96 % (22/23)* | 1 | 0,0098 | 24/24 |
+| **Opus 5.5 medium** (corrida 1) | 16 | 4,5 s | 22,5 s | 94 % (15/16) | 100 % (17/17) | 1 | 0,011 | 16/16 |
+| **Opus 5.5 medium** (corrida 2) | 24 | 4,4 s | 9,0 s | 95 % (21/22) | 100 % (22/22) | 1 | 0,0085 | 24/24 |
+| Opus 5.5 high (corrida 1) | 16 | 4,9 s | 9,8 s | 100 % (16/16) | 100 % (16/16) | 0 | 0,0092 | 16/16 |
+| Opus 5.5 high (corrida 2) | 24 | 4,7 s | 10,1 s | 96 % (22/23) | 96 % (22/23)* | 1 | 0,0098 | 24/24 |
 | Opus 5.5 medium + búsqueda web | 16 | 15,2 s | 25,2 s | 100 % (21/21) | 100 % (21/21) | 0 | 0,043 | 16/16 |
 | Opus 5.5 high + búsqueda web | 16 | 17,8 s | 27,4 s | 100 % (20/20) | 100 % (20/20) | 0 | 0,046 | 16/16 |
 
@@ -123,13 +123,14 @@ Se corrió con `pnpm --filter @hackaton/api bench:claude`, de punta a punta por 
 
 | `nextStep` | Solicitudes | p50 | p95 | USD por solicitud | Correctas |
 |---|---|---|---|---|---|
-| Opus 5.5 medium | 6 | 2,2 s | 4,6 s | 0,0075 | 6/6 |
-| **Opus 5.5 high** | 6 | 2,2 s | 4,2 s | 0,0047 | 6/6 |
+| **Opus 5.5 medium** | 6 | 2,2 s | 4,6 s | 0,0075 | 6/6 |
+| Opus 5.5 high | 6 | 2,2 s | 4,2 s | 0,0047 | 6/6 |
 
 **Recomendación:**
 
-- **`interpret`: Opus 5.5 high, sin búsqueda web.** Entre las dos corridas, high devolvió URLs que existen en el primer intento el 97 % de las veces (38/39), contra 95 % (36/38) con medium. Costó lo mismo y agregó unos 0,3 s en la mediana. Ante la duda gana la calidad. Con el verificador, ninguna de las dos variantes devolvió una URL inventada.
-- **`nextStep`: Opus 5.5 high.** Las dos variantes acertaron todo, con la misma latencia.
+- **`interpret`: Opus 5.5 medium, sin búsqueda web.** Con el verificador, medium entregó el 100 % de URLs válidas en las dos corridas: con medium, alrededor de 1 de cada 20 URLs necesita un reintento. High acertó un poco más al primer intento (97 % contra 95 %) y tardó unos 0,3 s más en la mediana, sin mejorar el resultado final. Ninguna variante devolvió una URL inventada. Se elige medium para no dar de más recursos: mantener la app más cara no mejora lo que ve la persona.
+- **`nextStep`: Opus 5.5 medium.** Las dos variantes acertaron todo, con la misma latencia.
+- **Cuándo subir a `high`:** si en producción suben los reintentos o las respuestas convertidas en pregunta (log `interpret urls`), o si `nextStep` empieza a equivocar controles. Se cambia por variable (`CLAUDE_EFFORT_INTERPRET`, `CLAUDE_EFFORT_NEXT_STEP`), sin tocar código.
 - **Búsqueda web (`INTERPRET_WEB_SEARCH`): queda apagada.**
   - Ventaja: todas las URLs fueron válidas desde el primer intento, y ofrece más `options`.
   - Contras: triplica la latencia (p50 de 15 a 18 s) y cuesta 4 a 5 veces más (los resultados suman entrada: unos 18.000 tokens en una prueba suelta, más USD 0,01 por búsqueda).
