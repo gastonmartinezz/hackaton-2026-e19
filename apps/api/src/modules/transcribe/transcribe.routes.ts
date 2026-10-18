@@ -32,7 +32,7 @@ export const transcribeRoutes: FastifyPluginAsyncZod<TranscribeRoutesOptions> = 
       config: { rateLimit },
       schema: {
         tags: ['transcribe'],
-        summary: 'Transcribe voz a texto con Whisper en el servidor',
+        summary: 'Transcribe voz a texto con OpenAI',
         description:
           'Cuerpo binario `audio/wav`: WAV RIFF, PCM de 16 bits little-endian, mono, 16 000 Hz, entre 0,3 s y 30 s. ' +
           'Devuelve `text` vacío si no se entendió nada. Ni el audio ni el texto se guardan ni se registran.',

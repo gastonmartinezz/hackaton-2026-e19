@@ -4,7 +4,7 @@ import type { TtsStatus } from '../speak/speak.service.js';
 import type { SttStatus } from '../transcribe/provider.js';
 
 export interface HealthRoutesOptions {
-  /** Estado del modelo de voz. Informativo: /health responde 200 aunque el modelo esté cargando o caído. */
+  /** Si la voz a texto está activa. Informativo: /health responde siempre 200. */
   sttStatus: () => SttStatus;
   /** Si el texto a voz está activo. */
   ttsStatus: () => TtsStatus;
@@ -20,7 +20,7 @@ export const healthRoutes: FastifyPluginAsyncZod<HealthRoutesOptions> = async (a
         response: {
           200: z.object({
             status: z.literal('ok'),
-            stt: z.enum(['off', 'loading', 'ready', 'failed']),
+            stt: z.enum(['off', 'ready']),
             tts: z.enum(['off', 'ready']),
           }),
         },

@@ -74,8 +74,8 @@ describe('configuración de OpenAI', () => {
     ).toThrow(/TTS_PROVIDER/);
   });
 
-  it('ajusta la concurrencia por defecto al proveedor de voz a texto', () => {
-    expect(loadConfig({ ...base, STT_PROVIDER: 'local' }).STT_CONCURRENCY).toBe(1);
+  it('acepta solo off, mock y openai como proveedor de voz a texto', () => {
+    expect(() => loadConfig({ ...base, STT_PROVIDER: 'local' })).toThrow(/STT_PROVIDER/);
     expect(loadConfig({ ...base, STT_PROVIDER: 'openai', ...OPENAI_ENV }).STT_CONCURRENCY).toBe(8);
     expect(loadConfig({ ...base, STT_PROVIDER: 'openai', STT_CONCURRENCY: '3', ...OPENAI_ENV }).STT_CONCURRENCY).toBe(3);
   });

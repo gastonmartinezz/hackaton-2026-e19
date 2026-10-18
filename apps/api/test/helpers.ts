@@ -24,7 +24,7 @@ export function fakeVerifier({
 }: { sites?: Record<string, HeadResult | ((method: 'HEAD' | 'GET') => HeadResult)>; dns?: Record<string, string[]>; now?: () => number } = {}) {
   const requests: string[] = [];
   const verifier = new UrlVerifier(
-    { timeoutMs: 1000, maxRedirects: 3, cacheTtlMs: 60_000, allowHttp: false },
+    { timeoutMs: 1000, maxRedirects: 3, cacheTtlMs: 60_000 },
     {
       resolve: async (hostname) => {
         const addresses = dns[hostname] ?? ['93.184.215.14'];

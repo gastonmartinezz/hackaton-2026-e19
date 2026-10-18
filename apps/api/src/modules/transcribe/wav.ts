@@ -4,7 +4,7 @@ import { AppError } from '../../lib/errors.js';
 export const MIN_AUDIO_SECONDS = 0.3;
 
 export interface DecodedWav {
-  /** Muestras normalizadas a [-1, 1), como las espera Whisper. */
+  /** Muestras normalizadas a [-1, 1); se usan para detectar silencio. */
   samples: Float32Array;
   durationMs: number;
 }

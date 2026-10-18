@@ -28,9 +28,3 @@ export function mapOpenAIError(error: unknown, what: string): AppError {
   if (error instanceof OpenAI.APIError) return new AppError('INTERNAL', `${what}: error al invocar a OpenAI`);
   return new AppError('INTERNAL', `${what}: error inesperado`);
 }
-
-/** Nombre del error para los logs: clase y status, nunca el mensaje (podría arrastrar contenido). */
-export function openAIErrorName(error: unknown): string {
-  if (error instanceof OpenAI.APIError) return `${error.constructor.name}:${error.status ?? 'sin-status'}`;
-  return error instanceof Error ? error.name : 'Error';
-}

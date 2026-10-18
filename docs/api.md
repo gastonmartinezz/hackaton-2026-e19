@@ -122,8 +122,6 @@ Claude puede recordar mal una dirección (por ejemplo, devolver `https://www.bps
 
 Para el front no cambia el contrato. Puede llegar `question` donde antes llegaba una URL inventada, y la latencia de `/v1/interpret` sube lo que tarde la comprobación (en general, menos de 1 s) o un reintento cuando Claude se equivoca.
 
-**Búsqueda web (opcional, `INTERPRET_WEB_SEARCH=on`):** Claude elige entre resultados reales de la búsqueda web de Anthropic en lugar de recordar URLs. El verificador sigue activo igual. Está apagada por defecto: ver el benchmark en `docs/railway.md`.
-
 ### POST /v1/options
 
 El front envía el `sessionId` de `interpret`, los fragmentos de HTML que considera importantes y, opcionalmente, el **metadato** de la página. Claude devuelve las opciones disponibles, **cada una con su guía completa** (`steps`), teniendo en cuenta todo el recorrido.
@@ -257,7 +255,6 @@ Convierte lo que la persona dice en texto. El front manda el texto después a `/
 Quién transcribe lo decide el servidor con `STT_PROVIDER`, sin cambios para el front:
 
 - **`openai`** (recomendado en Railway): la API de transcripción de OpenAI (`OPENAI_STT_MODEL`, por defecto `gpt-transcribe`). El servidor manda el WAV tal cual, en español. No corre ningún modelo en el servidor.
-- **`local`**: Whisper (`onnx-community/whisper-small`) en la CPU del servidor. Necesita ~1,1 GB de RAM y 2 vCPU.
 - **`mock`** (desarrollo) y **`off`** (apagado, el valor por defecto).
 
 Contrato en `packages/contracts/src/transcribe.ts` (`TRANSCRIBE_*` y `TranscribeResponse`).
@@ -281,7 +278,7 @@ curl -X POST "$API/v1/transcribe" \
 ```
 
 - `text` viene recortado y con hasta 1000 caracteres.
-- **`""` no es un error**: significa que no se entendió nada (silencio, ruido o frases que Whisper inventa con silencio, como «Subtítulos realizados por la comunidad de Amara.org»). El front le pide a la persona que repita o que escriba.
+- **`""` no es un error**: significa que no se entendió nada (silencio, ruido o frases que los modelos de transcripción inventan con silencio, como «Subtítulos realizados por la comunidad de Amara.org»). El front le pide a la persona que repita o que escriba.
 
 **Errores** (solo códigos que ya existían):
 
@@ -290,18 +287,16 @@ curl -X POST "$API/v1/transcribe" \
 | No es WAV, otro formato (estéreo, 44,1 kHz, 8 bits, float), truncado o menos de 0,3 s | `BAD_REQUEST` | 400 | no |
 | Más de 30 s o más de `TRANSCRIBE_MAX_BYTES` + `TRANSCRIBE_HEADER_HEADROOM_BYTES` | `PAYLOAD_TOO_LARGE` | 413 | no |
 | Voz a texto apagada en este servidor (`STT_PROVIDER=off`) | `AI_UNAVAILABLE` | 503 | **no**: ocultar el micrófono |
-| El modelo local se está cargando o se reinició, la cola está llena, u OpenAI está caído o saturado | `AI_UNAVAILABLE` | 503 | sí |
+| La cola está llena, u OpenAI está caído o saturado | `AI_UNAVAILABLE` | 503 | sí |
 | La transcripción tardó más que `STT_TIMEOUT_MS` (30 s por defecto) u OpenAI no respondió a tiempo | `TIMEOUT` | 504 | sí |
 | Más de 20 solicitudes por minuto por token | `RATE_LIMITED` | 429 | sí |
 
 - **Privacidad:** nuestro servidor no guarda ni registra el audio ni el texto, tampoco en errores: los logs tienen solo la duración del audio, la latencia y el resultado. Con `STT_PROVIDER=openai`, el audio viaja a OpenAI para transcribirse y queda sujeto a sus condiciones de tratamiento y retención (revisarlas antes de producción, como pide S05).
-- **Estado:** `GET /health` responde siempre 200 y agrega `stt` (`off`, `loading`, `ready` o `failed`) y `tts` (`off` o `ready`). Sirve para decidir si mostrar el micrófono y el botón de escuchar, no para reintentar en bucle.
+- **Estado:** `GET /health` responde siempre 200 y agrega `stt` y `tts` (`off` o `ready`). Sirve para decidir si mostrar el micrófono y el botón de escuchar, no para reintentar en bucle.
 
 ```json
 { "status": "ok", "stt": "ready", "tts": "ready" }
 ```
-
-**Latencia de referencia de Whisper local** (whisper-small q8 en CPU): ~1 a 2 s para una frase corta y ~4 s para 23 s de audio con 2 vCPU. En el primer arranque el modelo tarda unos segundos en estar listo.
 
 #### Vocabulario para OpenAI (`OPENAI_STT_PROMPT` y `OPENAI_STT_KEYWORDS`)
 
@@ -325,7 +320,6 @@ OPENAI_STT_PROMPT=Pedidos de personas en Uruguay sobre trámites y servicios en 
 - El `prompt` es una frase de contexto, no una lista; los nombres van en `keywords`.
 - Medir antes de fijarlo: transcribir los mismos WAV con y sin estas variables y comparar.
 
-**Whisper en local:** con `STT_PROVIDER=local` en `apps/api/.env`, el primer arranque descarga el modelo (~250 MB) a `apps/api/.models` y después lo reutiliza. Para bajarlo antes: `pnpm --filter @hackaton/api build && pnpm --filter @hackaton/api stt:prefetch`. Para integrar el front alcanza con `STT_PROVIDER=mock`.
 
 ### POST /v1/speak
 

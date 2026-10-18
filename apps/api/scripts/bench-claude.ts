@@ -3,7 +3,7 @@
 // costo y corrección. Casos uruguayos sin datos personales. Llama a la API real y a los
 // sitios (gasta dinero):
 //
-//   BENCH_ENV_FILE=apps/api/.env pnpm --filter @hackaton/api bench:claude [repeticiones] [interpret|nextStep] [sin-busqueda]
+//   BENCH_ENV_FILE=apps/api/.env pnpm --filter @hackaton/api bench:claude [repeticiones] [interpret|nextStep]
 //
 // Lee ANTHROPIC_API_KEY del entorno o de BENCH_ENV_FILE y nunca la imprime. Usa los servicios
 // reales (InterpretService con el verificador de URLs, NextStepService).
@@ -28,20 +28,18 @@ if (!process.env.ANTHROPIC_API_KEY) {
 }
 const REPS = Number(process.argv[2] ?? 2);
 const ONLY = process.argv[3] as AiTask | undefined;
-const NO_SEARCH = process.argv[4] === 'sin-busqueda';
 const CONCURRENCY = 4;
 const OWNER = 'bench';
 
 /** USD por millón de tokens (tabla del skill claude-api, 2026-10). Escritura de caché = 1,25 × entrada. */
 const OPUS = { input: 4, output: 20, cacheRead: 0.2 };
-/** USD por búsqueda web (USD 10 cada 1000 búsquedas). */
-const WEB_SEARCH_USD = 0.01;
 
 interface ClaudeMetric {
   inputTokens: number;
   outputTokens: number;
   cacheReadInputTokens: number;
   cacheCreationInputTokens: number;
+  /** Búsquedas web del servidor (las hace `procedure` en nextStep y options, con GUIDE_WEB_SEARCH=on). */
   webSearches: number;
 }
 interface UrlMetric {
@@ -74,7 +72,8 @@ function metricsLogger(claude: ClaudeMetric[], urls: UrlMetric[]): FastifyBaseLo
 const cost = (m: ClaudeMetric) =>
   (m.inputTokens * OPUS.input + m.cacheCreationInputTokens * OPUS.input * 1.25 + m.cacheReadInputTokens * OPUS.cacheRead + m.outputTokens * OPUS.output) /
     1_000_000 +
-  m.webSearches * WEB_SEARCH_USD;
+  // USD 10 cada 1000 búsquedas web, aparte de los tokens.
+  (m.webSearches ?? 0) * 0.01;
 
 function percentile(values: number[], p: number): number {
   const sorted = [...values].sort((a, b) => a - b);
@@ -135,15 +134,12 @@ interface Variant {
   task: AiTask;
   label: string;
   effort: 'medium' | 'high';
-  webSearch: boolean;
 }
 const variants: Variant[] = [
-  { task: 'interpret', label: 'Opus 5.5 medium', effort: 'medium', webSearch: false },
-  { task: 'interpret', label: 'Opus 5.5 high', effort: 'high', webSearch: false },
-  { task: 'interpret', label: 'Opus 5.5 medium + búsqueda', effort: 'medium', webSearch: true },
-  { task: 'interpret', label: 'Opus 5.5 high + búsqueda', effort: 'high', webSearch: true },
-  { task: 'nextStep', label: 'Opus 5.5 medium', effort: 'medium', webSearch: false },
-  { task: 'nextStep', label: 'Opus 5.5 high', effort: 'high', webSearch: false },
+  { task: 'interpret', label: 'Opus 5.5 medium', effort: 'medium' },
+  { task: 'interpret', label: 'Opus 5.5 high', effort: 'high' },
+  { task: 'nextStep', label: 'Opus 5.5 medium', effort: 'medium' },
+  { task: 'nextStep', label: 'Opus 5.5 high', effort: 'high' },
 ];
 
 function configFor(variant: Variant) {
@@ -157,7 +153,6 @@ function configFor(variant: Variant) {
     CLAUDE_MODEL_NEXT_STEP: 'claude-opus-5-5',
     CLAUDE_EFFORT_INTERPRET: variant.effort,
     CLAUDE_EFFORT_NEXT_STEP: variant.effort,
-    INTERPRET_WEB_SEARCH: variant.webSearch ? 'on' : 'off',
   });
 }
 
@@ -169,11 +164,8 @@ async function runInterpret(variant: Variant) {
   const model = new AnthropicModel(config, log);
   const sessions = new SessionStore(60 * 60_000);
   // Sin caché de verificación entre llamadas, para medir el costo real de comprobar cada URL.
-  const verifierOptions = { timeoutMs: config.URL_CHECK_TIMEOUT_MS, maxRedirects: config.URL_CHECK_MAX_REDIRECTS, cacheTtlMs: 0, allowHttp: false };
-  const service = new InterpretService(model, sessions, new UrlGuard(new UrlVerifier(verifierOptions)), {
-    webSearch: variant.webSearch,
-    webSearchMaxUses: config.INTERPRET_WEB_SEARCH_MAX_USES,
-  });
+  const verifierOptions = { timeoutMs: config.URL_CHECK_TIMEOUT_MS, maxRedirects: config.URL_CHECK_MAX_REDIRECTS, cacheTtlMs: 0 };
+  const service = new InterpretService(model, sessions, new UrlGuard(new UrlVerifier(verifierOptions)));
   // Un verificador aparte confirma que lo que se devolvió existe.
   const audit = new UrlVerifier(verifierOptions);
 
@@ -226,7 +218,6 @@ async function runInterpret(variant: Variant) {
     rootFallbacks: urls.reduce((sum, u) => sum + u.rootFallbacks, 0),
     toQuestion: urls.filter((u) => u.converted === 'question').length,
     claudeCalls: claude.length,
-    webSearches: claude.reduce((sum, m) => sum + (m.webSearches ?? 0), 0),
     usdPerRequest: Number((claude.reduce((sum, m) => sum + cost(m), 0) / jobs.length).toFixed(4)),
     correct: `${ok}/${jobs.length}`,
     types: Object.entries(types)
@@ -293,7 +284,7 @@ async function runNextStep(variant: Variant) {
 }
 
 const results: Array<Record<string, unknown> & { failures: string[] }> = [];
-for (const variant of variants.filter((v) => (!ONLY || v.task === ONLY) && !(NO_SEARCH && v.webSearch))) {
+for (const variant of variants.filter((v) => !ONLY || v.task === ONLY)) {
   process.stderr.write(`${variant.task} · ${variant.label}…\n`);
   results.push(variant.task === 'interpret' ? await runInterpret(variant) : await runNextStep(variant));
 }

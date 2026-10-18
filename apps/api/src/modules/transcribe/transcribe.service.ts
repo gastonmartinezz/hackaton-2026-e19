@@ -12,7 +12,7 @@ export interface TranscribeServiceOptions {
 }
 
 const MAX_TEXT_LENGTH = 1000;
-/** RMS por debajo de -60 dBFS: silencio digital o ruido de fondo; no vale la pena correr el modelo. */
+/** RMS por debajo de -60 dBFS: silencio digital o ruido de fondo; no vale la pena llamar al proveedor. */
 const SILENCE_RMS = 0.001;
 
 /**
@@ -34,7 +34,7 @@ export class TranscribeService {
   }
 
   get status(): SttStatus {
-    return this.provider?.status ?? 'off';
+    return this.provider ? 'ready' : 'off';
   }
 
   /** `log` permite correlacionar la métrica con la solicitud (requestId); por defecto, el del servicio. */
@@ -66,19 +66,12 @@ export class TranscribeService {
 
     const { samples, durationMs } = decodeWav(body);
     onDecoded(durationMs);
-    const audio = { pcm: samples, wav: body, durationMs };
-
-    if (provider.status !== 'ready') {
-      // Cargando o reiniciándose después de un fallo: en los dos casos conviene reintentar.
-      const message = provider.status === 'loading' ? 'El modelo de voz se está cargando' : 'El modelo de voz no está disponible';
-      throw new AppError('AI_UNAVAILABLE', message);
-    }
     if (rms(samples) < SILENCE_RMS) return '';
 
     const timeout = AbortSignal.timeout(this.options.timeoutMs);
     const signal = clientSignal ? AbortSignal.any([timeout, clientSignal]) : timeout;
     try {
-      const raw = await this.queue.run(() => provider.transcribe(audio, signal), signal);
+      const raw = await this.queue.run(() => provider.transcribe(body, signal), signal);
       return cleanTranscript(raw);
     } catch (error) {
       if (error instanceof QueueFullError) {
@@ -98,7 +91,7 @@ function rms(samples: Float32Array): number {
   return Math.sqrt(sum / samples.length);
 }
 
-/** Frases que Whisper inventa con silencio o ruido (vienen de subtítulos de su entrenamiento). */
+/** Frases que los modelos de transcripción inventan con silencio o ruido (vienen de subtítulos de su entrenamiento). */
 const HALLUCINATIONS = [
   /amara\.org/i,
   /^subt[ií]tulos? (realizados? )?por/i,

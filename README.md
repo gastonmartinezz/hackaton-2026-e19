@@ -4,7 +4,7 @@ Monorepo pnpm. La especificación está en `especificacion-plataforma.md`. La se
 
 | Ruta | Contenido | Responsable |
 |---|---|---|
-| `apps/api` | Servidor Fastify: Claude, voz (OpenAI o Whisper local), validación, sesiones, límites y logs | Agustin |
+| `apps/api` | Servidor Fastify: Claude, voz con OpenAI, validación, sesiones, límites y logs | Agustin |
 | `packages/contracts` | Contratos v1 (Zod + JSON Schema) | Compartido front/backend, cambios solo por acuerdo |
 | `docs/api.md` | Guía de la API para el front | Agustin |
 | `docs/proteccion-sitios.md` | Protección de sitios: qué se valida hoy, cuándo y con qué fuentes | Agustin |
@@ -46,7 +46,7 @@ En desarrollo y tests, el paquete de contratos se resuelve desde `src` mediante 
 
 La API se despliega en Railway desde GitHub. La configuración está en `railway.json`:
 
-- **Build:** imagen Docker con `apps/api/Dockerfile`. Instala y compila solo `@hackaton/api` y sus dependencias del workspace. Por defecto no trae el modelo de Whisper: la voz va por OpenAI y en el servidor no corre ningún modelo.
+- **Build:** imagen Docker con `apps/api/Dockerfile`. Instala y compila solo `@hackaton/api` y sus dependencias del workspace. En el servidor no corre ningún modelo: Claude y la voz (OpenAI) se usan por API.
 - **Arranque:** `node dist/server.js`, el `CMD` de la imagen.
 - **Chequeo de salud:** `/health`.
 
@@ -63,7 +63,7 @@ Preparación en el panel de Railway, una sola vez:
    - `STT_PROVIDER=openai` y `TTS_PROVIDER=openai`, que activan la voz.
    `PORT` lo define Railway y `NODE_ENV=production` ya viene en la imagen. Claude queda en Opus 5.5 con effort `medium`, los valores por defecto, así que no hace falta cargar `CLAUDE_*` (ver `docs/railway.md`).
 3. En **Settings → Networking**, generar el dominio público.
-4. Dejar una sola réplica. Alcanza con 1 vCPU y 512 MB (Whisper local, opcional, pide 2 vCPU y 2 GB).
+4. Dejar una sola réplica. Alcanza con 1 vCPU y 512 MB.
 
 El detalle de variables, recursos y la prueba local de la imagen está en [`docs/railway.md`](docs/railway.md).
 
@@ -99,7 +99,7 @@ El script crea lo que falte y es seguro repetirlo:
 
 Después sube el último commit (`git archive HEAD`), compila, reinicia la API e imprime la URL. Los cambios sin commit no se suben.
 
-La política solo permite `api.anthropic.com`, así que en Tenki la voz por OpenAI no funciona (dejar `STT_PROVIDER` y `TTS_PROVIDER` en `off`, o `STT_PROVIDER=local`).
+La política solo permite `api.anthropic.com`, así que en Tenki la voz por OpenAI no funciona (dejar `STT_PROVIDER` y `TTS_PROVIDER` en `off`).
 
 La clave de Anthropic nunca entra al sandbox. El `.env` del sandbox lleva el marcador `secrets://ANTHROPIC_API_KEY` y Tenki lo reemplaza por la clave real fuera de la VM. El reemplazo se hace solo en los `POST` a `api.anthropic.com/v1/` que permite la política.
 

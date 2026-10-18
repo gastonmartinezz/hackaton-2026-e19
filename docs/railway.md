@@ -8,14 +8,12 @@ Responsable: Agustin. Railway Hobby (pago) está aprobado. El despliegue en Tenk
 - **OpenAI** pasa la voz a texto (`/v1/transcribe` con `STT_PROVIDER=openai`) y el texto a voz (`/v1/speak` con `TTS_PROVIDER=openai`).
 - **En el servidor no corre ningún modelo.** La API es un proceso Node chico: ~60 MB de RAM en reposo dentro del contenedor.
 
-Whisper local (`STT_PROVIDER=local`) sigue disponible como opción para un servidor con 2 vCPU y 2 GB (ver al final).
-
 ## Qué hay en el repositorio
 
 | Archivo | Para qué |
 |---|---|
 | `railway.json` | Build con `apps/api/Dockerfile`, healthcheck en `/health`, reinicio ante fallos (hasta 5 veces) y redespliegue solo si cambian la API, los contratos o las dependencias |
-| `apps/api/Dockerfile` | Imagen multi-stage sobre `node:22-bookworm-slim`: instala solo `@hackaton/api` y sus dependencias del workspace, compila y deja las dependencias de producción. **Por defecto no trae el modelo de Whisper** (`WHISPER_IN_IMAGE=false`) |
+| `apps/api/Dockerfile` | Imagen multi-stage sobre `node:22-bookworm-slim`: instala solo `@hackaton/api` y sus dependencias del workspace, compila y deja las dependencias de producción |
 | `.dockerignore` | Deja afuera `node_modules`, `dist`, `.env`, diseño, documentación y el cliente de escritorio |
 
 El contexto del build es la **raíz del monorepo** (lo que Railway usa por defecto). Para probar la imagen en local:
@@ -26,8 +24,6 @@ docker run --rm -p 3000:3000 \
   -e AI_PROVIDER=anthropic -e ANTHROPIC_API_KEY=... -e API_ACCESS_TOKENS=... \
   -e OPENAI_API_KEY=... -e STT_PROVIDER=openai -e TTS_PROVIDER=openai mostrame-api
 ```
-
-No es alpine: si algún día se usa Whisper local, los binarios de `onnxruntime-node` necesitan glibc.
 
 ## Pasos para crear el servicio
 
@@ -50,7 +46,7 @@ No es alpine: si algún día se usa Whisper local, los binarios de `onnxruntime-
 | `STT_PROVIDER` | `openai` | Voz a texto. Con `off` (valor por defecto) `/v1/transcribe` responde 503 no reintentable |
 | `TTS_PROVIDER` | `openai` | Texto a voz. Con `off` (valor por defecto) `/v1/speak` responde 503 no reintentable |
 | `CLAUDE_EFFORT`, `CLAUDE_EFFORT_*` | *(no cargar)* | Opus 5.5 usa `medium` por defecto, con razonamiento adaptativo. Ver [Claude: modelo, effort y URLs](#claude-modelo-effort-y-urls) |
-| `URL_CHECK_*`, `INTERPRET_WEB_SEARCH` | *(opcionales)* | Verificación de URLs (siempre activa) y búsqueda web (`off`) |
+| `URL_CHECK_*` | *(opcionales)* | Verificación de URLs (siempre activa) |
 | `GUIDE_WEB_SEARCH`, `GUIDE_WEB_SEARCH_MAX_USES` | *(opcionales)* `on`, `3` | Búsqueda web del paso a paso al elegir una opción de la guía (ver [api.md](api.md#post-v1next-step)) |
 | `OPENAI_STT_KEYWORDS`, `OPENAI_STT_PROMPT` | *(opcionales)* | Vacías por defecto. Valor propuesto y fuentes en [api.md](api.md#vocabulario-para-openai-openai_stt_prompt-y-openai_stt_keywords) |
 | `OPENAI_STT_MODEL` | *(opcional)* `gpt-transcribe` | |
@@ -58,7 +54,7 @@ No es alpine: si algún día se usa Whisper local, los binarios de `onnxruntime-
 | `TTS_TIMEOUT_MS` | *(opcional)* `30000` | Tope de cada lectura, incluido el streaming del audio |
 | `OPENAI_TIMEOUT_MS`, `OPENAI_MAX_RETRIES` | *(opcionales)* `30000`, `1` | El timeout cuenta hasta que OpenAI empieza a responder |
 | `STT_RATE_LIMIT_MAX`, `TTS_RATE_LIMIT_MAX` | *(opcionales)* `20`, `30` | Por token y por `RATE_LIMIT_WINDOW_MS` |
-| `STT_CONCURRENCY`, `STT_QUEUE_MAX` | *(opcionales)* | Con `openai`, 8 transcripciones en paralelo y 4 en espera |
+| `STT_CONCURRENCY`, `STT_QUEUE_MAX` | *(opcionales)* `8`, `4` | Transcripciones en paralelo hacia OpenAI y cuántas esperan; con la cola llena, 503 reintentable |
 | `CLAUDE_FALLBACKS` | *(opcional)* `default` | Si el clasificador de seguridad de Claude rechaza un pedido, la API reintenta en el modelo que Anthropic recomienda (no aplica a Haiku 5.5). `off` lo apaga |
 | `LOG_LEVEL` | `info` | Opcional |
 
@@ -68,7 +64,7 @@ Sin modelos en el servidor alcanza con lo mínimo:
 
 - **Memoria:** 56 MiB en uso dentro del contenedor (probado con `--memory 512m --cpus 1`). **512 MB** dejan margen de sobra.
 - **CPU:** **1 vCPU** (o menos). El trabajo pesado lo hacen Claude y OpenAI; el servidor solo valida y reenvía.
-- **Imagen:** 628 MB sin el modelo de Whisper (contra ~1 GB con el modelo); no descarga nada al arrancar.
+- **Imagen:** sin modelos; no descarga nada al arrancar.
 - **Réplicas:** las sesiones viven en memoria, así que la API tiene que correr con **una sola réplica** (o con sesiones pegajosas) hasta que se muevan a un almacenamiento compartido.
 
 ## Claude: modelo, effort y URLs
@@ -88,7 +84,6 @@ El benchmark anterior solo miraba el dominio, no si la página existía.
 ```sh
 # CLAUDE_MODEL=claude-opus-5-5   (valor por defecto)
 # CLAUDE_EFFORT=medium           (valor por defecto de Opus 5.5; no cargar CLAUDE_EFFORT_*)
-# INTERPRET_WEB_SEARCH=off       (valor por defecto)
 ```
 
 En Opus 5.5 el razonamiento siempre es adaptativo: el modelo decide en cada pedido cuánto pensar. `effort` solo marca el esfuerzo general, y no hay un valor «automático»: sin configurarlo, Opus 5.5 usa `medium`.
@@ -132,24 +127,9 @@ Se corrió con `pnpm --filter @hackaton/api bench:claude`, de punta a punta por 
 - **`interpret`: Opus 5.5 medium, sin búsqueda web.** Con el verificador, medium entregó el 100 % de URLs válidas en las dos corridas: con medium, alrededor de 1 de cada 20 URLs necesita un reintento. High acertó un poco más al primer intento (97 % contra 95 %) y tardó unos 0,3 s más en la mediana, sin mejorar el resultado final. Ninguna variante devolvió una URL inventada. Se elige medium para no dar de más recursos: mantener la app más cara no mejora lo que ve la persona.
 - **`nextStep`: Opus 5.5 medium.** Las dos variantes acertaron todo, con la misma latencia.
 - **Cuándo subir a `high`:** si en producción suben los reintentos o las respuestas convertidas en pregunta (log `interpret urls`), o si `nextStep` empieza a equivocar controles. Se cambia por variable (`CLAUDE_EFFORT_INTERPRET`, `CLAUDE_EFFORT_NEXT_STEP`), sin tocar código.
-- **Búsqueda web (`INTERPRET_WEB_SEARCH`): queda apagada.**
-  - Ventaja: todas las URLs fueron válidas desde el primer intento, y ofrece más `options`.
-  - Contras: triplica la latencia (p50 de 15 a 18 s) y cuesta 4 a 5 veces más (los resultados suman entrada: unos 18.000 tokens en una prueba suelta, más USD 0,01 por búsqueda).
-  - Con el verificador y un reintento, sin búsqueda se llega al mismo resultado final en ~4,5 s.
-  - Conviene activarla si en producción suben los reintentos o las respuestas convertidas en pregunta (se ven en el log `interpret urls`).
-  - Un detalle: la API rechaza `user_location.country = "UY"` («Country code UY is not supported»), así que la ubicación va sin país (ciudad, departamento y zona horaria).
-- **Costo:** precio de lista de Opus 5.5 (USD 4 / 20 por millón de tokens, lectura de caché 0,20) más USD 0,01 por búsqueda.
+- **Búsqueda web en `interpret`: se sacó.** Daba todas las URLs válidas desde el primer intento, pero triplicaba la latencia (p50 de 15 a 18 s) y costaba 4 a 5 veces más. Con el verificador y un reintento, sin búsqueda se llega al mismo resultado final en ~4,5 s. La búsqueda web sigue en uso en la tarea `procedure` (`GUIDE_WEB_SEARCH`).
+- **Costo:** precio de lista de Opus 5.5 (USD 4 / 20 por millón de tokens, lectura de caché 0,20); en las filas con búsqueda, más USD 0,01 por búsqueda.
 - **Límites:** son pocos casos, medidos desde una sola red. Antes de fijar valores, revisar `claude call` e `interpret urls` en los logs de Railway con tráfico real.
-
-## Whisper local (opcional)
-
-Para transcribir en el propio servidor en lugar de OpenAI:
-
-1. Construir la imagen con el modelo adentro. En Railway, cargar la variable `WHISPER_IN_IMAGE=true` (Railway pasa las variables del servicio como `ARG` del build). En local: `docker build -f apps/api/Dockerfile --build-arg WHISPER_IN_IMAGE=true -t mostrame-api .`
-2. `STT_PROVIDER=local`. Opcionales: `STT_MODEL` (`onnx-community/whisper-small`), `STT_DTYPE` (`q8`), `STT_THREADS`. Si se cambian `STT_MODEL` o `STT_DTYPE`, pasar los mismos valores como build args; si no coinciden, el modelo se descarga al arrancar.
-3. Recursos: **2 vCPU y 2 GB**. Medido en Docker (arm64, 2 vCPU y 2 GB): ~1,1 GB de RAM con el modelo cargado, 2 s para 1,5 s de audio y 4,2 s para 23 s de audio. Cada inferencia concurrente extra (`STT_CONCURRENCY`) suma ~0,6 GB.
-
-Sin `WHISPER_IN_IMAGE=true`, `STT_PROVIDER=local` igual funciona, pero baja ~250 MB del modelo en cada arranque del contenedor.
 
 ## Privacidad
 

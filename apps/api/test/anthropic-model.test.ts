@@ -149,7 +149,7 @@ describe('AnthropicModel', () => {
     });
   });
 
-  it('con búsqueda web agrega la herramienta sin país y reanuda un turno pausado', async () => {
+  it('con búsqueda web agrega la herramienta sin ubicación y reanuda un turno pausado', async () => {
     const calls: any[] = [];
     const replies = [
       { stop_reason: 'pause_turn', content: [{ type: 'server_tool_use', id: 's1', name: 'web_search', input: {} }] },
@@ -176,7 +176,7 @@ describe('AnthropicModel', () => {
     const { logger, entries } = recordingLogger();
     const result = await new AnthropicModel(config(), logger, client).generate({
       ...request(),
-      webSearch: { maxUses: 3, userLocation: { city: 'Montevideo', timezone: 'America/Montevideo' } },
+      webSearch: { maxUses: 3 },
     });
 
     expect(result).toEqual({ ok: true });
@@ -185,7 +185,6 @@ describe('AnthropicModel', () => {
         type: 'web_search_20260209',
         name: 'web_search',
         max_uses: 3,
-        user_location: { type: 'approximate', city: 'Montevideo', timezone: 'America/Montevideo' },
       },
     ]);
     expect(calls).toHaveLength(2);

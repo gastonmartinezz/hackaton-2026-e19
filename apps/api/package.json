@@ -12,7 +12,6 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "stt:prefetch": "node dist/modules/transcribe/prefetch-model.js",
     "bench:claude": "tsx --conditions=source scripts/bench-claude.ts"
   },
   "dependencies": {
@@ -21,7 +20,6 @@
     "@fastify/swagger": "9.9.2",
     "@fastify/swagger-ui": "6.1.2",
     "@hackaton/contracts": "workspace:*",
-    "@huggingface/transformers": "4.3.1",
     "fastify": "5.12.7",
     "fastify-type-provider-zod": "7.0.0",
     "openai": "7.33.0",
