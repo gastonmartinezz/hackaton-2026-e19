@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-export type AiTask = 'interpret' | 'options' | 'nextStep' | 'siteCheck';
+export type AiTask = 'interpret' | 'options' | 'nextStep' | 'procedure' | 'siteCheck';
 
 export interface StructuredRequest<S extends z.ZodType> {
   task: AiTask;
@@ -10,7 +10,7 @@ export interface StructuredRequest<S extends z.ZodType> {
   schema: S;
   /** Permite cortar la llamada (por ejemplo, por el tiempo máximo de /v1/site-check). */
   signal?: AbortSignal;
-  /** Búsqueda web del servidor de Anthropic (solo interpret, si INTERPRET_WEB_SEARCH está activo). */
+  /** Búsqueda web del servidor de Anthropic (interpret con INTERPRET_WEB_SEARCH, procedure con GUIDE_WEB_SEARCH). */
   webSearch?: WebSearchOptions;
 }
 

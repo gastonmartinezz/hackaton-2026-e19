@@ -6,15 +6,22 @@
  *
  * La sesión del backend es la misma del chat (`ApiSession`). Una navegación o
  * un cambio de fase invalida el trabajo anterior por época.
+ *
+ * Datos de formularios: si el paso pide un dato (`step.field`) y no es
+ * sensible, Guíame lo pregunta y escribe lo que la persona dicta (`fill`); la
+ * persona lo revisa y confirma. Si es sensible, solo pone el cursor en el
+ * lugar. El valor nunca se guarda, nunca va al backend y nunca se registra.
  */
 import { randomUUID } from 'node:crypto';
-import { Limits, type Metadata, type OptionsResponse } from '@hackaton/contracts';
+import { Limits, type GuideStep, type Metadata, type OptionsResponse } from '@hackaton/contracts';
 import { snapshotToHtml, type PageSnapshot } from '@asistente/page-analyzer';
 import {
   evaluateObservation,
   expectedStep,
   initialState,
+  isSensitiveField,
   isSensitiveStep,
+  type InteractionKind,
   transition,
   type GuideEvent,
   type GuideState,
@@ -22,15 +29,18 @@ import {
   type StepTarget,
 } from '@asistente/guidance';
 import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession } from './api/client';
-import { nextStepEvidence } from './api/pending-contract';
 import { pastTense } from './done-steps';
 import { log } from './log';
-import type { TargetRect } from '../shared/ipc';
+import type { FillResult, TargetRect } from '../shared/ipc';
 import type { ExtractedPage, ShownTarget } from './page-bridge';
 
 export interface PagePort {
   extract(pageId: string, navigationId: string, revision: number): Promise<ExtractedPage>;
   show(navigationId: string, selector: string, scroll: boolean): Promise<ShownTarget>;
+  /** Escribe lo dictado en un lugar ya señalado (nunca en uno sensible). */
+  fill(navigationId: string, elementId: string, value: string): Promise<FillResult>;
+  /** Pone el cursor en el lugar para que la persona escriba. */
+  focus(navigationId: string, elementId: string): void;
   clear(): void;
   cancelPending(): void;
 }
@@ -42,6 +52,14 @@ export interface AssistantDeps {
   onChange(): void;
   /** Espera antes de leer la página después de una interacción (el DOM cambia de forma asíncrona). */
   settleMs?: number;
+  /** Cuánto se espera a que cargue una navegación que empezó después de un clic (NAVIGATION_WATCHDOG_MS). */
+  navigationWatchdogMs?: number;
+  /**
+   * Espera después de un clic antes de mostrar (y leer en voz alta) el paso
+   * siguiente: si el clic cambia de página, no se empieza a leer algo que la
+   * navegación corta enseguida.
+   */
+  afterClickMs?: number;
 }
 
 /** Máximo de pasos seguidos sin poder señalar el destino antes de abandonar. */
@@ -49,6 +67,12 @@ const MAX_UNSHOWN_STEPS = 3;
 const MAX_STEPS = 60;
 /** «Ya hiciste» muestra solo los últimos pasos para no empujar la instrucción actual. */
 const MAX_DONE = 4;
+/**
+ * Después de un clic que empezó a cambiar de página, cuánto se espera a que
+ * cargue antes de dar la navegación por cancelada (por ejemplo, una descarga)
+ * y mostrar el paso siguiente.
+ */
+const NAVIGATION_WATCHDOG_MS = 8000;
 
 export class Assistant {
   state: GuideState = initialState;
@@ -61,6 +85,10 @@ export class Assistant {
   target: { rect: TargetRect | undefined; field: boolean } | null = null;
   partialPage = false;
   announceKey = 0;
+  /** Dato del formulario que pide el paso actual (sin el valor). */
+  ask: { question: string; mode: 'dictate' | 'type'; filled: boolean } | null = null;
+  /** Después de un clic: se espera un instante por si la página cambia antes de mostrar el paso siguiente. */
+  settling = false;
   /**
    * La indicación actual está pausada: pide ingresar datos o confirmar algo y
    * la protección de sitios detectó riesgo alto en esta navegación.
@@ -81,6 +109,9 @@ export class Assistant {
   #epoch = 0;
   /** Cada #showStep toma un número; solo la última invocación aplica su resultado (pausa por riesgo, «Repetir»). */
   #showGeneration = 0;
+  /** Lo que hizo la persona mientras se esperaba después de un clic: se revisa contra el paso siguiente al mostrarlo. */
+  #heldObservations: Observation[] = [];
+  #watchdog: NodeJS.Timeout | undefined;
   #controller: AbortController | undefined;
   #pendingGoal: string | undefined;
   /** Sesión en la que se pidieron las opciones de la guía actual. */
@@ -97,8 +128,9 @@ export class Assistant {
     this.#pendingGoal = goal;
   }
 
-  analyze(goal?: string): void {
-    this.#dispatch({ type: 'ANALYZE', goal });
+  /** `request`: lo que la persona pidió con sus palabras y no estaba entre las opciones (se investiga y se empieza solo). */
+  analyze(goal?: string, request?: string): void {
+    this.#dispatch({ type: 'ANALYZE', goal, request });
   }
 
   select(optionId: string): void {
@@ -106,7 +138,8 @@ export class Assistant {
   }
 
   confirmDone(): void {
-    if (this.paused) return;
+    // Durante la espera después de un clic el paso actual todavía no se mostró: la confirmación era del anterior.
+    if (this.paused || this.settling) return;
     this.#dispatch({ type: 'OUTCOME', outcome: 'userConfirmed' });
   }
 
@@ -143,9 +176,41 @@ export class Assistant {
 
   /** Vuelve a mostrar y anunciar la indicación actual. */
   repeat(): void {
-    if (this.state.phase !== 'waitingForUser' || !this.state.step) return;
+    if (this.state.phase !== 'waitingForUser' || !this.state.step || this.settling) return;
     this.announceKey++;
     void this.#showStep(this.#epoch);
+    this.deps.onChange();
+  }
+
+  /**
+   * Escribe en la página lo que la persona dictó para el dato del paso actual.
+   * Solo si el paso pide dictar (no sensible) y sigue siendo el mismo.
+   */
+  async fill(said: string): Promise<FillResult | 'notAllowed'> {
+    const { phase, step } = this.state;
+    const elementId = step?.targetElementId;
+    if (phase !== 'waitingForUser' || !step || !elementId || this.ask?.mode !== 'dictate' || this.paused || this.settling) return 'notAllowed';
+    const epoch = this.#epoch;
+    const result = await this.deps.page.fill(this.#navigationId, elementId, said);
+    // Mientras se escribía, la persona pudo elegir «Lo escribo yo»: no se marca como dictado.
+    if (epoch !== this.#epoch || this.state.step !== step || this.ask?.mode !== 'dictate') return 'notAllowed';
+    log('guide.field_dictated', { result: `code:${result}` });
+    if (result === 'filled') {
+      this.ask = { ...this.ask, filled: true };
+      this.deps.onChange();
+    } else if (result === 'refused') {
+      // El preload vio un dato sensible: lo escribe la persona.
+      this.typeMyself();
+    }
+    return result;
+  }
+
+  /** «Lo escribo yo» (o un dato sensible): se deja de dictar y el cursor queda en el lugar. */
+  typeMyself(): void {
+    const elementId = this.state.step?.targetElementId;
+    if (this.state.phase !== 'waitingForUser' || !this.ask || !elementId) return;
+    this.ask = { ...this.ask, mode: 'type', filled: false };
+    this.deps.page.focus(this.#navigationId, elementId);
     this.deps.onChange();
   }
 
@@ -156,9 +221,27 @@ export class Assistant {
     this.#invalidate();
     this.targetVisible = null;
     this.target = null;
+    // Si la navegación no termina ni falla (una descarga cancelada), no se queda en «fijándome».
+    if (this.settling) {
+      clearTimeout(this.#watchdog);
+      this.#watchdog = setTimeout(() => this.loadFailed(), this.deps.navigationWatchdogMs ?? NAVIGATION_WATCHDOG_MS);
+    }
+  }
+
+  /**
+   * La página no terminó de cargar (error o carga cancelada). Si el paso
+   * siguiente estaba en espera por el clic, se muestra: no hubo cambio de página.
+   */
+  loadFailed(): void {
+    clearTimeout(this.#watchdog);
+    if (!this.settling || this.state.phase !== 'waitingForUser') return;
+    this.settling = false;
+    this.#pageReady = true;
+    void this.#showStep(this.#invalidate());
   }
 
   navigated({ sameDocument, aiEnabled }: { sameDocument: boolean; aiEnabled: boolean }): void {
+    clearTimeout(this.#watchdog);
     this.#navigationId = `nav-${++this.#navigationSeq}`;
     this.#revision = 0;
     this.#snapshot = undefined;
@@ -189,8 +272,8 @@ export class Assistant {
     this.#observe({ kind: 'pageChange', targetPresent: targetPresent ?? false });
   }
 
-  interaction(elementId: string): void {
-    this.#observe({ kind: 'interaction', elementId });
+  interaction(elementId: string, event?: InteractionKind): void {
+    this.#observe({ kind: 'interaction', elementId, event });
   }
 
   validationError(): void {
@@ -202,6 +285,11 @@ export class Assistant {
   #observe(observation: Observation): void {
     const { phase, step } = this.state;
     if (phase !== 'waitingForUser' || !step || this.paused) return;
+    if (this.settling) {
+      // El paso siguiente todavía no se mostró: lo que haga la persona se revisa cuando aparezca.
+      this.#heldObservations.push(observation);
+      return;
+    }
     const outcome = evaluateObservation(step, observation);
     if (outcome) this.#dispatch({ type: 'OUTCOME', outcome });
   }
@@ -217,6 +305,9 @@ export class Assistant {
 
     const epoch = this.#invalidate();
     this.paused = false;
+    this.settling = false;
+    this.#heldObservations = [];
+    this.ask = null;
     if (next.phase !== 'waitingForUser') {
       this.targetVisible = null;
       this.target = null;
@@ -236,9 +327,23 @@ export class Assistant {
         void this.#runVerify(epoch);
         break;
       case 'waitingForUser':
-        void this.#showStep(epoch);
+        // Después de un clic, el paso siguiente se muestra (y se lee) solo si la página no cambió.
+        if (event.type === 'OUTCOME' && event.outcome === 'signalObserved') void this.#settleThenShow(epoch);
+        else void this.#showStep(epoch);
         break;
     }
+  }
+
+  async #settleThenShow(epoch: number): Promise<void> {
+    this.settling = true;
+    this.#heldObservations = [];
+    this.deps.page.clear();
+    this.deps.onChange();
+    await new Promise((resolve) => setTimeout(resolve, this.deps.afterClickMs ?? 900));
+    // Una navegación (o cualquier otro cambio) ya decidió qué sigue.
+    if (epoch !== this.#epoch || !this.#pageReady) return;
+    this.settling = false;
+    await this.#showStep(epoch);
   }
 
   /** Lleva la lista de «Ya hiciste». Nunca incluye valores: solo instrucciones y títulos. */
@@ -288,7 +393,8 @@ export class Assistant {
     try {
       const snapshot = await this.#extract(epoch);
       if (!snapshot || epoch !== this.#epoch) return;
-      const request = { html: snapshotToHtml(snapshot), ...metadataOf(snapshot), ...goalOf(this.state.goal) };
+      const asked = this.state.request;
+      const request = { html: snapshotToHtml(snapshot), ...metadataOf(snapshot), ...goalOf(this.state.goal), ...(asked ? { request: asked } : {}) };
       const signal = this.#signal();
       const { session, api } = this.deps;
       let ticket = session.begin();
@@ -306,7 +412,7 @@ export class Assistant {
       // Las opciones existen en esta sesión: /v1/next-step usa la misma, aunque
       // la compartida haya cambiado mientras tanto.
       this.#guideSessionId = response.sessionId;
-      this.#dispatch({ type: 'OPTIONS', options: response.options });
+      this.#dispatch({ type: 'OPTIONS', options: response.options, requested: response.requestedOptionId });
     } catch (error) {
       this.#fail(epoch, error);
     }
@@ -338,7 +444,7 @@ export class Assistant {
       // El backend devuelve la sesión en cada respuesta: la siguiente llamada usa esa.
       this.#guideSessionId = response.sessionId;
       if (ticket.id === sessionId) ticket.commit(response.sessionId);
-      this.evidence = response.done ? nextStepEvidence(response) : null;
+      this.evidence = response.done ? (response.evidence ?? null) : null;
       this.#dispatch({ type: 'NEXT', response });
     } catch (error) {
       if (epoch === this.#epoch && error instanceof ApiFailure && error.code === 'SESSION_NOT_FOUND') {
@@ -373,6 +479,7 @@ export class Assistant {
     const step = this.state.step;
     if (!step) return;
     const generation = ++this.#showGeneration;
+    this.ask = null;
     this.paused = this.#riskHold && isSensitiveStep(step, this.#targetOf(step.element));
     if (this.paused) {
       // No se señala ni se espera la acción: la persona decide desde el panel.
@@ -391,7 +498,7 @@ export class Assistant {
       this.deps.onChange();
       return;
     }
-    const { result, elementId, rect, field } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
+    const { result, elementId, rect, field, fillable, sensitive } = await this.deps.page.show(this.#navigationId, step.element, step.presentation === 'scrollAndHighlight');
     // Otra invocación posterior (por ejemplo, la pausa por riesgo alto) ya decidió qué mostrar.
     if (epoch !== this.#epoch || generation !== this.#showGeneration) return;
     // Sin ID local no se puede verificar la interacción: se trata como no señalado.
@@ -400,8 +507,13 @@ export class Assistant {
     this.target = shown ? { rect, field: field ?? false } : null;
     if (shown) {
       this.#unshown = 0;
-      this.#dispatch({ type: 'SHOWN', elementId });
+      this.#dispatch({ type: 'SHOWN', elementId, field });
+      this.ask = this.#askFor(step, elementId, { fillable: fillable ?? false, sensitive: sensitive ?? false });
       this.deps.onChange();
+      // Lo que la persona ya hizo sobre este control mientras se esperaba cuenta ahora.
+      const held = this.#heldObservations.filter((o) => o.kind === 'interaction' || o.kind === 'validationError');
+      this.#heldObservations = [];
+      for (const observation of held) this.#observe(observation);
       return;
     }
     // Selector que no encuentra nada o destino invisible: se pide un nuevo paso.
@@ -412,14 +524,30 @@ export class Assistant {
     this.#dispatch({ type: 'OUTCOME', outcome: result === 'stale' ? 'targetStale' : 'targetNotVisible' });
   }
 
+  /**
+   * Cómo se pide el dato del paso: se dicta solo si el backend, el rótulo de la
+   * página y los atributos del sitio coinciden en que no es sensible y Guíame
+   * puede escribir en ese lugar. Si es sensible, se pone el cursor ahí.
+   */
+  #askFor(step: GuideStep, elementId: string, local: { fillable: boolean; sensitive: boolean }): Assistant['ask'] {
+    if (!step.field) return null;
+    const target = this.#targetOf(step.element);
+    const sensitive = step.field.sensitive || local.sensitive || isSensitiveField({ label: target?.label, inputType: target?.inputType });
+    if (sensitive) {
+      this.deps.page.focus(this.#navigationId, elementId);
+      return { question: step.field.question, mode: 'type', filled: false };
+    }
+    return local.fillable ? { question: step.field.question, mode: 'dictate', filled: false } : null;
+  }
+
   /** Rol del destino según el snapshot local (solo selectores `#el-N`). */
-  #targetOf(selector: string | null): StepTarget | undefined {
+  #targetOf(selector: string | null): (StepTarget & { label: string }) | undefined {
     const id = selector?.match(/^#(el-\d+)$/)?.[1];
     const elements = this.#snapshot?.elements;
     const element = id ? elements?.find((e) => e.id === id) : undefined;
     if (!element) return undefined;
     const section = element.sectionId ? elements?.find((e) => e.id === element.sectionId) : undefined;
-    return { role: element.role, inputType: element.inputType, inForm: section?.role === 'form' };
+    return { role: element.role, label: element.label, inputType: element.inputType, inForm: section?.role === 'form' };
   }
 
   #fail(epoch: number, error: unknown): void {

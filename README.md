@@ -9,7 +9,7 @@ Monorepo pnpm. La especificación está en `especificacion-plataforma.md`. La se
 | `docs/api.md` | Guía de la API para el front | Agustin |
 | `docs/proteccion-sitios.md` | Protección de sitios: qué se valida hoy, cuándo y con qué fuentes | Agustin |
 
-Endpoints: `GET /health`, `POST /v1/interpret`, `POST /v1/options`, `POST /v1/next-step`, `POST /v1/transcribe` (voz a texto) y `POST /v1/speak` (texto a voz). El detalle está en `docs/api.md`.
+Endpoints: `GET /health`, `POST /v1/interpret`, `POST /v1/options`, `POST /v1/next-step` (avance de la guía hasta terminar), `POST /v1/transcribe` (voz a texto) y `POST /v1/speak` (texto a voz). El detalle está en `docs/api.md`.
 
 ## Requisitos
 
@@ -30,7 +30,9 @@ pnpm contracts:schemas   # regenera packages/contracts/schemas/v1/*.json
 
 `dev:desktop:api` toma el puerto y el primer token de `API_ACCESS_TOKENS` de `apps/api/.env`, y los pasa como `ASISTENTE_API_URL` y `ASISTENTE_API_TOKEN`. Si esas variables ya están definidas, se respetan.
 
-En desarrollo, `AI_PROVIDER=mock` permite trabajar sin clave de Anthropic. Para usar Claude, definir `AI_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`. El modelo se elige con `CLAUDE_MODEL` y el esfuerzo con `CLAUDE_EFFORT`, o por tarea con `CLAUDE_EFFORT_INTERPRET`, `CLAUDE_EFFORT_NEXT_STEP`, etc. Las tres tareas van con Claude Opus 5.5. Las URLs que devuelve `/v1/interpret` se verifican antes de mostrarse (ver `docs/api.md`).
+En desarrollo, `AI_PROVIDER=mock` permite trabajar sin clave de Anthropic. Para usar Claude, definir `AI_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`. El modelo se elige con `CLAUDE_MODEL` y el esfuerzo con `CLAUDE_EFFORT`, o por tarea con `CLAUDE_EFFORT_INTERPRET`, `CLAUDE_EFFORT_NEXT_STEP`, etc. Las tareas van con Claude Opus 5.5. Las URLs que devuelve `/v1/interpret` se verifican antes de mostrarse (ver `docs/api.md`).
+
+Al elegir una opción de la guía, `/v1/next-step` investiga primero el paso a paso real de esa tarea con la búsqueda web de Anthropic (`GUIDE_WEB_SEARCH=on`, el valor por defecto; `GUIDE_WEB_SEARCH_MAX_USES` limita las búsquedas). Con `off` lo arma sin buscar. El modelo y el effort de esa tarea se cambian con `CLAUDE_MODEL_PROCEDURE` y `CLAUDE_EFFORT_PROCEDURE`.
 
 La voz también tiene modo simulado: `STT_PROVIDER=mock` y `TTS_PROVIDER=mock` (los de `.env.example`). Para la voz real con OpenAI, definir `OPENAI_API_KEY` y `STT_PROVIDER=openai` / `TTS_PROVIDER=openai`.
 

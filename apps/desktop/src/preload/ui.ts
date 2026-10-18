@@ -1,7 +1,8 @@
 /**
  * Preload de la interfaz propia. Expone solo `command` (validado en el proceso
  * principal contra una unión cerrada), la suscripción al estado, `transcribe`
- * (el dictado; el proceso principal valida el audio) y `speak`/`stopSpeaking`
+ * (el dictado; el proceso principal valida el audio), `dictateField` (dictar un
+ * dato del formulario; el texto no vuelve) y `speak`/`stopSpeaking`
  * (leer en voz alta). Nunca expone ipcRenderer ni APIs de Electron.
  */
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
@@ -15,6 +16,7 @@ import {
   UI_VOICE_DIAGNOSTIC_CHANNEL,
   UI_STATE_CHANNEL,
   UI_TRANSCRIBE_CHANNEL,
+  UI_DICTATE_FIELD_CHANNEL,
   type AppState,
   type AsistenteBridge,
   type SpeechAudioEvent,
@@ -29,6 +31,7 @@ const bridge: AsistenteBridge = {
     return () => ipcRenderer.removeListener(UI_STATE_CHANNEL, handler);
   },
   transcribe: (wav: ArrayBuffer) => ipcRenderer.invoke(UI_TRANSCRIBE_CHANNEL, wav),
+  dictateField: (wav: ArrayBuffer) => ipcRenderer.invoke(UI_DICTATE_FIELD_CHANNEL, wav),
   async speak(text, onAudio) {
     // La vista se suscribe a sus pedazos antes de pedir la lectura: no se pierde ninguno.
     const id = crypto.randomUUID().replace(/-/g, '');
