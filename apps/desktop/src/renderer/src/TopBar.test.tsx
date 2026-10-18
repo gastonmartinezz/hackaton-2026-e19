@@ -41,4 +41,18 @@ describe('Interruptor «Voz»', () => {
     act(() => toggle().click());
     expect(command).toHaveBeenLastCalledWith({ type: 'setVoiceMode', mode: 'off' });
   });
+
+  it('prendido se marca con el ícono Lucide «check» de design/icons (aria-hidden), no con un carácter', () => {
+    act(() => root.render(<VoiceToggle active />));
+    const icon = toggle().querySelector('.ic');
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    const svg = icon?.querySelector('svg');
+    expect(svg?.getAttribute('class')).toContain('lucide-check');
+    expect(svg?.getAttribute('stroke-width')).toBe('2');
+    expect(toggle().textContent).not.toMatch(/[✓✔☑]/);
+    // El estado lo comunica aria-pressed, no el ícono.
+    expect(toggle().getAttribute('aria-pressed')).toBe('true');
+    act(() => root.render(<VoiceToggle active={false} />));
+    expect(toggle().querySelector('.ic')).toBeNull();
+  });
 });
