@@ -169,6 +169,11 @@
               "type": "string",
               "minLength": 2,
               "maxLength": 10
+            },
+            "origin": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^https?:\\/\\/[^/?#]+$"
             }
           },
           "additionalProperties": false

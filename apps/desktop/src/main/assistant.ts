@@ -595,8 +595,14 @@ export class Assistant {
   }
 }
 
+/** Título, idioma y sitio (solo origen: esquema y host, nunca la ruta) de la página actual. */
 function metadataOf(snapshot: PageSnapshot): { metadata?: Metadata } {
-  const page = { ...(snapshot.title ? { title: snapshot.title } : {}), ...(snapshot.language ? { language: snapshot.language } : {}) };
+  const origin = /^https?:\/\/[^/?#]+$/.test(snapshot.origin) && !snapshot.origin.endsWith('.local') ? snapshot.origin : undefined;
+  const page = {
+    ...(snapshot.title ? { title: snapshot.title } : {}),
+    ...(snapshot.language ? { language: snapshot.language } : {}),
+    ...(origin ? { origin } : {}),
+  };
   return Object.keys(page).length > 0 ? { metadata: { page } } : {};
 }
 

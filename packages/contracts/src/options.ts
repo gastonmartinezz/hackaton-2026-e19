@@ -48,6 +48,8 @@ export const Metadata = z.strictObject({
     .strictObject({
       title: ShortText(200).optional(),
       language: z.string().min(2).max(10).optional(),
+      /** El sitio de la página actual: solo esquema y host (sin ruta, consulta ni fragmento). */
+      origin: z.string().max(200).regex(/^https?:\/\/[^/?#]+$/).optional(),
     })
     .optional(),
 });

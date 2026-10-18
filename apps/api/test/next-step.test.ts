@@ -44,7 +44,7 @@ describe('NextStepService: paso a paso investigado', () => {
     const procedure = requests.find((r) => r.task === 'procedure')!;
     expect(procedure.system).toBe(SYSTEM_PROMPTS.procedureWithSearch);
     expect(procedure.webSearch).toEqual({ maxUses: 2 });
-    expect((procedure.input as { site: unknown }).site).toEqual({ title: 'Agenda', urls: ['https://agenda.ejemplo.gub.uy/'] });
+    expect((procedure.input as { site: unknown }).site).toEqual({ title: 'Agenda', origin: null, urls: ['https://agenda.ejemplo.gub.uy/'] });
     // Primero se intenta con la página; el modelo pidió el paso a paso: se investiga y se vuelve a pedir.
     expect(requests.map((r) => r.task)).toEqual(['nextStep', 'procedure', 'nextStep']);
     sessions.close();
@@ -260,6 +260,30 @@ describe('ProcedureResearcher y la sesión', () => {
     );
     expect(response.requestedOptionId).toBeUndefined();
     expect(sessions.context(sessionId, OWNER)!.history.some((e) => e.type === 'procedure')).toBe(false);
+    sessions.close();
+  });
+});
+
+describe('Contexto entre páginas', () => {
+  it('cada entrada de la guía queda marcada con su página y la IA ve el sitio actual', async () => {
+    const { model, requests } = capturingModel();
+    const sessions = new SessionStore(60_000);
+    const sessionId = sessions.create(OWNER);
+    const service = new OptionsService(model, sessions, new ProcedureResearcher(model));
+    const inicio = { page: { title: 'DNIC - Inicio', origin: 'https://www.dnic.gub.uy' } };
+    const first = await service.options({ sessionId, html: '<a id="el-1" href="#">Agenda</a>', goal: 'renovar la cédula', metadata: inicio }, OWNER);
+    const step0 = first.options[0]!.steps[0]!;
+    await new NextStepService(model, sessions, new ProcedureResearcher(model)).next(
+      { sessionId, optionId: first.options[0]!.id, expectedStep: step0, completedSteps: [], html: '<h1 id="el-9">Agenda</h1>', metadata: { page: { title: 'DNIC - Agenda' } } },
+      OWNER,
+    );
+    const history = sessions.context(sessionId, OWNER)!.history;
+    expect(history.find((e) => e.type === 'options')?.page).toEqual(inicio.page);
+    expect(history.find((e) => e.type === 'nextStep')?.page).toEqual({ title: 'DNIC - Agenda', origin: 'https://www.dnic.gub.uy' });
+    // La última llamada a nextStep ve el sitio actual y la página de las opciones anteriores.
+    const lastNext = requests.filter((r) => r.task === 'nextStep').at(-1)!.input as { context: { metadata: unknown; history: Array<{ type: string; page?: unknown }> } };
+    expect(lastNext.context.metadata).toEqual({ page: { title: 'DNIC - Agenda', origin: 'https://www.dnic.gub.uy' } });
+    expect(lastNext.context.history.find((e) => e.type === 'options')?.page).toEqual(inicio.page);
     sessions.close();
   });
 });

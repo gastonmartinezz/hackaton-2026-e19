@@ -184,7 +184,9 @@ describe('Assistant', () => {
     expect(first).toMatchObject({ sessionId: session.id, optionId: form!.id, completedSteps: [] });
     expect(last.completedSteps).toHaveLength(4);
     expect(last.completedSteps[0]!.field).toMatchObject({ sensitive: false });
-    expect(findLeaks(rec.sent, ['Marta Gómez', '30123456', 'Centro', 'Marta', '/formulario', 'nombre=', '127.0.0.1'])).toEqual([]);
+    // Sale solo el sitio (origen), nunca la ruta, la consulta ni lo que escribió la persona.
+    expect(findLeaks(rec.sent, ['Marta Gómez', '30123456', 'Centro', 'Marta', '/formulario', 'formulario.html', 'nombre='])).toEqual([]);
+    expect(options.metadata?.page?.origin).toBe('http://127.0.0.1:4321');
   });
 
   it('después de un clic espera antes del paso siguiente: si la página cambia, no lo muestra ni lo cuenta como hecho', async () => {
@@ -391,6 +393,21 @@ describe('Assistant', () => {
     expect(await assistant.clickForMe()).toBe('notAllowed');
   });
 
+  it('un pedido en la página no pisa el objetivo del recorrido: va aparte, como request', async () => {
+    load('buscar.html');
+    const { api, sent } = recording(mockApi());
+    const { assistant, until, shownStep } = setup(api);
+    assistant.expectDestination('renovar la cédula');
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    await until(() => assistant.state.phase === 'choosing');
+    // Como en app.ts (askOnPage): con objetivo, solo se manda el pedido.
+    assistant.analyze(undefined, 'quiero cambiar mi dirección');
+    await until(shownStep);
+    const asked = sent[1] as OptionsRequest;
+    expect(asked).toMatchObject({ goal: 'renovar la cédula', request: 'quiero cambiar mi dirección' });
+    expect(assistant.state.goal).toBe('renovar la cédula');
+  });
+
   it('con pasos reales recibidos de /v1/next-step sigue guiando', async () => {
     load('buscar.html');
     const mock = mockApi();
@@ -452,11 +469,11 @@ describe('Assistant', () => {
     assistant.analyze();
     await until(() => assistant.state.phase === 'choosing');
     expect(findLeaks(sent, ['Marta'])).toEqual([]);
-    expect((sent[0] as OptionsRequest).metadata).toEqual({ page: { title: 'Horarios' } });
+    expect((sent[0] as OptionsRequest).metadata).toEqual({ page: { title: 'Horarios', origin: 'http://127.0.0.1:4321' } });
     document.title = 'Biblioteca - Horarios';
     assistant.analyze();
     await until(() => sent.length === 2 && assistant.state.phase === 'choosing');
-    expect((sent[1] as OptionsRequest).metadata).toEqual({ page: { title: 'Biblioteca - Horarios' } });
+    expect((sent[1] as OptionsRequest).metadata).toEqual({ page: { title: 'Biblioteca - Horarios', origin: 'http://127.0.0.1:4321' } });
   });
 
   it('envía como goal lo que la persona pide en la página y nunca un objetivo vacío', async () => {

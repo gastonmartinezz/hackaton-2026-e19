@@ -81,8 +81,8 @@ export class ProcedureResearcher {
   }
 }
 
-/** Título de la página y direcciones que se abrieron desde el buscador (interpret). */
-function siteOf(context: SessionContext): { title: string | null; urls: string[] } {
+/** La página actual (título y sitio) y las direcciones que se abrieron desde el buscador (interpret). */
+function siteOf(context: SessionContext): { title: string | null; origin: string | null; urls: string[] } {
   const urls = context.history.flatMap((entry) => (entry.type === 'interpret' ? entry.urls : []));
-  return { title: context.metadata.page?.title ?? null, urls: [...new Set(urls)].slice(-5) };
+  return { title: context.metadata.page?.title ?? null, origin: context.metadata.page?.origin ?? null, urls: [...new Set(urls)].slice(-5) };
 }

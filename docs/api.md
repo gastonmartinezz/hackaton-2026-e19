@@ -160,7 +160,7 @@ Respuesta:
 ```
 
 - **Sin `sessionId`** (página abierta sin pasar por el chat), el backend crea una sesión nueva.
-- **`metadata`** se acumula en la sesión: los campos nuevos pisan a los anteriores y los que no se mandan se conservan. Hoy acepta `page.title` y `page.language`.
+- **`metadata`** se acumula en la sesión: los campos nuevos pisan a los anteriores y los que no se mandan se conservan. Acepta `page.title`, `page.language` y `page.origin`: el sitio actual, solo esquema y host, nunca la ruta. Cada entrada que la guía guarda en la sesión (opciones, pasos, paso a paso) queda marcada con la página donde pasó, para que Claude siga el recorrido entre páginas. El objetivo (`goal`) se mantiene aunque la persona pida algo nuevo en la página; eso va en `request`.
 - **`goal`** (opcional, hasta 1.000 caracteres): lo que la persona quiere hacer en esta página, por ejemplo lo que escribió en «¿No está lo que buscás?». Claude pone primero la opción que lo resuelve, si la página lo permite. Se guarda en el historial de la sesión.
 - Se puede volver a llamar con el mismo `sessionId`, por ejemplo en una página nueva de la misma tarea.
 - **`request`** (opcional, hasta 1000 caracteres) es lo que la persona pidió con sus palabras, escrito en «¿No está lo que buscás?» o dicho al responder las opciones con la voz, cuando no estaba entre las opciones. En ese caso:
