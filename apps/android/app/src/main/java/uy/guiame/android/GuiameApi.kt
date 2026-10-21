@@ -17,12 +17,13 @@ import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
 /**
- * Cliente de la API v1 (ver docs/api.md). Solo los tres endpoints que usa el
- * spike: interpret, options y next-step. Los pasos se guardan como JSON tal
+ * Cliente de la API v1 (ver docs/api.md). Solo los endpoints que usa el
+ * spike: interpret, options, next-step y transcribe. Los pasos se guardan como JSON tal
  * cual vinieron, porque vuelven al backend en `completedSteps`.
  */
 class GuiameApi(
@@ -102,22 +103,41 @@ class GuiameApi(
         )
     }
 
-    private suspend fun post(path: String, body: JsonObject): JsonObject = withContext(Dispatchers.IO) {
+    /**
+     * Voz a texto: WAV PCM 16 bits mono 16 kHz, entre 0,3 y 30 s. Devuelve ""
+     * si no se entendió nada. Ni el audio ni el texto se guardan ni se loguean.
+     */
+    suspend fun transcribe(wav: ByteArray): String =
+        send("/v1/transcribe", wav.toRequestBody("audio/wav".toMediaType())).string("text") ?: ""
+
+    private suspend fun post(path: String, body: JsonObject): JsonObject =
+        send(path, body.toString().toRequestBody("application/json".toMediaType()))
+
+    private suspend fun send(path: String, body: RequestBody): JsonObject = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url(baseUrl.trimEnd('/') + path)
             .header("Authorization", "Bearer $token")
-            .post(body.toString().toRequestBody("application/json".toMediaType()))
+            .post(body)
             .build()
         http.newCall(request).execute().use { response ->
             val text = response.body?.string() ?: ""
             // Nunca se loguea el cuerpo: puede traer lo que pidió la persona.
-            if (!response.isSuccessful) throw ApiException(response.code)
+            if (!response.isSuccessful) {
+                val error = runCatching { json.parseToJsonElement(text).jsonObject["error"]?.jsonObject }.getOrNull()
+                throw ApiException(
+                    response.code,
+                    error?.string("code"),
+                    error?.get("retryable")?.jsonPrimitive?.booleanOrNull == true,
+                )
+            }
             json.parseToJsonElement(text).jsonObject
         }
     }
 }
 
-class ApiException(val status: Int) : Exception("API respondió $status")
+/** Error de la API: estado HTTP y el `code`/`retryable` del contrato (ApiError), sin el mensaje. */
+class ApiException(val status: Int, val code: String? = null, val retryable: Boolean = false) :
+    Exception("API respondió $status")
 
 data class ChatMessage(val role: String, val content: String)
 

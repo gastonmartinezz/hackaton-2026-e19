@@ -18,10 +18,27 @@ sealed interface Screen {
         val answers: List<String> = emptyList(),
         val sites: List<SiteChoice> = emptyList(),
         val error: Boolean = false,
-    ) : Screen
+        val voice: Voice = Voice.Idle,
+    ) : Screen {
+        /** Con dictado en curso o terminado, el círculo sube y queda como encabezado. */
+        val docked: Boolean get() = voice is Voice.Transcribing || voice is Voice.Heard
+    }
 
     data class Site(val url: String, val card: Card) : Screen
 }
+
+/** Dictado del buscador. */
+sealed interface Voice {
+    data object Idle : Voice
+    /** Grabando; `level` (0 a 1) mueve el círculo. */
+    data class Listening(val level: Float = 0f) : Voice
+    data object Transcribing : Voice
+    /** Lo que se entendió: queda en el encabezado mientras se busca. */
+    data class Heard(val text: String) : Voice
+    data class Problem(val kind: VoiceProblem) : Voice
+}
+
+enum class VoiceProblem { Empty, Failed, Busy, Off, Denied, Mic }
 
 /** Un estado de tarjeta por respuesta (R1). */
 sealed interface Card {
@@ -39,10 +56,10 @@ sealed interface Card {
 }
 
 /**
- * Lógica del spike: inicio → /v1/interpret → sitio → /v1/options → elegir
- * opción → /v1/next-step hasta terminar. Versión reducida de
- * `apps/desktop/src/main/assistant.ts`: sin voz, sin dictado, sin protección de
- * sitios y sin «Tocá … por mí».
+ * Lógica del spike: inicio (escrito o dictado con /v1/transcribe) →
+ * /v1/interpret → sitio → /v1/options → elegir opción → /v1/next-step hasta
+ * terminar. Versión reducida de `apps/desktop/src/main/assistant.ts`: sin voz
+ * en la guía, sin protección de sitios y sin «Tocá … por mí».
  */
 class GuiameViewModel(private val api: GuiameApi = GuiameApi()) : ViewModel() {
     var screen: Screen by mutableStateOf(Screen.Home())
@@ -81,6 +98,10 @@ class GuiameViewModel(private val api: GuiameApi = GuiameApi()) : ViewModel() {
         val home = screen as? Screen.Home ?: return
         val text = home.query.trim()
         if (text.isEmpty() || home.loading) return
+        startSearch(text)
+    }
+
+    private fun startSearch(text: String) {
         chat.clear()
         sessionId = null
         ask(text)
@@ -98,15 +119,91 @@ class GuiameViewModel(private val api: GuiameApi = GuiameApi()) : ViewModel() {
                 return@launch
             }
             sessionId = result.sessionId ?: sessionId
+            // El encabezado del dictado sigue arriba mientras dura la búsqueda.
+            val voice = (screen as? Screen.Home)?.voice ?: Voice.Idle
             when (result) {
                 is InterpretResult.Redirect -> openSite(result.url)
-                is InterpretResult.Sites -> screen = Screen.Home(query = text, sites = result.sites)
+                is InterpretResult.Sites -> screen = Screen.Home(query = home.query, sites = result.sites, voice = voice)
                 is InterpretResult.Question -> {
                     chat += ChatMessage("assistant", result.message)
-                    screen = Screen.Home(query = home.query, question = result.message, answers = result.answers)
+                    screen = Screen.Home(query = home.query, question = result.message, answers = result.answers, voice = voice)
                 }
             }
         }
+    }
+
+    /* ------------------------------ Dictado ----------------------------- */
+
+    private val recorder = VoiceRecorder()
+    private var voiceJob: Job? = null
+
+    private fun setVoice(voice: Voice) {
+        val home = screen as? Screen.Home ?: return
+        screen = home.copy(voice = voice)
+    }
+
+    /**
+     * Toque en el círculo: empieza a escuchar, o termina si ya escuchaba. Desde
+     * el encabezado vuelve a empezar: la búsqueda anterior se descarta.
+     */
+    fun toggleVoice() {
+        val home = screen as? Screen.Home ?: return
+        when (home.voice) {
+            is Voice.Listening -> recorder.stop()
+            Voice.Transcribing -> Unit
+            else -> {
+                if (home.loading && !home.docked) return
+                chat.clear()
+                sessionId = null
+                screen = Screen.Home(query = home.query, voice = Voice.Listening())
+                voiceJob?.cancel()
+                voiceJob = viewModelScope.launch { listen() }
+            }
+        }
+    }
+
+    fun micDenied() = setVoice(Voice.Problem(VoiceProblem.Denied))
+
+    /** Atrás desde el encabezado: vuelve al buscador. */
+    fun closeVoice() {
+        voiceJob?.cancel()
+        recorder.stop()
+        val home = screen as? Screen.Home ?: return
+        screen = Screen.Home(query = home.query)
+    }
+
+    private suspend fun listen() {
+        val recording = try {
+            recorder.record { level ->
+                viewModelScope.launch {
+                    if ((screen as? Screen.Home)?.voice is Voice.Listening) setVoice(Voice.Listening(level))
+                }
+            }
+        } catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            android.util.Log.w("Guiame", "El micrófono falló: ${error.javaClass.simpleName}")
+            return setVoice(Voice.Problem(if (error is SecurityException) VoiceProblem.Denied else VoiceProblem.Mic))
+        }
+        val wav = recording.wav ?: return setVoice(Voice.Problem(VoiceProblem.Empty))
+        setVoice(Voice.Transcribing)
+        val text = try {
+            cleanTranscript(api.transcribe(wav))
+        } catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            logFailure(error)
+            val api = error as? ApiException
+            val problem = when {
+                api?.code == "AI_UNAVAILABLE" -> if (api.retryable) VoiceProblem.Busy else VoiceProblem.Off
+                api?.code == "RATE_LIMITED" -> VoiceProblem.Busy
+                else -> VoiceProblem.Failed
+            }
+            return setVoice(Voice.Problem(problem))
+        }
+        if (text.isEmpty()) return setVoice(Voice.Problem(VoiceProblem.Empty))
+        // Lo dicho es la búsqueda: queda en el buscador y se envía como si se hubiera escrito.
+        val home = screen as? Screen.Home ?: return
+        screen = home.copy(query = text, voice = Voice.Heard(text))
+        startSearch(text)
     }
 
     fun openSite(url: String) {
@@ -246,6 +343,14 @@ class GuiameViewModel(private val api: GuiameApi = GuiameApi()) : ViewModel() {
 
     private companion object {
         const val SETTLE_MS = 400L
+
+        /** Igual que escritorio (voice.ts): una línea, sin espacios de más y hasta 500 caracteres. */
+        fun cleanTranscript(text: String): String = text
+            .replace(Regex("[\\p{Cc}\\p{Cf}]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .take(500)
+            .trim()
 
         /** Solo el tipo de error y el estado HTTP: nunca lo que pidió la persona ni la página. */
         fun logFailure(error: Throwable) {
