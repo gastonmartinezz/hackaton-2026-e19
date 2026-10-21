@@ -4,9 +4,13 @@ appId: ar.hackaton.navegador-asistido
 productName: Navegador asistido
 directories:
   output: release
+# Ícono de la app: build/icon.png (1024×1024, desde design/assets/logo/guiame-icono.png).
+icon: build/icon.png
 files:
   - out/**
   - package.json
+  # La ventana lo usa en Windows/Linux (app.getAppPath()/build/icon.png).
+  - build/icon.png
 asar: true
 mac:
   target: dmg
