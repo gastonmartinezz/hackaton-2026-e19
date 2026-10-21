@@ -46,6 +46,9 @@ class MainActivity : ComponentActivity() {
                             onSearch = vm::search,
                             onAnswer = vm::answer,
                             onOpenSite = vm::openSite,
+                            onVoice = vm::toggleVoice,
+                            onMicDenied = vm::micDenied,
+                            onCloseVoice = vm::closeVoice,
                         )
                         is Screen.Site -> SiteScreen(screen, vm, onTextSize = { textSizeOpen = true })
                     }
