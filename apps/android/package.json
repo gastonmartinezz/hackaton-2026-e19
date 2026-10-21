@@ -1,0 +1,22 @@
+{
+  "name": "@asistente/android",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Navegador asistido para Android (spike): agente de página que se inyecta en el WebView",
+  "type": "module",
+  "scripts": {
+    "build": "vite build --config vite.agent.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@hackaton/contracts": "workspace:*",
+    "@asistente/guidance": "workspace:*",
+    "@asistente/page-analyzer": "workspace:*",
+    "@asistente/privacy": "workspace:*",
+    "@types/node": "^26.6.5",
+    "happy-dom": "^21.0.3",
+    "vite": "^8.3.4",
+    "zod": "^4.6.7"
+  }
+}

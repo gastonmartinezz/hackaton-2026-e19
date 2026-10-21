@@ -15,6 +15,33 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(happy-dom@21.0.3)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
+  apps/android:
+    devDependencies:
+      '@asistente/guidance':
+        specifier: workspace:*
+        version: link:../../packages/guidance
+      '@asistente/page-analyzer':
+        specifier: workspace:*
+        version: link:../../packages/page-analyzer
+      '@asistente/privacy':
+        specifier: workspace:*
+        version: link:../../packages/privacy
+      '@hackaton/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
+      happy-dom:
+        specifier: ^21.0.3
+        version: 21.0.3
+      vite:
+        specifier: ^8.3.4
+        version: 8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+
   apps/api:
     dependencies:
       '@anthropic-ai/sdk':

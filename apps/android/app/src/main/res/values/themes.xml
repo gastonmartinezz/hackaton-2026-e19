@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Solo modo claro (CLAUDE.md §4). -->
+    <style name="Theme.Guiame" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:statusBarColor">#2B86FF</item>
+    </style>
+</resources>

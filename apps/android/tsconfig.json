@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.bundler.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"]
+  },
+  "include": ["web", "vite.agent.config.ts", "vitest.config.ts"]
+}
