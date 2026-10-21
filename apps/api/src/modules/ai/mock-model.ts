@@ -4,7 +4,7 @@
 import type { InterpretRequest } from '@hackaton/contracts';
 import type { z } from 'zod';
 import type { AiTask, StructuredModel, StructuredRequest } from './model.js';
-import type { InterpretOutput, MatchOutput, NextStepOutput, OptionsOutput, ProcedureOutput, SiteCheckOutput } from './schemas.js';
+import type { InterpretOutput, MatchOutput, NextStepOutput, OptionsOutput, PageCheckOutput, ProcedureOutput, SiteCheckOutput } from './schemas.js';
 
 type Handler = (input: any) => unknown;
 
@@ -48,6 +48,8 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
           message: '¿Me contás un poco más qué querés hacer?',
           url: null,
           options: [],
+          answers: ['Sacar un turno', 'Hacer un trámite'],
+          why: 'Así encuentro la página justa.',
           goal: 'Sin definir',
           reason: 'Falta información.',
         }
@@ -56,6 +58,8 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
           message: 'Te llevo a este sitio.',
           url: 'https://www.example.com/',
           options: [],
+          answers: [],
+          why: null,
           goal: 'Objetivo simulado',
           reason: 'Respuesta simulada.',
         },
@@ -131,6 +135,11 @@ export const defaultMockHandlers: Record<AiTask, Handler> = {
   },
 
   // Paso a paso fijo, sin búsqueda.
+  // Todas las páginas corresponden a lo pedido (sin juicio semántico en el mock).
+  pageCheck: (input: { pages: Array<{ url: string }> }): PageCheckOutput => ({
+    pages: input.pages.map(({ url }) => ({ url, matches: true, reason: 'Simulación.' })),
+  }),
+
   // Una opción cuyo título comparte al menos la mitad de sus palabras con el pedido; si no, ninguna.
   match: (input: { request: string; options: Array<{ id: string; title: string }> }): MatchOutput => {
     const words = (text: string) => text.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').split(/[^a-z0-9]+/).filter((w) => w.length > 2);

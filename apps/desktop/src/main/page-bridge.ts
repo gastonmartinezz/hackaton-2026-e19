@@ -256,7 +256,13 @@ export class PageBridge extends EventEmitter<PageBridgeEvents> {
 
 /** Defensa en profundidad: se vuelven a depurar las etiquetas en el proceso principal. */
 function resanitize(snapshot: PageSnapshot): PageSnapshot {
-  return { ...snapshot, elements: snapshot.elements.map((e) => ({ ...e, label: sanitizeLabel(e.label) })) };
+  return {
+    ...snapshot,
+    elements: snapshot.elements.map(({ choices, ...e }) => {
+      const kept = choices?.map((choice) => sanitizeLabel(choice, 80)).filter(Boolean);
+      return { ...e, label: sanitizeLabel(e.label), ...(kept && kept.length > 0 ? { choices: kept } : {}) };
+    }),
+  };
 }
 
 function shortId(): string {

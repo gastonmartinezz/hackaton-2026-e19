@@ -185,7 +185,9 @@ describe('Assistant', () => {
     expect(last.completedSteps).toHaveLength(4);
     expect(last.completedSteps[0]!.field).toMatchObject({ sensitive: false });
     // Sale solo el sitio (origen), nunca la ruta, la consulta ni lo que escribió la persona.
-    expect(findLeaks(rec.sent, ['Marta Gómez', '30123456', 'Centro', 'Marta', '/formulario', 'formulario.html', 'nombre='])).toEqual([]);
+    expect(findLeaks(rec.sent, ['Marta Gómez', '30123456', 'Marta', '/formulario', 'formulario.html', 'nombre='])).toEqual([]);
+    // Las opciones de la lista («Centro», «Norte») son texto del sitio y sí salen; cuál eligió la persona, nunca.
+    for (const request of rec.sent) expect(request.html).not.toMatch(/selected|value=/);
     expect(options.metadata?.page?.origin).toBe('http://127.0.0.1:4321');
   });
 
@@ -406,6 +408,33 @@ describe('Assistant', () => {
     const asked = sent[1] as OptionsRequest;
     expect(asked).toMatchObject({ goal: 'renovar la cédula', request: 'quiero cambiar mi dirección' });
     expect(assistant.state.goal).toBe('renovar la cédula');
+  });
+
+  it('«Hacer otra cosa» después de terminar mira la página actual (otra sección) y olvida el objetivo cumplido', async () => {
+    load('buscar.html');
+    const mock = mockApi();
+    const { api, sent } = recording(mock, {
+      nextStep: async (r) => ({ sessionId: r.sessionId, steps: [], done: true, evidence: 'Buscar' }),
+    });
+    const { assistant, until } = setup(api);
+    assistant.expectDestination('buscar un libro');
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    await until(() => assistant.state.phase === 'choosing');
+    assistant.select(assistant.state.options[0]!.id);
+    await until(() => assistant.state.phase === 'completed');
+
+    // La persona sigue navegando a otra sección del sitio.
+    assistant.navigationStarted();
+    load('horarios.html');
+    assistant.navigated({ sameDocument: false, aiEnabled: true });
+    expect(assistant.state.phase).toBe('completed');
+
+    assistant.anotherTask();
+    await until(() => assistant.state.phase === 'choosing');
+    const last = sent.filter((r): r is OptionsRequest => !('optionId' in r)).at(-1)!;
+    expect(last.html).toContain('Horarios');
+    expect(last.goal).toBeUndefined();
+    expect(assistant.state.goal).toBeUndefined();
   });
 
   it('con pasos reales recibidos de /v1/next-step sigue guiando', async () => {

@@ -20,8 +20,15 @@ export function testApp(deps: AppDeps = {}, env: Record<string, string> = {}) {
 export function fakeVerifier({
   sites = {},
   dns = {},
+  titles = {},
   now = () => 0,
-}: { sites?: Record<string, HeadResult | ((method: 'HEAD' | 'GET') => HeadResult)>; dns?: Record<string, string[]>; now?: () => number } = {}) {
+}: {
+  sites?: Record<string, HeadResult | ((method: 'HEAD' | 'GET') => HeadResult)>;
+  dns?: Record<string, string[]>;
+  /** Título de cada página (por URL final); las que no están no tienen título. */
+  titles?: Record<string, string>;
+  now?: () => number;
+} = {}) {
   const requests: string[] = [];
   const verifier = new UrlVerifier(
     { timeoutMs: 1000, maxRedirects: 3, cacheTtlMs: 60_000 },
@@ -37,6 +44,7 @@ export function fakeVerifier({
         if (!site) return { status: 200 };
         return typeof site === 'function' ? site(method) : site;
       },
+      readTitle: async (url) => titles[url.href] ?? null,
       now,
     },
   );

@@ -9,14 +9,14 @@ import { auth, html, OTHER_TOKEN, testApp } from './helpers.js';
 let app: FastifyInstance;
 afterEach(() => app?.close());
 
-const internal = { goal: 'Sacar un turno', reason: 'Es el sitio oficial.' };
+const internal = { goal: 'Sacar un turno', reason: 'Es el sitio oficial.', answers: [] as string[], why: null };
 
 const interpretReturning = (output: InterpretOutput) =>
   new MockModel({ ...defaultMockHandlers, interpret: () => output });
 
 /** Mock que registra lo que recibe Claude en cada tarea. */
 function recordingModel() {
-  const inputs: Record<AiTask, any[]> = { interpret: [], options: [], match: [], nextStep: [], procedure: [], siteCheck: [] };
+  const inputs: Record<AiTask, any[]> = { interpret: [], pageCheck: [], options: [], match: [], nextStep: [], procedure: [], siteCheck: [] };
   const record =
     (task: AiTask) =>
     (input: any): unknown => {
@@ -25,6 +25,7 @@ function recordingModel() {
     };
   const model = new MockModel({
     interpret: record('interpret'),
+    pageCheck: record('pageCheck'),
     options: record('options'),
     match: record('match'),
     nextStep: record('nextStep'),

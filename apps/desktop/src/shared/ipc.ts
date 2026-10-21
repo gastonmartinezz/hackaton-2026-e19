@@ -134,6 +134,8 @@ export const UiCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('selectOption'), optionId: Id }),
   z.strictObject({ type: z.literal('repeat') }),
   z.strictObject({ type: z.literal('stepBack') }),
+  /** «Hacer otra cosa» después de terminar: se mira la página actual y se arman opciones nuevas, sin el objetivo cumplido. */
+  z.strictObject({ type: z.literal('anotherTask') }),
   z.strictObject({ type: z.literal('exitHelp') }),
   z.strictObject({ type: z.literal('confirmDone') }),
   /** «Lo escribo yo»: el dato se deja de dictar y el cursor queda en el lugar. */

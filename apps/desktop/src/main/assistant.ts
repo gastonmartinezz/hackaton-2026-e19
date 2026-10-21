@@ -162,6 +162,12 @@ export class Assistant {
     this.#dispatch({ type: 'BACK' });
   }
 
+  /** «Hacer otra cosa»: otra tarea en la página actual (puede ser otra sección); el objetivo anterior ya se cumplió. */
+  anotherTask(): void {
+    this.#pendingGoal = undefined;
+    this.#dispatch({ type: 'ANALYZE', goal: null });
+  }
+
   exit(): void {
     this.#pendingGoal = undefined;
     this.#dispatch({ type: 'EXIT' });

@@ -3,9 +3,10 @@ import type { FastifyBaseLogger } from 'fastify';
 import { AppError } from '../../lib/errors.js';
 import type { StructuredModel } from '../ai/model.js';
 import { SYSTEM_PROMPTS } from '../ai/prompts.js';
-import { InterpretOutput } from '../ai/schemas.js';
+import { InterpretOutput, PageCheckOutput } from '../ai/schemas.js';
+import type { UrlCheck } from '../urls/url-verifier.js';
 import type { SessionStore } from '../sessions/session-store.js';
-import { countChecks, emptyStats, type FailedUrl, type UrlGuard } from './url-guard.js';
+import { countChecks, emptyStats, type FailedUrl, type UrlGuard, type UrlGuardStats } from './url-guard.js';
 
 /** Errores del reintento que permiten seguir con la primera respuesta (reparada). El resto se propaga. */
 const RECOVERABLE_RETRY_ERRORS: ReadonlySet<ErrorCode> = new Set(['AI_UNAVAILABLE', 'TIMEOUT', 'RATE_LIMITED', 'AI_INVALID_RESPONSE']);
@@ -33,10 +34,10 @@ export class InterpretService {
         schema: InterpretOutput,
       });
 
-    // Ninguna URL llega a la persona sin comprobar que exista (S03).
+    // Ninguna URL llega a la persona sin comprobar que exista (S03) y que sea de lo que pidió.
     const stats = emptyStats();
     let output = await ask();
-    let checks = await this.guard.checkAll(output);
+    let checks = await this.checkPages(request, output, await this.guard.checkAll(output), stats, log);
     countChecks(checks, stats);
     const firstPass = { checked: stats.checked, valid: stats.valid };
 
@@ -56,7 +57,7 @@ export class InterpretService {
         log.warn({ task: 'interpret', code: error.code }, 'interpret url retry failed');
       }
       if (second) {
-        const secondChecks = await this.guard.checkAll(second);
+        const secondChecks = await this.checkPages(request, second, await this.guard.checkAll(second), stats, log);
         countChecks(secondChecks, stats);
         output = second;
         checks = secondChecks;
@@ -80,6 +81,7 @@ export class InterpretService {
         invalidDomains: stats.invalidDomains,
         retried,
         rootFallbacks: stats.rootFallbacks,
+        offTopic: stats.offTopic,
         dropped: stats.dropped,
         converted: stats.converted,
       },
@@ -92,7 +94,7 @@ export class InterpretService {
         ? { sessionId, type: 'redirect', message: output.message, url: output.url }
         : output.type === 'options'
           ? { sessionId, type: 'options', message: output.message, options: output.options }
-          : { sessionId, type: 'question', message: output.message };
+          : { sessionId, type: 'question', message: output.message, ...questionExtras(output) };
 
     // Se valida contra el contrato: por ejemplo, rechaza URLs que no son http(s).
     const parsed = InterpretResponse.safeParse(candidate);
@@ -108,4 +110,62 @@ export class InterpretService {
     });
     return parsed.data;
   }
+
+  /**
+   * Las páginas que existen se comparan, por su título real, con lo que pidió la
+   * persona. Las que son de otra acción o variante del trámite (renovar ≠ primera
+   * vez) pasan a fallidas con el motivo: el reintento elige otra y no se reparan
+   * a la raíz. Si la comprobación falla, se sigue con lo que hay.
+   */
+  private async checkPages(
+    request: InterpretRequest,
+    output: InterpretOutput,
+    checks: Map<string, UrlCheck>,
+    stats: UrlGuardStats,
+    log: FastifyBaseLogger,
+  ): Promise<Map<string, UrlCheck>> {
+    const pages = [...checks].flatMap(([url, check]) => (check.ok && check.title ? [{ url, title: check.title }] : []));
+    if (pages.length === 0) return checks;
+    let result: PageCheckOutput;
+    try {
+      result = await this.model.generate({
+        task: 'pageCheck',
+        system: SYSTEM_PROMPTS.pageCheck,
+        input: { messages: request.messages, goal: output.goal, pages },
+        schema: PageCheckOutput,
+      });
+    } catch (error) {
+      if (!(error instanceof AppError) || !RECOVERABLE_RETRY_ERRORS.has(error.code)) throw error;
+      log.warn({ task: 'pageCheck', code: error.code }, 'page check failed, keeping urls');
+      return checks;
+    }
+    const offTopic = new Set(result.pages.filter((page) => !page.matches).map((page) => page.url));
+    if (offTopic.size === 0) return checks;
+    const marked = new Map(checks);
+    for (const { url, title } of pages) {
+      if (!offTopic.has(url)) continue;
+      marked.set(url, { ok: false, reason: 'off_topic', title });
+      stats.offTopic++;
+    }
+    return marked;
+  }
+}
+
+/**
+ * Respuestas sugeridas y porqué de una pregunta, solo si sirven como botones:
+ * entre 2 y 4, cortas, sin repetidas y sin «No sé» (el front ya lo ofrece).
+ */
+function questionExtras(output: InterpretOutput): { answers?: string[]; reason?: string } {
+  const seen = new Set<string>();
+  const answers = output.answers
+    .map((answer) => answer.trim())
+    .filter((answer) => {
+      const key = answer.toLocaleLowerCase('es');
+      if (!answer || answer.length > 60 || seen.has(key) || /^no s[eé](?!\p{L})/iu.test(answer)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 4);
+  const reason = output.why?.trim().slice(0, 200);
+  return { ...(answers.length >= 2 ? { answers } : {}), ...(reason ? { reason } : {}) };
 }

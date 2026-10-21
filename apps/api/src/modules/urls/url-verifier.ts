@@ -16,9 +16,12 @@ export type UrlRejection =
   | 'http_status'
   | 'redirect_loop'
   | 'timeout'
-  | 'network';
+  | 'network'
+  /** La página existe pero es de otra acción (lo decide interpret con su título, no el verificador). */
+  | 'off_topic';
 
-export type UrlCheck = { ok: true } | { ok: false; reason: UrlRejection; status?: number };
+/** `title`: el título de la página final (texto del sitio, no confiable), si se pudo leer. */
+export type UrlCheck = { ok: true; title?: string } | { ok: false; reason: UrlRejection; status?: number; title?: string };
 
 export interface UrlCheckOptions {
   /** Tiempo total por URL, redirecciones incluidas. */
@@ -39,6 +42,11 @@ export interface UrlCheckDeps {
   resolve: (hostname: string, signal: AbortSignal) => Promise<string[]>;
   /** Pide la URL sin leer el cuerpo y devuelve status y Location. */
   request: (url: URL, method: 'HEAD' | 'GET', signal: AbortSignal) => Promise<HeadResult>;
+  /**
+   * Lee el título de una página que ya respondió 2xx (GET, solo el comienzo del cuerpo).
+   * Sirve para comprobar que la página sea de lo que pidió la persona. Si falta, no se lee.
+   */
+  readTitle?: (url: URL, signal: AbortSignal) => Promise<string | null>;
   now: () => number;
 }
 
@@ -151,7 +159,12 @@ export class UrlVerifier {
         // Hay sitios que no aceptan HEAD (405/501) o lo responden distinto: se prueba GET sin leer el cuerpo.
         if (result.status >= 400) result = await this.deps.request(url, 'GET', signal);
 
-        if (result.status >= 200 && result.status < 300) return { ok: true };
+        if (result.status >= 200 && result.status < 300) {
+          // El título no decide si existe: si no se puede leer, la URL igual es válida.
+          const title = this.deps.readTitle ? await this.deps.readTitle(url, signal).catch(() => null) : null;
+          const clean = title ? cleanTitle(title) : '';
+          return clean ? { ok: true, title: clean } : { ok: true };
+        }
         if (result.status >= 300 && result.status < 400 && result.location) {
           url = new URL(result.location, url);
           continue;
@@ -243,6 +256,34 @@ function defaultDeps(): UrlCheckDeps {
   return {
     resolve: async (hostname, signal) =>
       (await abortable(dnsLookup(hostname, { all: true }), signal)).map((record) => record.address),
+    readTitle: (url, signal) =>
+      new Promise<string | null>((resolve, reject) => {
+        const req = httpsRequest(
+          url,
+          { method: 'GET', signal, lookup: safeLookup, headers: { 'user-agent': USER_AGENT, accept: 'text/html,*/*;q=0.8' } },
+          (res: IncomingMessage) => {
+            if ((res.statusCode ?? 0) < 200 || (res.statusCode ?? 0) >= 300 || !/html/i.test(String(res.headers['content-type'] ?? 'text/html'))) {
+              res.destroy();
+              return resolve(null);
+            }
+            // Solo el comienzo de la página: el <title> está en el <head>.
+            let html = '';
+            res.setEncoding('utf8');
+            res.on('data', (chunk: string) => {
+              html += chunk;
+              const title = titleIn(html);
+              if (title !== null || html.length > TITLE_READ_LIMIT) {
+                res.destroy();
+                resolve(title);
+              }
+            });
+            res.on('end', () => resolve(titleIn(html)));
+            res.on('error', () => resolve(titleIn(html)));
+          },
+        );
+        req.on('error', reject);
+        req.end();
+      }),
     request: (url, method, signal) =>
       new Promise<HeadResult>((resolve, reject) => {
         const req = httpsRequest(
@@ -267,6 +308,32 @@ function defaultDeps(): UrlCheckDeps {
   };
 }
 
+/** Cuánto de la página se lee como máximo para encontrar el <title>. */
+const TITLE_READ_LIMIT = 64 * 1024;
+
+/** El <title> del HTML leído hasta ahora, o null si todavía no apareció. */
+export function titleIn(html: string): string | null {
+  const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
+  return match ? match[1]! : null;
+}
+
+/** Título legible y acotado: sin etiquetas, entidades comunes decodificadas, sin controles, hasta 200 caracteres. */
+export function cleanTitle(raw: string): string {
+  return raw
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n) <= 0x10ffff ? Number(n) : 32))
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/[\p{Cc}\p{Cf}]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+}
+
 /** Texto técnico corto del motivo, para el reintento con Claude (sin datos de la persona). */
 export function describeRejection(check: Exclude<UrlCheck, { ok: true }>): string {
   switch (check.reason) {
@@ -282,6 +349,8 @@ export function describeRejection(check: Exclude<UrlCheck, { ok: true }>): strin
       return 'solo se aceptan direcciones https';
     case 'redirect_loop':
       return 'demasiadas redirecciones';
+    case 'off_topic':
+      return check.title ? `la página es «${check.title}», que no es lo que pidió la persona` : 'la página no es lo que pidió la persona';
     default:
       return 'la dirección no está permitida';
   }

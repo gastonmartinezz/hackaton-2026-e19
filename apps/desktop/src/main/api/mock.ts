@@ -233,8 +233,8 @@ export function interpretMock(request: InterpretRequest, sites: SiteOption[]): M
     return { type: 'options', message: 'Por lo que buscaste, estos sitios son los que mejor se ajustan.', options: sites.slice(0, 5) };
   if (users.length >= 3) return { type: 'options', message: 'No estoy seguro; estos sitios pueden servirte.', options: sites.slice(0, 5) };
   if (users.length > 1) return { type: 'question', message: '¿Podés contarme un poco más?' };
-  // TEMPORAL: answers y reason todavía no están en el contrato (ver api/pending-contract.ts).
-  const question: MockInterpretation & { answers: string[]; reason: string } = {
+  // Respuestas sugeridas y porqué de la pregunta (contrato de /v1/interpret).
+  const question: MockInterpretation = {
     type: 'question',
     message: '¿Qué querés hacer?',
     answers: ['Ver horarios', 'Buscar un libro', 'Pedir un turno'],

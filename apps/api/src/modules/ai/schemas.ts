@@ -9,6 +9,10 @@ export const InterpretOutput = z.object({
   url: z.string().nullable(),
   /** Solo con type "options". */
   options: z.array(z.object({ title: z.string(), url: z.string(), reason: z.string() })),
+  /** Solo con type "question": respuestas posibles (2 a 4, cortas) para mostrar como botones; si no, vacío. */
+  answers: z.array(z.string()),
+  /** Solo con type "question": por qué se pregunta, en una frase que ve la persona; si no, null. */
+  why: z.string().nullable(),
   /** Uso interno: objetivo entendido y motivo de la decisión. Se guardan en la sesión, no van al front. */
   goal: z.string(),
   reason: z.string(),
@@ -34,6 +38,12 @@ export const OptionsOutput = z.object({
   requestedOptionId: z.string().nullable(),
 });
 export type OptionsOutput = z.infer<typeof OptionsOutput>;
+
+/** Si cada página que propuso interpret es, por su título real, de lo que pidió la persona. */
+export const PageCheckOutput = z.object({
+  pages: z.array(z.object({ url: z.string(), matches: z.boolean(), reason: z.string() })),
+});
+export type PageCheckOutput = z.infer<typeof PageCheckOutput>;
 
 /** Qué opción de las que ya se mostraron hace lo que pidió la persona, o null si ninguna. */
 export const MatchOutput = z.object({

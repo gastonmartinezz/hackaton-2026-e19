@@ -11,7 +11,7 @@ import { auth, fakeVerifier, recordingLogger, testApp } from './helpers.js';
 let app: FastifyInstance;
 afterEach(() => app?.close());
 
-const internal = { goal: 'Agendarse para la cédula', reason: 'Trámite de la DNIC.' };
+const internal = { goal: 'Agendarse para la cédula', reason: 'Trámite de la DNIC.', answers: [] as string[], why: null };
 const redirect = (url: string): InterpretOutput => ({ type: 'redirect', message: 'Te llevo.', url, options: [], ...internal });
 const options = (...urls: string[]): InterpretOutput => ({
   type: 'options',
@@ -213,6 +213,7 @@ describe('InterpretService: logs de la verificación', () => {
         invalidDomains: ['www.bps.gub.uy', 'www.bps.gub.uy'],
         retried: true,
         rootFallbacks: 1,
+        offTopic: 0,
         dropped: 0,
         converted: 'none',
       },
@@ -232,7 +233,7 @@ describe('UrlGuard: rendimiento', () => {
     };
     const guard = new UrlGuard(verifier as never);
     const output = options('https://a.example/x', 'https://b.example/x', 'https://c.example/x');
-    const stats = { checked: 0, valid: 0, invalid: {}, rootFallbacks: 0, dropped: 0, converted: 'none' as const, invalidDomains: [] };
+    const stats = { checked: 0, valid: 0, invalid: {}, rootFallbacks: 0, offTopic: 0, dropped: 0, converted: 'none' as const, invalidDomains: [] };
     const started = performance.now();
     const fixed = await guard.repair(output, new Map(), stats);
     const elapsed = performance.now() - started;
@@ -241,3 +242,87 @@ describe('UrlGuard: rendimiento', () => {
     expect(elapsed).toBeLessThan(350);
   });
 });
+
+describe('interpret: la página tiene que ser de lo que pidió la persona', () => {
+  const primeraVez = 'https://www.gub.uy/tramites/documento-nacional-identidad-primera-vez';
+  const renovacion = 'https://www.gub.uy/tramites/documento-nacional-identidad-renovacion';
+  const titles = {
+    [primeraVez]: 'Documento Nacional de Identidad - Primera Vez | Trámites',
+    [renovacion]: 'Documento Nacional de Identidad - Renovación | Trámites',
+  };
+  const redirectTo = (url: string) => ({ type: 'redirect' as const, message: 'Te llevo.', url, options: [], answers: [], why: null, goal: 'renovar la cédula de identidad', reason: 'x' });
+  /** pageCheck que rechaza «Primera Vez» cuando el objetivo es renovar, como haría Claude. */
+  const pageCheck = (input: { pages: Array<{ url: string; title: string }> }) => ({
+    pages: input.pages.map(({ url, title }) => ({ url, matches: !/primera vez/i.test(title), reason: 'x' })),
+  });
+
+  it('si la página es de otra variante del trámite, el reintento recibe el título y elige la correcta', async () => {
+    const interpretInputs: any[] = [];
+    const model = new MockModel({
+      ...defaultMockHandlers,
+      interpret: (input: any) => (interpretInputs.push(input), redirectTo(input.failedUrls ? renovacion : primeraVez)),
+      pageCheck,
+    });
+    const sessions = new SessionStore(60_000);
+    const service = new InterpretService(model, sessions, new UrlGuard(fakeVerifier({ titles })));
+    const response = await service.interpret({ messages: [{ role: 'user', content: 'Quiero renovar mi cédula de identidad' }] }, 'token');
+    expect(response).toMatchObject({ type: 'redirect', url: renovacion });
+    expect(interpretInputs[1].failedUrls).toEqual([{ url: primeraVez, reason: 'la página es «Documento Nacional de Identidad - Primera Vez | Trámites», que no es lo que pidió la persona' }]);
+    sessions.close();
+  });
+
+  it('si sigue siendo de otra variante, no se abre ni se cambia por la raíz del sitio: se pregunta', async () => {
+    const model = new MockModel({ ...defaultMockHandlers, interpret: () => redirectTo(primeraVez), pageCheck });
+    const sessions = new SessionStore(60_000);
+    const service = new InterpretService(model, sessions, new UrlGuard(fakeVerifier({ titles })));
+    const response = await service.interpret({ messages: [{ role: 'user', content: 'Quiero renovar mi cédula de identidad' }] }, 'token');
+    expect(response.type).toBe('question');
+    sessions.close();
+  });
+
+  it('sin título no se puede juzgar: la URL que existe se usa igual', async () => {
+    const seen: string[] = [];
+    const model = new MockModel({ ...defaultMockHandlers, interpret: () => redirectTo(primeraVez), pageCheck: (i: any) => (seen.push('pageCheck'), pageCheck(i)) });
+    const sessions = new SessionStore(60_000);
+    const service = new InterpretService(model, sessions, new UrlGuard(fakeVerifier()));
+    const response = await service.interpret({ messages: [{ role: 'user', content: 'x' }] }, 'token');
+    expect(response).toMatchObject({ type: 'redirect', url: primeraVez });
+    expect(seen).toEqual([]);
+    sessions.close();
+  });
+});
+
+describe('interpret: preguntas con respuestas sugeridas', () => {
+  const ask = (answers: string[], why: string | null) => ({
+    type: 'question' as const,
+    message: '¿Querés renovar la cédula, sacarla por primera vez o pedir un duplicado?',
+    url: null,
+    options: [],
+    answers,
+    why,
+    goal: 'cédula',
+    reason: 'x',
+  });
+
+  it('manda las respuestas (sin «No sé», repetidas ni largas) y el porqué', async () => {
+    const model = new MockModel({ ...defaultMockHandlers, interpret: () => ask(['Renovarla', 'Sacarla por primera vez', 'renovarla', 'No sé', 'Pedir un duplicado'], 'Así encuentro la página justa.') });
+    const sessions = new SessionStore(60_000);
+    const response = await new InterpretService(model, sessions, new UrlGuard(fakeVerifier())).interpret({ messages: [{ role: 'user', content: 'la cédula' }] }, 'token');
+    expect(response).toMatchObject({
+      type: 'question',
+      answers: ['Renovarla', 'Sacarla por primera vez', 'Pedir un duplicado'],
+      reason: 'Así encuentro la página justa.',
+    });
+    sessions.close();
+  });
+
+  it('con menos de dos respuestas útiles no manda answers (queda la pregunta abierta)', async () => {
+    const model = new MockModel({ ...defaultMockHandlers, interpret: () => ask(['Renovarla'], null) });
+    const sessions = new SessionStore(60_000);
+    const response = await new InterpretService(model, sessions, new UrlGuard(fakeVerifier())).interpret({ messages: [{ role: 'user', content: 'la cédula' }] }, 'token');
+    expect(response).not.toHaveProperty('answers');
+    expect(response).not.toHaveProperty('reason');
+    sessions.close();
+  });
+});
+

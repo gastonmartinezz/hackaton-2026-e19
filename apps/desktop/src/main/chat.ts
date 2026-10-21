@@ -9,7 +9,6 @@ import { Limits, type ChatMessage as ApiMessage, type SiteOption, type UserConte
 import { minimizeIntent } from '@asistente/privacy';
 import { UNSURE_ANSWER, type ChatMessage, type ChatPhase } from '../shared/ipc';
 import { ApiFailure, isAbort, userMessage, type ApiClient, type ApiSession, type SessionTicket } from './api/client';
-import { questionExtras } from './api/pending-contract';
 import { log } from './log';
 
 const MAX_MESSAGES = 30;
@@ -71,7 +70,7 @@ export class Chat {
       this.#history.push({ role: 'assistant', content: response.message });
       switch (response.type) {
         case 'question':
-          this.question = { text: response.message, ...questionExtras(response) };
+          this.question = { text: response.message, answers: response.answers ?? [], reason: response.reason ?? null };
           this.#set('clarifying');
           return;
         case 'options':
