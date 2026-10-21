@@ -1,0 +1,12 @@
+# Gradle y Android Studio
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Se genera desde web/page-agent.ts (pnpm --filter @asistente/android build)
+app/src/main/assets/page-agent.js
