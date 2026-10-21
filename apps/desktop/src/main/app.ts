@@ -82,6 +82,8 @@ export interface AppControllerOptions {
   pagePreloadPath: string;
   rendererUrl: string | null;
   rendererFile: string;
+  /** Ícono de Guíame para la ventana (Windows/Linux); en macOS lo pone el Dock. */
+  iconPath?: string | undefined;
 }
 
 export class AppController {
@@ -131,6 +133,7 @@ export class AppController {
       minWidth: 900,
       minHeight: 600,
       title: 'Guíame',
+      ...(options.iconPath ? { icon: options.iconPath } : {}),
       show: false,
       // --g-surface de design/tokens/tokens.css: evita un destello al abrir.
       backgroundColor: '#FFFFFF',

@@ -65,6 +65,12 @@ if (!app.requestSingleInstanceLock()) {
       log('app.backend', { mock: false });
     }
 
+    // Ícono de Guíame (build/icon.png, el mismo que usa electron-builder). En
+    // desarrollo, sin esto, el Dock y la ventana muestran el ícono de Electron.
+    const iconFile = join(app.getAppPath(), 'build/icon.png');
+    const iconPath = existsSync(iconFile) ? iconFile : undefined;
+    if (iconPath && process.platform === 'darwin') app.dock?.setIcon(iconPath);
+
     const prefs = new PrefsStore(app.getPath('userData'));
     await prefs.load();
 
@@ -80,6 +86,7 @@ if (!app.requestSingleInstanceLock()) {
       pagePreloadPath: join(import.meta.dirname, '../preload/page.cjs'),
       rendererUrl: config.isDev ? (process.env.ELECTRON_RENDERER_URL ?? null) : null,
       rendererFile: join(import.meta.dirname, '../renderer/index.html'),
+      iconPath,
     });
     await controller.load();
   });
