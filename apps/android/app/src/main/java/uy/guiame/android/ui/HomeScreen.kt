@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -124,6 +125,7 @@ fun HomeScreen(
     onVoice: () -> Unit,
     onMicDenied: () -> Unit,
     onCloseVoice: () -> Unit,
+    onHome: () -> Unit,
 ) {
     val docked = state.docked
     BackHandler(enabled = docked) { onCloseVoice() }
@@ -139,7 +141,11 @@ fun HomeScreen(
 
     // Alto del círculo grande con su rótulo y su margen: el buscador deja ese lugar libre abajo.
     var restHeight by remember { mutableStateOf(0) }
-    val restH = with(LocalDensity.current) { restHeight.toDp() }
+    // Alto de la fila de «Inicio» arriba del encabezado: el círculo chico baja eso para caer en su lugar.
+    var homeBarHeight by remember { mutableStateOf(0) }
+    val density = LocalDensity.current
+    val restH = with(density) { restHeight.toDp() }
+    val homeBarH = with(density) { homeBarHeight.toDp() }
 
     Box(
         Modifier
@@ -149,14 +155,15 @@ fun HomeScreen(
             .imePadding(),
     ) {
         if (docked) {
-            DockedContent(state, onAnswer, onOpenSite)
+            DockedContent(state, onAnswer, onOpenSite, onHome, onHomeBarHeight = { homeBarHeight = it })
         } else {
-            SearchContent(state, restH, onQueryChange, onSearch, onAnswer, onOpenSite)
+            SearchContent(state, restH, onQueryChange, onSearch, onAnswer, onOpenSite, onHome)
         }
 
         VoiceCircle(
             voice = state.voice,
             docked = docked,
+            topInset = homeBarH,
             onClick = onCircle,
             // Solo en reposo: mientras sube, el tamaño cambia en cada cuadro.
             modifier = Modifier.onSizeChanged { if (!docked) restHeight = it.height },
@@ -173,6 +180,7 @@ private fun SearchContent(
     onSearch: () -> Unit,
     onAnswer: (String) -> Unit,
     onOpenSite: (String) -> Unit,
+    onHome: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -181,6 +189,8 @@ private fun SearchContent(
             .padding(start = Gutter, end = Gutter, top = 24.dp, bottom = circleHeight + Gutter),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        if (state.question != null || state.sites.isNotEmpty() || state.error) HomeButton(onHome, Modifier.align(Alignment.End))
+
         GText(
             "¿Qué querés hacer hoy?",
             Modifier.semantics { heading() },
@@ -208,8 +218,20 @@ private fun DockedContent(
     state: Screen.Home,
     onAnswer: (String) -> Unit,
     onOpenSite: (String) -> Unit,
+    onHome: () -> Unit,
+    onHomeBarHeight: (Int) -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
+        // Arriba de todo, para que se encuentre aunque la letra sea grande y haya que bajar.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .background(G.surfaceSoft)
+                .onSizeChanged { onHomeBarHeight(it.height) }
+                .padding(start = Gutter, end = Gutter, top = 12.dp),
+        ) {
+            HomeButton(onHome, Modifier.align(Alignment.CenterEnd))
+        }
         // El encabezado: a la izquierda, una copia invisible del círculo chico le
         // reserva el lugar final (el círculo de verdad llega animado y se dibuja encima).
         Row(
@@ -284,6 +306,33 @@ private fun Results(state: Screen.Home, onAnswer: (String) -> Unit, onOpenSite: 
     }
 }
 
+/**
+ * «Inicio»: vuelve al buscador vacío y deja la pregunta, los sitios o lo dictado.
+ * Mismo texto que el botón de la barra del sitio; ícono Lucide «house» con el texto visible.
+ */
+@Composable
+private fun HomeButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .heightIn(min = G.minTouch)
+            .clip(G.radiusPill)
+            .border(2.dp, G.borderControl, G.radiusPill)
+            .background(G.surface)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Image(
+            painterResource(R.drawable.ic_house),
+            contentDescription = null,
+            modifier = Modifier.size(22.dp),
+            colorFilter = ColorFilter.tint(G.brand),
+        )
+        GText("Inicio", size = G.button, weight = FontWeight.SemiBold, color = G.brand)
+    }
+}
+
 @Composable
 private fun ErrorText(text: String) {
     GText(
@@ -303,10 +352,12 @@ private fun ErrorText(text: String) {
 private fun androidx.compose.foundation.layout.BoxScope.VoiceCircle(
     voice: Voice,
     docked: Boolean,
+    topInset: Dp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listening = voice is Voice.Listening
+    val top by animateDpAsState(if (docked) topInset else 0.dp, tween(MOVE_MS), label = "top")
     val x by animateFloatAsState(if (docked) -1f else 0f, tween(MOVE_MS), label = "x")
     val y by animateFloatAsState(if (docked) -1f else 1f, tween(MOVE_MS), label = "y")
     val size by animateDpAsState(if (docked) CircleDocked else CircleBig, tween(MOVE_MS), label = "size")
@@ -314,6 +365,7 @@ private fun androidx.compose.foundation.layout.BoxScope.VoiceCircle(
     Box(
         modifier
             .align(BiasAlignment(x, y))
+            .padding(top = top)
             .padding(Gutter)
             .clip(G.radiusControl)
             .clickable(role = Role.Button, enabled = voice != Voice.Transcribing, onClick = onClick)

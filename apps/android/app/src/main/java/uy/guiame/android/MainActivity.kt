@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity() {
                             onVoice = vm::toggleVoice,
                             onMicDenied = vm::micDenied,
                             onCloseVoice = vm::closeVoice,
+                            onHome = vm::goHome,
                         )
                         is Screen.Site -> SiteScreen(screen, vm, onTextSize = { textSizeOpen = true })
                     }
