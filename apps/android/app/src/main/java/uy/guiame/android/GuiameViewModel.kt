@@ -211,8 +211,13 @@ class GuiameViewModel(private val api: GuiameApi = GuiameApi()) : ViewModel() {
         screen = Screen.Site(url, Card.Looking)
     }
 
+    /** «Inicio»: deja lo que se estaba haciendo (sitio, pregunta o dictado) y vuelve al buscador vacío. */
     fun goHome() {
         pageJob?.cancel()
+        voiceJob?.cancel()
+        recorder.stop()
+        chat.clear()
+        sessionId = null
         resetGuide()
         bridge?.clear()
         screen = Screen.Home()
