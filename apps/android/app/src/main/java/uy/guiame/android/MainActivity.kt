@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import uy.guiame.android.ui.AssistantVoiceUi
 import uy.guiame.android.ui.G
 import uy.guiame.android.ui.GText
 import uy.guiame.android.ui.HomeScreen
@@ -50,6 +51,7 @@ class MainActivity : ComponentActivity() {
                             onMicDenied = vm::micDenied,
                             onCloseVoice = vm::closeVoice,
                             onHome = vm::goHome,
+                            voice = AssistantVoiceUi(vm.voiceOn, vm::toggleVoiceMode, vm.assistant, vm::stopVoice),
                         )
                         is Screen.Site -> SiteScreen(screen, vm, onTextSize = { textSizeOpen = true })
                     }

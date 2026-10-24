@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
@@ -64,6 +65,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import uy.guiame.android.Assistant
 import uy.guiame.android.R
 import uy.guiame.android.Screen
 import uy.guiame.android.SiteChoice
@@ -99,6 +101,9 @@ private object VoiceTexts {
     }
 }
 
+/** Lo que el inicio necesita del asistente de voz: el interruptor «Voz» y qué está haciendo. */
+class AssistantVoiceUi(val on: Boolean, val onToggle: () -> Unit, val assistant: Assistant, val onStop: () -> Unit)
+
 private val CircleBig = 112.dp
 private val CircleDocked = 64.dp
 private val Gutter = 16.dp
@@ -126,6 +131,7 @@ fun HomeScreen(
     onMicDenied: () -> Unit,
     onCloseVoice: () -> Unit,
     onHome: () -> Unit,
+    voice: AssistantVoiceUi,
 ) {
     val docked = state.docked
     BackHandler(enabled = docked) { onCloseVoice() }
@@ -155,9 +161,9 @@ fun HomeScreen(
             .imePadding(),
     ) {
         if (docked) {
-            DockedContent(state, onAnswer, onOpenSite, onHome, onHomeBarHeight = { homeBarHeight = it })
+            DockedContent(state, onAnswer, onOpenSite, onHome, voice, onHomeBarHeight = { homeBarHeight = it })
         } else {
-            SearchContent(state, restH, onQueryChange, onSearch, onAnswer, onOpenSite, onHome)
+            SearchContent(state, restH, onQueryChange, onSearch, onAnswer, onOpenSite, onHome, voice)
         }
 
         VoiceCircle(
@@ -181,6 +187,7 @@ private fun SearchContent(
     onAnswer: (String) -> Unit,
     onOpenSite: (String) -> Unit,
     onHome: () -> Unit,
+    voice: AssistantVoiceUi,
 ) {
     Column(
         modifier = Modifier
@@ -195,7 +202,11 @@ private fun SearchContent(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             GuiameLogo()
             Spacer(Modifier.weight(1f))
-            if (state.question != null || state.sites.isNotEmpty() || state.error) HomeButton(onHome)
+            VoiceSwitch(voice.on, voice.onToggle, onBar = false)
+            if (state.question != null || state.sites.isNotEmpty() || state.error) {
+                Spacer(Modifier.width(8.dp))
+                HomeButton(onHome)
+            }
         }
 
         GText(
@@ -218,6 +229,7 @@ private fun SearchContent(
             (state.voice as? Voice.Problem)?.let { ErrorText(VoiceTexts.problem(it.kind), Modifier.padding(top = 8.dp)) }
         }
 
+        AssistantStatus(voice.assistant, voice.onStop, reserve = voice.on && (state.question != null || state.sites.isNotEmpty()))
         Results(state, onAnswer, onOpenSite)
     }
 }
@@ -229,6 +241,7 @@ private fun DockedContent(
     onAnswer: (String) -> Unit,
     onOpenSite: (String) -> Unit,
     onHome: () -> Unit,
+    voice: AssistantVoiceUi,
     onHomeBarHeight: (Int) -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -244,6 +257,8 @@ private fun DockedContent(
         ) {
             GuiameLogo()
             Spacer(Modifier.weight(1f))
+            VoiceSwitch(voice.on, voice.onToggle, onBar = false)
+            Spacer(Modifier.width(8.dp))
             HomeButton(onHome)
         }
         // El encabezado: a la izquierda, una copia invisible del círculo chico le
@@ -284,6 +299,7 @@ private fun DockedContent(
                 .padding(horizontal = Gutter, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            AssistantStatus(voice.assistant, voice.onStop, reserve = voice.on && (state.question != null || state.sites.isNotEmpty()))
             Results(state, onAnswer, onOpenSite)
         }
     }

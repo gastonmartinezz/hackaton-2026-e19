@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Cliente de la API v1 (ver docs/api.md). Solo los endpoints que usa el
- * spike: interpret, options, next-step y transcribe. Los pasos se guardan como JSON tal
+ * spike: interpret, options, next-step, transcribe y speak. Los pasos se guardan como JSON tal
  * cual vinieron, porque vuelven al backend en `completedSteps`.
  */
 class GuiameApi(
@@ -107,6 +107,25 @@ class GuiameApi(
      * Voz a texto: WAV PCM 16 bits mono 16 kHz, entre 0,3 y 30 s. Devuelve ""
      * si no se entendió nada. Ni el audio ni el texto se guardan ni se loguean.
      */
+    /**
+     * Texto a voz: MP3 con el texto leído. Solo texto escrito por Guíame
+     * (instrucción, pregunta, opciones), nunca valores de la página.
+     */
+    suspend fun speak(text: String): ByteArray = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url(baseUrl.trimEnd('/') + "/v1/speak")
+            .header("Authorization", "Bearer $token")
+            .post(buildJsonObject { put("text", text) }.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+        http.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val error = runCatching { json.parseToJsonElement(response.body?.string() ?: "").jsonObject["error"]?.jsonObject }.getOrNull()
+                throw ApiException(response.code, error?.string("code"), error?.get("retryable")?.jsonPrimitive?.booleanOrNull == true)
+            }
+            response.body?.bytes() ?: ByteArray(0)
+        }
+    }
+
     suspend fun transcribe(wav: ByteArray): String =
         send("/v1/transcribe", wav.toRequestBody("audio/wav".toMediaType())).string("text") ?: ""
 
@@ -178,6 +197,8 @@ class GuideStep(val raw: JsonObject) {
     val field: JsonObject? get() = raw["field"] as? JsonObject
     val fieldSensitive: Boolean get() = this.field?.get("sensitive")?.jsonPrimitive?.booleanOrNull == true
     val fieldQuestion: String? get() = this.field?.string("question")
+    /** La IA marcó el paso como seguro para que Guíame toque el botón si la persona lo confirma. */
+    val safeToClick: Boolean get() = raw["safeToClick"]?.jsonPrimitive?.booleanOrNull == true
 }
 
 internal fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.takeUnless { it is JsonNull }?.contentOrNull

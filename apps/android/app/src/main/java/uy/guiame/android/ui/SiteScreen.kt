@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import uy.guiame.android.Card
+import uy.guiame.android.clickForMeLabel
 import uy.guiame.android.GuiameViewModel
 import uy.guiame.android.PageBridge
 import uy.guiame.android.R
@@ -113,7 +114,7 @@ fun SiteScreen(state: Screen.Site, vm: GuiameViewModel, onTextSize: () -> Unit) 
     val maxCard = LocalConfiguration.current.screenHeightDp.dp * 0.5f
 
     Column(Modifier.fillMaxSize().background(G.surface)) {
-        Bar(onHome = vm::goHome, onTextSize = onTextSize)
+        Bar(onHome = vm::goHome, onTextSize = onTextSize, voiceOn = vm.voiceOn, onVoice = vm::toggleVoiceMode)
         AndroidView(factory = { webView }, modifier = Modifier.weight(1f).fillMaxWidth())
         HelpCard(
             card = state.card,
@@ -128,7 +129,7 @@ fun SiteScreen(state: Screen.Site, vm: GuiameViewModel, onTextSize: () -> Unit) 
 private fun bridgeOf(view: WebView): PageBridge? = view.tag as? PageBridge
 
 @Composable
-private fun Bar(onHome: () -> Unit, onTextSize: () -> Unit) {
+private fun Bar(onHome: () -> Unit, onTextSize: () -> Unit, voiceOn: Boolean, onVoice: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -146,6 +147,7 @@ private fun Bar(onHome: () -> Unit, onTextSize: () -> Unit) {
             modifier = Modifier.height(32.dp),
         )
         Box(Modifier.weight(1f))
+        VoiceSwitch(voiceOn, onVoice, onBar = true)
         BarButton("Inicio", onHome)
         BarButton("Letra", onTextSize) // TODO(copy): en escritorio dice «Tamaño de letra»; no entra en teléfono.
     }
@@ -202,6 +204,7 @@ private fun HelpCard(card: Card, collapsed: Boolean, onToggle: () -> Unit, vm: G
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             CardBody(card, vm)
+            AssistantStatus(vm.assistant, vm::stopVoice, reserve = vm.voiceOn)
         }
     }
 }
@@ -221,6 +224,11 @@ private fun CardBody(card: Card, vm: GuiameViewModel) {
             if (card.doneCount > 0) GText("Pasos hechos: ${card.doneCount}", color = G.inkSecondary) // TODO(copy)
             GText(card.step.instruction, announce, size = G.instruction, weight = FontWeight.SemiBold)
             when {
+                card.offerClick -> {
+                    // Escritorio: «Te lo marqué con un borde azul. Tocalo vos o, si querés, lo toco yo.»
+                    GText("Te lo marqué con un borde azul. Tocalo vos o, si querés, lo toco yo.", color = G.inkSecondary)
+                    PrimaryButton(clickForMeLabel(card.step.instruction), onClick = vm::clickForMe)
+                }
                 card.sensitive -> GText("Lo escribís vos. Yo no lo veo ni lo guardo.", color = G.inkSecondary)
                 card.step.field != null || card.step.waitFor == "userConfirmation" ->
                     // TODO: el dictado (preguntar en voz alta y escribir) no está en el spike.
