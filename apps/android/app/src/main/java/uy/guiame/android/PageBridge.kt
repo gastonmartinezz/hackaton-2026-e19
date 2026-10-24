@@ -88,7 +88,24 @@ class PageBridge(
             result = reply.str("result") ?: "stale",
             elementId = reply.str("elementId"),
             sensitive = reply["sensitive"]?.jsonPrimitive?.booleanOrNull == true,
+            clickable = reply["clickable"]?.jsonPrimitive?.booleanOrNull == true,
         )
+    }
+
+    /**
+     * Toca el control resaltado por la persona, solo después de que ella lo
+     * confirmó («Tocá … por mí» o «sí» con la voz). El agente vuelve a revisar
+     * que sea el control resaltado, que se pueda tocar y que no sea una acción
+     * irreversible. Devuelve `clicked`, `refused` o `stale` (null si no contestó).
+     */
+    suspend fun click(navigationId: String, elementId: String): String? {
+        val requestId = nextId()
+        val reply = request(requestId, "page:click") {
+            put("requestId", requestId)
+            put("navigationId", navigationId)
+            put("elementId", elementId)
+        } ?: return null
+        return reply.str("result")
     }
 
     fun focus(navigationId: String, elementId: String) {
@@ -122,7 +139,7 @@ class PageBridge(
         val channel = message.str("channel") ?: return
         val payload = message["payload"] as? JsonObject ?: return
         when (channel) {
-            "page:snapshot", "page:shown" -> payload.str("requestId")?.let { pending[it]?.complete(payload) }
+            "page:snapshot", "page:shown", "page:clicked" -> payload.str("requestId")?.let { pending[it]?.complete(payload) }
             "page:ready" -> listener.onPageReady(payload.str("origin") ?: "")
             "page:interaction" -> {
                 val elementId = payload.str("elementId") ?: return
@@ -141,7 +158,7 @@ class PageBridge(
         }
     }
 
-    data class Shown(val result: String, val elementId: String?, val sensitive: Boolean)
+    data class Shown(val result: String, val elementId: String?, val sensitive: Boolean, val clickable: Boolean)
 
     private companion object {
         /** El HTML sintético tiene hasta 200.000 caracteres (límite de la API), más el sobre. */
