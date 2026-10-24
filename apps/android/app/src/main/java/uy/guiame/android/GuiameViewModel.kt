@@ -91,13 +91,15 @@ class GuiameViewModel(private val api: GuiameApi = GuiameApi()) : ViewModel() {
 
     fun onQueryChange(text: String) {
         val home = screen as? Screen.Home ?: return
-        screen = home.copy(query = text)
+        // Si la persona escribe después de un problema con el dictado, el aviso ya no corresponde.
+        screen = home.copy(query = text, voice = if (home.voice is Voice.Problem) Voice.Idle else home.voice)
     }
 
     fun search() {
         val home = screen as? Screen.Home ?: return
         val text = home.query.trim()
         if (text.isEmpty() || home.loading) return
+        if (home.voice is Voice.Problem) setVoice(Voice.Idle)
         startSearch(text)
     }
 
@@ -187,7 +189,14 @@ class GuiameViewModel(private val api: GuiameApi = GuiameApi()) : ViewModel() {
         val wav = recording.wav ?: return setVoice(Voice.Problem(VoiceProblem.Empty))
         setVoice(Voice.Transcribing)
         val text = try {
-            cleanTranscript(api.transcribe(wav))
+            // Un corte de conexión momentáneo con la API (el emulador o el wifi) se reintenta una vez.
+            cleanTranscript(
+                try {
+                    api.transcribe(wav)
+                } catch (error: java.io.IOException) {
+                    api.transcribe(wav)
+                },
+            )
         } catch (error: Exception) {
             if (error is kotlinx.coroutines.CancellationException) throw error
             logFailure(error)

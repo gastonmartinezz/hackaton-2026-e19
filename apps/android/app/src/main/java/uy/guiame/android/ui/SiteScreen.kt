@@ -138,9 +138,10 @@ private fun Bar(onHome: () -> Unit, onTextSize: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Logo de la barra: blanco, sin ojos, sin contenedor (CLAUDE.md §4).
+        // Logo de la barra: el ícono con ojos, al mismo alto que tenía la palabra (decisión de Gastón, 24/10/2026).
+        // TODO(diseño): CLAUDE.md §4 pide guiame-blanco.png acá; el ícono con contenedor celeste va sobre fondo claro (R12).
         Image(
-            painter = painterResource(R.drawable.guiame_blanco),
+            painter = painterResource(R.drawable.guiame_icono),
             contentDescription = "Guíame",
             modifier = Modifier.height(32.dp),
         )
