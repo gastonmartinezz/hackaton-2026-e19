@@ -46,6 +46,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -337,10 +339,15 @@ private fun Results(state: Screen.Home, onAnswer: (String) -> Unit, onOpenSite: 
 /** Logo arriba a la izquierda: el ícono con ojos (guiame-icono.png), sobre fondo claro (R12). */
 @Composable
 private fun GuiameLogo() {
+    // Al abrir la app, el logo llega volando desde el centro (LogoIntro): este se muestra cuando aterriza.
+    val intro = LocalLogoIntro.current
     Image(
         painter = painterResource(R.drawable.guiame_icono),
         contentDescription = "Guíame",
-        modifier = Modifier.height(56.dp),
+        modifier = Modifier
+            .height(56.dp)
+            .onGloballyPositioned { intro?.target?.value = it.boundsInRoot() }
+            .alpha(if (intro == null || intro.done.value) 1f else 0f),
     )
 }
 
