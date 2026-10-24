@@ -189,7 +189,12 @@ private fun SearchContent(
             .padding(start = Gutter, end = Gutter, top = 24.dp, bottom = circleHeight + Gutter),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        if (state.question != null || state.sites.isNotEmpty() || state.error) HomeButton(onHome, Modifier.align(Alignment.End))
+        // Arriba: el logo a la izquierda y, si hay algo que dejar, «Inicio» a la derecha.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            GuiameLogo()
+            Spacer(Modifier.weight(1f))
+            if (state.question != null || state.sites.isNotEmpty() || state.error) HomeButton(onHome)
+        }
 
         GText(
             "¿Qué querés hacer hoy?",
@@ -198,15 +203,18 @@ private fun SearchContent(
             weight = FontWeight.SemiBold,
         )
 
-        SearchField(state.query, onQueryChange, onSearch, enabled = !state.loading && state.voice !is Voice.Listening)
-
-        // Una sola región polite para lo que dice el dictado (vacía en reposo).
-        GText(
-            if (state.voice is Voice.Listening) VoiceTexts.LISTENING else "",
-            Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            color = G.inkSecondary,
-        )
-        (state.voice as? Voice.Problem)?.let { ErrorText(VoiceTexts.problem(it.kind)) }
+        Column {
+            SearchField(state.query, onQueryChange, onSearch, enabled = !state.loading && state.voice !is Voice.Listening)
+            // Una sola región polite para lo que dice el dictado. Siempre montada para que se anuncie,
+            // pero sin alto en reposo: así no deja un hueco entre el buscador y los resultados.
+            Box(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
+                if (state.voice is Voice.Listening) {
+                    GText(VoiceTexts.LISTENING, Modifier.padding(top = 16.dp), color = G.inkSecondary)
+                }
+            }
+            // El aviso de un problema con el dictado va pegado al buscador, que es donde se puede seguir.
+            (state.voice as? Voice.Problem)?.let { ErrorText(VoiceTexts.problem(it.kind), Modifier.padding(top = 8.dp)) }
+        }
 
         Results(state, onAnswer, onOpenSite)
     }
@@ -222,15 +230,19 @@ private fun DockedContent(
     onHomeBarHeight: (Int) -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
-        // Arriba de todo, para que se encuentre aunque la letra sea grande y haya que bajar.
-        Box(
+        // Arriba de todo, para que se encuentre aunque la letra sea grande y haya que bajar:
+        // el logo a la izquierda y «Inicio» a la derecha, a la misma altura.
+        Row(
             Modifier
                 .fillMaxWidth()
                 .background(G.surfaceSoft)
                 .onSizeChanged { onHomeBarHeight(it.height) }
                 .padding(start = Gutter, end = Gutter, top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            HomeButton(onHome, Modifier.align(Alignment.CenterEnd))
+            GuiameLogo()
+            Spacer(Modifier.weight(1f))
+            HomeButton(onHome)
         }
         // El encabezado: a la izquierda, una copia invisible del círculo chico le
         // reserva el lugar final (el círculo de verdad llega animado y se dibuja encima).
@@ -288,7 +300,6 @@ private fun Results(state: Screen.Home, onAnswer: (String) -> Unit, onOpenSite: 
     if (state.error) ErrorText("Fue un problema mío, no tuyo.")
 
     state.question?.let { question ->
-        Spacer(Modifier.height(8.dp))
         GText(
             question,
             Modifier.semantics { heading(); liveRegion = LiveRegionMode.Polite },
@@ -301,9 +312,18 @@ private fun Results(state: Screen.Home, onAnswer: (String) -> Unit, onOpenSite: 
     }
 
     if (state.sites.isNotEmpty()) {
-        Spacer(Modifier.height(8.dp))
         for (site in state.sites) SiteButton(site) { onOpenSite(site.url) }
     }
+}
+
+/** Logo arriba a la izquierda: el ícono con ojos (guiame-icono.png), sobre fondo claro (R12). */
+@Composable
+private fun GuiameLogo() {
+    Image(
+        painter = painterResource(R.drawable.guiame_icono),
+        contentDescription = "Guíame",
+        modifier = Modifier.height(56.dp),
+    )
 }
 
 /**
@@ -334,10 +354,10 @@ private fun HomeButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ErrorText(text: String) {
+private fun ErrorText(text: String, modifier: Modifier = Modifier) {
     GText(
         text,
-        Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
+        modifier.semantics { liveRegion = LiveRegionMode.Assertive },
         color = G.error,
         weight = FontWeight.SemiBold,
     )
