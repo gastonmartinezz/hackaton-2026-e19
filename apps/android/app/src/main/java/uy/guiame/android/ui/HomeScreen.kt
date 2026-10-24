@@ -99,7 +99,7 @@ private object VoiceTexts {
     }
 }
 
-private val CircleBig = 132.dp
+private val CircleBig = 112.dp
 private val CircleDocked = 64.dp
 private val Gutter = 16.dp
 private const val MOVE_MS = 450
@@ -171,7 +171,7 @@ fun HomeScreen(
     }
 }
 
-/** Buscador con el círculo abajo: el contenido deja libre el lugar del círculo. */
+/** Buscador con el círculo abajo, en su propio espacio: el contenido se desplaza arriba de él, nunca debajo. */
 @Composable
 private fun SearchContent(
     state: Screen.Home,
@@ -185,8 +185,10 @@ private fun SearchContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            // El círculo tiene su propio espacio abajo: la lista termina antes y nunca queda tapada.
+            .padding(bottom = circleHeight)
             .verticalScroll(rememberScrollState())
-            .padding(start = Gutter, end = Gutter, top = 24.dp, bottom = circleHeight + Gutter),
+            .padding(start = Gutter, end = Gutter, top = 24.dp, bottom = Gutter),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Arriba: el logo a la izquierda y, si hay algo que dejar, «Inicio» a la derecha.
