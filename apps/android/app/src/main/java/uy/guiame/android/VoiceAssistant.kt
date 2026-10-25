@@ -74,6 +74,16 @@ fun stepSpeech(instruction: String, sensitive: Boolean, offerClick: Boolean): St
 fun clickForMeLabel(instruction: String): String =
     Regex("«[^»]+»").find(instruction)?.value?.let { "Tocá $it por mí" } ?: "Tocalo por mí"
 
+/**
+ * Las respuestas de una pregunta del inicio sin las de duda («Todavía no sé»,
+ * «No estoy seguro»): la app ya agrega «No sé bien» y no tiene que aparecer
+ * dos veces. Solo la respuesta entera: «No sé cuál me corresponde» se queda.
+ */
+fun withoutUnsure(answers: List<String>): List<String> =
+    answers.filterNot { UNSURE_ANSWER.matches(normalizeSpoken(it)) }
+
+private val UNSURE_ANSWER = Regex("^(todavia |aun |la verdad )?(no (lo )?se|no estoy segur[oa]|ni idea|no sabria)( bien| todavia| aun)?$")
+
 /* --------------------------- Barrera de acciones --------------------------- */
 
 /** Minúsculas, sin tildes ni signos, espacios simples (y «camelCase» separado). */

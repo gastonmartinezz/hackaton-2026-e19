@@ -37,10 +37,12 @@ class GuiameApi(
         .build()
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun interpret(sessionId: String?, messages: List<ChatMessage>): InterpretResult {
+    /** `user`: idioma, zona horaria y país del teléfono (ver UserContext). */
+    suspend fun interpret(sessionId: String?, messages: List<ChatMessage>, user: JsonObject? = null): InterpretResult {
         val body = buildJsonObject {
             sessionId?.let { put("sessionId", it) }
             put("messages", JsonArray(messages.map { buildJsonObject { put("role", it.role); put("content", it.content) } }))
+            user?.let { put("user", it) }
         }
         val res = post("/v1/interpret", body)
         val session = res.string("sessionId")

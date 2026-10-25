@@ -85,6 +85,12 @@ class GuiameViewModel(app: Application) : AndroidViewModel(app) {
     private val api = GuiameApi()
     private val speaker = Speaker(app, api)
 
+    /** Idioma, zona horaria y país del teléfono para /v1/interpret (como escritorio). */
+    private val deviceContext = UserContext.of(
+        androidx.core.os.LocaleListCompat.getDefault()[0] ?: java.util.Locale.getDefault(),
+        java.util.TimeZone.getDefault().id,
+    )
+
     /** Interruptor «Voz»: con el modo voz, Guíame lee y escucha. Prendido por defecto. */
     var voiceOn: Boolean by mutableStateOf(true)
         private set
@@ -150,7 +156,7 @@ class GuiameViewModel(app: Application) : AndroidViewModel(app) {
         chat += ChatMessage("user", text)
         screen = home.copy(loading = true, error = false)
         viewModelScope.launch {
-            val result = runCatching { api.interpret(sessionId, chat) }.onFailure(::logFailure).getOrElse {
+            val result = runCatching { api.interpret(sessionId, chat, deviceContext) }.onFailure(::logFailure).getOrElse {
                 screen = (screen as? Screen.Home)?.copy(loading = false, error = true) ?: screen
                 return@launch
             }
@@ -168,10 +174,11 @@ class GuiameViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 is InterpretResult.Question -> {
                     chat += ChatMessage("assistant", result.message)
-                    screen = Screen.Home(query = home.query, question = result.message, answers = result.answers, voice = voice)
+                    val answers = withoutUnsure(result.answers)
+                    screen = Screen.Home(query = home.query, question = result.message, answers = answers, voice = voice)
                     // Lo que no coincide con una respuesta se manda tal cual: es la respuesta de la persona.
-                    val choices = result.answers.map { Choice(it) } + Choice(VoiceTexts.UNSURE, kind = Choice.Kind.Unsure)
-                    converse(questionSpeech(result.message, result.answers), choices, onFreeText = ::answer) { answer(choices[it].label) }
+                    val choices = answers.map { Choice(it) } + Choice(VoiceTexts.UNSURE, kind = Choice.Kind.Unsure)
+                    converse(questionSpeech(result.message, answers), choices, onFreeText = ::answer) { answer(choices[it].label) }
                 }
             }
         }
