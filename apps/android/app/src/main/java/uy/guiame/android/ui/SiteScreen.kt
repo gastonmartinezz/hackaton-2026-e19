@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import uy.guiame.android.Assistant
 import uy.guiame.android.Card
 import uy.guiame.android.clickForMeLabel
 import uy.guiame.android.GuiameViewModel
@@ -114,7 +115,7 @@ fun SiteScreen(state: Screen.Site, vm: GuiameViewModel, onTextSize: () -> Unit) 
     val maxCard = LocalConfiguration.current.screenHeightDp.dp * 0.5f
 
     Column(Modifier.fillMaxSize().background(G.surface)) {
-        Bar(onHome = vm::goHome, onTextSize = onTextSize, voiceOn = vm.voiceOn, onVoice = vm::toggleVoiceMode)
+        Bar(onHome = vm::goHome, onTextSize = onTextSize, voiceOn = vm.voiceOn, onVoice = vm::toggleVoiceMode, busy = vm.assistant != Assistant.Quiet, onStop = vm::stopVoice)
         AndroidView(factory = { webView }, modifier = Modifier.weight(1f).fillMaxWidth())
         HelpCard(
             card = state.card,
@@ -129,7 +130,7 @@ fun SiteScreen(state: Screen.Site, vm: GuiameViewModel, onTextSize: () -> Unit) 
 private fun bridgeOf(view: WebView): PageBridge? = view.tag as? PageBridge
 
 @Composable
-private fun Bar(onHome: () -> Unit, onTextSize: () -> Unit, voiceOn: Boolean, onVoice: () -> Unit) {
+private fun Bar(onHome: () -> Unit, onTextSize: () -> Unit, voiceOn: Boolean, onVoice: () -> Unit, busy: Boolean, onStop: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -147,7 +148,7 @@ private fun Bar(onHome: () -> Unit, onTextSize: () -> Unit, voiceOn: Boolean, on
             modifier = Modifier.height(32.dp),
         )
         Box(Modifier.weight(1f))
-        VoiceSwitch(voiceOn, onVoice, onBar = true)
+        VoiceSwitch(voiceOn, onVoice, onBar = true, busy = busy, onStop = onStop)
         BarButton("Inicio", onHome)
         BarButton("Letra", onTextSize) // TODO(copy): en escritorio dice «Tamaño de letra»; no entra en teléfono.
     }
@@ -204,7 +205,7 @@ private fun HelpCard(card: Card, collapsed: Boolean, onToggle: () -> Unit, vm: G
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             CardBody(card, vm)
-            AssistantStatus(vm.assistant, vm::stopVoice, reserve = vm.voiceOn)
+            AssistantStatus(vm.assistant, reserve = vm.voiceOn)
         }
     }
 }
