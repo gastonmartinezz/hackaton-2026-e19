@@ -31,6 +31,8 @@ describe('prompts', () => {
     expect(prompt).toContain('Nunca devuelvas la página de otro trámite');
     expect(prompt).toContain('nunca ofrezcas como opción otra acción parecida');
     expect(prompt).toContain('con verbo y objeto');
+    expect(prompt).toContain('Distinguí la acción de su variante');
+    expect(prompt).toContain('son acciones distintas, no variantes');
     expect(prompt).not.toContain('devolvé la página principal del sitio. El servidor');
   });
 
