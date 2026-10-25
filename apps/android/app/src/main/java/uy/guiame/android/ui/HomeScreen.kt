@@ -204,7 +204,7 @@ private fun SearchContent(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             GuiameLogo()
             Spacer(Modifier.weight(1f))
-            VoiceSwitch(voice.on, voice.onToggle, onBar = false)
+            VoiceSwitch(voice.on, voice.onToggle, onBar = false, busy = voice.assistant != Assistant.Quiet, onStop = voice.onStop)
             if (state.question != null || state.sites.isNotEmpty() || state.error) {
                 Spacer(Modifier.width(8.dp))
                 HomeButton(onHome)
@@ -231,7 +231,7 @@ private fun SearchContent(
             (state.voice as? Voice.Problem)?.let { ErrorText(VoiceTexts.problem(it.kind), Modifier.padding(top = 8.dp)) }
         }
 
-        AssistantStatus(voice.assistant, voice.onStop, reserve = voice.on && (state.question != null || state.sites.isNotEmpty()))
+        AssistantStatus(voice.assistant, reserve = voice.on && (state.question != null || state.sites.isNotEmpty()))
         Results(state, onAnswer, onOpenSite)
     }
 }
@@ -259,7 +259,7 @@ private fun DockedContent(
         ) {
             GuiameLogo()
             Spacer(Modifier.weight(1f))
-            VoiceSwitch(voice.on, voice.onToggle, onBar = false)
+            VoiceSwitch(voice.on, voice.onToggle, onBar = false, busy = voice.assistant != Assistant.Quiet, onStop = voice.onStop)
             Spacer(Modifier.width(8.dp))
             HomeButton(onHome)
         }
@@ -301,7 +301,7 @@ private fun DockedContent(
                 .padding(horizontal = Gutter, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            AssistantStatus(voice.assistant, voice.onStop, reserve = voice.on && (state.question != null || state.sites.isNotEmpty()))
+            AssistantStatus(voice.assistant, reserve = voice.on && (state.question != null || state.sites.isNotEmpty()))
             Results(state, onAnswer, onOpenSite)
         }
     }
